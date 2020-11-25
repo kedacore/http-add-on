@@ -1,10 +1,13 @@
-# KEDA GitHub Template
+<p align="center"><img src="https://github.com/kedacore/keda/raw/main/images/logos/keda-word-colour.png" width="300"/></p>
 
-A GitHub template to create new repos in our organization
+<p style="font-size: 25px" align="center"><b>Kubernetes-based Event Driven Autoscaling - HTTP Add-On</b></p>
+<p style="font-size: 25px" align="center">
 
-## Using the template
+KEDA allows for fine-grained autoscaling (including to/from zero) for event driven Kubernetes workloads. With this add-on, you can easily autoscale your HTTP workloads.
 
-You can easily get started:
+| 🚧 **Experimental - Not for production** 🚧|
+|---------------------------------------------|
+| ⚠ The HTTP add-on is in experimental stage and not ready for production. <br /><br />It is provided as-is without support and not a guarantee that it will become an official scaler. |
 
-1. Create your new repo from this template ([docs](https://docs.github.com/en/free-pro-team@latest/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template#creating-a-repository-from-a-template))
-2. Find & replace `{repo-name}` with the name of your new repo
+We are a Cloud Native Computing Foundation (CNCF) sandbox project.
+<p align="center"><img src="https://raw.githubusercontent.com/kedacore/keda/main/images/logo-cncf.svg" height="75px"></p>
