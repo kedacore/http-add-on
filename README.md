@@ -7,7 +7,8 @@ KEDA allows for fine-grained autoscaling (including to/from zero) for event driv
 
 | 🚧 **Experimental - Not for production** 🚧|
 |---------------------------------------------|
-| ⚠ The HTTP add-on is in experimental stage and not ready for production. <br /><br />It is provided as-is without support and not a guarantee that it will become an official scaler. |
+| ⚠ The HTTP add-on is in [experimental stage](https://github.com/kedacore/keda/issues/538) and not ready for production. <br /><br />It is provided as-is without support and not a guarantee that it will become an official scaler. |
+
 
 We are a Cloud Native Computing Foundation (CNCF) sandbox project.
 <p align="center"><img src="https://raw.githubusercontent.com/kedacore/keda/main/images/logo-cncf.svg" height="75px"></p>
