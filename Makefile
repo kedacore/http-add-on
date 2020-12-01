@@ -10,3 +10,7 @@ build-scaler:
 .PHONY: build-interceptor
 build-interceptor:
 	go build -o bin/interceptor ./interceptor
+
+.PHONY: build-operator
+build-operator:
+	cargo build --bin operator

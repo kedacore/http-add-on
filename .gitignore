@@ -349,3 +349,8 @@ cover.out
 cmd/manager/debug.test
 
 /bin
+
+admin/target
+admin/Cargo.lock
+
+/target
