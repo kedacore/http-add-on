@@ -1,8 +1,12 @@
 
-.PHONY: genscaler
+.PHONY: gen-scaler
 gen-scaler:
 	protoc scaler/scaler.proto --go_out=plugins=grpc:externalscaler
 
-.PHONY: scaler
+.PHONY: build-scaler
 build-scaler:
 	go build -o bin/scaler ./scaler
+
+.PHONY: build-interceptor
+build-interceptor:
+	go build -o bin/interceptor ./interceptor
