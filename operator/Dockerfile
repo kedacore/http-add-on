@@ -25,7 +25,7 @@ COPY . .
 # Copy over the cached dependencies
 COPY --from=cacher /app/target target
 COPY --from=cacher /usr/local/cargo /usr/local/cargo
-RUN cargo build --release --bin app
+RUN cargo build --release --bin operator
 
 
 FROM rust as runtime
