@@ -1,38 +1,35 @@
-FROM rust:1.43 as builder
+# see background on cargo-chef:
+# https://www.lpalmieri.com/posts/fast-rust-docker-builds/
 
-RUN USER=root cargo new --bin rust-docker-web
-WORKDIR /home/controller
+
+FROM rust as planner
+
+WORKDIR /app
+RUN cargo install cargo-chef 
 COPY . .
-RUN cargo build --release
-# RUN rm src/*.rs
-
-ADD . ./
-
-RUN rm ./target/release/deps/rust_docker_web*
-RUN cargo build --release
+RUN cargo chef prepare  --recipe-path recipe.json
 
 
-FROM debian:buster-slim
-ARG APP=/usr/src/app
+FROM rust as cacher
 
-RUN apt-get update \
-    && apt-get install -y ca-certificates tzdata \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+RUN cargo install cargo-chef
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
-EXPOSE 8000
 
-ENV TZ=Etc/UTC \
-    APP_USER=appuser
+FROM rust as builder
 
-RUN groupadd $APP_USER \
-    && useradd -g $APP_USER $APP_USER \
-    && mkdir -p ${APP}
+WORKDIR /app
+COPY . .
+# Copy over the cached dependencies
+COPY --from=cacher /app/target target
+COPY --from=cacher /usr/local/cargo /usr/local/cargo
+RUN cargo build --release --bin app
 
-COPY --from=builder /rust-docker-web/target/release/rust-docker-web ${APP}/rust-docker-web
 
-RUN chown -R $APP_USER:$APP_USER ${APP}
+FROM rust as runtime
 
-USER $APP_USER
-WORKDIR ${APP}
-
-CMD ["./rust-docker-web"]
+WORKDIR /app
+COPY --from=builder /app/target/release/app /usr/local/bin
+ENTRYPOINT ["./usr/local/bin/app"]
