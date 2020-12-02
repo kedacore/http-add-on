@@ -12,12 +12,12 @@ COPY . .
 ENV GO111MODULE=on
 ENV CGO_ENABLED=0
 ENV GOPROXY="https://proxy.golang.org"
-RUN go build -o /bin/interceptor ./interceptor
+RUN go build -o /bin/scaler ./scaler
 
 FROM alpine:${ALPINE_VERSION}
 
-COPY --from=builder /bin/interceptor /bin/interceptor
+COPY --from=builder /bin/scaler /bin/scaler
 
 EXPOSE 8080
 
-ENTRYPOINT ["/bin/interceptor"]
+ENTRYPOINT ["/bin/scaler"]
