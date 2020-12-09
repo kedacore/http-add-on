@@ -38,8 +38,14 @@ type ScaledObjectReconciler struct {
 // +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects/status,verbs=get;update;patch
 
 func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
+	ctx := context.Background()
 	_ = r.Log.WithValues("scaledobject", req.NamespacedName)
+	so := &httpv1alpha1.ScaledObject{}
+	scaledObj := r.Client.Get(ctx, client.ObjectKey{
+		Name:      req.Name,
+		Namespace: req.Namespace,
+	}, so)
+	// TODO: use it
 
 	// your logic here
 
