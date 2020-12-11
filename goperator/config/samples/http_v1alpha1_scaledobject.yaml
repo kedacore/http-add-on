@@ -1,7 +1,0 @@
-apiVersion: http.keda.sh/v1alpha1
-kind: ScaledObject
-metadata:
-  name: scaledobject-sample
-spec:
-  # Add fields here
-  foo: bar
