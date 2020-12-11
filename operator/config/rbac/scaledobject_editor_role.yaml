@@ -1,0 +1,24 @@
+# permissions for end users to edit scaledobjects.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: scaledobject-editor-role
+rules:
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - scaledobjects
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - scaledobjects/status
+  verbs:
+  - get
