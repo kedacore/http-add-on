@@ -28,8 +28,9 @@ type ScaledObjectSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of ScaledObject. Edit ScaledObject_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	AppName string `json:"app_name,omitempty"`
+	Image   string `json:"container"`
+	Port    int32  `json:"port"`
 }
 
 // ScaledObjectStatus defines the observed state of ScaledObject

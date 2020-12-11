@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,6 +29,7 @@ import (
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -44,6 +46,17 @@ func init() {
 }
 
 func main() {
+	externalScalerAddressEnvName := "KEDA_HTTP_EXTERNAL_SCALER_ADDR"
+	externalScalerAddress := os.Getenv(externalScalerAddressEnvName)
+	if externalScalerAddress == "" {
+		log.Fatalf("No %s env var found", externalScalerAddressEnvName)
+	}
+
+	kubeCl, _, err := k8s.NewClientset()
+	if err != nil {
+		log.Fatalf("Couldn't create a Kubernetes client (%s)", err)
+	}
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -67,9 +80,11 @@ func main() {
 	}
 
 	if err = (&controllers.ScaledObjectReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("ScaledObject"),
-		Scheme: mgr.GetScheme(),
+		Client:                mgr.GetClient(),
+		Log:                   ctrl.Log.WithName("controllers").WithName("ScaledObject"),
+		Scheme:                mgr.GetScheme(),
+		ExternalScalerAddress: externalScalerAddress,
+		K8sCl:                 kubeCl,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ScaledObject")
 		os.Exit(1)
