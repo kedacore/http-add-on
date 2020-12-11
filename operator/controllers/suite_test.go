@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/api/v1alpha1"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 

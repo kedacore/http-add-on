@@ -24,7 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/api/v1alpha1"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 )
 
 // ScaledObjectReconciler reconciles a ScaledObject object

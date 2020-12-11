@@ -26,8 +26,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/api/v1alpha1"
-	"github.com/kedacore/http-add-on/controllers"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
