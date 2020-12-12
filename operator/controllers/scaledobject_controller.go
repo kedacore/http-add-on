@@ -44,6 +44,8 @@ type ScaledObjectReconciler struct {
 // +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects/status,verbs=get;update;patch
 
+// Reconcile reconciles a newly created, deleted, or otherwise changed
+// ScaledObject
 func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("ScaledObject.Namespace", req.Namespace, "ScaledObject.Name", req.Name)
 
@@ -98,6 +100,7 @@ func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	}, nil
 }
 
+// SetupWithManager starts up reconciliation with the given manager
 func (r *ScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&httpv1alpha1.ScaledObject{}).

@@ -8,7 +8,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (s *ScaledObjectReconciler) removeAppObjects(
+func (r *ScaledObjectReconciler) removeAppObjects(
 	logger logr.Logger,
 	req ctrl.Request,
 	so *v1alpha1.ScaledObject,
