@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -46,6 +47,8 @@ type ScaledObjectReconciler struct {
 // +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects/status,verbs=get;update;patch
 
 func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+	logger := r.Log.WithValues("ScaledObject.Namespace", req.Namespace, "ScaledObject.Name", req.Name)
+
 	ctx := context.Background()
 	_ = r.Log.WithValues("scaledobject", req.NamespacedName)
 	so := &httpv1alpha1.ScaledObject{}
@@ -53,28 +56,50 @@ func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		Name:      req.Name,
 		Namespace: req.Namespace,
 	}, so); err != nil {
-		r.Log.Error(err, "Getting the HTTP Scaled obj")
-		return ctrl.Result{}, err
+		if errors.IsNotFound(err) {
+			// If the ScaledObject wasn't found, it might have
+			// been deleted between the reconcile and the get.
+			// It'll automatically get garbage collected, so don't
+			// schedule a requeue
+			return ctrl.Result{}, nil
+		}
+		// if we didn't get a not found error, log it and schedule a requeue
+		// with a backoff
+		logger.Error(err, "Getting the HTTP Scaled obj")
+		return ctrl.Result{
+			RequeueAfter: 500 * time.Millisecond,
+		}, err
+	}
+
+	if so.GetDeletionTimestamp() != nil {
+		// if it was marked deleted, delete all the related objects
+		// and don't schedule for another reconcile. Kubernetes
+		// will finalize them
+		removeErr := removeAppObjects(so, r.K8sCl, r.K8sDynamicCl)
+		if removeErr != nil {
+			logger.Error(removeErr, "Removing application objects")
+		}
+		return ctrl.Result{}, removeErr
 	}
 
 	appName := so.Spec.AppName
 	image := so.Spec.Image
 	port := so.Spec.Port
 
-	r.Log.Info("App Name: %s, image: %s, port: %d", appName, image, port)
+	logger.Info("App Name: %s, image: %s, port: %d", appName, image, port)
 
-	appsCl := r.K8sCl.AppsV1().Deployments("cscaler")
+	appsCl := r.K8sCl.AppsV1().Deployments(req.Namespace)
 	deployment := k8s.NewDeployment(req.Namespace, appName, image, port)
 	// TODO: watch the deployment until it reaches ready state
 	if _, err := appsCl.Create(deployment); err != nil {
-		r.Log.Error(err, "Creating deployment")
+		logger.Error(err, "Creating deployment")
 		return ctrl.Result{}, err
 	}
 
-	coreCl := r.K8sCl.CoreV1().Services("cscaler")
+	coreCl := r.K8sCl.CoreV1().Services(req.Namespace)
 	service := k8s.NewService(req.Namespace, appName, port)
 	if _, err := coreCl.Create(service); err != nil {
-		r.Log.Error(err, "Creating service")
+		logger.Error(err, "Creating service")
 		return ctrl.Result{}, err
 	}
 
@@ -92,7 +117,7 @@ func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	if _, err := scaledObjectCl.
 		Namespace(req.Namespace).
 		Create(coreScaledObject, metav1.CreateOptions{}); err != nil {
-		r.Log.Error(err, "Creating scaledobject")
+		logger.Error(err, "Creating scaledobject")
 		return ctrl.Result{}, err
 	}
 
