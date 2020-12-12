@@ -22,7 +22,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 // ScaledObjectReconciler reconciles a ScaledObject object
@@ -75,7 +73,7 @@ func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		// if it was marked deleted, delete all the related objects
 		// and don't schedule for another reconcile. Kubernetes
 		// will finalize them
-		removeErr := removeAppObjects(so, r.K8sCl, r.K8sDynamicCl)
+		removeErr := r.removeAppObjects(logger, req, so)
 		if removeErr != nil {
 			logger.Error(removeErr, "Removing application objects")
 		}
@@ -85,44 +83,14 @@ func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	appName := so.Spec.AppName
 	image := so.Spec.Image
 	port := so.Spec.Port
-
 	logger.Info("App Name: %s, image: %s, port: %d", appName, image, port)
 
-	appsCl := r.K8sCl.AppsV1().Deployments(req.Namespace)
-	deployment := k8s.NewDeployment(req.Namespace, appName, image, port)
-	// TODO: watch the deployment until it reaches ready state
-	if _, err := appsCl.Create(deployment); err != nil {
-		logger.Error(err, "Creating deployment")
+	if err := r.addAppObjects(logger, req, so); err != nil {
+		logger.Error(err, "Adding app objects")
+		// TODO: delete app objects that have been created already
 		return ctrl.Result{}, err
 	}
-
-	coreCl := r.K8sCl.CoreV1().Services(req.Namespace)
-	service := k8s.NewService(req.Namespace, appName, port)
-	if _, err := coreCl.Create(service); err != nil {
-		logger.Error(err, "Creating service")
-		return ctrl.Result{}, err
-	}
-
-	// create the KEDA core ScaledObject (not the HTTP one).
-	// this needs to be submitted so that KEDA will scale the app's
-	// deployment
-	coreScaledObject := k8s.NewScaledObject(
-		req.Namespace,
-		req.Name,
-		req.Name,
-		r.ExternalScalerAddress,
-	)
-	// TODO: use r.Client here, not the dynamic one
-	scaledObjectCl := k8s.NewScaledObjectClient(r.K8sDynamicCl)
-	if _, err := scaledObjectCl.
-		Namespace(req.Namespace).
-		Create(coreScaledObject, metav1.CreateOptions{}); err != nil {
-		logger.Error(err, "Creating scaledobject")
-		return ctrl.Result{}, err
-	}
-
-	// TODO: install a dedicated interceptor deployment for this app
-	// TODO: install a dedicated external scaler for this app
+	// TODO: set statuses
 
 	return ctrl.Result{
 		// TODO: should we requeue immediately?
