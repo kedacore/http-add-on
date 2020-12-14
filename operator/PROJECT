@@ -2,6 +2,6 @@ domain: keda.sh
 repo: github.com/kedacore/http-add-on
 resources:
 - group: http
-  kind: ScaledObject
+  kind: HTTPHTTPScaledObject
   version: v1alpha1
 version: "2"

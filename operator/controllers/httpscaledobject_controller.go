@@ -31,8 +31,8 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 )
 
-// ScaledObjectReconciler reconciles a ScaledObject object
-type ScaledObjectReconciler struct {
+// HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
+type HTTPScaledObjectReconciler struct {
 	K8sCl                 *kubernetes.Clientset
 	K8sDynamicCl          dynamic.Interface
 	ExternalScalerAddress string
@@ -45,19 +45,20 @@ type ScaledObjectReconciler struct {
 // +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects/status,verbs=get;update;patch
 
 // Reconcile reconciles a newly created, deleted, or otherwise changed
-// ScaledObject
-func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	logger := r.Log.WithValues("ScaledObject.Namespace", req.Namespace, "ScaledObject.Name", req.Name)
+// HTTPScaledObject
+func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+	logger := rec.Log.WithValues("HTTPScaledObject.Namespace", req.Namespace, "HTTPScaledObject.Name", req.Name)
 
 	ctx := context.Background()
-	_ = r.Log.WithValues("scaledobject", req.NamespacedName)
-	so := &httpv1alpha1.ScaledObject{}
-	if err := r.Client.Get(ctx, client.ObjectKey{
+	_ = rec.Log.WithValues("httpscaledobject", req.NamespacedName)
+	httpso := &httpv1alpha1.HTTPScaledObject{}
+
+	if err := rec.Client.Get(ctx, client.ObjectKey{
 		Name:      req.Name,
 		Namespace: req.Namespace,
-	}, so); err != nil {
+	}, httpso); err != nil {
 		if errors.IsNotFound(err) {
-			// If the ScaledObject wasn't found, it might have
+			// If the HTTPScaledObject wasn't found, it might have
 			// been deleted between the reconcile and the get.
 			// It'll automatically get garbage collected, so don't
 			// schedule a requeue
@@ -71,38 +72,49 @@ func (r *ScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		}, err
 	}
 
-	if so.GetDeletionTimestamp() != nil {
+	if httpso.GetDeletionTimestamp() != nil {
 		// if it was marked deleted, delete all the related objects
 		// and don't schedule for another reconcile. Kubernetes
 		// will finalize them
-		removeErr := r.removeAppObjects(logger, req, so)
+		removeErr := rec.removeAppObjects(logger, req, httpso)
 		if removeErr != nil {
 			logger.Error(removeErr, "Removing application objects")
 		}
 		return ctrl.Result{}, removeErr
 	}
 
-	appName := so.Spec.AppName
-	image := so.Spec.Image
-	port := so.Spec.Port
+	appName := httpso.Spec.AppName
+	image := httpso.Spec.Image
+	port := httpso.Spec.Port
+	httpso.Status = httpv1alpha1.HTTPScaledObjectStatus{
+		ServiceStatus: httpv1alpha1.Unknown,
+		DeploymentStatus: httpv1alpha1.Unknown,
+		ScaledObjectStatus: httpv1alpha1.Unknown,
+		Ready: false,
+	}
 	logger.Info("App Name: %s, image: %s, port: %d", appName, image, port)
 
-	if err := r.addAppObjects(logger, req, so); err != nil {
+	if err := rec.addAppObjects(logger, req, httpso); err != nil {
 		logger.Error(err, "Adding app objects")
-		// TODO: delete app objects that have been created already
+		if removeErr := rec.removeAppObjects(logger, req, httpso); removeErr != nil {
+			logger.Error(removeErr, "Removing previously created resources")
+		}
 		return ctrl.Result{}, err
 	}
-	// TODO: set statuses
+
+	var pollingInterval int32 = 50000
+	if httpso.Spec.PollingInterval != 0 {
+		pollingInterval = httpso.Spec.PollingInterval
+	}
 
 	return ctrl.Result{
-		// TODO: should we requeue immediately?
-		RequeueAfter: time.Millisecond * 200,
+		RequeueAfter: time.Millisecond * time.Duration(pollingInterval),
 	}, nil
 }
 
 // SetupWithManager starts up reconciliation with the given manager
-func (r *ScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&httpv1alpha1.ScaledObject{}).
+		For(&httpv1alpha1.HTTPScaledObject{}).
 		Complete(r)
 }

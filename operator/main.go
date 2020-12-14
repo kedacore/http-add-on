@@ -79,14 +79,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ScaledObjectReconciler{
+	if err = (&controllers.HTTPScaledObjectReconciler{
 		Client:                mgr.GetClient(),
-		Log:                   ctrl.Log.WithName("controllers").WithName("ScaledObject"),
+		Log:                   ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
 		Scheme:                mgr.GetScheme(),
 		ExternalScalerAddress: externalScalerAddress,
 		K8sCl:                 kubeCl,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ScaledObject")
+		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

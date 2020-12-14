@@ -8,39 +8,50 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *ScaledObjectReconciler) removeAppObjects(
+func (rec *HTTPScaledObjectReconciler) removeAppObjects(
 	logger logr.Logger,
 	req ctrl.Request,
-	so *v1alpha1.ScaledObject,
+	so *v1alpha1.HTTPScaledObject,
 ) error {
-	// TODO
+	// TODO:
 	return nil
 }
 
-func (r *ScaledObjectReconciler) addAppObjects(
+func (rec *HTTPScaledObjectReconciler) addAppObjects(
 	logger logr.Logger,
 	req ctrl.Request,
-	so *v1alpha1.ScaledObject,
+	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	logger := r.Log.WithValues()
-	appName := so.Spec.AppName
-	image := so.Spec.Image
-	port := so.Spec.Port
-
-	appsCl := r.K8sCl.AppsV1().Deployments(req.Namespace)
-	deployment := k8s.NewDeployment(req.Namespace, appName, image, port)
-	// TODO: watch the deployment until it reaches ready state
-	if _, err := appsCl.Create(deployment); err != nil {
-		logger.Error(err, "Creating deployment")
-		return err
+	logger = rec.Log.WithValues()
+	appName := httpso.Spec.AppName
+	image := httpso.Spec.Image
+	port := httpso.Spec.Port
+	httpso.Status = v1alpha1.HTTPScaledObjectStatus{
+		ServiceStatus: v1alpha1.Pending,
+		DeploymentStatus: v1alpha1.Pending,
+		ScaledObjectStatus: v1alpha1.Pending,
+		Ready: false,
 	}
 
-	coreCl := r.K8sCl.CoreV1().Services(req.Namespace)
+	appsCl := rec.K8sCl.AppsV1().Deployments(req.Namespace)
+	deployment := k8s.NewDeployment(req.Namespace, appName, image, port)
+	// TODO: watch the deployment until it reaches ready state
+	// Option: start the creation here and add another method to check if the resources are created
+	if _, err := appsCl.Create(deployment); err != nil {
+		logger.Error(err, "Creating deployment")
+		httpso.Status.DeploymentStatus = v1alpha1.Error
+		return err
+	}
+	httpso.Status.DeploymentStatus = v1alpha1.Created
+
+	coreCl := rec.K8sCl.CoreV1().Services(req.Namespace)
 	service := k8s.NewService(req.Namespace, appName, port)
 	if _, err := coreCl.Create(service); err != nil {
 		logger.Error(err, "Creating service")
+		httpso.Status.ServiceStatus = v1alpha1.Error
 		return err
 	}
+	httpso.Status.ServiceStatus = v1alpha1.Created
 
 	// create the KEDA core ScaledObject (not the HTTP one).
 	// this needs to be submitted so that KEDA will scale the app's
@@ -49,16 +60,18 @@ func (r *ScaledObjectReconciler) addAppObjects(
 		req.Namespace,
 		req.Name,
 		req.Name,
-		r.ExternalScalerAddress,
+		rec.ExternalScalerAddress,
 	)
 	// TODO: use r.Client here, not the dynamic one
-	scaledObjectCl := k8s.NewScaledObjectClient(r.K8sDynamicCl)
+	scaledObjectCl := k8s.NewScaledObjectClient(rec.K8sDynamicCl)
 	if _, err := scaledObjectCl.
 		Namespace(req.Namespace).
 		Create(coreScaledObject, metav1.CreateOptions{}); err != nil {
 		logger.Error(err, "Creating scaledobject")
+		httpso.Status.ScaledObjectStatus = v1alpha1.Error
 		return err
 	}
+	httpso.Status.ScaledObjectStatus = v1alpha1.Created
 
 	return nil
 
