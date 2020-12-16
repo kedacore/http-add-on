@@ -113,8 +113,8 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 }
 
 // SetupWithManager starts up reconciliation with the given manager
-func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (rec *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&httpv1alpha1.HTTPScaledObject{}).
-		Complete(r)
+		Complete(rec)
 }
