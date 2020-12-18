@@ -1,0 +1,98 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: httpscaledobjects.http.keda.sh
+spec:
+  group: http.keda.sh
+  names:
+    kind: HTTPScaledObject
+    listKind: HTTPScaledObjectList
+    plural: httpscaledobjects
+    singular: httpscaledobject
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      description: HTTPScaledObject is the Schema for the scaledobjects API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
+          properties:
+            app_name:
+              type: string
+            container:
+              type: string
+            polling_interval:
+              format: int32
+              type: integer
+            port:
+              format: int32
+              type: integer
+          required:
+          - container
+          - port
+          type: object
+        status:
+          description: HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
+          properties:
+            deployment_status:
+              description: HTTPScaledObjectCreationStatus describes the creation status
+                of the scaler's additional resources such as Services, Ingresses and
+                Deployments
+              enum:
+              - Created
+              - Error
+              - Pending
+              - Unknown
+              type: string
+            ready:
+              type: boolean
+            scaledobject_status:
+              description: HTTPScaledObjectCreationStatus describes the creation status
+                of the scaler's additional resources such as Services, Ingresses and
+                Deployments
+              enum:
+              - Created
+              - Error
+              - Pending
+              - Unknown
+              type: string
+            service_status:
+              description: HTTPScaledObjectCreationStatus describes the creation status
+                of the scaler's additional resources such as Services, Ingresses and
+                Deployments
+              enum:
+              - Created
+              - Error
+              - Pending
+              - Unknown
+              type: string
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

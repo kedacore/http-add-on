@@ -28,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	httpsoapi "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 )
 
@@ -42,9 +43,9 @@ type HTTPScaledObjectReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=pods;services,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=pods;services,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;delete
 
 // Reconcile reconciles a newly created, deleted, or otherwise changed
 // HTTPScaledObject
@@ -89,10 +90,10 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	image := httpso.Spec.Image
 	port := httpso.Spec.Port
 	httpso.Status = httpv1alpha1.HTTPScaledObjectStatus{
-		ServiceStatus: httpv1alpha1.Unknown,
-		DeploymentStatus: httpv1alpha1.Unknown,
+		ServiceStatus:      httpv1alpha1.Unknown,
+		DeploymentStatus:   httpv1alpha1.Unknown,
 		ScaledObjectStatus: httpv1alpha1.Unknown,
-		Ready: false,
+		Ready:              false,
 	}
 	logger.Info("App Name: %s, image: %s, port: %d", appName, image, port)
 
@@ -102,6 +103,12 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 			logger.Error(removeErr, "Removing previously created resources")
 		}
 		return ctrl.Result{}, err
+	}
+
+	if httpso.Status.DeploymentStatus == httpsoapi.Created &&
+		httpso.Status.ScaledObjectStatus == httpsoapi.Created &&
+		httpso.Status.ServiceStatus == httpsoapi.Created {
+		httpso.Status.Ready = true
 	}
 
 	var pollingInterval int32 = 50000

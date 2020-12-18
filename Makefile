@@ -19,10 +19,10 @@ build-interceptor:
 docker-build-interceptor:
 	docker build -t arschles/interceptor -f interceptor/Dockerfile .
 
-.PHONY: build-operator
-build-operator:
-	cargo build --bin operator
+# .PHONY: build-operator
+# build-operator-cli:
+# 	cargo build --bin operator
 
 .PHONY: docker-build-operator
 docker-build-operator:
-	docker build -t arschles/operator -f operator/Dockerfile operator
+	docker build -t arschles/operator -f operator/Dockerfile .

@@ -28,6 +28,8 @@ type HTTPScaledObjectCreationStatus string
 const (
 	// Created indicates the resource has been created
 	Created HTTPScaledObjectCreationStatus = "Created"
+	// Deleted indicates the resource has been deleted
+	Deleted HTTPScaledObjectCreationStatus = "Created"
 	// Error indicates the resource had an error
 	Error HTTPScaledObjectCreationStatus = "Error"
 	// Pending indicates the resource hasn't been created
@@ -41,19 +43,18 @@ const (
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
-	AppName string `json:"app_name,omitempty"`
-	Image   string `json:"container"`
-	Port    int32  `json:"port"`
-	PollingInterval int32 `json:"polling_interval,omitempty"`
+	AppName         string `json:"app_name,omitempty"`
+	Image           string `json:"container"`
+	Port            int32  `json:"port"`
+	PollingInterval int32  `json:"polling_interval,omitempty"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
-	ServiceStatus    HTTPScaledObjectCreationStatus `json:"service_status,omitempty"`
-	IngressStatus    HTTPScaledObjectCreationStatus `json:"ingress_status,omitempty"`
-	DeploymentStatus HTTPScaledObjectCreationStatus `json:"deployment_status,omitempty"`
+	ServiceStatus      HTTPScaledObjectCreationStatus `json:"service_status,omitempty"`
+	DeploymentStatus   HTTPScaledObjectCreationStatus `json:"deployment_status,omitempty"`
 	ScaledObjectStatus HTTPScaledObjectCreationStatus `json:"scaledobject_status,omitempty"`
-	Ready            bool                           `json:"ready,omitempty"`
+	Ready              bool                           `json:"ready,omitempty"`
 }
 
 // +kubebuilder:object:root=true
