@@ -7,6 +7,10 @@ FROM golang:${GOLANG_VERSION}-alpine AS builder
 
 WORKDIR $GOPATH/src/github.com/kedahttp/http-add-on
 
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
+
 COPY . .
 
 ENV GO111MODULE=on

@@ -1,3 +1,7 @@
+GIT_TAG=$(shell git rev-parse --short HEAD)
+SCALER_DOCKER_IMG ?= arschles/keda-http-scaler:${GIT_TAG}
+INTERCEPTOR_DOCKER_IMG?=arschles/keda-http-interceptor:${GIT_TAG}
+OPERATOR_DOCKER_IMG?=arschles/keda-http-operator:${GIT_TAG}
 
 .PHONY: gen-scaler
 gen-scaler:
@@ -9,7 +13,11 @@ build-scaler:
 
 .PHONY: docker-build-scaler
 docker-build-scaler:
-	docker build -t arschles/scaler -f scaler/Dockerfile .
+	docker build -t ${SCALER_DOCKER_IMG} -f scaler/Dockerfile .
+
+.PHONY: docker-push-scaler
+docker-push-scaler: docker-build-scaler
+	docker push ${SCALER_DOCKER_IMG}
 
 .PHONY: build-interceptor
 build-interceptor:
@@ -17,12 +25,24 @@ build-interceptor:
 
 .PHONY: docker-build-interceptor
 docker-build-interceptor:
-	docker build -t arschles/interceptor -f interceptor/Dockerfile .
+	docker build -t ${INTERCEPTOR_DOCKER_IMG} -f interceptor/Dockerfile .
+
+.PHONY: docker-push-interceptor
+docker-push-interceptor: docker-build-interceptor
+	docker push ${INTERCEPTOR_DOCKER_IMG}
 
 # .PHONY: build-operator
 # build-operator-cli:
 # 	cargo build --bin operator
 
+.PHONY: build-operator
+build-operator:
+	go build -o bin/operator ./operator
+
 .PHONY: docker-build-operator
 docker-build-operator:
-	docker build -t arschles/operator -f operator/Dockerfile .
+	docker build -t ${OPERATOR_DOCKER_IMG} -f operator/Dockerfile .
+
+.PHONY: docker-push-operator
+docker-push-operator: docker-build-operator
+	docker push ${OPERATOR_DOCKER_IMG}
