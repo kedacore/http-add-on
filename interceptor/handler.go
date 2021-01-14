@@ -19,11 +19,8 @@ func newForwardingHandler(fwdSvcURL *url.URL) echo.HandlerFunc {
 		proxy.Director = func(req *http.Request) {
 			req.URL = fwdSvcURL
 			req.Host = fwdSvcURL.Host
-			// req.URL.Scheme = "https"
 			req.URL.Path = r.URL.Path
 			req.URL.RawQuery = r.URL.RawQuery
-			// req.URL.Host = containerURL.Host
-			// req.URL.Path = containerURL.Path
 		}
 
 		w := c.Response()

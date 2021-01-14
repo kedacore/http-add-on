@@ -34,18 +34,22 @@ spec:
         spec:
           description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
           properties:
-            app_name:
+            app_image:
+              description: The image this application will use.
               type: string
-            container:
+            app_name:
+              description: (optional) The name of the application to be created.
               type: string
             polling_interval:
+              description: (optional) The interval to check for changes.
               format: int32
               type: integer
             port:
+              description: The port this application will serve on.
               format: int32
               type: integer
           required:
-          - container
+          - app_image
           - port
           type: object
         status:
@@ -60,6 +64,29 @@ spec:
               - Error
               - Pending
               - Unknown
+              - Terminating
+              type: string
+            externalscaler_status:
+              description: HTTPScaledObjectCreationStatus describes the creation status
+                of the scaler's additional resources such as Services, Ingresses and
+                Deployments
+              enum:
+              - Created
+              - Error
+              - Pending
+              - Unknown
+              - Terminating
+              type: string
+            interceptor_status:
+              description: HTTPScaledObjectCreationStatus describes the creation status
+                of the scaler's additional resources such as Services, Ingresses and
+                Deployments
+              enum:
+              - Created
+              - Error
+              - Pending
+              - Unknown
+              - Terminating
               type: string
             ready:
               type: boolean
@@ -72,6 +99,7 @@ spec:
               - Error
               - Pending
               - Unknown
+              - Terminating
               type: string
             service_status:
               description: HTTPScaledObjectCreationStatus describes the creation status
@@ -82,6 +110,7 @@ spec:
               - Error
               - Pending
               - Unknown
+              - Terminating
               type: string
           type: object
       type: object

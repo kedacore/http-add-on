@@ -22,7 +22,7 @@ import (
 
 // HTTPScaledObjectCreationStatus describes the creation status
 // of the scaler's additional resources such as Services, Ingresses and Deployments
-// +kubebuilder:validation:Enum=Created;Error;Pending;Unknown
+// +kubebuilder:validation:Enum=Created;Error;Pending;Unknown;Terminating
 type HTTPScaledObjectCreationStatus string
 
 const (
@@ -34,6 +34,9 @@ const (
 	Error HTTPScaledObjectCreationStatus = "Error"
 	// Pending indicates the resource hasn't been created
 	Pending HTTPScaledObjectCreationStatus = "Pending"
+	// Terminating indicates that the resource is marked for deletion but hasn't
+	// been deleted yet
+	Terminating HTTPScaledObjectCreationStatus = "Terminating"
 	// Unknown indicates the status is unavailable
 	Unknown HTTPScaledObjectCreationStatus = "Unknown"
 )
@@ -43,17 +46,24 @@ const (
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
-	AppName         string `json:"app_name,omitempty"`
-	Image           string `json:"container"`
-	Port            int32  `json:"port"`
-	PollingInterval int32  `json:"polling_interval,omitempty"`
+	// (optional) The name of the application to be created.
+	AppName string `json:"app_name,omitempty"`
+	// The image this application will use.
+	Image string `json:"app_image"`
+	// The port this application will serve on.
+	Port int32 `json:"port"`
+	// (optional) The interval to check for changes.
+	PollingInterval int32 `json:"polling_interval,omitempty"`
 }
+// TODO: Add ingress configurations
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
 	ServiceStatus      HTTPScaledObjectCreationStatus `json:"service_status,omitempty"`
 	DeploymentStatus   HTTPScaledObjectCreationStatus `json:"deployment_status,omitempty"`
 	ScaledObjectStatus HTTPScaledObjectCreationStatus `json:"scaledobject_status,omitempty"`
+	InterceptorStatus HTTPScaledObjectCreationStatus `json:"interceptor_status,omitempty"`
+	ExternalScalerStatus HTTPScaledObjectCreationStatus `json:"externalscaler_status,omitempty"`
 	Ready              bool                           `json:"ready,omitempty"`
 }
 

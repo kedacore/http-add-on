@@ -16,6 +16,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+// getSvcURL formats the app service name and port into a URL
 func getSvcURL() (*url.URL, error) {
 	svcName, err := env("KEDA_HTTP_SVC_NAME")
 	if err != nil {
@@ -27,7 +28,6 @@ func getSvcURL() (*url.URL, error) {
 	}
 	hostPortStr := fmt.Sprintf("http://%s:%s", svcName, svcPort)
 	return url.Parse(hostPortStr)
-
 }
 
 func main() {
@@ -38,18 +38,15 @@ func main() {
 
 	// TODO: make configurable (obv need to build more)
 	q := http.NewMemoryQueue()
+	httpServer := echo.New()
 
-	e := echo.New()
+	httpServer.Use(middleware.Logger())
+	httpServer.Use(countMiddleware(q)) // adds the request counting middleware
 
-	e.Use(middleware.Logger())
-	e.Use(countMiddleware(q))
+	// forwards any request to the destination app after counting
+	httpServer.Any("/*", newForwardingHandler(svcURL))
 
-	e.Any("/*", newForwardingHandler(svcURL))
-
-	adminE := echo.New()
-	adminE.Use(middleware.Logger())
-
-	port := fmt.Sprintf(":%s", envOr("PROXY_PORT", "8080"))
+	port := "8080"
 	log.Printf("proxy listening on port %s", port)
-	log.Fatal(e.Start(port))
+	log.Fatal(httpServer.Start(port))
 }

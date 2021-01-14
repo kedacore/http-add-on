@@ -27,7 +27,7 @@ type QueueCounter interface {
 // HTTP queue in memory only. Always use NewMemoryQueue to create one
 // of these.
 type MemoryQueue struct {
-	i   int
+	count   int
 	mut *sync.RWMutex
 }
 
@@ -35,7 +35,7 @@ type MemoryQueue struct {
 func NewMemoryQueue() *MemoryQueue {
 	lock := new(sync.RWMutex)
 	return &MemoryQueue{
-		i: 0,
+		count: 0,
 		mut: lock,
 	}
 }
@@ -46,7 +46,7 @@ func NewMemoryQueue() *MemoryQueue {
 func (r *MemoryQueue) Resize(delta int) error {
 	r.mut.Lock()
 	defer r.mut.Unlock()
-	r.i += delta
+	r.count += delta
 	return nil
 }
 
@@ -54,5 +54,5 @@ func (r *MemoryQueue) Resize(delta int) error {
 func (r *MemoryQueue) Current() (int, error) {
 	r.mut.RLock()
 	defer r.mut.RUnlock()
-	return r.i, nil
+	return r.count, nil
 }

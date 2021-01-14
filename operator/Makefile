@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= keda-http-controller:latest
+IMG ?= "keda-http-addon-controller:latest"
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -34,9 +34,14 @@ uninstall: manifests
 	kustomize build config/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests
-	cd config/manager && kustomize edit set image controller=${IMG}
+deploy: manifests set-image
 	kustomize build config/default | kubectl apply -f -
+
+set-image:
+	cd config/manager && kustomize edit set image controller=${IMG} && cd ..
+
+charts: manifests set-image
+	kustomize build config/default > ../charts/keda-http-operator/templates/keda-http-operator.yml
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen

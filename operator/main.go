@@ -46,12 +46,6 @@ func init() {
 }
 
 func main() {
-	externalScalerAddressEnvName := "KEDA_HTTP_EXTERNAL_SCALER_ADDR"
-	externalScalerAddress := os.Getenv(externalScalerAddressEnvName)
-	if externalScalerAddress == "" {
-		log.Fatalf("No %s env var found", externalScalerAddressEnvName)
-	}
-
 	kubeCl, _, err := k8s.NewClientset()
 	if err != nil {
 		log.Fatalf("Couldn't create a Kubernetes client (%s)", err)
@@ -83,7 +77,6 @@ func main() {
 		Client:                mgr.GetClient(),
 		Log:                   ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
 		Scheme:                mgr.GetScheme(),
-		ExternalScalerAddress: externalScalerAddress,
 		K8sCl:                 kubeCl,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")

@@ -47,3 +47,13 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - networking
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch

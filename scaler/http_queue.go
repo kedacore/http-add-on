@@ -1,3 +1,5 @@
+// This file contains the implementation for the HTTP request queue used by the
+// KEDA external scaler implementation
 package main
 
 import "sync"
@@ -7,24 +9,24 @@ type httpQueue interface {
 }
 
 type reqCounter struct {
-	i   int
+	count   int
 	mut *sync.RWMutex
 }
 
 func (r *reqCounter) inc() {
 	r.mut.Lock()
 	defer r.mut.Unlock()
-	r.i++
+	r.count++
 }
 
 func (r *reqCounter) dec() {
 	r.mut.Lock()
 	defer r.mut.Unlock()
-	r.i--
+	r.count--
 }
 
 func (r *reqCounter) pendingCounter() int {
 	r.mut.RLock()
 	defer r.mut.RUnlock()
-	return r.i
+	return r.count
 }
