@@ -51,3 +51,12 @@ docker-build-operator:
 .PHONY: docker-push-operator
 docker-push-operator: docker-build-operator
 	docker push ${OPERATOR_DOCKER_IMG}
+
+.PHONY: build-all
+build-all: build-scaler build-interceptor build-operator
+
+.PHONY: docker-build-all
+docker-build-all: docker-build-scaler docker-build-interceptor docker-build-operator
+
+.PHONY: docker-push-all
+docker-push-all: docker-push-scaler docker-push-interceptor docker-push-operator

@@ -18,12 +18,12 @@ func init() {
 }
 
 type impl struct {
-	q httpQueue
+	pinger queuePinger
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(q httpQueue) *impl {
-	return &impl{q: q}
+func newImpl(pinger queuePinger) *impl {
+	return &impl{pinger: pinger}
 }
 
 func (e *impl) Ping(context.Context, *empty.Empty) (*empty.Empty, error) {
@@ -74,7 +74,7 @@ func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMe
 		MetricValues: []*externalscaler.MetricValue{
 			{
 				MetricName:  "queueSize",
-				MetricValue: int64(e.q.pendingCounter()),
+				MetricValue: int64(e.pinger.count()),
 			},
 		},
 	}, nil

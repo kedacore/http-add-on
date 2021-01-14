@@ -8,23 +8,45 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
+	"github.com/kedacore/http-add-on/pkg/env"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
 	"google.golang.org/grpc"
 )
 
 func main() {
-	portStr := "8080"
-	q := new(reqCounter)
-	log.Fatal(startGrpcServer(portStr, q))
+	portStr := env.GetOr("8080", "KEDA_HTTP_SCALER_PORT")
+	namespace, err := env.Get("KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE")
+	if err != nil {
+		log.Fatalf("KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE not found")
+	}
+	svcName, err := env.Get("KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE")
+	if err != nil {
+		log.Fatalf("KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE not found")
+	}
+	targetPortStr := env.GetOr("8081", "KEDA_HTTP_SCALER_TARGET_ADMIN_PORT")
+	k8sCl, _, err := k8s.NewClientset()
+	if err != nil {
+		log.Fatalf("Couldn't get a Kubernetes client (%s)", err)
+	}
+	pinger := newQueuePinger(
+		k8sCl,
+		namespace,
+		svcName,
+		targetPortStr,
+		time.NewTicker(500*time.Millisecond),
+	)
+	log.Fatal(startGrpcServer(portStr, pinger))
 }
 
-func startGrpcServer(port string, q httpQueue) error {
+func startGrpcServer(port string, pinger queuePinger) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(q))
+	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger))
 	return grpcServer.Serve(lis)
 }
