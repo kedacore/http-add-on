@@ -10,8 +10,7 @@ import (
 	"time"
 
 	empty "github.com/golang/protobuf/ptypes/empty"
-	externalscaler "github.com/kedacore/http-add-on/scaler/gen"
-	"google.golang.org/protobuf/types/known/emptypb"
+	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
 )
 
 func init() {
@@ -20,6 +19,7 @@ func init() {
 
 type impl struct {
 	q httpQueue
+	externalscaler.UnimplementedExternalScalerServer
 }
 
 func newImpl(q httpQueue) *impl {
@@ -34,6 +34,28 @@ func (e *impl) IsActive(ctx context.Context, scaledObject *externalscaler.Scaled
 	return &externalscaler.IsActiveResponse{
 		Result: true,
 	}, nil
+}
+
+func (e *impl) StreamIsActive(
+	in *externalscaler.ScaledObjectRef,
+	server externalscaler.ExternalScaler_StreamIsActiveServer,
+) error {
+	// this function communicates with KEDA via the 'server' parameter.
+	// we call server.Send (below) every 200ms, which tells it to immediately
+	// ping our IsActive RPC
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-server.Context().Done():
+			return nil
+		case <-ticker.C:
+			server.Send(&externalscaler.IsActiveResponse{
+				Result: true,
+			})
+		}
+	}
+	return nil
 }
 
 func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.GetMetricSpecResponse, error) {
@@ -56,12 +78,4 @@ func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMe
 			},
 		},
 	}, nil
-}
-
-func (e *impl) New(_ context.Context, nr *externalscaler.NewRequest) (*empty.Empty, error) {
-	return &empty.Empty{}, nil // not needed
-}
-
-func (e *impl) Close(_ context.Context, sor *externalscaler.ScaledObjectRef) (*emptypb.Empty, error) {
-	return &empty.Empty{}, nil // not needed
 }

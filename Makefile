@@ -5,7 +5,12 @@ OPERATOR_DOCKER_IMG?=arschles/keda-http-operator:${GIT_TAG}
 
 .PHONY: gen-scaler
 gen-scaler:
-	protoc scaler/scaler.proto --go_out=plugins=grpc:externalscaler
+	protoc \
+		--go_out=scaler/gen/ \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=scaler/gen/ \
+		--go-grpc_opt=paths=source_relative \
+		scaler/scaler.proto
 
 .PHONY: build-scaler
 build-scaler:

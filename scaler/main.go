@@ -9,7 +9,7 @@ import (
 	"log"
 	"net"
 
-	externalscaler "github.com/kedacore/http-add-on/scaler/gen"
+	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
 	"google.golang.org/grpc"
 )
 
