@@ -20,7 +20,7 @@ helm repo update
 helm install keda kedacore/keda --namespace ${NAMESPACE} --create-namespace
 ```
 
->This document will rely on several variables, such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA must be installed in every namespace that you'd like to host KEDA HTTP powered apps.
+>This document will rely on variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA must be installed in every namespace that you'd like to host KEDA-HTTP powered apps.
 
 ## Installing HTTP Components
 
@@ -36,7 +36,7 @@ Next, run `helm install` to install the HTTP add on:
 ```shell
 helm upgrade kedahttp ./charts/keda-http-operator \
     --install \
-    -n ${NAMESPACE} \
+    --namespace ${NAMESPACE} \
     --create-namespace \
     --set image=arschles/keda-http-operator:$(git rev-parse --short HEAD)
 ```
