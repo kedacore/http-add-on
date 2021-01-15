@@ -12,3 +12,7 @@ KEDA allows for fine-grained autoscaling (including to/from zero) for event driv
 
 We are a Cloud Native Computing Foundation (CNCF) sandbox project.
 <p align="center"><img src="https://raw.githubusercontent.com/kedacore/keda/main/images/logo-cncf.svg" height="75px"></p>
+
+## Install
+
+Please see the [complete installation instructions](./docs/install.md).
