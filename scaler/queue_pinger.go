@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -73,7 +74,8 @@ func (q queuePinger) requestCounts() error {
 			wg.Add(1)
 			go func(addr string) {
 				defer wg.Done()
-				resp, err := http.Get(addr)
+				completeAddr := fmt.Sprintf("http://%s:%s/queue", addr, q.adminPort)
+				resp, err := http.Get(completeAddr)
 				if err != nil {
 					return
 				}
