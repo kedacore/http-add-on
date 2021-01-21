@@ -31,15 +31,15 @@ git clone https://github.com/kedacore/http-add-on.git
 cd http-add-on
 ```
 
-Next, run `helm install` to install the HTTP add on:
+Next, install the HTTP add on:
 
 ```shell
-helm upgrade kedahttp ./charts/keda-http-operator \
-    --install \
-    --namespace ${NAMESPACE} \
-    --create-namespace \
-    --set image=arschles/keda-http-operator:$(git rev-parse --short HEAD)
+make helm-upgrade-operator
 ```
 
->The above command will install KEDA HTTP if it doesn't already exist in the given `${NAMESPACE}`. Otherwise, it will upgrade it according to the chart.
+>The above command will install KEDA HTTP if it doesn't already exist.
 
+There are two environment variables in the above command that you can set to customize how it behaves:
+
+- `NAMESPACE` - which Kubernetes namespace to install KEDA-HTTP. This should be the same as where you installed KEDA itself (required)
+- `OPERATOR_DOCKER_IMG` - the name of the operator's Docker image (optional - falls back to a sensible default)

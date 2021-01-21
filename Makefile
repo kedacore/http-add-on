@@ -2,6 +2,7 @@ GIT_TAG?=$(shell git rev-parse --short HEAD)
 SCALER_DOCKER_IMG?=arschles/keda-http-scaler:${GIT_TAG}
 INTERCEPTOR_DOCKER_IMG?=arschles/keda-http-interceptor:${GIT_TAG}
 OPERATOR_DOCKER_IMG?=arschles/keda-http-operator:${GIT_TAG}
+NAMESPACE?=kedahttp
 
 .PHONY: gen-scaler
 gen-scaler:
@@ -51,6 +52,15 @@ docker-build-operator:
 .PHONY: docker-push-operator
 docker-push-operator: docker-build-operator
 	docker push ${OPERATOR_DOCKER_IMG}
+
+.PHONY: helm-upgrade-operator
+helm-upgrade-operator:
+	helm upgrade kedahttp ./charts/keda-http-operator \
+    --install \
+    --namespace ${NAMESPACE} \
+    --create-namespace \
+    --set image=${OPERATOR_DOCKER_IMG}
+
 
 .PHONY: build-all
 build-all: build-scaler build-interceptor build-operator
