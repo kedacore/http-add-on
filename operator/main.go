@@ -46,7 +46,7 @@ func init() {
 }
 
 func main() {
-	kubeCl, _, err := k8s.NewClientset()
+	kubeCl, dynamicCl, err := k8s.NewClientset()
 	if err != nil {
 		log.Fatalf("Couldn't create a Kubernetes client (%s)", err)
 	}
@@ -74,10 +74,11 @@ func main() {
 	}
 
 	if err = (&controllers.HTTPScaledObjectReconciler{
-		Client:                mgr.GetClient(),
-		Log:                   ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
-		Scheme:                mgr.GetScheme(),
-		K8sCl:                 kubeCl,
+		Client:       mgr.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
+		Scheme:       mgr.GetScheme(),
+		K8sCl:        kubeCl,
+		K8sDynamicCl: dynamicCl,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
 		os.Exit(1)
