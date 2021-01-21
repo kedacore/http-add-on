@@ -65,6 +65,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 			// been deleted between the reconcile and the get.
 			// It'll automatically get garbage collected, so don't
 			// schedule a requeue
+			logger.Info("HTTPScaledObject not found, assuming it was deleted and stopping early")
 			return ctrl.Result{}, nil
 		}
 		// if we didn't get a not found error, log it and schedule a requeue
@@ -98,7 +99,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		InterceptorStatus:    httpv1alpha1.Unknown,
 		Ready:                false,
 	}
-	logger.Info("Reconciling HTTPScaledObject", "App Name", appName, "image", image, "port", port)
+	logger.Info("Reconciling HTTPScaledObject", "Namespace", req.Namespace, "App Name", appName, "image", image, "port", port)
 
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createApplicationResources(logger, req, httpso); err != nil {
