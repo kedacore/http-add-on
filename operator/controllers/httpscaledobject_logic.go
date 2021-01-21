@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	typedAppsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	typedCorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -41,10 +40,10 @@ type kubernetesClients struct {
 
 func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	logger logr.Logger,
-	req ctrl.Request,
+	appName,
+	namespace string,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	appName := httpso.Spec.AppName
 	interceptorName := fmt.Sprintf("%s-interceptor", appName)
 	externalScalerName := fmt.Sprintf("%s-ext-scaler", appName)
 
@@ -57,10 +56,10 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		ExternalScalerStatus: v1alpha1.Terminating,
 		Ready:                false,
 	}
-	logger = rec.Log.WithValues("reconciler.appObjects", "removeObjects", "HTTPScaledObject.name", appName, "HTTPScaledObject.namespace", httpso.Namespace)
+	logger = rec.Log.WithValues("reconciler.appObjects", "removeObjects", "HTTPScaledObject.name", appName, "HTTPScaledObject.namespace", namespace)
 
 	// Delete deployments
-	appsCl := rec.K8sCl.AppsV1().Deployments(req.Namespace)
+	appsCl := rec.K8sCl.AppsV1().Deployments(namespace)
 
 	// Delete app deployment
 	if err := appsCl.Delete(appName, &metav1.DeleteOptions{}); err != nil {
@@ -97,7 +96,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	}
 
 	// Delete Services
-	coreCl := rec.K8sCl.CoreV1().Services(req.Namespace)
+	coreCl := rec.K8sCl.CoreV1().Services(namespace)
 
 	// Delete app service
 	if err := coreCl.Delete(appName, &metav1.DeleteOptions{}); err != nil {
@@ -138,7 +137,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	// Delete ScaledObject
 	// TODO: use r.Client here, not the dynamic one
 	scaledObjectCl := k8s.NewScaledObjectClient(rec.K8sDynamicCl)
-	if err := scaledObjectCl.Namespace(req.Namespace).Delete(appName, &metav1.DeleteOptions{}); err != nil {
+	if err := scaledObjectCl.Namespace(namespace).Delete(appName, &metav1.DeleteOptions{}); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App ScaledObject not found, moving on")
 		} else {
@@ -153,17 +152,9 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 
 func (rec *HTTPScaledObjectReconciler) createApplicationResources(
 	logger logr.Logger,
-	req ctrl.Request,
+	appInfo userApplicationInfo,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	appInfo := userApplicationInfo{
-		name:               httpso.Spec.AppName,
-		image:              httpso.Spec.Image,
-		port:               httpso.Spec.Port,
-		namespace:          httpso.Namespace,
-		interceptorName:    httpso.Spec.AppName + "-interceptor",
-		externalScalerName: httpso.Spec.AppName + "-ext-scaler",
-	}
 	logger = rec.Log.WithValues("reconciler.appObjects", "addObjects", "HTTPScaledObject.name", appInfo.name, "HTTPScaledObject.namespace", appInfo.namespace)
 
 	// set initial statuses
