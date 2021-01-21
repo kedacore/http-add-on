@@ -9,7 +9,7 @@ import (
 
 func kedaGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
-		Group:    "keda.k8s.io",
+		Group:    "keda.sh",
 		Version:  "v1alpha1",
 		Resource: "scaledobjects",
 	}
