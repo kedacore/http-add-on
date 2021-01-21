@@ -1,5 +1,5 @@
-GIT_TAG=$(shell git rev-parse --short HEAD)
-SCALER_DOCKER_IMG ?= arschles/keda-http-scaler:${GIT_TAG}
+GIT_TAG?=$(shell git rev-parse --short HEAD)
+SCALER_DOCKER_IMG?=arschles/keda-http-scaler:${GIT_TAG}
 INTERCEPTOR_DOCKER_IMG?=arschles/keda-http-interceptor:${GIT_TAG}
 OPERATOR_DOCKER_IMG?=arschles/keda-http-operator:${GIT_TAG}
 
