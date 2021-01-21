@@ -34,8 +34,8 @@ import (
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
 type HTTPScaledObjectReconciler struct {
-	K8sCl                 *kubernetes.Clientset
-	K8sDynamicCl          dynamic.Interface
+	K8sCl        *kubernetes.Clientset
+	K8sDynamicCl dynamic.Interface
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
@@ -91,14 +91,14 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	image := httpso.Spec.Image
 	port := httpso.Spec.Port
 	httpso.Status = httpv1alpha1.HTTPScaledObjectStatus{
-		ServiceStatus:      httpv1alpha1.Unknown,
-		DeploymentStatus:   httpv1alpha1.Unknown,
-		ScaledObjectStatus: httpv1alpha1.Unknown,
+		ServiceStatus:        httpv1alpha1.Unknown,
+		DeploymentStatus:     httpv1alpha1.Unknown,
+		ScaledObjectStatus:   httpv1alpha1.Unknown,
 		ExternalScalerStatus: httpv1alpha1.Unknown,
-		InterceptorStatus: httpv1alpha1.Unknown,
-		Ready:              false,
+		InterceptorStatus:    httpv1alpha1.Unknown,
+		Ready:                false,
 	}
-	logger.Info("App Name: %s, image: %s, port: %d", appName, image, port)
+	logger.Info("App Name", appName, "image", image, "port", port)
 
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createApplicationResources(logger, req, httpso); err != nil {

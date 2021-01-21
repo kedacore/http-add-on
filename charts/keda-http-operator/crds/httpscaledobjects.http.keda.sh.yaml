@@ -5,7 +5,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   labels:
-    httpscaledobjects.http.keda.sh/version: {{ .Values.version }}
+    httpscaledobjects.http.keda.sh/version: 0.0.1
     keda.sh/addon: keda-http-addon
   name: httpscaledobjects.http.keda.sh
 spec:
