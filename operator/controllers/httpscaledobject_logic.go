@@ -6,6 +6,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	typedAppsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	typedCorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -25,11 +26,11 @@ const (
 )
 
 type userApplicationInfo struct {
-	name string
-	port int32
-	image string
-	namespace string
-	interceptorName string
+	name               string
+	port               int32
+	image              string
+	namespace          string
+	interceptorName    string
 	externalScalerName string
 }
 
@@ -49,65 +50,102 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 
 	// set initial statuses
 	httpso.Status = v1alpha1.HTTPScaledObjectStatus{
-		ServiceStatus:      v1alpha1.Terminating,
-		DeploymentStatus:   v1alpha1.Terminating,
-		ScaledObjectStatus: v1alpha1.Terminating,
-		InterceptorStatus: v1alpha1.Terminating,
+		ServiceStatus:        v1alpha1.Terminating,
+		DeploymentStatus:     v1alpha1.Terminating,
+		ScaledObjectStatus:   v1alpha1.Terminating,
+		InterceptorStatus:    v1alpha1.Terminating,
 		ExternalScalerStatus: v1alpha1.Terminating,
-		Ready:              false,
+		Ready:                false,
 	}
 	logger = rec.Log.WithValues("reconciler.appObjects", "removeObjects", "HTTPScaledObject.name", appName, "HTTPScaledObject.namespace", httpso.Namespace)
 
-	// Delete deploys
+	// Delete deployments
 	appsCl := rec.K8sCl.AppsV1().Deployments(req.Namespace)
+
+	// Delete app deployment
 	if err := appsCl.Delete(appName, &metav1.DeleteOptions{}); err != nil {
-		logger.Error(err, "Deleting deployment")
-		httpso.Status.DeploymentStatus = v1alpha1.Error
-		return err
+		if apierrs.IsNotFound(err) {
+			logger.Info("App deployment not found, moving on")
+		} else {
+			logger.Error(err, "Deleting deployment")
+			httpso.Status.DeploymentStatus = v1alpha1.Error
+			return err
+		}
 	}
 	httpso.Status.DeploymentStatus = v1alpha1.Deleted
 
+	// Delete interceptor deployment
 	if err := appsCl.Delete(interceptorName, &metav1.DeleteOptions{}); err != nil {
-		logger.Error(err, "Deleting interceptor deployment")
-		httpso.Status.InterceptorStatus = v1alpha1.Error
-		return err
+		if apierrs.IsNotFound(err) {
+			logger.Info("Interceptor deployment not found, moving on")
+		} else {
+			logger.Error(err, "Deleting interceptor deployment")
+			httpso.Status.InterceptorStatus = v1alpha1.Error
+			return err
+		}
 	}
 
+	// Delete externalscaler deployment
 	if err := appsCl.Delete(externalScalerName, &metav1.DeleteOptions{}); err != nil {
-		logger.Error(err, "Deleting external scaler deployment")
-		httpso.Status.ExternalScalerStatus = v1alpha1.Error
-		return err
+		if apierrs.IsNotFound(err) {
+			logger.Info("External scaler not found, moving on")
+		} else {
+			logger.Error(err, "Deleting external scaler deployment")
+			httpso.Status.ExternalScalerStatus = v1alpha1.Error
+			return err
+		}
 	}
 
 	// Delete Services
 	coreCl := rec.K8sCl.CoreV1().Services(req.Namespace)
+
+	// Delete app service
 	if err := coreCl.Delete(appName, &metav1.DeleteOptions{}); err != nil {
-		logger.Error(err, "Deleting app service")
-		httpso.Status.ServiceStatus = v1alpha1.Error
-		return err
+		if apierrs.IsNotFound(err) {
+			logger.Info("App service not found, moving on")
+		} else {
+			logger.Error(err, "Deleting app service")
+			httpso.Status.ServiceStatus = v1alpha1.Error
+			return err
+		}
 	}
 	httpso.Status.ServiceStatus = v1alpha1.Deleted
 
+	// Delete interceprot service
 	if err := coreCl.Delete(interceptorName, &metav1.DeleteOptions{}); err != nil {
-		logger.Error(err, "Deleting interceptor service")
-		httpso.Status.InterceptorStatus = v1alpha1.Error
-		return err
+		if apierrs.IsNotFound(err) {
+			logger.Info("Interceptor service not found, moving on")
+		} else {
+			logger.Error(err, "Deleting interceptor service")
+			httpso.Status.InterceptorStatus = v1alpha1.Error
+			return err
+		}
 	}
 	httpso.Status.InterceptorStatus = v1alpha1.Deleted
 
+	// Delete external scaler service
 	if err := coreCl.Delete(externalScalerName, &metav1.DeleteOptions{}); err != nil {
-		logger.Error(err, "Deleting external scaler service")
-		httpso.Status.ExternalScalerStatus = v1alpha1.Error
-		return err
+		if apierrs.IsNotFound(err) {
+			logger.Info("External scaler service not found, moving on")
+		} else {
+			logger.Error(err, "Deleting external scaler service")
+			httpso.Status.ExternalScalerStatus = v1alpha1.Error
+			return err
+		}
 	}
 	httpso.Status.ExternalScalerStatus = v1alpha1.Deleted
 
+	// Delete ScaledObject
 	// TODO: use r.Client here, not the dynamic one
 	scaledObjectCl := k8s.NewScaledObjectClient(rec.K8sDynamicCl)
 	if err := scaledObjectCl.Namespace(req.Namespace).Delete(appName, &metav1.DeleteOptions{}); err != nil {
-		logger.Error(err, "Deleting scaledobject")
-		httpso.Status.ScaledObjectStatus = v1alpha1.Error
-		return err
+		if apierrs.IsNotFound(err) {
+			logger.Info("App ScaledObject not found, moving on")
+		} else {
+			logger.Error(err, "Deleting scaledobject")
+			httpso.Status.ScaledObjectStatus = v1alpha1.Error
+			return err
+		}
 	}
 	httpso.Status.ScaledObjectStatus = v1alpha1.Deleted
 	return nil
@@ -119,23 +157,23 @@ func (rec *HTTPScaledObjectReconciler) createApplicationResources(
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	appInfo := userApplicationInfo{
-		name: httpso.Spec.AppName,
-		image: httpso.Spec.Image,
-		port: httpso.Spec.Port,
-		namespace: httpso.Namespace,
-		interceptorName: httpso.Spec.AppName + "-interceptor",
+		name:               httpso.Spec.AppName,
+		image:              httpso.Spec.Image,
+		port:               httpso.Spec.Port,
+		namespace:          httpso.Namespace,
+		interceptorName:    httpso.Spec.AppName + "-interceptor",
 		externalScalerName: httpso.Spec.AppName + "-ext-scaler",
 	}
 	logger = rec.Log.WithValues("reconciler.appObjects", "addObjects", "HTTPScaledObject.name", appInfo.name, "HTTPScaledObject.namespace", appInfo.namespace)
 
 	// set initial statuses
 	httpso.Status = v1alpha1.HTTPScaledObjectStatus{
-		ServiceStatus:      v1alpha1.Pending,
-		DeploymentStatus:   v1alpha1.Pending,
-		ScaledObjectStatus: v1alpha1.Pending,
-		InterceptorStatus: v1alpha1.Pending,
+		ServiceStatus:        v1alpha1.Pending,
+		DeploymentStatus:     v1alpha1.Pending,
+		ScaledObjectStatus:   v1alpha1.Pending,
+		InterceptorStatus:    v1alpha1.Pending,
 		ExternalScalerStatus: v1alpha1.Pending,
-		Ready:              false,
+		Ready:                false,
 	}
 
 	// Init K8s clients
