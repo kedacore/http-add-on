@@ -66,8 +66,10 @@ rules:
   - watch
 - apiGroups:
   - http.keda.sh
+  - keda.sh
   resources:
   - httpscaledobjects
+  - scaledobjects
   verbs:
   - create
   - delete
@@ -78,6 +80,7 @@ rules:
   - watch
 - apiGroups:
   - http.keda.sh
+  - keda.sh
   resources:
   - httpscaledobjects/status
   verbs:
