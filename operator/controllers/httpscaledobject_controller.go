@@ -98,7 +98,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		InterceptorStatus:    httpv1alpha1.Unknown,
 		Ready:                false,
 	}
-	logger.Info("App Name", appName, "image", image, "port", port)
+	logger.Info("Reconciling HTTPScaledObject", "App Name", appName, "image", image, "port", port)
 
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createApplicationResources(logger, req, httpso); err != nil {
