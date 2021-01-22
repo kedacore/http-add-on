@@ -5,23 +5,11 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/controllers/config"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-type userApplicationInfo struct {
-	name                string
-	port                int32
-	image               string
-	namespace           string
-	interceptorName     string
-	interceptorImage    string
-	interceptorPort     int32
-	externalScalerName  string
-	externalScalerImage string
-	externalScalerPort  int32
-}
 
 func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	logger logr.Logger,
@@ -137,10 +125,17 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 
 func (rec *HTTPScaledObjectReconciler) createApplicationResources(
 	logger logr.Logger,
-	appInfo userApplicationInfo,
+	appInfo config.AppInfo,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	logger = rec.Log.WithValues("reconciler.appObjects", "addObjects", "HTTPScaledObject.name", appInfo.name, "HTTPScaledObject.namespace", appInfo.namespace)
+	logger = rec.Log.WithValues(
+		"reconciler.appObjects",
+		"addObjects",
+		"HTTPScaledObject.name",
+		appInfo.Name,
+		"HTTPScaledObject.namespace",
+		appInfo.Namespace,
+	)
 
 	// set initial statuses
 	httpso.Status = v1alpha1.HTTPScaledObjectStatus{

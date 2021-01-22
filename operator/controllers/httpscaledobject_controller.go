@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -105,17 +104,15 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	}
 	logger.Info("Reconciling HTTPScaledObject", "Namespace", req.Namespace, "App Name", appName, "image", image, "port", port)
 
-	appInfo := userApplicationInfo{
-		name:                appName,
-		port:                port,
-		image:               image,
-		namespace:           req.Namespace,
-		interceptorName:     fmt.Sprintf("%s-interceptor", appName),
-		interceptorImage:    rec.InterceptorConfig.Image,
-		interceptorPort:     rec.InterceptorConfig.Port,
-		externalScalerName:  fmt.Sprintf("%s-external-scaler", appName),
-		externalScalerImage: rec.ExternalScalerConfig.Image,
-		externalScalerPort:  rec.ExternalScalerConfig.Port,
+	appInfo := config.AppInfo{
+		Name:                appName,
+		Port:                port,
+		Image:               image,
+		Namespace:           req.Namespace,
+		InterceptorImage:    rec.InterceptorConfig.Image,
+		InterceptorPort:     rec.InterceptorConfig.Port,
+		ExternalScalerImage: rec.ExternalScalerConfig.Image,
+		ExternalScalerPort:  rec.ExternalScalerConfig.Port,
 	}
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createApplicationResources(logger, appInfo, httpso); err != nil {

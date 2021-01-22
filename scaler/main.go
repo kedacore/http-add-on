@@ -17,16 +17,26 @@ import (
 )
 
 func main() {
-	portStr := env.GetOr("8080", "KEDA_HTTP_SCALER_PORT")
+	// The port to run this scaler server on
+	portStr, err := env.Get("KEDA_HTTP_SCALER_PORT")
+	if err != nil {
+		log.Fatalf("KEDA_HTTP_SCALER_PORT not found")
+	}
+	// The namespace that the interceptors service is in
 	namespace, err := env.Get("KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE")
 	if err != nil {
 		log.Fatalf("KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE not found")
 	}
+	// The name of the interceptor service that has the queue size ("/queue") endpoint on
 	svcName, err := env.Get("KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE")
 	if err != nil {
 		log.Fatalf("KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE not found")
 	}
-	targetPortStr := env.GetOr("8081", "KEDA_HTTP_SCALER_TARGET_ADMIN_PORT")
+	// The port that the interceptor service is on
+	targetPortStr, err := env.Get("KEDA_HTTP_SCALER_TARGET_ADMIN_PORT")
+	if err != nil {
+		log.Fatalf("KEDA_HTTP_SCALER_TARGET_ADMIN_PORT not found")
+	}
 	k8sCl, _, err := k8s.NewClientset()
 	if err != nil {
 		log.Fatalf("Couldn't get a Kubernetes client (%s)", err)
