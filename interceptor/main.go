@@ -19,11 +19,12 @@ func init() {
 
 // getSvcURL formats the app service name and port into a URL
 func getSvcURL() (*url.URL, error) {
-	svcName, err := env.Get("KEDA_HTTP_SVC_NAME")
+	// the name of the service that fronts the user's app
+	svcName, err := env.Get("KEDA_HTTP_APP_SERVICE_NAME")
 	if err != nil {
 		return nil, err
 	}
-	svcPort, err := env.Get("KEDA_HTTP_SVC_PORT")
+	svcPort, err := env.Get("KEDA_HTTP_APP_SERVICE_PORT")
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +36,15 @@ func main() {
 	svcURL, err := getSvcURL()
 	if err != nil {
 		log.Fatalf("Service name / port invalid (%s)", err)
+	}
+
+	proxyPort, err := env.Get("KEDA_HTTP_PROXY_PORT")
+	if err != nil {
+		log.Fatalf("KEDA_HTTP_PROXY_PORT missing")
+	}
+	adminPort, err := env.Get("KEDA_HTTP_ADMIN_PORT")
+	if err != nil {
+		log.Fatalf("KEDA_HTTP_ADMIN_PORT missing")
 	}
 
 	q := http.NewMemoryQueue()
@@ -49,8 +59,6 @@ func main() {
 
 	adminServer.GET("/queue", newQueueSizeHandler(q))
 
-	proxyPort := env.GetOr("KEDA_HTTP_PROXY_PORT", "8080")
-	adminPort := env.GetOr("KEDA_HTTP_ADMIN_PORT", "8081")
 	go runServer("proxy", proxyServer, proxyPort)
 	go runServer("admin", adminServer, adminPort)
 

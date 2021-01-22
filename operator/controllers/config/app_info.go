@@ -3,14 +3,12 @@ package config
 import "fmt"
 
 type AppInfo struct {
-	Name                string
-	Port                int32
-	Image               string
-	Namespace           string
-	InterceptorImage    string
-	InterceptorPort     int32
-	ExternalScalerImage string
-	ExternalScalerPort  int32
+	Name                 string
+	Port                 int32
+	Image                string
+	Namespace            string
+	InterceptorConfig    Interceptor
+	ExternalScalerConfig ExternalScaler
 }
 
 func (a AppInfo) ExternalScalerServiceName() string {

@@ -8,8 +8,9 @@ import (
 
 // Interceptor holds static configuration info for the interceptor
 type Interceptor struct {
-	Image string
-	Port  int32
+	Image     string
+	ProxyPort int32
+	AdminPort int32
 }
 
 // NewInterceptorFromEnv gets interceptor configuration values from environment variables and/or
@@ -20,10 +21,12 @@ func NewInterceptorFromEnv() (*Interceptor, error) {
 	if err != nil {
 		return nil, fmt.Errorf("missing KEDAHTTP_OPERATOR_INTERCEPTOR_IMAGE")
 	}
-	port := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_PORT", 8090)
+	adminPort := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_ADMIN_PORT", 8090)
+	proxyPort := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_PROXY_PORT", 8091)
 	return &Interceptor{
-		Image: image,
-		Port:  port,
+		Image:     image,
+		AdminPort: adminPort,
+		ProxyPort: proxyPort,
 	}, nil
 }
 

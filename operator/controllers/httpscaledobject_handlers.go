@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
@@ -28,7 +27,7 @@ func createScaledObject(
 			"%s.%s.svc.cluster.local:%d",
 			appInfo.ExternalScalerServiceName(),
 			appInfo.Namespace,
-			appInfo.ExternalScalerPort,
+			appInfo.ExternalScalerConfig.Port,
 		),
 	)
 	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)
@@ -51,7 +50,12 @@ func createUserApp(
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	deployment := k8s.NewDeployment(appInfo.Name, appInfo.Image, appInfo.Port, []corev1.EnvVar{})
+	deployment := k8s.NewDeployment(
+		appInfo.Name,
+		appInfo.Image,
+		[]int32{appInfo.Port},
+		[]corev1.EnvVar{},
+	)
 	logger.Info("Creating app deployment", "deployment", *deployment)
 	// TODO: watch the deployment until it reaches ready state
 	// Option: start the creation here and add another method to check if the resources are created
@@ -63,7 +67,10 @@ func createUserApp(
 	}
 	httpso.Status.DeploymentStatus = v1alpha1.Created
 
-	service := k8s.NewService(appInfo.Name, appInfo.Port)
+	servicePorts := []corev1.ServicePort{
+		k8s.NewTCPServicePort("http", 8080, appInfo.Port),
+	}
+	service := k8s.NewService(appInfo.Name, servicePorts)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
 	if _, err := servicesCl.Create(service); err != nil {
 		logger.Error(err, "Creating service")
@@ -82,20 +89,31 @@ func createInterceptor(
 ) error {
 	interceptorEnvs := []corev1.EnvVar{
 		{
-			Name:  "KEDA_HTTP_SERVICE_NAME",
+			Name:  "KEDA_HTTP_APP_SERVICE_NAME",
 			Value: appInfo.Name,
 		},
 		{
-			Name:  "KEDA_HTTP_SERVICE_PORT",
-			Value: strconv.FormatInt(int64(appInfo.Port), 10),
+			Name:  "KEDA_HTTP_APP_SERVICE_PORT",
+			Value: fmt.Sprintf("%d", appInfo.Port),
+		},
+		{
+			Name:  "KEDA_HTTP_PROXY_PORT",
+			Value: fmt.Sprintf("%d", appInfo.InterceptorConfig.ProxyPort),
+		},
+		{
+			Name:  "KEDA_HTTP_ADMIN_PORT",
+			Value: fmt.Sprintf("%d", appInfo.InterceptorConfig.AdminPort),
 		},
 	}
 
 	// NOTE: Interceptor port is fixed here because it's a fixed on the interceptor main (@see ../interceptor/main.go:49)
 	interceptorDeployment := k8s.NewDeployment(
 		appInfo.InterceptorDeploymentName(),
-		appInfo.InterceptorImage,
-		appInfo.InterceptorPort,
+		appInfo.InterceptorConfig.Image,
+		[]int32{
+			appInfo.InterceptorConfig.AdminPort,
+			appInfo.InterceptorConfig.ProxyPort,
+		},
 		interceptorEnvs,
 	)
 	logger.Info("Creating interceptor Deployment", "Deployment", *interceptorDeployment)
@@ -107,7 +125,22 @@ func createInterceptor(
 	}
 
 	// NOTE: Interceptor port is fixed here because it's a fixed on the interceptor main (@see ../interceptor/main.go:49)
-	interceptorService := k8s.NewService(appInfo.InterceptorServiceName(), appInfo.InterceptorPort)
+	servicePorts := []corev1.ServicePort{
+		k8s.NewTCPServicePort(
+			"admin",
+			appInfo.InterceptorConfig.AdminPort,
+			appInfo.InterceptorConfig.AdminPort,
+		),
+		k8s.NewTCPServicePort(
+			"proxy",
+			appInfo.InterceptorConfig.ProxyPort,
+			appInfo.InterceptorConfig.ProxyPort,
+		),
+	}
+	interceptorService := k8s.NewService(
+		appInfo.InterceptorServiceName(),
+		servicePorts,
+	)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
 	if _, err := servicesCl.Create(interceptorService); err != nil {
 		logger.Error(err, "Creating interceptor service")
@@ -127,12 +160,14 @@ func createExternalScaler(
 	// NOTE: Scaler port is fixed here because it's a fixed on the scaler main (@see ../scaler/main.go:17)
 	scalerDeployment := k8s.NewDeployment(
 		appInfo.ExternalScalerDeploymentName(),
-		appInfo.ExternalScalerImage,
-		appInfo.ExternalScalerPort,
+		appInfo.ExternalScalerConfig.Image,
+		[]int32{
+			appInfo.ExternalScalerConfig.Port,
+		},
 		[]corev1.EnvVar{
 			{
 				Name:  "KEDA_HTTP_SCALER_PORT",
-				Value: fmt.Sprintf("%d", appInfo.ExternalScalerPort),
+				Value: fmt.Sprintf("%d", appInfo.ExternalScalerConfig.Port),
 			},
 			{
 				Name:  "KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE",
@@ -144,7 +179,7 @@ func createExternalScaler(
 			},
 			{
 				Name:  "KEDA_HTTP_SCALER_TARGET_ADMIN_PORT",
-				Value: fmt.Sprintf("%d", appInfo.InterceptorPort),
+				Value: fmt.Sprintf("%d", appInfo.InterceptorConfig.AdminPort),
 			},
 		},
 	)
@@ -157,7 +192,17 @@ func createExternalScaler(
 	}
 
 	// NOTE: Scaler port is fixed here because it's a fixed on the scaler main (@see ../scaler/main.go:17)
-	scalerService := k8s.NewService(appInfo.ExternalScalerServiceName(), appInfo.ExternalScalerPort)
+	servicePorts := []corev1.ServicePort{
+		k8s.NewTCPServicePort(
+			"externalscaler",
+			appInfo.ExternalScalerConfig.Port,
+			appInfo.ExternalScalerConfig.Port,
+		),
+	}
+	scalerService := k8s.NewService(
+		appInfo.ExternalScalerServiceName(),
+		servicePorts,
+	)
 	logger.Info("Creating external scaler Service", "Service", *scalerService)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
 	if _, err := servicesCl.Create(scalerService); err != nil {

@@ -105,14 +105,12 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	logger.Info("Reconciling HTTPScaledObject", "Namespace", req.Namespace, "App Name", appName, "image", image, "port", port)
 
 	appInfo := config.AppInfo{
-		Name:                appName,
-		Port:                port,
-		Image:               image,
-		Namespace:           req.Namespace,
-		InterceptorImage:    rec.InterceptorConfig.Image,
-		InterceptorPort:     rec.InterceptorConfig.Port,
-		ExternalScalerImage: rec.ExternalScalerConfig.Image,
-		ExternalScalerPort:  rec.ExternalScalerConfig.Port,
+		Name:                 appName,
+		Port:                 port,
+		Image:                image,
+		Namespace:            req.Namespace,
+		InterceptorConfig:    rec.InterceptorConfig,
+		ExternalScalerConfig: rec.ExternalScalerConfig,
 	}
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createApplicationResources(logger, appInfo, httpso); err != nil {
