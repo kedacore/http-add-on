@@ -27,7 +27,7 @@ func DeleteScaledObject(name string, cl dynamic.ResourceInterface) error {
 }
 
 // NewScaledObject creates a new ScaledObject in memory
-func NewScaledObject(namespace, name, deploymentName, scalerAddress string) *unstructured.Unstructured {
+func NewScaledObject(name, deploymentName, scalerAddress string) *unstructured.Unstructured {
 	// https://keda.sh/docs/1.5/faq/
 	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
 	return &unstructured.Unstructured{
@@ -35,9 +35,8 @@ func NewScaledObject(namespace, name, deploymentName, scalerAddress string) *uns
 			"apiVersion": "keda.k8s.io/v1alpha1",
 			"kind":       "ScaledObject",
 			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
-				"labels":    labels(name),
+				"name":   name,
+				"labels": labels(name),
 			},
 			"spec": map[string]interface{}{
 				"minReplicaCount": 0,

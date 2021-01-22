@@ -12,19 +12,18 @@ func DeleteDeployment(name string, cl k8sappsv1.DeploymentInterface) error {
 	return cl.Delete(name, &metav1.DeleteOptions{})
 }
 
-// NewDeployment creates a new deployment object in the given namespace
+// NewDeployment creates a new deployment object
 // with the given name and the given image. This does not actually create
 // the deployment in the cluster, it just creates the deployment object
 // in memory
-func NewDeployment(namespace, name, image string, port int32, env []corev1.EnvVar) *appsv1.Deployment {
+func NewDeployment(name, image string, port int32, env []corev1.EnvVar) *appsv1.Deployment {
 	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind: "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    labels(name),
+			Name:   name,
+			Labels: labels(name),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{

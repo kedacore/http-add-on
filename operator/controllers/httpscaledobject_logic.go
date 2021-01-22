@@ -8,8 +8,6 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	typedAppsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
-	typedCorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 const (
@@ -31,11 +29,6 @@ type userApplicationInfo struct {
 	namespace          string
 	interceptorName    string
 	externalScalerName string
-}
-
-type kubernetesClients struct {
-	appsCl typedAppsv1.DeploymentInterface
-	coreCl typedCorev1.ServiceInterface
 }
 
 func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
@@ -167,25 +160,19 @@ func (rec *HTTPScaledObjectReconciler) createApplicationResources(
 		Ready:                false,
 	}
 
-	// Init K8s clients
-	k8sClients := kubernetesClients{
-		appsCl: rec.K8sCl.AppsV1().Deployments(appInfo.namespace),
-		coreCl: rec.K8sCl.CoreV1().Services(appInfo.namespace),
-	}
-
 	// CREATING THE USER APPLICATION
-	if err := createUserApp(appInfo, k8sClients, logger, httpso); err != nil {
+	if err := createUserApp(appInfo, rec.K8sCl, logger, httpso); err != nil {
 		return err
 	}
 
 	// CREATING INTERNAL ADD-ON OBJECTS
 	// Creating the dedicated interceptor
-	if err := createInterceptor(appInfo, k8sClients, logger, httpso); err != nil {
+	if err := createInterceptor(appInfo, rec.K8sCl, logger, httpso); err != nil {
 		return err
 	}
 
 	// create dedicated external scaler for this app
-	if err := createExternalScaler(appInfo, k8sClients, logger, httpso); err != nil {
+	if err := createExternalScaler(appInfo, rec.K8sCl, logger, httpso); err != nil {
 		return err
 	}
 
