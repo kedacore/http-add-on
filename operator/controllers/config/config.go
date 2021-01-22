@@ -12,6 +12,9 @@ type Interceptor struct {
 	Port  int32
 }
 
+// NewInterceptorFromEnv gets interceptor configuration values from environment variables and/or
+// sensible defaults if values were missing.
+// and returns the interceptor struct to match. Returns an error if required values were missing.
 func NewInterceptorFromEnv() (*Interceptor, error) {
 	image, err := env.Get("KEDAHTTP_OPERATOR_INTERCEPTOR_IMAGE")
 	if err != nil {
@@ -30,9 +33,12 @@ type ExternalScaler struct {
 	Port  int32
 }
 
+// NewExternalScalerFromEnv gets external scaler configuration values from environment variables and/or
+// sensible defaults if values were missing.
+// and returns the interceptor struct to match. Returns an error if required values were missing.
 func NewExternalScalerFromEnv() (*ExternalScaler, error) {
-	image, err := env.Get("KEDAHTTP_EXTERNAL_SCALER_IMAGE")
-	port := env.GetInt32Or("KEDAHTTP_EXTERNAL_SCALER_PORT", 8091)
+	image, err := env.Get("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_IMAGE")
+	port := env.GetInt32Or("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT", 8091)
 	if err != nil {
 		return nil, fmt.Errorf("Missing KEDAHTTP_EXTERNAL_SCALER_IMAGE")
 	}
