@@ -29,6 +29,7 @@ import (
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
+	"github.com/kedacore/http-add-on/operator/controllers/config"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	// +kubebuilder:scaffold:imports
 )
@@ -73,12 +74,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	interceptorCfg, err := config.NewInterceptorFromEnv()
+	if err != nil {
+		setupLog.Error(err, "unable to get interceptor configuration")
+		os.Exit(1)
+	}
+	externalScalerCfg, err := config.NewExternalScalerFromEnv()
+	if err != nil {
+		setupLog.Error(err, "unable to get external scaler configuration")
+		os.Exit(1)
+	}
 	if err = (&controllers.HTTPScaledObjectReconciler{
-		Client:       mgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
-		Scheme:       mgr.GetScheme(),
-		K8sCl:        kubeCl,
-		K8sDynamicCl: dynamicCl,
+		Client:               mgr.GetClient(),
+		Log:                  ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
+		Scheme:               mgr.GetScheme(),
+		K8sCl:                kubeCl,
+		K8sDynamicCl:         dynamicCl,
+		InterceptorConfig:    *interceptorCfg,
+		ExternalScalerConfig: *externalScalerCfg,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
 		os.Exit(1)

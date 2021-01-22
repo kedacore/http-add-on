@@ -10,25 +10,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	// The image registry to be used to download KEDA assets, it'll
-	// be concatenated with the image names
-	imageRegistry string = "khaosdoctor/"
-	// Image name for the interceptor container
-	interceptorImageName string = "keda-http-interceptor"
-	// Image name for the external scaler container
-	externalScalerImageName string = "keda-http-external-scaler"
-	// The default port all internal service will expose and work on
-	defaultExposedPort int = 8080
-)
-
 type userApplicationInfo struct {
-	name               string
-	port               int32
-	image              string
-	namespace          string
-	interceptorName    string
-	externalScalerName string
+	name                string
+	port                int32
+	image               string
+	namespace           string
+	interceptorName     string
+	interceptorImage    string
+	interceptorPort     int32
+	externalScalerName  string
+	externalScalerImage string
+	externalScalerPort  int32
 }
 
 func (rec *HTTPScaledObjectReconciler) removeApplicationResources(

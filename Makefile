@@ -59,7 +59,9 @@ helm-upgrade-operator:
     --install \
     --namespace ${NAMESPACE} \
     --create-namespace \
-    --set image=${OPERATOR_DOCKER_IMG}
+    --set image=${OPERATOR_DOCKER_IMG} \
+	--set externalScalerImage=${SCALER_DOCKER_IMG} \
+	--set interceptorImage=${INTERCEPTOR_DOCKER_IMG}
 
 
 .PHONY: build-all

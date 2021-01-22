@@ -35,6 +35,11 @@ spec:
         image: {{ .Values.image }}
         imagePullPolicy: Always
         name: manager
+        env:
+        - name: KEDAHTTP_EXTERNAL_SCALER_IMAGE
+          value: {{ .Values.externalScalerImage }}
+        - name: KEDAHTTP_INTERCEPTOR_IMAGE
+          value: {{ .Values.interceptorImage }}
         # resources:
         #   limits:
         #     cpu: 0.5

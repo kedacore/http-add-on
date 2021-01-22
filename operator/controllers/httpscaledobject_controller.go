@@ -31,6 +31,7 @@ import (
 
 	httpsoapi "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/controllers/config"
 )
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
@@ -38,8 +39,10 @@ type HTTPScaledObjectReconciler struct {
 	K8sCl        *kubernetes.Clientset
 	K8sDynamicCl dynamic.Interface
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log                  logr.Logger
+	Scheme               *runtime.Scheme
+	InterceptorConfig    config.Interceptor
+	ExternalScalerConfig config.ExternalScaler
 }
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects,verbs=get;list;watch;create;update;patch;delete
@@ -103,12 +106,16 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	logger.Info("Reconciling HTTPScaledObject", "Namespace", req.Namespace, "App Name", appName, "image", image, "port", port)
 
 	appInfo := userApplicationInfo{
-		name:               appName,
-		port:               port,
-		image:              image,
-		namespace:          req.Namespace,
-		interceptorName:    fmt.Sprintf("%s-interceptor", appName),
-		externalScalerName: fmt.Sprintf("%s-external-scaler", appName),
+		name:                appName,
+		port:                port,
+		image:               image,
+		namespace:           req.Namespace,
+		interceptorName:     fmt.Sprintf("%s-interceptor", appName),
+		interceptorImage:    rec.InterceptorConfig.Image,
+		interceptorPort:     rec.InterceptorConfig.Port,
+		externalScalerName:  fmt.Sprintf("%s-external-scaler", appName),
+		externalScalerImage: rec.ExternalScalerConfig.Image,
+		externalScalerPort:  rec.ExternalScalerConfig.Port,
 	}
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createApplicationResources(logger, appInfo, httpso); err != nil {

@@ -19,10 +19,16 @@ func createScaledObject(
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
+
 	coreScaledObject := k8s.NewScaledObject(
 		appInfo.name,
 		appInfo.name,
-		fmt.Sprintf("%s.%s.svc.cluster.local:%d", appInfo.externalScalerName, appInfo.namespace, defaultExposedPort),
+		fmt.Sprintf(
+			"%s.%s.svc.cluster.local:%d",
+			appInfo.externalScalerName,
+			appInfo.namespace,
+			appInfo.externalScalerPort,
+		),
 	)
 	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)
 	// TODO: use r.Client here, not the dynamic one
@@ -85,7 +91,12 @@ func createInterceptor(
 	}
 
 	// NOTE: Interceptor port is fixed here because it's a fixed on the interceptor main (@see ../interceptor/main.go:49)
-	interceptorDeployment := k8s.NewDeployment(appInfo.interceptorName, imageRegistry+interceptorImageName, int32(defaultExposedPort), interceptorEnvs)
+	interceptorDeployment := k8s.NewDeployment(
+		appInfo.interceptorName,
+		appInfo.interceptorImage,
+		appInfo.interceptorPort,
+		interceptorEnvs,
+	)
 	logger.Info("Creating interceptor Deployment", "Deployment", *interceptorDeployment)
 	deploymentsCl := cl.AppsV1().Deployments(appInfo.namespace)
 	if _, err := deploymentsCl.Create(interceptorDeployment); err != nil {
@@ -95,7 +106,7 @@ func createInterceptor(
 	}
 
 	// NOTE: Interceptor port is fixed here because it's a fixed on the interceptor main (@see ../interceptor/main.go:49)
-	interceptorService := k8s.NewService(appInfo.interceptorName, int32(defaultExposedPort))
+	interceptorService := k8s.NewService(appInfo.interceptorName, appInfo.interceptorPort)
 	servicesCl := cl.CoreV1().Services(appInfo.namespace)
 	if _, err := servicesCl.Create(interceptorService); err != nil {
 		logger.Error(err, "Creating interceptor service")
@@ -113,7 +124,12 @@ func createExternalScaler(
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	// NOTE: Scaler port is fixed here because it's a fixed on the scaler main (@see ../scaler/main.go:17)
-	scalerDeployment := k8s.NewDeployment(appInfo.externalScalerName, imageRegistry+externalScalerImageName, int32(defaultExposedPort), []corev1.EnvVar{})
+	scalerDeployment := k8s.NewDeployment(
+		appInfo.externalScalerName,
+		appInfo.externalScalerImage,
+		appInfo.externalScalerPort,
+		[]corev1.EnvVar{},
+	)
 	logger.Info("Creating external scaler Deployment", "Deployment", *scalerDeployment)
 	deploymentsCl := cl.AppsV1().Deployments(appInfo.namespace)
 	if _, err := deploymentsCl.Create(scalerDeployment); err != nil {
@@ -123,7 +139,7 @@ func createExternalScaler(
 	}
 
 	// NOTE: Scaler port is fixed here because it's a fixed on the scaler main (@see ../scaler/main.go:17)
-	scalerService := k8s.NewService(appInfo.externalScalerName, int32(defaultExposedPort))
+	scalerService := k8s.NewService(appInfo.externalScalerName, appInfo.externalScalerPort)
 	logger.Info("Creating external scaler Service", "Service", *scalerService)
 	servicesCl := cl.CoreV1().Services(appInfo.namespace)
 	if _, err := servicesCl.Create(scalerService); err != nil {
