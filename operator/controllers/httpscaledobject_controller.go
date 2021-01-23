@@ -73,7 +73,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		}
 		// if we didn't get a not found error, log it and schedule a requeue
 		// with a backoff
-		logger.Error(err, "Getting the HTTP Scaled obj")
+		logger.Error(err, "Getting the HTTP Scaled obj, requeueing")
 		return ctrl.Result{
 			RequeueAfter: 500 * time.Millisecond,
 		}, err
@@ -130,21 +130,9 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		httpso.Status.Ready = true
 	}
 
-	// pollingInterval defines the amount of time the reconciler will wait until
-	// query Kubernetes again to check the status of this CRD.
-	// In short, it will make the HTTPScaledObject more or less responsive according
-	// to how much time this add-on will take to check for changes.
-	// Since HTTPSO's are intended to be representation of user apps, they're not
-	// meant to be something that is deleted and recreated many times, therefore
-	// the default timer is set to 50s, but can be changed using the CRD spec.
-	var pollingInterval int32 = 50000
-	if httpso.Spec.PollingInterval != 0 {
-		pollingInterval = httpso.Spec.PollingInterval
-	}
-
-	return ctrl.Result{
-		RequeueAfter: time.Millisecond * time.Duration(pollingInterval),
-	}, nil
+	// success reconciling
+	logger.Info("Reconcile success")
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager starts up reconciliation with the given manager
