@@ -1,2 +1,13 @@
 /target
 /bin
+.git
+.gitignore
+/charts
+/.vscode
+/bin
+/cli
+/examples
+/docs
+/.envrc
+CONTRIBUTING.md
+Makefile
