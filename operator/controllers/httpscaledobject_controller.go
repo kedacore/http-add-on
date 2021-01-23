@@ -82,9 +82,15 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		// will finalize them
 		removeErr := rec.removeApplicationResources(logger, req.Name, req.Namespace, httpso)
 		if removeErr != nil {
+			// if we failed to remove app resources, reschedule a reconcile so we can try
+			// again
 			logger.Error(removeErr, "Removing application objects")
+			return ctrl.Result{
+				RequeueAfter: 1000 * time.Millisecond,
+			}, removeErr
 		}
-		return ctrl.Result{}, removeErr
+		// after we've deleted app objects, we can finalize
+		return ctrl.Result{}, finalizeScaledObject(ctx, logger, rec.Client, httpso)
 	}
 
 	// ensure finalizer is set on this resource
