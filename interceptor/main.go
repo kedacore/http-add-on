@@ -67,5 +67,5 @@ func main() {
 
 func runServer(name string, e *echo.Echo, port string) {
 	log.Printf("%s server running on port %s", name, port)
-	log.Fatal(e.Start(port))
+	log.Fatal(e.Start(fmt.Sprintf(":%s", port)))
 }
