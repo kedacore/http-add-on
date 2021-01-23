@@ -5,6 +5,6 @@ import "fmt"
 func labels(name string) map[string]string {
 	return map[string]string{
 		"name": name,
-		"app":  fmt.Sprintf("cscaler-%s", name),
+		"app":  fmt.Sprintf("kedahttp-%s", name),
 	}
 }
