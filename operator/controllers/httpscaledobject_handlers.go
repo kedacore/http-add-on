@@ -22,7 +22,7 @@ func createScaledObject(
 
 	coreScaledObject := k8s.NewScaledObject(
 		appInfo.ScaledObjectName(),
-		appInfo.ScaledObjectName(),
+		appInfo.Name,
 		fmt.Sprintf(
 			"%s.%s.svc.cluster.local:%d",
 			appInfo.ExternalScalerServiceName(),

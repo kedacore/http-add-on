@@ -76,11 +76,24 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		}, err
 	}
 
+	appName := httpso.Spec.AppName
+	image := httpso.Spec.Image
+	port := httpso.Spec.Port
+
+	appInfo := config.AppInfo{
+		Name:                 appName,
+		Port:                 port,
+		Image:                image,
+		Namespace:            req.Namespace,
+		InterceptorConfig:    rec.InterceptorConfig,
+		ExternalScalerConfig: rec.ExternalScalerConfig,
+	}
+
 	if httpso.GetDeletionTimestamp() != nil {
 		// if it was marked deleted, delete all the related objects
 		// and don't schedule for another reconcile. Kubernetes
 		// will finalize them
-		removeErr := rec.removeApplicationResources(logger, req.Name, req.Namespace, httpso)
+		removeErr := rec.removeApplicationResources(logger, appInfo, httpso)
 		if removeErr != nil {
 			// if we failed to remove app resources, reschedule a reconcile so we can try
 			// again
@@ -99,9 +112,6 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	}
 
 	// initializes the required variables and set the initial status to unknown
-	appName := httpso.Spec.AppName
-	image := httpso.Spec.Image
-	port := httpso.Spec.Port
 	httpso.Status = httpv1alpha1.HTTPScaledObjectStatus{
 		ServiceStatus:        httpv1alpha1.Unknown,
 		DeploymentStatus:     httpv1alpha1.Unknown,
@@ -112,18 +122,11 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	}
 	logger.Info("Reconciling HTTPScaledObject", "Namespace", req.Namespace, "App Name", appName, "image", image, "port", port)
 
-	appInfo := config.AppInfo{
-		Name:                 appName,
-		Port:                 port,
-		Image:                image,
-		Namespace:            req.Namespace,
-		InterceptorConfig:    rec.InterceptorConfig,
-		ExternalScalerConfig: rec.ExternalScalerConfig,
-	}
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createApplicationResources(logger, appInfo, httpso); err != nil {
+		// if we failed to create app resources, remove what we've created and exit
 		logger.Error(err, "Adding app resources")
-		if removeErr := rec.removeApplicationResources(logger, appName, req.Namespace, httpso); removeErr != nil {
+		if removeErr := rec.removeApplicationResources(logger, appInfo, httpso); removeErr != nil {
 			logger.Error(removeErr, "Removing previously created resources")
 		}
 		return ctrl.Result{}, err
