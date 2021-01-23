@@ -59,10 +59,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	_ = rec.Log.WithValues("httpscaledobject", req.NamespacedName)
 	httpso := &httpv1alpha1.HTTPScaledObject{}
 
-	if err := rec.Client.Get(ctx, client.ObjectKey{
-		Name:      req.Name,
-		Namespace: req.Namespace,
-	}, httpso); err != nil {
+	if err := rec.Client.Get(ctx, req.NamespacedName, httpso); err != nil {
 		if errors.IsNotFound(err) {
 			// If the HTTPScaledObject wasn't found, it might have
 			// been deleted between the reconcile and the get.
@@ -88,6 +85,11 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 			logger.Error(removeErr, "Removing application objects")
 		}
 		return ctrl.Result{}, removeErr
+	}
+
+	// ensure finalizer is set on this resource
+	if err := ensureFinalizer(ctx, logger, rec.Client, httpso); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// initializes the required variables and set the initial status to unknown
