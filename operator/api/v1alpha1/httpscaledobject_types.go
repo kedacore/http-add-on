@@ -55,21 +55,24 @@ type HTTPScaledObjectSpec struct {
 	// (optional) The interval to check for changes.
 	PollingInterval int32 `json:"polling_interval,omitempty"`
 }
+
 // TODO: Add ingress configurations
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
-	ServiceStatus      HTTPScaledObjectCreationStatus `json:"service_status,omitempty"`
-	DeploymentStatus   HTTPScaledObjectCreationStatus `json:"deployment_status,omitempty"`
-	ScaledObjectStatus HTTPScaledObjectCreationStatus `json:"scaledobject_status,omitempty"`
-	InterceptorStatus HTTPScaledObjectCreationStatus `json:"interceptor_status,omitempty"`
+	ServiceStatus        HTTPScaledObjectCreationStatus `json:"service_status,omitempty"`
+	DeploymentStatus     HTTPScaledObjectCreationStatus `json:"deployment_status,omitempty"`
+	ScaledObjectStatus   HTTPScaledObjectCreationStatus `json:"scaledobject_status,omitempty"`
+	InterceptorStatus    HTTPScaledObjectCreationStatus `json:"interceptor_status,omitempty"`
 	ExternalScalerStatus HTTPScaledObjectCreationStatus `json:"externalscaler_status,omitempty"`
-	Ready              bool                           `json:"ready,omitempty"`
+	Ready                bool                           `json:"ready,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
 // HTTPScaledObject is the Schema for the scaledobjects API
+// +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
 type HTTPScaledObject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
