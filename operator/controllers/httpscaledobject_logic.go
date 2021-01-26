@@ -5,6 +5,7 @@ import (
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -13,8 +14,10 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	logger logr.Logger,
 	appInfo config.AppInfo,
 	httpso *v1alpha1.HTTPScaledObject,
+	updateStatus func(httpso *v1alpha1.HTTPScaledObject),
 ) error {
 
+	defer updateStatus(httpso)
 	// set initial statuses
 	httpso.Status = v1alpha1.HTTPScaledObjectStatus{
 		ServiceStatus:        v1alpha1.Terminating,
@@ -125,11 +128,13 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	return nil
 }
 
-func (rec *HTTPScaledObjectReconciler) createApplicationResources(
+func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	logger logr.Logger,
 	appInfo config.AppInfo,
 	httpso *v1alpha1.HTTPScaledObject,
+	updateStatus func(httpso *v1alpha1.HTTPScaledObject),
 ) error {
+	defer updateStatus(httpso)
 	logger = rec.Log.WithValues(
 		"reconciler.appObjects",
 		"addObjects",
@@ -151,24 +156,40 @@ func (rec *HTTPScaledObjectReconciler) createApplicationResources(
 
 	// CREATING THE USER APPLICATION
 	if err := createUserApp(appInfo, rec.K8sCl, logger, httpso); err != nil {
-		return err
+		if errors.IsAlreadyExists(err) {
+			logger.Info("User application already exists, moving on")
+		} else {
+			return err
+		}
 	}
 
 	// CREATING INTERNAL ADD-ON OBJECTS
 	// Creating the dedicated interceptor
 	if err := createInterceptor(appInfo, rec.K8sCl, logger, httpso); err != nil {
-		return err
+		if errors.IsAlreadyExists(err) {
+			logger.Info("Interceptor already exists, moving on")
+		} else {
+			return err
+		}
 	}
 
 	// create dedicated external scaler for this app
 	if err := createExternalScaler(appInfo, rec.K8sCl, logger, httpso); err != nil {
-		return err
+		if errors.IsAlreadyExists(err) {
+			logger.Info("External Scaler already exists, moving on")
+		} else {
+			return err
+		}
 	}
 
 	// create the KEDA core ScaledObject (not the HTTP one).
 	// this needs to be submitted so that KEDA will scale the app's deployment
 	if err := createScaledObject(appInfo, rec.K8sDynamicCl, logger, httpso); err != nil {
-		return err
+		if errors.IsAlreadyExists(err) {
+			logger.Info("ScaledObject   already exists, moving on")
+		} else {
+			return err
+		}
 	}
 
 	// TODO: Create a new ingress resource that will point to the interceptor
