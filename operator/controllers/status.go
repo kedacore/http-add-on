@@ -7,7 +7,6 @@ import (
 	httpsoapi "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func updateStatus(
@@ -16,8 +15,11 @@ func updateStatus(
 	cl client.Client,
 	httpso *httpv1alpha1.HTTPScaledObject,
 ) {
-	patch := runtimeclient.MergeFrom(httpso.DeepCopy())
-	err := cl.Status().Patch(ctx, httpso, patch)
+	logger.Info("Updating status on HTTPScaledObject", "httpso", *httpso)
+	// patch := runtimeclient.MergeFrom(httpso.DeepCopy())
+	// err := cl.Status().Patch(ctx, httpso, patch)
+
+	err := cl.Status().Update(ctx, httpso)
 	if err != nil {
 		logger.Error(err, "failed to update status on HTTPScaledObject")
 	}
