@@ -54,6 +54,7 @@ type HTTPScaledObjectReconciler struct {
 // HTTPScaledObject
 func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	logger := rec.Log.WithValues("HTTPScaledObject.Namespace", req.Namespace, "HTTPScaledObject.Name", req.Name)
+	logger.Info("Reconciliation start")
 
 	ctx := context.Background()
 	_ = rec.Log.WithValues("httpscaledobject", req.NamespacedName)
@@ -90,6 +91,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	}
 
 	if httpso.GetDeletionTimestamp() != nil {
+		logger.Info("Deletion timestamp found", "httpscaledobject", *httpso)
 		// if it was marked deleted, delete all the related objects
 		// and don't schedule for another reconcile. Kubernetes
 		// will finalize them
@@ -124,6 +126,8 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		Ready:                false,
 	}
 	updateStatus(ctx, logger, rec.Client, httpso)
+
+	// httpso is updated now
 
 	logger.Info("Reconciling HTTPScaledObject", "Namespace", req.Namespace, "App Name", appName, "image", image, "port", port)
 
