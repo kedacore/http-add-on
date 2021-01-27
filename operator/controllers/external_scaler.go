@@ -36,7 +36,7 @@ func createExternalScaler(
 			},
 			{
 				Name:  "KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE",
-				Value: appInfo.ExternalScalerServiceName(),
+				Value: appInfo.InterceptorAdminServiceName(),
 			},
 			{
 				Name:  "KEDA_HTTP_SCALER_TARGET_ADMIN_PORT",
