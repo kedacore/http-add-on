@@ -14,6 +14,7 @@ import (
 func newForwardingHandler(fwdSvcURL *url.URL) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		r := c.Request()
+		c.Logger().Debug("Incoming request for %s (%v)", *fwdSvcURL, *r)
 
 		proxy := httputil.NewSingleHostReverseProxy(fwdSvcURL)
 		proxy.Director = func(req *http.Request) {
