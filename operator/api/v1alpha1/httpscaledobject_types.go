@@ -41,6 +41,22 @@ const (
 	Unknown HTTPScaledObjectCreationStatus = "Unknown"
 )
 
+// Condition to store the condition state
+type HTTPScaledObjectCondition struct {
+	// Type of condition
+	// +required
+	Type HTTPScaledObjectStatus `json:"type" description:"type of status condition"`
+	// Status of the condition, one of True, False, Unknown.
+	// +required
+	Status metav1.ConditionStatus `json:"status" description:"status of the condition, one of True, False, Unknown"`
+	// The reason for the condition's last transition.
+	// +optional
+	Reason string `json:"reason,omitempty" description:"one-word CamelCase reason for the condition's last transition"`
+	// A human readable message indicating details about the transition.
+	// +optional
+	Message string `json:"message,omitempty" description:"human-readable message indicating details about last transition"`
+}
+
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 // Important: Run "make" to regenerate code after modifying this file
 
@@ -58,12 +74,8 @@ type HTTPScaledObjectSpec struct {
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
-	ServiceStatus        HTTPScaledObjectCreationStatus `json:"service_status,omitempty"`
-	DeploymentStatus     HTTPScaledObjectCreationStatus `json:"deployment_status,omitempty"`
-	ScaledObjectStatus   HTTPScaledObjectCreationStatus `json:"scaledobject_status,omitempty"`
-	InterceptorStatus    HTTPScaledObjectCreationStatus `json:"interceptor_status,omitempty"`
-	ExternalScalerStatus HTTPScaledObjectCreationStatus `json:"externalscaler_status,omitempty"`
-	Ready                bool                           `json:"ready,omitempty"`
+	// List of auditable conditions of the operator
+	Conditions []HTTPScaledObjectCondition `json:conditions,omitempty`
 }
 
 // +kubebuilder:object:root=true
