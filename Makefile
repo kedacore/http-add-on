@@ -63,6 +63,9 @@ helm-upgrade-operator:
 	--set externalScalerImage=${SCALER_DOCKER_IMG} \
 	--set interceptorImage=${INTERCEPTOR_DOCKER_IMG}
 
+.PHONY: helm-delete-operator
+helm-delete-operator:
+	helm delete -n ${NAMESPACE} kedahttp
 
 .PHONY: build-all
 build-all: build-scaler build-interceptor build-operator
