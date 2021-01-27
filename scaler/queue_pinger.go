@@ -77,6 +77,7 @@ func (q queuePinger) requestCounts() error {
 			go func(addr string) {
 				defer wg.Done()
 				completeAddr := fmt.Sprintf("http://%s:%s/queue", addr, q.adminPort)
+				log.Printf("Request to %s", completeAddr)
 				resp, err := http.Get(completeAddr)
 				if err != nil {
 					return

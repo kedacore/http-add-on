@@ -29,6 +29,7 @@ func NewService(
 	name string,
 	servicePorts []corev1.ServicePort,
 	svcType corev1.ServiceType,
+	selector map[string]string,
 ) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -36,11 +37,11 @@ func NewService(
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: labels(name),
+			Labels: selector,
 		},
 		Spec: corev1.ServiceSpec{
 			Ports:    servicePorts,
-			Selector: labels(name),
+			Selector: selector, //labels(name),
 			// TODO: after switching to Ingress + Ingress controller, switch
 			// this back to ClusterIP
 			// Type:     corev1.ServiceTypeClusterIP,

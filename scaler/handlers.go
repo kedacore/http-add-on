@@ -55,7 +55,6 @@ func (e *impl) StreamIsActive(
 			})
 		}
 	}
-	return nil
 }
 
 func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.GetMetricSpecResponse, error) {

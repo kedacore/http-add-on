@@ -87,12 +87,21 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	}
 	httpso.Status.ServiceStatus = v1alpha1.Deleted
 
-	// Delete interceptor service
-	if err := coreCl.Delete(appInfo.InterceptorServiceName(), &metav1.DeleteOptions{}); err != nil {
+	// Delete interceptor admin and proxy services
+	if err := coreCl.Delete(appInfo.InterceptorAdminServiceName(), &metav1.DeleteOptions{}); err != nil {
 		if apierrs.IsNotFound(err) {
-			logger.Info("Interceptor service not found, moving on")
+			logger.Info("Interceptor admin service not found, moving on")
 		} else {
-			logger.Error(err, "Deleting interceptor service")
+			logger.Error(err, "Deleting interceptor admin service")
+			httpso.Status.InterceptorStatus = v1alpha1.Error
+			return err
+		}
+	}
+	if err := coreCl.Delete(appInfo.InterceptorProxyServiceName(), &metav1.DeleteOptions{}); err != nil {
+		if apierrs.IsNotFound(err) {
+			logger.Info("Interceptor proxy service not found, moving on")
+		} else {
+			logger.Error(err, "Deleting interceptor proxy service")
 			httpso.Status.InterceptorStatus = v1alpha1.Error
 			return err
 		}
