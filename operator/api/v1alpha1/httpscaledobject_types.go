@@ -52,8 +52,6 @@ type HTTPScaledObjectSpec struct {
 	Image string `json:"app_image"`
 	// The port this application will serve on.
 	Port int32 `json:"port"`
-	// (optional) The interval to check for changes.
-	PollingInterval int32 `json:"polling_interval,omitempty"`
 }
 
 // TODO: Add ingress configurations
