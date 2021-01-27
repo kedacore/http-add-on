@@ -39,18 +39,7 @@ func NewService(
 			Labels: labels(name),
 		},
 		Spec: corev1.ServiceSpec{
-			Ports: servicePorts,
-			// []corev1.ServicePort{
-			// 	{
-			// 		Name:     "standard",
-			// 		Protocol: corev1.ProtocolTCP,
-			// 		Port:     8080,
-			// 		TargetPort: intstr.IntOrString{
-			// 			Type:   intstr.Int,
-			// 			IntVal: port,
-			// 		},
-			// 	},
-			// },
+			Ports:    servicePorts,
 			Selector: labels(name),
 			// TODO: after switching to Ingress + Ingress controller, switch
 			// this back to ClusterIP

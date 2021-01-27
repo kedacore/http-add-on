@@ -12,19 +12,19 @@ type AppInfo struct {
 }
 
 func (a AppInfo) ExternalScalerServiceName() string {
-	return fmt.Sprintf("%s-external-scaler-service", a.Name)
+	return fmt.Sprintf("%s-external-scaler", a.Name)
 }
 
 func (a AppInfo) ExternalScalerDeploymentName() string {
-	return fmt.Sprintf("%s-external-scaler-deployment", a.Name)
+	return fmt.Sprintf("%s-external-scaler", a.Name)
 }
 
 func (a AppInfo) InterceptorServiceName() string {
-	return fmt.Sprintf("%s-interceptor-service", a.Name)
+	return fmt.Sprintf("%s-interceptor", a.Name)
 }
 
 func (a AppInfo) InterceptorDeploymentName() string {
-	return fmt.Sprintf("%s-interceptor-deployment", a.Name)
+	return fmt.Sprintf("%s-interceptor", a.Name)
 }
 
 func (a AppInfo) ScaledObjectName() string {
