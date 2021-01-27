@@ -70,6 +70,8 @@ func (q queuePinger) requestCounts() error {
 		return err
 	}
 
+	log.Printf("Got endpoints for %s:\n%+v", q.svcName, *endpoints)
+
 	queueSizeCh := make(chan int)
 	var wg sync.WaitGroup
 
@@ -82,17 +84,19 @@ func (q queuePinger) requestCounts() error {
 				log.Printf("Request to %s", completeAddr)
 				resp, err := http.Get(completeAddr)
 				if err != nil {
+					log.Printf("Error with GET %s (%s)", completeAddr, err)
 					return
 				}
 				defer resp.Body.Close()
 				respData := map[string]int{}
 				if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+					log.Printf("Error decoding request to %s (%s)", completeAddr, err)
 					return
 				}
 				curSize := respData["current_size"]
 				log.Printf("Current size for address %s: %d", addr, curSize)
 				queueSizeCh <- curSize
-			}(addr.Hostname)
+			}(addr.IP)
 		}
 	}
 
