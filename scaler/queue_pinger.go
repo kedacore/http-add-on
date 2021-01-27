@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -44,6 +45,7 @@ func newQueuePinger(
 		for {
 			select {
 			case <-pingTicker.C:
+				log.Printf("Tick at %s", time.Now())
 				pinger.requestCounts()
 			}
 		}
@@ -84,8 +86,9 @@ func (q queuePinger) requestCounts() error {
 				if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 					return
 				}
-
-				queueSizeCh <- respData["current_size"]
+				curSize := respData["current_size"]
+				log.Printf("Current size for address %s: %d", addr, curSize)
+				queueSizeCh <- curSize
 			}(addr.Hostname)
 		}
 	}
