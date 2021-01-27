@@ -347,3 +347,11 @@ cover.out
 
 # GO debug binary
 cmd/manager/debug.test
+
+/bin
+
+admin/target
+admin/Cargo.lock
+
+/target
+.envrc
