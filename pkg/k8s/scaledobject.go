@@ -41,7 +41,7 @@ func NewScaledObject(name, deploymentName, scalerAddress string) *unstructured.U
 			"spec": map[string]interface{}{
 				"minReplicaCount": 0,
 				"maxReplicaCount": 1000,
-				"pollingInterval": 1,
+				"pollingInterval": 250,
 				"scaleTargetRef": map[string]string{
 					"name": deploymentName,
 					// "apiVersion": "apps/v1",
