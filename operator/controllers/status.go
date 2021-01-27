@@ -11,26 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// func updateStatus(
-// 	ctx context.Context,
-// 	logger logr.Logger,
-// 	cl client.Client,
-// 	object interface{}, //*httpv1alpha1.HTTPScaledObject,
-// ) {
-// 	logger.Info("Updating status on object", "object", object)
-// 	runtimeObj := object.(runtime.Object)
-// 	httpso := object.(*v1alpha1.HTTPScaledObject)
-// 	patch := runtimeclient.MergeFrom(httpso.DeepCopy())
-// 	err := cl.Status().Patch(ctx, runtimeObj, patch)
-
-// 	// err := cl.Status().Update(ctx, httpso)
-// 	if err != nil {
-// 		logger.Error(err, "failed to update status on HTTPScaledObject", "httpso", httpso)
-// 	} else {
-// 		logger.Info("Updated status on HTTPScaledObject", "HTTPScaledObject", *httpso)
-// 	}
-// }
-
 func updateStatus(
 	ctx context.Context,
 	logger logr.Logger,
@@ -51,18 +31,10 @@ func updateStatus(
 
 	tmpHTTPSo.Status = httpso.Status
 
-	// patch := runtimeclient.MergeFrom(httpso.DeepCopy())
-	// truePtr := true
-	// var statusCl client.StatusWriter
-	// statusCl = cl.Status()
-	// err := statusCl.Patch(ctx, httpso, patch, &client.PatchOptions{
-	// 	Force: &truePtr,
-	// })
 	var runtimeObj runtime.Object
 	runtimeObj = tmpHTTPSo
 	err := cl.Status().Update(ctx, runtimeObj)
 	httpso = tmpHTTPSo
-	// httpso is updated!
 
 	if err != nil {
 		logger.Error(err, "failed to update status on HTTPScaledObject", "httpso", httpso)
