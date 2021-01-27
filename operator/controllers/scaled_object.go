@@ -19,15 +19,19 @@ func createScaledObject(
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 
+	externalScalerHostname := fmt.Sprintf(
+		"%s.%s.svc.cluster.local:%d",
+		appInfo.ExternalScalerServiceName(),
+		appInfo.Namespace,
+		appInfo.ExternalScalerConfig.Port,
+	)
+
+	logger.Info("Creating scaled object", "external_scaler", externalScalerHostname)
+
 	coreScaledObject := k8s.NewScaledObject(
 		appInfo.ScaledObjectName(),
 		appInfo.Name,
-		fmt.Sprintf(
-			"%s.%s.svc.cluster.local:%d",
-			appInfo.ExternalScalerServiceName(),
-			appInfo.Namespace,
-			appInfo.ExternalScalerConfig.Port,
-		),
+		externalScalerHostname,
 	)
 	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)
 	// TODO: use r.Client here, not the dynamic one
