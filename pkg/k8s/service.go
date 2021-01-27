@@ -25,7 +25,11 @@ func DeleteService(ctx context.Context, name string, cl k8scorev1.ServiceInterfa
 	return cl.Delete(name, &metav1.DeleteOptions{})
 }
 
-func NewService(name string, servicePorts []corev1.ServicePort) *corev1.Service {
+func NewService(
+	name string,
+	servicePorts []corev1.ServicePort,
+	svcType corev1.ServiceType,
+) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind: "Service",
@@ -48,7 +52,10 @@ func NewService(name string, servicePorts []corev1.ServicePort) *corev1.Service 
 			// 	},
 			// },
 			Selector: labels(name),
-			Type:     corev1.ServiceTypeClusterIP,
+			// TODO: after switching to Ingress + Ingress controller, switch
+			// this back to ClusterIP
+			// Type:     corev1.ServiceTypeClusterIP,
+			Type: svcType,
 		},
 	}
 }

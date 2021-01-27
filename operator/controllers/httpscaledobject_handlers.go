@@ -80,7 +80,7 @@ func createUserApp(
 	servicePorts := []corev1.ServicePort{
 		k8s.NewTCPServicePort("http", 8080, appInfo.Port),
 	}
-	service := k8s.NewService(appInfo.Name, servicePorts)
+	service := k8s.NewService(appInfo.Name, servicePorts, corev1.ServiceTypeLoadBalancer)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
 	if _, err := servicesCl.Create(service); err != nil {
 		if errors.IsAlreadyExists(err) {
@@ -158,6 +158,7 @@ func createInterceptor(
 	interceptorService := k8s.NewService(
 		appInfo.InterceptorServiceName(),
 		servicePorts,
+		corev1.ServiceTypeClusterIP,
 	)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
 	if _, err := servicesCl.Create(interceptorService); err != nil {
@@ -228,6 +229,7 @@ func createExternalScaler(
 	scalerService := k8s.NewService(
 		appInfo.ExternalScalerServiceName(),
 		servicePorts,
+		corev1.ServiceTypeClusterIP,
 	)
 	logger.Info("Creating external scaler Service", "Service", *scalerService)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
