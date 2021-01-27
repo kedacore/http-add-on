@@ -43,3 +43,21 @@ There are two environment variables in the above command that you can set to cus
 
 - `NAMESPACE` - which Kubernetes namespace to install KEDA-HTTP. This should be the same as where you installed KEDA itself (required)
 - `OPERATOR_DOCKER_IMG` - the name of the operator's Docker image (optional - falls back to a sensible default)
+- `SCALER_DOCKER_IMG` - the name of the scaler's Docker image (optional - falls back to a sensible default)
+- `INTERCEPTOR_DOCKER_IMG` - the name of the interceptor's Docker image (optional - falls back to a sensible default)
+
+### If You're Installing into a [Microk8s](https://microk8s.io) Cluster
+
+You might be working with a local development cluster like Microk8s, which offers a local, in-cluster registry. In this case, the previous `*_DOCKER_IMG` variables won't work for the Helm chart and you'll need to use a custom `helm` command such as the below:
+
+```shell
+helm upgrade kedahttp ./charts/keda-http-operator \
+    --install \
+    --namespace ${NAMESPACE} \
+    --create-namespace \
+    --set image=localhost:32000/keda-http-operator \
+	--set externalScalerImage=localhost:32000/keda-http-scaler \
+	--set interceptorImage=localhost:32000/keda-http-interceptor
+```
+
+In the above command, `localhost:32000` is the address of the registry from inside a Microk8s cluster.
