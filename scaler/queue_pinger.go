@@ -46,7 +46,9 @@ func newQueuePinger(
 			select {
 			case <-pingTicker.C:
 				log.Printf("Tick at %s", time.Now())
-				pinger.requestCounts()
+				if err := pinger.requestCounts(); err != nil {
+					log.Printf("Error getting request counts (%s)", err)
+				}
 			}
 		}
 
