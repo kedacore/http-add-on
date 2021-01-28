@@ -45,7 +45,6 @@ func newQueuePinger(
 		for {
 			select {
 			case <-pingTicker.C:
-				log.Printf("Tick at %s", time.Now())
 				if err := pinger.requestCounts(); err != nil {
 					log.Printf("Error getting request counts (%s)", err)
 				}
@@ -70,8 +69,6 @@ func (q queuePinger) requestCounts() error {
 		return err
 	}
 
-	log.Printf("Got endpoints for %s:\n%+v", q.svcName, *endpoints)
-
 	queueSizeCh := make(chan int)
 	var wg sync.WaitGroup
 
@@ -81,10 +78,9 @@ func (q queuePinger) requestCounts() error {
 			go func(addr string) {
 				defer wg.Done()
 				completeAddr := fmt.Sprintf("http://%s:%s/queue", addr, q.adminPort)
-				log.Printf("Request to %s", completeAddr)
 				resp, err := http.Get(completeAddr)
 				if err != nil {
-					log.Printf("Error with GET %s (%s)", completeAddr, err)
+					log.Printf("Error in pinger with GET %s (%s)", completeAddr, err)
 					return
 				}
 				defer resp.Body.Close()
@@ -94,7 +90,6 @@ func (q queuePinger) requestCounts() error {
 					return
 				}
 				curSize := respData["current_size"]
-				log.Printf("Current size for address %s: %d", addr, curSize)
 				queueSizeCh <- curSize
 			}(addr.IP)
 		}
