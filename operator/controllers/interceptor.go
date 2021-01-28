@@ -66,7 +66,7 @@ func createInterceptor(
 		k8s.NewTCPServicePort(
 			"proxy",
 			// TODO: make this the public port - probably 80
-			appInfo.InterceptorConfig.ProxyPort,
+			80,
 			appInfo.InterceptorConfig.ProxyPort,
 		),
 	}
