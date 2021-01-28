@@ -52,7 +52,9 @@ func main() {
 }
 
 func startGrpcServer(port string, pinger queuePinger) error {
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", port))
+	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	log.Printf("Serving external scaler on %s", addr)
+	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
