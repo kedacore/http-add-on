@@ -91,3 +91,7 @@ helm-upgrade-keda:
 		--namespace ${NAMESPACE} \
 		--create-namespace \
 		--set watchNamespace=${NAMESPACE}
+	
+.PHONY: helm-delete-keda
+helm-delete-keda:
+	helm delete -n ${NAMESPACE} keda
