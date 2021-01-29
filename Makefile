@@ -75,3 +75,11 @@ docker-build-all: docker-build-scaler docker-build-interceptor docker-build-oper
 
 .PHONY: docker-push-all
 docker-push-all: docker-push-scaler docker-push-interceptor docker-push-operator
+
+.PHONY: create-example
+create-example:
+	kubectl create -f examples/httpscaledobject.yaml --namespace=${NAMESPACE}
+
+.PHONY: delete-example
+delete-example:
+	kubectl delete --namespace=${NAMESPACE} httpscaledobject xkcd
