@@ -83,3 +83,11 @@ create-example:
 .PHONY: delete-example
 delete-example:
 	kubectl delete --namespace=${NAMESPACE} httpscaledobject xkcd
+
+.PHONY: helm-upgrade-keda
+helm-upgrade-keda:
+	helm upgrade keda kedacore/keda \
+		--install \
+		--namespace ${NAMESPACE} \
+		--create-namespace \
+		--set watchNamespace=${NAMESPACE}
