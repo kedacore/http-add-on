@@ -14,6 +14,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -60,5 +61,6 @@ func startGrpcServer(port string, pinger queuePinger) error {
 	}
 	grpcServer := grpc.NewServer()
 	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger))
+	reflection.Register(grpcServer)
 	return grpcServer.Serve(lis)
 }
