@@ -2,7 +2,7 @@ kind: HTTPScaledObject
 apiVersion: http.keda.sh/v1alpha1
 metadata:
     name: xkcd
-    namespace: xkcd
+    namespace: kedahttp
 spec:
     app_name: xkcd
     app_image: arschles/xkcd
