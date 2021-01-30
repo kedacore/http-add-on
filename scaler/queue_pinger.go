@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -29,9 +30,9 @@ func newQueuePinger(
 	svcName,
 	adminPort string,
 	pingTicker *time.Ticker,
-) queuePinger {
+) *queuePinger {
 	pingMut := new(sync.RWMutex)
-	pinger := queuePinger{
+	pinger := &queuePinger{
 		k8sCl:     k8sCl,
 		ns:        ns,
 		svcName:   svcName,
@@ -44,7 +45,9 @@ func newQueuePinger(
 		for {
 			select {
 			case <-pingTicker.C:
-				pinger.requestCounts()
+				if err := pinger.requestCounts(); err != nil {
+					log.Printf("Error getting request counts (%s)", err)
+				}
 			}
 		}
 
@@ -53,13 +56,14 @@ func newQueuePinger(
 	return pinger
 }
 
-func (q queuePinger) count() int {
+func (q *queuePinger) count() int {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return q.lastCount
 }
 
-func (q queuePinger) requestCounts() error {
+func (q *queuePinger) requestCounts() error {
+	log.Printf("queuePinger.requestCounts")
 	endpointsCl := q.k8sCl.CoreV1().Endpoints(q.ns)
 	endpoints, err := endpointsCl.Get(q.svcName, metav1.GetOptions{})
 	if err != nil {
@@ -77,16 +81,20 @@ func (q queuePinger) requestCounts() error {
 				completeAddr := fmt.Sprintf("http://%s:%s/queue", addr, q.adminPort)
 				resp, err := http.Get(completeAddr)
 				if err != nil {
+					log.Printf("Error in pinger with GET %s (%s)", completeAddr, err)
 					return
 				}
 				defer resp.Body.Close()
 				respData := map[string]int{}
 				if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+					log.Printf("Error decoding request to %s (%s)", completeAddr, err)
 					return
 				}
-
-				queueSizeCh <- respData["current_size"]
-			}(addr.Hostname)
+				curSize := respData["current_size"]
+				log.Printf("\n--\ncurSize for address %s: %d\n--\n", addr, curSize)
+				queueSizeCh <- curSize
+				log.Printf("Sent curSize %d for address %s", curSize, addr)
+			}(addr.IP)
 		}
 	}
 
@@ -104,6 +112,7 @@ func (q queuePinger) requestCounts() error {
 	defer q.pingMut.Unlock()
 	q.lastCount = total
 	q.lastPingTime = time.Now()
+	log.Printf("Finished getting aggregate current size %d", q.lastCount)
 
 	return nil
 
