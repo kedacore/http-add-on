@@ -63,6 +63,9 @@ helm-upgrade-operator:
 	--set externalScalerImage=${SCALER_DOCKER_IMG} \
 	--set interceptorImage=${INTERCEPTOR_DOCKER_IMG}
 
+.PHONY: helm-delete-operator
+helm-delete-operator:
+	helm delete -n ${NAMESPACE} kedahttp
 
 .PHONY: build-all
 build-all: build-scaler build-interceptor build-operator
@@ -72,3 +75,23 @@ docker-build-all: docker-build-scaler docker-build-interceptor docker-build-oper
 
 .PHONY: docker-push-all
 docker-push-all: docker-push-scaler docker-push-interceptor docker-push-operator
+
+.PHONY: create-example
+create-example:
+	kubectl create -f examples/httpscaledobject.yaml --namespace=${NAMESPACE}
+
+.PHONY: delete-example
+delete-example:
+	kubectl delete --namespace=${NAMESPACE} httpscaledobject xkcd
+
+.PHONY: helm-upgrade-keda
+helm-upgrade-keda:
+	helm upgrade keda kedacore/keda \
+		--install \
+		--namespace ${NAMESPACE} \
+		--create-namespace \
+		--set watchNamespace=${NAMESPACE}
+	
+.PHONY: helm-delete-keda
+helm-delete-keda:
+	helm delete -n ${NAMESPACE} keda

@@ -17,7 +17,7 @@ Before you install any of these components, you need to install KEDA. Below are 
 ```shell
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
-helm install keda kedacore/keda --namespace ${NAMESPACE} --create-namespace
+make helm-upgrade-keda
 ```
 
 >This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA must be installed in every namespace that you'd like to host KEDA-HTTP powered apps.

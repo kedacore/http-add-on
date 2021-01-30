@@ -48,6 +48,8 @@ rules:
   resources:
   - pods
   - services
+  - endpoints
+  - endpoint
   verbs:
   - create
   - delete

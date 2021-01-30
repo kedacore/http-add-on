@@ -14,6 +14,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -51,12 +52,15 @@ func main() {
 	log.Fatal(startGrpcServer(portStr, pinger))
 }
 
-func startGrpcServer(port string, pinger queuePinger) error {
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", port))
+func startGrpcServer(port string, pinger *queuePinger) error {
+	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	log.Printf("Serving external scaler on %s", addr)
+	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
 	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger))
+	reflection.Register(grpcServer)
 	return grpcServer.Serve(lis)
 }
