@@ -30,9 +30,9 @@ func newQueuePinger(
 	svcName,
 	adminPort string,
 	pingTicker *time.Ticker,
-) queuePinger {
+) *queuePinger {
 	pingMut := new(sync.RWMutex)
-	pinger := queuePinger{
+	pinger := &queuePinger{
 		k8sCl:     k8sCl,
 		ns:        ns,
 		svcName:   svcName,
@@ -56,13 +56,14 @@ func newQueuePinger(
 	return pinger
 }
 
-func (q queuePinger) count() int {
+func (q *queuePinger) count() int {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return q.lastCount
 }
 
-func (q queuePinger) requestCounts() error {
+func (q *queuePinger) requestCounts() error {
+	log.Printf("queuePinger.requestCounts")
 	endpointsCl := q.k8sCl.CoreV1().Endpoints(q.ns)
 	endpoints, err := endpointsCl.Get(q.svcName, metav1.GetOptions{})
 	if err != nil {
@@ -90,7 +91,9 @@ func (q queuePinger) requestCounts() error {
 					return
 				}
 				curSize := respData["current_size"]
+				log.Printf("\n--\ncurSize for address %s: %d\n--\n", addr, curSize)
 				queueSizeCh <- curSize
+				log.Printf("Sent curSize %d for address %s", curSize, addr)
 			}(addr.IP)
 		}
 	}
@@ -109,6 +112,7 @@ func (q queuePinger) requestCounts() error {
 	defer q.pingMut.Unlock()
 	q.lastCount = total
 	q.lastPingTime = time.Now()
+	log.Printf("Finished getting aggregate current size %d", q.lastCount)
 
 	return nil
 

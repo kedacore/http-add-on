@@ -18,11 +18,11 @@ func init() {
 }
 
 type impl struct {
-	pinger queuePinger
+	pinger *queuePinger
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(pinger queuePinger) *impl {
+func newImpl(pinger *queuePinger) *impl {
 	return &impl{pinger: pinger}
 }
 
@@ -30,7 +30,10 @@ func (e *impl) Ping(context.Context, *empty.Empty) (*empty.Empty, error) {
 	return &empty.Empty{}, nil
 }
 
-func (e *impl) IsActive(ctx context.Context, scaledObject *externalscaler.ScaledObjectRef) (*externalscaler.IsActiveResponse, error) {
+func (e *impl) IsActive(
+	ctx context.Context,
+	scaledObject *externalscaler.ScaledObjectRef,
+) (*externalscaler.IsActiveResponse, error) {
 	return &externalscaler.IsActiveResponse{
 		Result: true,
 	}, nil
@@ -43,7 +46,7 @@ func (e *impl) StreamIsActive(
 	// this function communicates with KEDA via the 'server' parameter.
 	// we call server.Send (below) every 200ms, which tells it to immediately
 	// ping our IsActive RPC
-	ticker := time.NewTicker(200 * time.Millisecond)
+	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		select {
@@ -57,7 +60,10 @@ func (e *impl) StreamIsActive(
 	}
 }
 
-func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.GetMetricSpecResponse, error) {
+func (e *impl) GetMetricSpec(
+	_ context.Context,
+	sor *externalscaler.ScaledObjectRef,
+) (*externalscaler.GetMetricSpecResponse, error) {
 	return &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{
@@ -68,12 +74,16 @@ func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObject
 	}, nil
 }
 
-func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMetricsRequest) (*externalscaler.GetMetricsResponse, error) {
+func (e *impl) GetMetrics(
+	_ context.Context,
+	metricRequest *externalscaler.GetMetricsRequest,
+) (*externalscaler.GetMetricsResponse, error) {
+	size := int64(e.pinger.count())
 	return &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
 			{
 				MetricName:  "queueSize",
-				MetricValue: int64(e.pinger.count()),
+				MetricValue: size,
 			},
 		},
 	}, nil

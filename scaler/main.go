@@ -52,7 +52,7 @@ func main() {
 	log.Fatal(startGrpcServer(portStr, pinger))
 }
 
-func startGrpcServer(port string, pinger queuePinger) error {
+func startGrpcServer(port string, pinger *queuePinger) error {
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
 	log.Printf("Serving external scaler on %s", addr)
 	lis, err := net.Listen("tcp", addr)
