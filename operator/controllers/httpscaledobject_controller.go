@@ -166,8 +166,8 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	logger.Info("Reconcile success")
 	finalHTTPSo := &httpv1alpha1.HTTPScaledObject{}
 	rec.Client.Get(ctx, types.NamespacedName{
-		Namespace: "kedahttp",
-		Name:      "myapp",
+		Namespace: httpso.Namespace,
+		Name:      httpso.Name,
 	}, finalHTTPSo)
 	logger.Info("Final HTTPScaledObject post-reconcile:", "object", *finalHTTPSo)
 	return ctrl.Result{}, nil
