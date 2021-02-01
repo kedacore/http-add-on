@@ -44,7 +44,7 @@ func (httpso *HTTPScaledObject) SaveStatus(
 
 // AddCondition adds a new condition to the HTTPScaledObject
 func (httpso *HTTPScaledObject) AddCondition(condition HTTPScaledObjectCondition) *HTTPScaledObject {
-	_ = append(httpso.Status.Conditions, condition)
+	httpso.Status.Conditions = append(httpso.Status.Conditions, condition)
 	return httpso
 }
 
