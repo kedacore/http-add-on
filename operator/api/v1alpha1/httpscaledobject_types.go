@@ -24,12 +24,48 @@ import (
 // of the scaler's additional resources such as Services, Ingresses and Deployments
 // +kubebuilder:validation:Enum=Created;Error;Pending;Unknown;Terminating
 type HTTPScaledObjectCreationStatus string
+type HTTPScaledObjectConditionReason string
+
+const (
+	ErrorCreatingExternalScaler HTTPScaledObjectConditionReason = "ErrorCreatingExternalScaler"
+	ErrorCreatingExternalScalerService HTTPScaledObjectConditionReason = "ErrorCreatingExternalScalerService"
+	CreatedExternalScaler HTTPScaledObjectConditionReason = "CreatedExternalScaler"
+	ErrorCreatingAppDeployment HTTPScaledObjectConditionReason = "ErrorCreatingAppDeployment"
+	AppDeploymentCreated HTTPScaledObjectConditionReason = "AppDeploymentCreated"
+	ErrorCreatingAppService HTTPScaledObjectConditionReason = "ErrorCreatingAppService"
+	AppServiceCreated HTTPScaledObjectConditionReason = "AppServiceCreated"
+	ErrorCreatingScaledObject HTTPScaledObjectConditionReason = "ErrorCreatingScaledObject"
+	ScaledObjectCreated HTTPScaledObjectConditionReason = "ScaledObjectCreated"
+	ErrorCreatingInterceptor HTTPScaledObjectConditionReason = "ErrorCreatingInterceptor"
+	ErrorCreatingInterceptorAdminService HTTPScaledObjectConditionReason = "ErrorCreatingInterceptorAdminService"
+	ErrorCreatingInterceptorProxyService HTTPScaledObjectConditionReason = "ErrorCreatingInterceptorProxyService"
+	InterceptorCreated HTTPScaledObjectConditionReason = "InterceptorCreated"
+	TerminatingResources HTTPScaledObjectConditionReason = "TerminatingResources"
+	AppDeploymentTerminationError HTTPScaledObjectConditionReason = "AppDeploymentTerminationError"
+	AppDeploymentTerminated HTTPScaledObjectConditionReason = "AppDeploymentTerminated"
+	InterceptorDeploymentTerminated HTTPScaledObjectConditionReason = "InterceptorDeploymentTerminated"
+	InterceptorDeploymentTerminationError HTTPScaledObjectConditionReason = "InterceptorDeploymentTerminationError"
+	InterceptorAdminServiceTerminationError HTTPScaledObjectConditionReason = "InterceptorAdminServiceTerminationError"
+	InterceptorAdminServiceTerminated HTTPScaledObjectConditionReason = "InterceptorAdminServiceTerminated"
+	InterceptorProxyServiceTerminationError HTTPScaledObjectConditionReason = "InterceptorProxyServiceTerminationError"
+	InterceptorProxyServiceTerminated HTTPScaledObjectConditionReason = "InterceptorProxyServiceTerminated"
+	ExternalScalerDeploymentTerminationError HTTPScaledObjectConditionReason = "ExternalScalerDeploymentTerminationError"
+	ExternalScalerDeploymentTerminated HTTPScaledObjectConditionReason = "ExternalScalerDeploymentTerminated"
+	ExternalScalerServiceTerminationError HTTPScaledObjectConditionReason = "ExternalScalerServiceTerminationError"
+	ExternalScalerServiceTerminated HTTPScaledObjectConditionReason = "ExternalScalerServiceTerminated"
+	AppServiceTerminationError HTTPScaledObjectConditionReason = "AppServiceTerminationError"
+	AppServiceTerminated HTTPScaledObjectConditionReason = "AppServiceTerminated"
+	ScaledObjectTerminated HTTPScaledObjectConditionReason = "ScaledObjectTerminated"
+	ScaledObjectTerminationError HTTPScaledObjectConditionReason = "ScaledObjectTerminationError"
+	PendingCreation HTTPScaledObjectConditionReason = "PendingCreation"
+	UnknownStatus HTTPScaledObjectConditionReason = "UnknownStatus"
+)
 
 const (
 	// Created indicates the resource has been created
 	Created HTTPScaledObjectCreationStatus = "Created"
 	// Deleted indicates the resource has been deleted
-	Deleted HTTPScaledObjectCreationStatus = "Created"
+	Deleted HTTPScaledObjectCreationStatus = "Deleted"
 	// Error indicates the resource had an error
 	Error HTTPScaledObjectCreationStatus = "Error"
 	// Pending indicates the resource hasn't been created
@@ -45,13 +81,13 @@ const (
 type HTTPScaledObjectCondition struct {
 	// Type of condition
 	// +required
-	Type HTTPScaledObjectStatus `json:"type" description:"type of status condition"`
+	Type HTTPScaledObjectCreationStatus `json:"type" description:"type of status condition"`
 	// Status of the condition, one of True, False, Unknown.
 	// +required
 	Status metav1.ConditionStatus `json:"status" description:"status of the condition, one of True, False, Unknown"`
 	// The reason for the condition's last transition.
 	// +optional
-	Reason string `json:"reason,omitempty" description:"one-word CamelCase reason for the condition's last transition"`
+	Reason HTTPScaledObjectConditionReason `json:"reason,omitempty" description:"one-word CamelCase reason for the condition's last transition"`
 	// A human readable message indicating details about the transition.
 	// +optional
 	Message string `json:"message,omitempty" description:"human-readable message indicating details about last transition"`
@@ -75,7 +111,7 @@ type HTTPScaledObjectSpec struct {
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
 	// List of auditable conditions of the operator
-	Conditions []HTTPScaledObjectCondition `json:conditions,omitempty`
+	Conditions []HTTPScaledObjectCondition `json:"conditions,omitempty" description:"List of auditable conditions of the operator"`
 }
 
 // +kubebuilder:object:root=true
