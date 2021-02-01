@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,10 +28,7 @@ func (httpso *HTTPScaledObject) SaveStatus(
 	}
 
 	tmpHTTPSo.Status = httpso.Status
-
-	var runtimeObj runtime.Object
-	runtimeObj = tmpHTTPSo
-	err := cl.Status().Update(ctx, runtimeObj)
+	err := cl.Status().Update(ctx, tmpHTTPSo)
 	httpso = tmpHTTPSo
 
 	if err != nil {
