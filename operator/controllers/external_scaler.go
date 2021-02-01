@@ -9,6 +9,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -52,7 +53,8 @@ func createExternalScaler(
 			logger.Info("External scaler deployment already exists, moving on")
 		} else {
 			logger.Error(err, "Creating scaler deployment")
-			httpso.Status.ExternalScalerStatus = v1alpha1.Error
+			condition:= v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingExternalScaler).SetMessage(err.Error())
+			httpso.AddCondition(*condition)
 			return err
 		}
 	}
@@ -78,10 +80,12 @@ func createExternalScaler(
 			logger.Info("External scaler service already exists, moving on")
 		} else {
 			logger.Error(err, "Creating scaler service")
-			httpso.Status.ExternalScalerStatus = v1alpha1.Error
+			condition:= v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingExternalScalerService).SetMessage(err.Error())
+			httpso.AddCondition(*condition)
 			return err
 		}
 	}
-	httpso.Status.ExternalScalerStatus = v1alpha1.Created
+	condition:= v1alpha1.CreateCondition(v1alpha1.Created, v1.ConditionTrue, v1alpha1.CreatedExternalScaler).SetMessage("External scaler object is created")
+	httpso.AddCondition(*condition)
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -54,7 +55,7 @@ func createInterceptor(
 			logger.Info("Interceptor deployment already exists, moving on")
 		} else {
 			logger.Error(err, "Creating interceptor deployment")
-			httpso.Status.InterceptorStatus = v1alpha1.Error
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ErrorCreatingInterceptor).SetMessage(err.Error()))
 			return err
 		}
 	}
@@ -97,7 +98,7 @@ func createInterceptor(
 			logger.Info("interceptor admin service already exists, moving on")
 		} else {
 			logger.Error(adminErr, "Creating interceptor admin service")
-			httpso.Status.InterceptorStatus = v1alpha1.Error
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ErrorCreatingInterceptorAdminService).SetMessage(adminErr.Error()))
 			return adminErr
 		}
 	}
@@ -105,12 +106,12 @@ func createInterceptor(
 		if errors.IsAlreadyExists(adminErr) {
 			logger.Info("interceptor proxy service already exists, moving on")
 		} else {
-			logger.Error(adminErr, "Creating interceptor proxy service")
-			httpso.Status.InterceptorStatus = v1alpha1.Error
+			logger.Error(proxyErr, "Creating interceptor proxy service")
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ErrorCreatingInterceptorProxyService).SetMessage(proxyErr.Error()))
 			return proxyErr
 		}
 	}
 
-	httpso.Status.InterceptorStatus = v1alpha1.Created
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created,v1.ConditionTrue,v1alpha1.InterceptorCreated).SetMessage("Created interceptor"))
 	return nil
 }

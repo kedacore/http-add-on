@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
@@ -97,9 +98,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		// and don't schedule for another reconcile. Kubernetes
 		// will finalize them
 		// TODO: move this function call into `finalizeScaledObject`
-		removeErr := rec.removeApplicationResources(logger, appInfo, httpso, func(httpso *v1alpha1.HTTPScaledObject) {
-			updateStatus(ctx, logger, rec.Client, httpso)
-		})
+		removeErr := rec.removeApplicationResources(logger, appInfo, httpso)
 		if removeErr != nil {
 			// if we failed to remove app resources, reschedule a reconcile so we can try
 			// again
@@ -118,15 +117,8 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	}
 
 	// initializes the required variables and set the initial status to unknown
-	httpso.Status = httpv1alpha1.HTTPScaledObjectStatus{
-		ServiceStatus:        httpv1alpha1.Unknown,
-		DeploymentStatus:     httpv1alpha1.Unknown,
-		ScaledObjectStatus:   httpv1alpha1.Unknown,
-		ExternalScalerStatus: httpv1alpha1.Unknown,
-		InterceptorStatus:    httpv1alpha1.Unknown,
-		Ready:                false,
-	}
-	updateStatus(ctx, logger, rec.Client, httpso)
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Unknown,v1.ConditionUnknown,v1alpha1.UnknownStatus))
+	httpso.SaveStatus(logger, rec.Client)
 
 	// httpso is updated now
 
@@ -137,30 +129,18 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		logger,
 		appInfo,
 		httpso,
-		func(httpso *v1alpha1.HTTPScaledObject) {
-			updateStatus(ctx, logger, rec.Client, httpso)
-		},
 	); err != nil {
 		// if we failed to create app resources, remove what we've created and exit
 		logger.Error(err, "Adding app resources")
 		if removeErr := rec.removeApplicationResources(
 			logger,
 			appInfo,
-			httpso,
-			func(httpso *v1alpha1.HTTPScaledObject) {
-				updateStatus(ctx, logger, rec.Client, httpso)
-			}); removeErr != nil {
+			httpso,); removeErr != nil {
 			logger.Error(removeErr, "Removing previously created resources")
 		}
 
 		return ctrl.Result{}, err
 	}
-
-	// If all goes well, set the ready status to true
-	if allReady(httpso) {
-		httpso.Status.Ready = true
-	}
-	updateStatus(ctx, logger, rec.Client, httpso)
 
 	// success reconciling
 	logger.Info("Reconcile success")
