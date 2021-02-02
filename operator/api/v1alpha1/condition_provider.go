@@ -18,6 +18,7 @@ func (httpso *HTTPScaledObject) SaveStatus(
 	logger.Info("Updating status on object", "scaledobject", *httpso)
 
 	err := cl.Status().Update(ctx, httpso)
+	logger.Info("Logging resource version", "version", httpso.ResourceVersion)
 	if err != nil {
 		logger.Error(err, "failed to update status on HTTPScaledObject", "httpso", httpso)
 	} else {
