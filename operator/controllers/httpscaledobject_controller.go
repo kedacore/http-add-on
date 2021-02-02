@@ -124,7 +124,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		httpso,
 	); err != nil {
 		// if we failed to create app resources, remove what we've created and exit
-		logger.Error(err, "Adding app resources")
+		logger.Error(err, "Removing app resources")
 		if removeErr := rec.removeApplicationResources(
 			logger,
 			appInfo,
