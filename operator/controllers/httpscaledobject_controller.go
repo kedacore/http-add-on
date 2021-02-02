@@ -23,7 +23,6 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -137,12 +136,6 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 
 	// success reconciling
 	logger.Info("Reconcile success")
-	finalHTTPSo := &httpv1alpha1.HTTPScaledObject{}
-	rec.Client.Get(ctx, types.NamespacedName{
-		Namespace: httpso.Namespace,
-		Name:      httpso.Name,
-	}, finalHTTPSo)
-	logger.Info("Final HTTPScaledObject post-reconcile:", "object", *finalHTTPSo)
 	return ctrl.Result{}, nil
 }
 
