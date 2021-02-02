@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -17,20 +16,8 @@ func (httpso *HTTPScaledObject) SaveStatus(
 ) {
 	ctx := context.TODO()
 	logger.Info("Updating status on object", "scaledobject", *httpso)
-	tmpHTTPSo := &HTTPScaledObject{}
-	if err := cl.Get(ctx, types.NamespacedName{
-		Namespace: httpso.Namespace,
-		Name:      httpso.Name,
-	}, tmpHTTPSo); err != nil {
-		logger.Error(err, "HTTPScaledObject not found on test check")
-	} else {
-		logger.Info("Found HTTPScaledObject on test check", "scaled object", *tmpHTTPSo)
-	}
 
-	tmpHTTPSo.Status = httpso.Status
-	err := cl.Status().Update(ctx, tmpHTTPSo)
-	httpso = tmpHTTPSo
-
+	err := cl.Status().Update(ctx, httpso)
 	if err != nil {
 		logger.Error(err, "failed to update status on HTTPScaledObject", "httpso", httpso)
 	} else {

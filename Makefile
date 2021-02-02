@@ -1,7 +1,7 @@
 GIT_TAG?=$(shell git rev-parse --short HEAD)
-SCALER_DOCKER_IMG?=arschles/keda-http-scaler:${GIT_TAG}
-INTERCEPTOR_DOCKER_IMG?=arschles/keda-http-interceptor:${GIT_TAG}
-OPERATOR_DOCKER_IMG?=arschles/keda-http-operator:${GIT_TAG}
+SCALER_DOCKER_IMG?=khaosdoctor/keda-http-scaler:${GIT_TAG}
+INTERCEPTOR_DOCKER_IMG?=khaosdoctor/keda-http-interceptor:${GIT_TAG}
+OPERATOR_DOCKER_IMG?=khaosdoctor/keda-http-operator:${GIT_TAG}
 NAMESPACE?=kedahttp
 
 .PHONY: gen-scaler
@@ -91,7 +91,7 @@ helm-upgrade-keda:
 		--namespace ${NAMESPACE} \
 		--create-namespace \
 		--set watchNamespace=${NAMESPACE}
-	
+
 .PHONY: helm-delete-keda
 helm-delete-keda:
 	helm delete -n ${NAMESPACE} keda
