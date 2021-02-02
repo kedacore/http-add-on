@@ -22,7 +22,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
@@ -30,7 +29,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
 )
@@ -116,12 +114,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		return ctrl.Result{}, err
 	}
 
-	// initializes the required variables and set the initial status to unknown
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Unknown, v1.ConditionUnknown, v1alpha1.UnknownStatus))
-	httpso.SaveStatus(logger, rec.Client)
-
 	// httpso is updated now
-
 	logger.Info("Reconciling HTTPScaledObject", "Namespace", req.Namespace, "App Name", appName, "image", image, "port", port)
 
 	// Create required app objects for the application defined by the CRD
