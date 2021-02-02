@@ -96,7 +96,6 @@ spec:
                       - ScaledObjectTerminated
                       - ScaledObjectTerminationError
                       - PendingCreation
-                      - UnknownStatus
                       type: string
                     status:
                       description: Status of the condition, one of True, False, Unknown.
