@@ -6,9 +6,9 @@ This project is primarily a composition of mostly independent components. We've 
 
 There are three major components in this system. You can find more detail and discussion about each in sections below this one.
 
-- [Operator](./operator) - This component listens for events related to `HTTPScaledObject`s and creates, updates or removes internal machinery as appropriate.
-- [Interceptor](./interceptor) - This component accepts and routes external HTTP traffic to the appropriate internal application, as appropriate.
-- [Scaler](./scaler) - This component tracks the size of the pending HTTP request queue for a given app and reports it to KEDA. It acts as an [external scaler](https://keda.sh/docs/2.1/scalers/external-push/).
+- [Operator](../operator) - This component listens for events related to `HTTPScaledObject`s and creates, updates or removes internal machinery as appropriate.
+- [Interceptor](../interceptor) - This component accepts and routes external HTTP traffic to the appropriate internal application, as appropriate.
+- [Scaler](../scaler) - This component tracks the size of the pending HTTP request queue for a given app and reports it to KEDA. It acts as an [external scaler](https://keda.sh/docs/2.1/scalers/external-push/).
 - [KEDA](https://keda.sh) - KEDA acts as the scaler for the user's HTTP application.
 
 ## Functionality Areas
