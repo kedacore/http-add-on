@@ -81,6 +81,9 @@ const (
 
 // Condition to store the condition state
 type HTTPScaledObjectCondition struct {
+	// Timestamp of the condition
+	// +optional
+	Timestamp string `json:"timestamp" description:"Timestamp of this condition"`
 	// Type of condition
 	// +required
 	Type HTTPScaledObjectCreationStatus `json:"type" description:"type of status condition"`

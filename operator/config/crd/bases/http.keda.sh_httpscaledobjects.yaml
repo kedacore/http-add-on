@@ -101,6 +101,9 @@ spec:
                     status:
                       description: Status of the condition, one of True, False, Unknown.
                       type: string
+                    timestamp:
+                      description: Timestamp of the condition
+                      type: string
                     type:
                       description: Type of condition
                       enum:

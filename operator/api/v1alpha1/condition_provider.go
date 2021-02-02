@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +39,7 @@ func CreateCondition(
 	reason HTTPScaledObjectConditionReason,
 ) *HTTPScaledObjectCondition {
 	cond := HTTPScaledObjectCondition{
+		Timestamp: time.Now().Format(time.RFC3339),
 		Type:   condType,
 		Status: status,
 		Reason: reason,
