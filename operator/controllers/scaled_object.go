@@ -33,6 +33,8 @@ func createScaledObject(
 		appInfo.ScaledObjectName(),
 		appInfo.Name,
 		externalScalerHostname,
+		0,
+		1000,
 	)
 	logger.Info("Creating ScaledObject for app", "ScaledObject", *appScaledObject)
 	scaledObjectCl := k8s.NewScaledObjectClient(K8sDynamicCl)
@@ -49,11 +51,14 @@ func createScaledObject(
 		}
 	}
 
-	// create scaled object for interceptor
+	// create scaled object for interceptor. Make sure to always
+	// have 1 replica available so that incoming traffic gets accepted
 	interceptorScaledObject := k8s.NewScaledObject(
 		appInfo.InterceptorScaledObjectName(),
 		appInfo.InterceptorDeploymentName(),
 		externalScalerHostname,
+		1,
+		1000,
 	)
 	logger.Info("Creating ScaledObject for interceptor", "ScaledObject", *interceptorScaledObject)
 	if _, err := scaledObjectCl.

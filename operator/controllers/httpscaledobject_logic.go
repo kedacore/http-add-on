@@ -35,11 +35,13 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		appInfo.Namespace,
 	)
 
+	deleteOptions := &metav1.DeleteOptions{}
+
 	// Delete deployments
 	appsCl := rec.K8sCl.AppsV1().Deployments(appInfo.Namespace)
 
 	// Delete app deployment
-	if err := appsCl.Delete(appInfo.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := appsCl.Delete(appInfo.Name, deleteOptions); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App deployment not found, moving on")
 		} else {
@@ -51,7 +53,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	httpso.Status.DeploymentStatus = v1alpha1.Deleted
 
 	// Delete interceptor deployment
-	if err := appsCl.Delete(appInfo.InterceptorDeploymentName(), &metav1.DeleteOptions{}); err != nil {
+	if err := appsCl.Delete(appInfo.InterceptorDeploymentName(), deleteOptions); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("Interceptor deployment not found, moving on")
 		} else {
@@ -62,7 +64,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	}
 
 	// Delete externalscaler deployment
-	if err := appsCl.Delete(appInfo.ExternalScalerDeploymentName(), &metav1.DeleteOptions{}); err != nil {
+	if err := appsCl.Delete(appInfo.ExternalScalerDeploymentName(), deleteOptions); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("External scaler not found, moving on")
 		} else {
@@ -76,7 +78,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	coreCl := rec.K8sCl.CoreV1().Services(appInfo.Namespace)
 
 	// Delete app service
-	if err := coreCl.Delete(appInfo.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := coreCl.Delete(appInfo.Name, deleteOptions); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App service not found, moving on")
 		} else {
@@ -88,7 +90,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	httpso.Status.ServiceStatus = v1alpha1.Deleted
 
 	// Delete interceptor admin and proxy services
-	if err := coreCl.Delete(appInfo.InterceptorAdminServiceName(), &metav1.DeleteOptions{}); err != nil {
+	if err := coreCl.Delete(appInfo.InterceptorAdminServiceName(), deleteOptions); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("Interceptor admin service not found, moving on")
 		} else {
@@ -97,7 +99,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			return err
 		}
 	}
-	if err := coreCl.Delete(appInfo.InterceptorProxyServiceName(), &metav1.DeleteOptions{}); err != nil {
+	if err := coreCl.Delete(appInfo.InterceptorProxyServiceName(), deleteOptions); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("Interceptor proxy service not found, moving on")
 		} else {
@@ -109,7 +111,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	httpso.Status.InterceptorStatus = v1alpha1.Deleted
 
 	// Delete external scaler service
-	if err := coreCl.Delete(appInfo.ExternalScalerServiceName(), &metav1.DeleteOptions{}); err != nil {
+	if err := coreCl.Delete(appInfo.ExternalScalerServiceName(), deleteOptions); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("External scaler service not found, moving on")
 		} else {
@@ -120,16 +122,24 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	}
 	httpso.Status.ExternalScalerStatus = v1alpha1.Deleted
 
-	// Delete ScaledObject
-	// TODO: use r.Client here, not the dynamic one
-	scaledObjectCl := k8s.NewScaledObjectClient(rec.K8sDynamicCl)
-	if err := scaledObjectCl.Namespace(appInfo.Namespace).Delete(appInfo.ScaledObjectName(), &metav1.DeleteOptions{}); err != nil {
+	// Delete app ScaledObject
+	namespacedScaledObjectCl := k8s.NewScaledObjectClient(rec.K8sDynamicCl)
+	if err := namespacedScaledObjectCl.Delete(appInfo.ScaledObjectName(), deleteOptions); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App ScaledObject not found, moving on")
 		} else {
-			logger.Error(err, "Deleting scaledobject")
+			logger.Error(err, "Deleting app ScaledObject")
 			httpso.Status.ScaledObjectStatus = v1alpha1.Error
 			return err
+		}
+	}
+	// Delete interceptor ScaledObject
+	if err := namespacedScaledObjectCl.Delete(appInfo.InterceptorScaledObjectName(), deleteOptions); err != nil {
+		if apierrs.IsNotFound(err) {
+			logger.Info("Interceptor ScaledObject not found, moving on")
+		} else {
+			logger.Error(err, "Deleting interceptor ScaledObject")
+			httpso.Status.ScaledObjectStatus = v1alpha1.Error
 		}
 	}
 	httpso.Status.ScaledObjectStatus = v1alpha1.Deleted
