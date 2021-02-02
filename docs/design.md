@@ -19,7 +19,7 @@ We've split this project into a few different major areas of functionality, whic
 
 We've introduced a new [Custom Resource (CRD)](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) called `HTTPScaledObject.http.keda.sh` - `HTTPScaledObject` for short. Fundamentally, this resource allows an application developer to submit their HTTP-based application name and container image to the system, and have the system deploy all the necessary internal machinery required to deploy their HTTP application and expose it to the public internet.
 
-The [operator](./operator) runs inside the Kubernetes namespace to which they're deploying their application and watches for these `HTTPScaledObject` resources. When one is created, it will create a `Deployment` and `Service` for the app, interceptor, and scaler, and a [`ScaledObject`](https://keda.sh/docs/2.1/concepts/scaling-deployments/) which KEDA then uses to scale the application.
+The [operator](../operator) runs inside the Kubernetes namespace to which they're deploying their application and watches for these `HTTPScaledObject` resources. When one is created, it will create a `Deployment` and `Service` for the app, interceptor, and scaler, and a [`ScaledObject`](https://keda.sh/docs/2.1/concepts/scaling-deployments/) which KEDA then uses to scale the application.
 
 When the `HTTPScaledObject` is deleted, the operator then removes all of the aforementioned resources.
 
