@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"context"
+
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
@@ -16,7 +18,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 
-	defer httpso.SaveStatus(logger, rec.Client)
+	defer httpso.SaveStatus(context.Background(), logger, rec.Client)
 	// Set initial statuses
 	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminating, v1.ConditionUnknown, v1alpha1.TerminatingResources).SetMessage("Received termination signal"))
 
@@ -139,7 +141,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	appInfo config.AppInfo,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	defer httpso.SaveStatus(logger, rec.Client)
+	defer httpso.SaveStatus(context.Background(),logger, rec.Client)
 	logger = rec.Log.WithValues(
 		"reconciler.appObjects",
 		"addObjects",

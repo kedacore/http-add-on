@@ -12,10 +12,10 @@ import (
 // SaveStatus will trigger an object update to save the current status
 // conditions
 func (httpso *HTTPScaledObject) SaveStatus(
+	ctx context.Context,
 	logger logr.Logger,
 	cl client.Client,
 ) {
-	ctx := context.TODO()
 	logger.Info("Updating status on HTTPScaledObject", "resource version", httpso.ResourceVersion)
 
 	err := cl.Status().Update(ctx, httpso)
