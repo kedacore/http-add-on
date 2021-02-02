@@ -64,6 +64,39 @@ spec:
                       type: string
                     reason:
                       description: The reason for the condition's last transition.
+                      enum:
+                      - ErrorCreatingExternalScaler
+                      - ErrorCreatingExternalScalerService
+                      - CreatedExternalScaler
+                      - ErrorCreatingAppDeployment
+                      - AppDeploymentCreated
+                      - ErrorCreatingAppService
+                      - AppServiceCreated
+                      - ErrorCreatingScaledObject
+                      - ScaledObjectCreated
+                      - ErrorCreatingInterceptor
+                      - ErrorCreatingInterceptorAdminService
+                      - ErrorCreatingInterceptorProxyService
+                      - InterceptorCreated
+                      - TerminatingResources
+                      - AppDeploymentTerminationError
+                      - AppDeploymentTerminated
+                      - InterceptorDeploymentTerminated
+                      - InterceptorDeploymentTerminationError
+                      - InterceptorAdminServiceTerminationError
+                      - InterceptorAdminServiceTerminated
+                      - InterceptorProxyServiceTerminationError
+                      - InterceptorProxyServiceTerminated
+                      - ExternalScalerDeploymentTerminationError
+                      - ExternalScalerDeploymentTerminated
+                      - ExternalScalerServiceTerminationError
+                      - ExternalScalerServiceTerminated
+                      - AppServiceTerminationError
+                      - AppServiceTerminated
+                      - ScaledObjectTerminated
+                      - ScaledObjectTerminationError
+                      - PendingCreation
+                      - UnknownStatus
                       type: string
                     status:
                       description: Status of the condition, one of True, False, Unknown.
