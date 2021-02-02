@@ -18,7 +18,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 
 	defer httpso.SaveStatus(logger, rec.Client)
 	// Set initial statuses
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminating,v1.ConditionUnknown,v1alpha1.TerminatingResources).SetMessage("Received termination signal"))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminating, v1.ConditionUnknown, v1alpha1.TerminatingResources).SetMessage("Received termination signal"))
 
 	logger = rec.Log.WithValues(
 		"reconciler.appObjects",
@@ -38,11 +38,11 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			logger.Info("App deployment not found, moving on")
 		} else {
 			logger.Error(err, "Deleting deployment")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.AppDeploymentTerminationError).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.AppDeploymentTerminationError).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Deleted,v1.ConditionTrue,v1alpha1.AppDeploymentTerminated))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.AppDeploymentTerminated))
 
 	// Delete interceptor deployment
 	if err := appsCl.Delete(appInfo.InterceptorDeploymentName(), &metav1.DeleteOptions{}); err != nil {
@@ -50,11 +50,11 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			logger.Info("Interceptor deployment not found, moving on")
 		} else {
 			logger.Error(err, "Deleting interceptor deployment")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.InterceptorDeploymentTerminationError).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.InterceptorDeploymentTerminationError).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Deleted,v1.ConditionTrue,v1alpha1.InterceptorDeploymentTerminated))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.InterceptorDeploymentTerminated))
 
 	// Delete externalscaler deployment
 	if err := appsCl.Delete(appInfo.ExternalScalerDeploymentName(), &metav1.DeleteOptions{}); err != nil {
@@ -62,12 +62,11 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			logger.Info("External scaler not found, moving on")
 		} else {
 			logger.Error(err, "Deleting external scaler deployment")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ExternalScalerDeploymentTerminationError).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ExternalScalerDeploymentTerminationError).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Deleted,v1.ConditionTrue,v1alpha1.ExternalScalerDeploymentTerminated))
-
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.ExternalScalerDeploymentTerminated))
 
 	// Delete Services
 	coreCl := rec.K8sCl.CoreV1().Services(appInfo.Namespace)
@@ -78,11 +77,11 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			logger.Info("App service not found, moving on")
 		} else {
 			logger.Error(err, "Deleting app service")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.AppServiceTerminationError).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.AppServiceTerminationError).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.AppServiceTerminated))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.AppServiceTerminated))
 
 	// Delete interceptor admin and proxy services
 	if err := coreCl.Delete(appInfo.InterceptorAdminServiceName(), &metav1.DeleteOptions{}); err != nil {
@@ -90,7 +89,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			logger.Info("Interceptor admin service not found, moving on")
 		} else {
 			logger.Error(err, "Deleting interceptor admin service")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.InterceptorAdminServiceTerminationError).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.InterceptorAdminServiceTerminationError).SetMessage(err.Error()))
 			return err
 		}
 	}
@@ -99,13 +98,12 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			logger.Info("Interceptor proxy service not found, moving on")
 		} else {
 			logger.Error(err, "Deleting interceptor proxy service")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.InterceptorProxyServiceTerminationError).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.InterceptorProxyServiceTerminationError).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Deleted,v1.ConditionTrue,v1alpha1.InterceptorAdminServiceTerminated))
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Deleted,v1.ConditionTrue,v1alpha1.InterceptorProxyServiceTerminated))
-
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.InterceptorAdminServiceTerminated))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.InterceptorProxyServiceTerminated))
 
 	// Delete external scaler service
 	if err := coreCl.Delete(appInfo.ExternalScalerServiceName(), &metav1.DeleteOptions{}); err != nil {
@@ -113,12 +111,11 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			logger.Info("External scaler service not found, moving on")
 		} else {
 			logger.Error(err, "Deleting external scaler service")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ExternalScalerServiceTerminationError).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ExternalScalerServiceTerminationError).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Deleted,v1.ConditionTrue,v1alpha1.ExternalScalerServiceTerminated))
-
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.ExternalScalerServiceTerminated))
 
 	// Delete ScaledObject
 	// TODO: use r.Client here, not the dynamic one
@@ -128,11 +125,11 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			logger.Info("App ScaledObject not found, moving on")
 		} else {
 			logger.Error(err, "Deleting scaledobject")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ScaledObjectTerminationError).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ScaledObjectTerminationError).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Deleted,v1.ConditionTrue,v1alpha1.ScaledObjectTerminated))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.ScaledObjectTerminated))
 
 	return nil
 }
@@ -153,8 +150,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	)
 
 	// set initial statuses
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Pending,v1.ConditionUnknown,v1alpha1.PendingCreation).SetMessage("Identified HTTPScaledObject creation signal"))
-
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Pending, v1.ConditionUnknown, v1alpha1.PendingCreation).SetMessage("Identified HTTPScaledObject creation signal"))
 
 	// CREATING THE USER APPLICATION
 	if err := createUserApp(appInfo, rec.K8sCl, logger, httpso); err != nil {
