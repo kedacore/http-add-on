@@ -29,7 +29,8 @@ After an `HTTPScaledObject` is created and the operator creates the appropriate 
 
 At the same time, the interceptor keeps track of the size of the pending HTTP requests - HTTP requests that it has forwarded but the app hasn't returned. The scaler periodically makes HTTP requests to the interceptor via an internal HTTP endpoint - on a separate port from the public server - to get the size of the pending queue. Based on this queue size, it reports scaling metrics as appropriate to KEDA. As the queue size increases, the scaler instructs KEDA to scale up as appropriate. Similarly, as the queue size decreases, the scaler instructs KEDA to scale down.
 
+## Architecture Overview
 
-## Architecture Diagram
+Although the HTTP add on is very configurable and supports multiple different deployments, the below diagram is the most common architecture that is shipped by default.
 
-Below is a complete architecture diagram. 
+![architecture diagram](./images/arch.png)
