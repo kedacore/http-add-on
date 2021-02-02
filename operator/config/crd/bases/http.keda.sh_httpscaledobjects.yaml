@@ -76,6 +76,7 @@ spec:
                       - Pending
                       - Unknown
                       - Terminating
+                      - Terminated
                       type: string
                   required:
                   - status
