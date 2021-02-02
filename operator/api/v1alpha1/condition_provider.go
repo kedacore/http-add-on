@@ -15,14 +15,13 @@ func (httpso *HTTPScaledObject) SaveStatus(
 	cl client.Client,
 ) {
 	ctx := context.TODO()
-	logger.Info("Updating status on object", "scaledobject", *httpso)
+	logger.Info("Updating status on HTTPScaledObject", "resource version", httpso.ResourceVersion)
 
 	err := cl.Status().Update(ctx, httpso)
-	logger.Info("Logging resource version", "version", httpso.ResourceVersion)
 	if err != nil {
 		logger.Error(err, "failed to update status on HTTPScaledObject", "httpso", httpso)
 	} else {
-		logger.Info("Updated status on HTTPScaledObject", "HTTPScaledObject", *httpso)
+		logger.Info("Updated status on HTTPScaledObject", "resource version", httpso.ResourceVersion)
 	}
 }
 
