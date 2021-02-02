@@ -32,13 +32,13 @@ func (httpso *HTTPScaledObject) AddCondition(condition HTTPScaledObjectCondition
 }
 
 // CreateCondition initializes a new status condition
-func CreateCondition (
+func CreateCondition(
 	condType HTTPScaledObjectCreationStatus,
 	status metav1.ConditionStatus,
 	reason HTTPScaledObjectConditionReason,
 ) *HTTPScaledObjectCondition {
 	cond := HTTPScaledObjectCondition{
-		Type: condType,
+		Type:   condType,
 		Status: status,
 		Reason: reason,
 	}
@@ -46,7 +46,7 @@ func CreateCondition (
 }
 
 // SetMessage sets the optional reason for the condition
-func (c *HTTPScaledObjectCondition) SetMessage (message string) *HTTPScaledObjectCondition {
+func (c *HTTPScaledObjectCondition) SetMessage(message string) *HTTPScaledObjectCondition {
 	c.Message = message
 	return c
 }

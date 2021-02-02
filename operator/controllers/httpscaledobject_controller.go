@@ -117,7 +117,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	}
 
 	// initializes the required variables and set the initial status to unknown
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Unknown,v1.ConditionUnknown,v1alpha1.UnknownStatus))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Unknown, v1.ConditionUnknown, v1alpha1.UnknownStatus))
 	httpso.SaveStatus(logger, rec.Client)
 
 	// httpso is updated now
@@ -135,7 +135,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		if removeErr := rec.removeApplicationResources(
 			logger,
 			appInfo,
-			httpso,); removeErr != nil {
+			httpso); removeErr != nil {
 			logger.Error(removeErr, "Removing previously created resources")
 		}
 

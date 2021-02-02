@@ -44,10 +44,10 @@ func createScaledObject(
 		} else {
 
 			logger.Error(err, "Creating ScaledObject")
-			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ErrorCreatingScaledObject).SetMessage(err.Error()))
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingScaledObject).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created,v1.ConditionTrue,v1alpha1.ScaledObjectCreated).SetMessage("Scaled object created"))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created, v1.ConditionTrue, v1alpha1.ScaledObjectCreated).SetMessage("Scaled object created"))
 	return nil
 }

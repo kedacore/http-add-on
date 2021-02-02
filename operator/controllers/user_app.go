@@ -33,12 +33,12 @@ func createUserApp(
 			logger.Info("User app deployment already exists, moving on")
 		} else {
 			logger.Error(err, "Creating deployment")
-			condition := v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ErrorCreatingAppDeployment).SetMessage(err.Error())
+			condition := v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingAppDeployment).SetMessage(err.Error())
 			httpso.AddCondition(*condition)
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created,v1.ConditionTrue,v1alpha1.AppDeploymentCreated).SetMessage("App deployment created"))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created, v1.ConditionTrue, v1alpha1.AppDeploymentCreated).SetMessage("App deployment created"))
 
 	servicePorts := []corev1.ServicePort{
 		k8s.NewTCPServicePort("http", 8080, appInfo.Port),
@@ -55,11 +55,11 @@ func createUserApp(
 			logger.Info("User app service already exists, moving on")
 		} else {
 			logger.Error(err, "Creating service")
-			condition := v1alpha1.CreateCondition(v1alpha1.Error,v1.ConditionFalse,v1alpha1.ErrorCreatingAppService).SetMessage(err.Error())
+			condition := v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingAppService).SetMessage(err.Error())
 			httpso.AddCondition(*condition)
 			return err
 		}
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created,v1.ConditionTrue,v1alpha1.AppServiceCreated).SetMessage("App service created"))
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created, v1.ConditionTrue, v1alpha1.AppServiceCreated).SetMessage("App service created"))
 	return nil
 }
