@@ -26,21 +26,21 @@ func createScaledObject(
 		appInfo.ExternalScalerConfig.Port,
 	)
 
-	logger.Info("Creating scaled object", "external_scaler", externalScalerHostname)
+	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostname)
 
-	coreScaledObject := k8s.NewScaledObject(
+	// create scaled object for app
+	appScaledObject := k8s.NewScaledObject(
 		appInfo.ScaledObjectName(),
 		appInfo.Name,
 		externalScalerHostname,
 	)
-	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)
-	// TODO: use r.Client here, not the dynamic one
+	logger.Info("Creating ScaledObject for app", "ScaledObject", *appScaledObject)
 	scaledObjectCl := k8s.NewScaledObjectClient(K8sDynamicCl)
 	if _, err := scaledObjectCl.
 		Namespace(appInfo.Namespace).
-		Create(coreScaledObject, metav1.CreateOptions{}); err != nil {
+		Create(appScaledObject, metav1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
-			logger.Info("User app service already exists, moving on")
+			logger.Info("User app scaled object already exists, moving on")
 		} else {
 
 			logger.Error(err, "Creating ScaledObject")
@@ -48,6 +48,27 @@ func createScaledObject(
 			return err
 		}
 	}
+
+	// create scaled object for interceptor
+	interceptorScaledObject := k8s.NewScaledObject(
+		appInfo.InterceptorScaledObjectName(),
+		appInfo.InterceptorDeploymentName(),
+		externalScalerHostname,
+	)
+	logger.Info("Creating ScaledObject for interceptor", "ScaledObject", *interceptorScaledObject)
+	if _, err := scaledObjectCl.
+		Namespace(appInfo.Namespace).
+		Create(interceptorScaledObject, metav1.CreateOptions{}); err != nil {
+		if errors.IsAlreadyExists(err) {
+			logger.Info("Interceptor scaled object already exists, moving on")
+		} else {
+
+			logger.Error(err, "Creating ScaledObject")
+			httpso.Status.ScaledObjectStatus = v1alpha1.Error
+			return err
+		}
+	}
+
 	httpso.Status.ScaledObjectStatus = v1alpha1.Created
 	return nil
 }
