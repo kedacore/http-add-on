@@ -40,9 +40,6 @@ deploy: manifests set-image
 set-image:
 	cd config/manager && kustomize edit set image controller=${IMG} && cd ..
 
-charts: manifests set-image
-	kustomize build config/default > ../charts/keda-http-operator/templates/keda-http-operator.yml
-
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=keda-http-manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
