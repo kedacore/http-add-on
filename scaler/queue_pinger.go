@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -65,7 +66,7 @@ func (q *queuePinger) count() int {
 func (q *queuePinger) requestCounts() error {
 	log.Printf("queuePinger.requestCounts")
 	endpointsCl := q.k8sCl.CoreV1().Endpoints(q.ns)
-	endpoints, err := endpointsCl.Get(q.svcName, metav1.GetOptions{})
+	endpoints, err := endpointsCl.Get(context.TODO(), q.svcName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

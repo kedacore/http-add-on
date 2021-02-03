@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -14,6 +15,7 @@ import (
 )
 
 func createInterceptor(
+	ctx context.Context,
 	appInfo config.AppInfo,
 	cl *kubernetes.Clientset,
 	logger logr.Logger,
@@ -50,7 +52,7 @@ func createInterceptor(
 	)
 	logger.Info("Creating interceptor Deployment", "Deployment", *deployment)
 	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
-	if _, err := deploymentsCl.Create(deployment); err != nil {
+	if _, err := deploymentsCl.Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("Interceptor deployment already exists, moving on")
 		} else {
@@ -91,8 +93,8 @@ func createInterceptor(
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
-	_, adminErr := servicesCl.Create(adminService)
-	_, proxyErr := servicesCl.Create(publicProxyService)
+	_, adminErr := servicesCl.Create(ctx, adminService, metav1.CreateOptions{})
+	_, proxyErr := servicesCl.Create(ctx, publicProxyService, metav1.CreateOptions{})
 	if adminErr != nil {
 		if errors.IsAlreadyExists(adminErr) {
 			logger.Info("interceptor admin service already exists, moving on")

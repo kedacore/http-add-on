@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"context"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,8 +10,8 @@ import (
 )
 
 // DeleteDeployment deletes the deployment given using the client given
-func DeleteDeployment(name string, cl k8sappsv1.DeploymentInterface) error {
-	return cl.Delete(name, &metav1.DeleteOptions{})
+func DeleteDeployment(ctx context.Context, name string, cl k8sappsv1.DeploymentInterface) error {
+	return cl.Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // NewDeployment creates a new deployment object

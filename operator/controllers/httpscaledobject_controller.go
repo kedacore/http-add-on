@@ -51,11 +51,10 @@ type HTTPScaledObjectReconciler struct {
 
 // Reconcile reconciles a newly created, deleted, or otherwise changed
 // HTTPScaledObject
-func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := rec.Log.WithValues("HTTPScaledObject.Namespace", req.Namespace, "HTTPScaledObject.Name", req.Name)
 	logger.Info("Reconciliation start")
 
-	ctx := context.Background()
 	_ = rec.Log.WithValues("httpscaledobject", req.NamespacedName)
 	httpso := &httpv1alpha1.HTTPScaledObject{}
 
@@ -95,7 +94,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		// and don't schedule for another reconcile. Kubernetes
 		// will finalize them
 		// TODO: move this function call into `finalizeScaledObject`
-		removeErr := rec.removeApplicationResources(logger, appInfo, httpso)
+		removeErr := rec.removeApplicationResources(ctx, logger, appInfo, httpso)
 		if removeErr != nil {
 			// if we failed to remove app resources, reschedule a reconcile so we can try
 			// again
@@ -118,6 +117,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createOrUpdateApplicationResources(
+		ctx,
 		logger,
 		appInfo,
 		httpso,
@@ -125,6 +125,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		// if we failed to create app resources, remove what we've created and exit
 		logger.Error(err, "Removing app resources")
 		if removeErr := rec.removeApplicationResources(
+			ctx,
 			logger,
 			appInfo,
 			httpso); removeErr != nil {

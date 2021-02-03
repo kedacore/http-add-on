@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"context"
+
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
@@ -12,6 +14,7 @@ import (
 )
 
 func createUserApp(
+	ctx context.Context,
 	appInfo config.AppInfo,
 	cl *kubernetes.Clientset,
 	logger logr.Logger,
@@ -28,7 +31,7 @@ func createUserApp(
 	// TODO: watch the deployment until it reaches ready state
 	// Option: start the creation here and add another method to check if the resources are created
 	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
-	if _, err := deploymentsCl.Create(deployment); err != nil {
+	if _, err := deploymentsCl.Create(ctx, deployment, v1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app deployment already exists, moving on")
 		} else {
@@ -50,7 +53,7 @@ func createUserApp(
 		k8s.Labels(appInfo.Name),
 	)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
-	if _, err := servicesCl.Create(service); err != nil {
+	if _, err := servicesCl.Create(ctx, service, v1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app service already exists, moving on")
 		} else {

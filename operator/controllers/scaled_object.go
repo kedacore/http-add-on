@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -13,6 +14,7 @@ import (
 )
 
 func createScaledObject(
+	ctx context.Context,
 	appInfo config.AppInfo,
 	K8sDynamicCl dynamic.Interface,
 	logger logr.Logger,
@@ -38,7 +40,7 @@ func createScaledObject(
 	scaledObjectCl := k8s.NewScaledObjectClient(K8sDynamicCl)
 	if _, err := scaledObjectCl.
 		Namespace(appInfo.Namespace).
-		Create(coreScaledObject, v1.CreateOptions{}); err != nil {
+		Create(ctx, coreScaledObject, v1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app service already exists, moving on")
 		} else {

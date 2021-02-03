@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -14,6 +15,7 @@ import (
 )
 
 func createExternalScaler(
+	ctx context.Context,
 	appInfo config.AppInfo,
 	cl *kubernetes.Clientset,
 	logger logr.Logger,
@@ -48,7 +50,7 @@ func createExternalScaler(
 	)
 	logger.Info("Creating external scaler Deployment", "Deployment", *scalerDeployment)
 	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
-	if _, err := deploymentsCl.Create(scalerDeployment); err != nil {
+	if _, err := deploymentsCl.Create(ctx, scalerDeployment, metav1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("External scaler deployment already exists, moving on")
 		} else {
@@ -75,7 +77,7 @@ func createExternalScaler(
 	)
 	logger.Info("Creating external scaler Service", "Service", *scalerService)
 	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
-	if _, err := servicesCl.Create(scalerService); err != nil {
+	if _, err := servicesCl.Create(ctx, scalerService, metav1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("External scaler service already exists, moving on")
 		} else {
