@@ -22,11 +22,11 @@ import (
 
 // HTTPScaledObjectCreationStatus describes the creation status
 // of the scaler's additional resources such as Services, Ingresses and Deployments
-// +kubebuilder:validation:Enum=Created;Error;Pending;Unknown;Terminating;Terminated
+// +kubebuilder:validation:Enum=Created;Error;Pending;Unknown;Terminating;Terminated;Ready
 type HTTPScaledObjectCreationStatus string
 
 // HTTPScaledObjectConditionReason describes the reason why the condition transitioned
-// +kubebuilder:validation:Enum=ErrorCreatingExternalScaler;ErrorCreatingExternalScalerService;CreatedExternalScaler;ErrorCreatingAppDeployment;AppDeploymentCreated;ErrorCreatingAppService;AppServiceCreated;ErrorCreatingScaledObject;ScaledObjectCreated;ErrorCreatingInterceptor;ErrorCreatingInterceptorAdminService;ErrorCreatingInterceptorProxyService;InterceptorCreated;TerminatingResources;AppDeploymentTerminationError;AppDeploymentTerminated;InterceptorDeploymentTerminated;InterceptorDeploymentTerminationError;InterceptorAdminServiceTerminationError;InterceptorAdminServiceTerminated;InterceptorProxyServiceTerminationError;InterceptorProxyServiceTerminated;ExternalScalerDeploymentTerminationError;ExternalScalerDeploymentTerminated;ExternalScalerServiceTerminationError;ExternalScalerServiceTerminated;AppServiceTerminationError;AppServiceTerminated;ScaledObjectTerminated;ScaledObjectTerminationError;PendingCreation
+// +kubebuilder:validation:Enum=ErrorCreatingExternalScaler;ErrorCreatingExternalScalerService;CreatedExternalScaler;ErrorCreatingAppDeployment;AppDeploymentCreated;ErrorCreatingAppService;AppServiceCreated;ErrorCreatingScaledObject;ScaledObjectCreated;ErrorCreatingInterceptor;ErrorCreatingInterceptorAdminService;ErrorCreatingInterceptorProxyService;InterceptorCreated;TerminatingResources;AppDeploymentTerminationError;AppDeploymentTerminated;InterceptorDeploymentTerminated;InterceptorDeploymentTerminationError;InterceptorAdminServiceTerminationError;InterceptorAdminServiceTerminated;InterceptorProxyServiceTerminationError;InterceptorProxyServiceTerminated;ExternalScalerDeploymentTerminationError;ExternalScalerDeploymentTerminated;ExternalScalerServiceTerminationError;ExternalScalerServiceTerminated;AppServiceTerminationError;AppServiceTerminated;ScaledObjectTerminated;ScaledObjectTerminationError;PendingCreation;HTTPScaledObjectIsReady
 type HTTPScaledObjectConditionReason string
 
 const (
@@ -61,6 +61,7 @@ const (
 	ScaledObjectTerminated                   HTTPScaledObjectConditionReason = "ScaledObjectTerminated"
 	ScaledObjectTerminationError             HTTPScaledObjectConditionReason = "ScaledObjectTerminationError"
 	PendingCreation                          HTTPScaledObjectConditionReason = "PendingCreation"
+	HTTPScaledObjectIsReady                          HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
 )
 
 const (
@@ -77,6 +78,8 @@ const (
 	Terminating HTTPScaledObjectCreationStatus = "Terminating"
 	// Unknown indicates the status is unavailable
 	Unknown HTTPScaledObjectCreationStatus = "Unknown"
+	// Ready indicates the object is fully created
+	Ready HTTPScaledObjectCreationStatus = "Ready"
 )
 
 // Condition to store the condition state

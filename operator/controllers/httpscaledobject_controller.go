@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -137,6 +138,9 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 
 		return ctrl.Result{}, err
+	} else {
+		httpso.AddCondition(*httpv1alpha1.CreateCondition(httpv1alpha1.Ready,v1.ConditionTrue,httpv1alpha1.HTTPScaledObjectIsReady).SetMessage("Finished object creation")).
+		SaveStatus(ctx, logger, rec.Client)
 	}
 
 	// success reconciling
