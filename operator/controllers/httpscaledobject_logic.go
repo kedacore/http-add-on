@@ -143,7 +143,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	appInfo config.AppInfo,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	defer httpso.SaveStatus(context.Background(),logger, rec.Client)
+	defer httpso.SaveStatus(context.Background(), logger, rec.Client)
 	logger = rec.Log.WithValues(
 		"reconciler.appObjects",
 		"addObjects",
