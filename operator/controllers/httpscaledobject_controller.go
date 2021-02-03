@@ -45,11 +45,13 @@ type HTTPScaledObjectReconciler struct {
 	ExternalScalerConfig config.ExternalScaler
 }
 
-// +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=pods;services;configmaps,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=keda.sh,resources=scaledobjects,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=pods;services;configmaps;endpoints;endpoint,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=networking,resources=ingresses,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update;delete
 
 // Reconcile reconciles a newly created, deleted, or otherwise changed
 // HTTPScaledObject
