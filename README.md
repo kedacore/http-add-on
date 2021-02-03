@@ -17,12 +17,6 @@ Although this is an **alpha release** project right now, we have prepared a walk
 
 See that document at [docs/walkthrough.md](./docs/walkthrough.md)
 
-## Walkthrough
-
-Although this is an **alpha release** project right now, we have prepared a walkthrough document that with instructions on getting started for basic usage.
-
-See that document at [docs/walkthrough.md](./docs/walkthrough.md)
-
 ## Design
 
 The HTTP add-on is composed of multiple mostly independent components. This design was chosen to allow for highly customizable installations while allowing us to ship reasonable defaults.
