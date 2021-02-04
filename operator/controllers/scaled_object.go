@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -8,11 +9,12 @@ import (
 	"github.com/kedacore/http-add-on/operator/controllers/config"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 )
 
 func createScaledObject(
+	ctx context.Context,
 	appInfo config.AppInfo,
 	K8sDynamicCl dynamic.Interface,
 	logger logr.Logger,
@@ -38,16 +40,16 @@ func createScaledObject(
 	scaledObjectCl := k8s.NewScaledObjectClient(K8sDynamicCl)
 	if _, err := scaledObjectCl.
 		Namespace(appInfo.Namespace).
-		Create(coreScaledObject, metav1.CreateOptions{}); err != nil {
+		Create(ctx, coreScaledObject, v1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app service already exists, moving on")
 		} else {
 
 			logger.Error(err, "Creating ScaledObject")
-			httpso.Status.ScaledObjectStatus = v1alpha1.Error
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingScaledObject).SetMessage(err.Error()))
 			return err
 		}
 	}
-	httpso.Status.ScaledObjectStatus = v1alpha1.Created
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created, v1.ConditionTrue, v1alpha1.ScaledObjectCreated).SetMessage("Scaled object created"))
 	return nil
 }
