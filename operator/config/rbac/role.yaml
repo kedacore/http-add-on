@@ -4,11 +4,14 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: keda-http-manager-role
+  name: keda-http-addon-manager-role
 rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
+  - endpoint
+  - endpoints
   - pods
   - services
   verbs:
@@ -28,9 +31,19 @@ rules:
   - list
   - watch
 - apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+- apiGroups:
   - http.keda.sh
   resources:
-  - scaledobjects
+  - httpscaledobjects
   verbs:
   - create
   - delete
@@ -42,11 +55,23 @@ rules:
 - apiGroups:
   - http.keda.sh
   resources:
-  - scaledobjects/status
+  - httpscaledobjects/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - keda.sh
+  resources:
+  - scaledobjects
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - networking
   resources:

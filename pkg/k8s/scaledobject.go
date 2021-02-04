@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"context"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -22,8 +24,8 @@ func NewScaledObjectClient(cl dynamic.Interface) dynamic.NamespaceableResourceIn
 }
 
 // DeleteScaledObject deletes a scaled object with the given name
-func DeleteScaledObject(name string, cl dynamic.ResourceInterface) error {
-	return cl.Delete(name, &v1.DeleteOptions{})
+func DeleteScaledObject(ctx context.Context, name string, cl dynamic.ResourceInterface) error {
+	return cl.Delete(ctx, name, v1.DeleteOptions{})
 }
 
 // NewScaledObject creates a new ScaledObject in memory
