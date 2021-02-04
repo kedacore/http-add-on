@@ -33,6 +33,7 @@ jobs:
           repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/operator
           # Automatically tags the built image with the git SHA
           tag_with_ref: true
+          tags: latest
           dockerfile: operator/Dockerfile
 
   # This workflow contains a single job called "build"
@@ -58,6 +59,7 @@ jobs:
           repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/interceptor
           # Automatically tags the built image with the git SHA
           tag_with_ref: true
+          tags: latest
           dockerfile: interceptor/Dockerfile
 
   build_scaler:
@@ -81,4 +83,5 @@ jobs:
           repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/scaler
           # Automatically tags the built image with the git SHA
           tag_with_ref: true
+          tags: latest
           dockerfile: scaler/Dockerfile
