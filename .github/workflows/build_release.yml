@@ -5,6 +5,7 @@ name: Publish canary image to GitHub Container Registry
 on:
   push:
     tags: [ "v[0-9].[0-9].[0-9]" ]
+  workflow_dispatch:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
