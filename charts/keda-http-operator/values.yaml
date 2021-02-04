@@ -1,2 +1,4 @@
 version: v0.1.0-v1alpha1
 image: ghcr.io/kedacore/http-add-on-operator
+interceptorImage: ghcr.io/kedacore/http-add-on-interceptor
+externalScalerImage: ghcr.io/kedacore/http-add-on-scaler
