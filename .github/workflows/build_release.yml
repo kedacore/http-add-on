@@ -4,12 +4,13 @@ name: Publish canary image to GitHub Container Registry
 
 on:
   push:
-    tags: ["v[0-9].[0-9].[0-9]"]
+    tags: [ "v[0-9].[0-9].[0-9]" ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
-  build:
+  build_operator:
+
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -28,12 +29,22 @@ jobs:
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: docker.pkg.github.com
           # Docker repository to tag the image with
-          repository: ${{ secrets.PACKAGES_USERNAME }}/kedacore/http-add-on/operator
+          repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/operator
           # Automatically tags the built image with the git SHA
-          tag_with_ref: true
           tag_with_sha: true
-          dockerfile: ../../operator/Dockerfile
+          tag_with_ref: true
+          dockerfile: operator/Dockerfile
 
+  # This workflow contains a single job called "build"
+  build_interceptor:
+
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
       - name: Build and push interceptor image
         uses: docker/build-push-action@v1.1.1
         with:
@@ -44,12 +55,20 @@ jobs:
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: docker.pkg.github.com
           # Docker repository to tag the image with
-          repository: ${{ secrets.PACKAGES_USERNAME }}/kedacore/http-add-on/interceptor
+          repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/interceptor
           # Automatically tags the built image with the git SHA
-          tag_with_ref: true
           tag_with_sha: true
-          dockerfile: ../../interceptor/Dockerfile
+          tag_with_ref: true
+          dockerfile: interceptor/Dockerfile
 
+  build_scaler:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
       - name: Build and push scaler image
         uses: docker/build-push-action@v1.1.1
         with:
@@ -60,8 +79,8 @@ jobs:
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: docker.pkg.github.com
           # Docker repository to tag the image with
-          repository: ${{ secrets.PACKAGES_USERNAME }}/kedacore/http-add-on/scaler
+          repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/scaler
           # Automatically tags the built image with the git SHA
-          tag_with_ref: true
           tag_with_sha: true
-          dockerfile: ../../scaler/Dockerfile
+          tag_with_ref: true
+          dockerfile: scaler/Dockerfile
