@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Publish canary image to GitHub Container Registry
+name: Publish release image to GitHub Container Registry
 
 on:
   push:
@@ -32,7 +32,6 @@ jobs:
           # Docker repository to tag the image with
           repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/operator
           # Automatically tags the built image with the git SHA
-          tag_with_sha: true
           tag_with_ref: true
           dockerfile: operator/Dockerfile
 
@@ -58,7 +57,6 @@ jobs:
           # Docker repository to tag the image with
           repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/interceptor
           # Automatically tags the built image with the git SHA
-          tag_with_sha: true
           tag_with_ref: true
           dockerfile: interceptor/Dockerfile
 
@@ -82,6 +80,5 @@ jobs:
           # Docker repository to tag the image with
           repository: ${{ secrets.PACKAGES_USERNAME }}/http-add-on/scaler
           # Automatically tags the built image with the git SHA
-          tag_with_sha: true
           tag_with_ref: true
           dockerfile: scaler/Dockerfile
