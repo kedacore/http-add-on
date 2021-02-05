@@ -1,4 +1,4 @@
-name: Publish release image to GitHub Container Registry
+name: Publish official image to GitHub Container Registry
 
 on:
   push:
