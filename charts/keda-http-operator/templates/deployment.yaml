@@ -32,14 +32,14 @@ spec:
       - args:
         - --metrics-addr=127.0.0.1:8080
         - --enable-leader-election
-        image: {{ .Values.image }}
+        image: {{ .Values.images.operator }}
         imagePullPolicy: Always
         name: manager
         env:
         - name: KEDAHTTP_OPERATOR_EXTERNAL_SCALER_IMAGE
-          value: {{ .Values.externalScalerImage }}
+          value: {{ .Values.images.scaler }}
         - name: KEDAHTTP_OPERATOR_INTERCEPTOR_IMAGE
-          value: {{ .Values.interceptorImage }}
+          value: {{ .Values.images.interceptor }}
         # resources:
         #   limits:
         #     cpu: 0.5
