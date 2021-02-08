@@ -25,7 +25,7 @@ jobs:
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
           # Docker repository to tag the image with
-          repository: ${{ secrets.GHCR_AUTH_USER }}/http-add-on-operator
+          repository: kedacore/http-add-on-operator
           # Automatically tags the built image with the git SHA
           tag_with_sha: true
           tags: canary
@@ -47,7 +47,7 @@ jobs:
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
           # Docker repository to tag the image with
-          repository: ${{ secrets.GHCR_AUTH_USER }}/http-add-on-interceptor
+          repository: kedacore/http-add-on-interceptor
           # Automatically tags the built image with the git SHA
           tag_with_sha: true
           tags: canary
@@ -68,7 +68,7 @@ jobs:
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
           # Docker repository to tag the image with
-          repository: ${{ secrets.GHCR_AUTH_USER }}/http-add-on-scaler
+          repository: kedacore/http-add-on-scaler
           # Automatically tags the built image with the git SHA
           tag_with_sha: true
           tags: canary
