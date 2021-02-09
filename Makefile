@@ -60,8 +60,8 @@ helm-upgrade-operator:
     --namespace ${NAMESPACE} \
     --create-namespace \
     --set image=${OPERATOR_DOCKER_IMG} \
-	--set externalScalerImage=${SCALER_DOCKER_IMG} \
-	--set interceptorImage=${INTERCEPTOR_DOCKER_IMG}
+	--set images.scaler=${SCALER_DOCKER_IMG} \
+	--set images.interceptor=${INTERCEPTOR_DOCKER_IMG}
 
 .PHONY: helm-delete-operator
 helm-delete-operator:
