@@ -44,7 +44,7 @@ jobs:
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: operator/Dockerfile
-          context: operator
+          context: .
 
   build_interceptor:
 
