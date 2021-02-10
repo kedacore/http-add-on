@@ -13,6 +13,7 @@ import (
 // Global consts
 const (
 	BASE_PACKAGE_NAME string = "http-add-on"
+	DEFAULT_NAMESPACE string = DEFAULT_NAMESPACE
 )
 
 // Enum types
@@ -188,13 +189,13 @@ func DockerPushAll(repository string) {
 // interceptor and scaler images on the same SHA
 func UpgradeOperator(namespace string, imageRepository string) error {
 	if namespace == "" {
-		namespace = "kedahttp"
+		namespace = DEFAULT_NAMESPACE
 	}
 
 	if err := sh.RunV(
 		"helm",
 		"upgrade",
-		"kedahttp",
+		DEFAULT_NAMESPACE,
 		"./charts/keda-http-operator",
 		"--install",
 		"--namespace",
@@ -216,7 +217,7 @@ func UpgradeOperator(namespace string, imageRepository string) error {
 // Deletes the operator release
 func DeleteOperator(namespace string) error {
 	if namespace == "" {
-		namespace = "kedahttp"
+		namespace = DEFAULT_NAMESPACE
 	}
 	if err := sh.RunV("helm", "delete", "-n", namespace, "kedahttp"); err != nil {
 		return err
@@ -227,7 +228,7 @@ func DeleteOperator(namespace string) error {
 // Installs or upgrades KEDA in the given namespace
 func InstallKeda(namespace string) error {
 	if namespace == "" {
-		namespace = "kedahttp"
+		namespace = DEFAULT_NAMESPACE
 	}
 	if err := sh.RunV(
 		"helm",
@@ -249,7 +250,7 @@ func InstallKeda(namespace string) error {
 // Deletes the installed release of KEDA in the given namespaces
 func DeleteKeda(namespace string) error {
 	if namespace == "" {
-		namespace = "kedahttp"
+		namespace = DEFAULT_NAMESPACE
 	}
 	if err := sh.RunV(
 		"helm",
