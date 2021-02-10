@@ -131,4 +131,4 @@ jobs:
             sh.keda.http.image.revision=${{github.sha}}
             sh.keda.http.image.release=${{github.ref}}
           file: scaler/Dockerfile
-          context: scaler
+          context: .
