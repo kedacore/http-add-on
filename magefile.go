@@ -213,6 +213,7 @@ func UpgradeOperator(namespace string, imageRepository string) error {
 	return nil
 }
 
+// Deletes the operator release
 func DeleteOperator(namespace string) error {
 	if namespace == "" {
 		namespace = "kedahttp"
@@ -220,5 +221,66 @@ func DeleteOperator(namespace string) error {
 	if err := sh.RunV("helm", "delete", "-n", namespace, "kedahttp"); err != nil {
 		return err
 	}
+	return nil
+}
+
+// Installs or upgrades KEDA in the given namespace
+func InstallKeda(namespace string) error {
+	if namespace == "" {
+		namespace = "kedahttp"
+	}
+	if err := sh.RunV(
+		"helm",
+		"upgrade",
+		"kedacore/keda",
+		"--install",
+		"--namespace",
+		namespace,
+		"--create-namespace",
+		"--set",
+		fmt.Sprintf("watchNamespace=%s", namespace),
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Deletes the installed release of KEDA in the given namespaces
+func DeleteKeda(namespace string) error {
+	if namespace == "" {
+		namespace = "kedahttp"
+	}
+	if err := sh.RunV(
+		"helm",
+		"delete",
+		"-n",
+		namespace,
+		"keda",
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
+// --- Misc --- //
+
+// Generates protofiles for external scaler
+func GenerateScalerProto() error {
+	if err := sh.RunV(
+		"protoc",
+		"--go_out",
+		"scaler/gen/",
+		"--go_opt",
+		"paths=source_relative",
+		"--go-grpc_out",
+		"scaler/gen/",
+		"--go-grpc_opt",
+		"paths=source_relative",
+		"scaler/scaler.proto",
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
