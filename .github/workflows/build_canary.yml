@@ -123,4 +123,4 @@ jobs:
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: scaler/Dockerfile
-          context: scaler
+          context: .
