@@ -89,7 +89,7 @@ jobs:
             sh.keda.http.image.revision=${{github.sha}}
             sh.keda.http.image.release=${{github.ref}}
           file: interceptor/Dockerfile
-          context: interceptor
+          context: .
 
   build_scaler:
     runs-on: ubuntu-20.04
