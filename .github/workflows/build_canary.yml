@@ -84,7 +84,7 @@ jobs:
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: interceptor/Dockerfile
-          context: interceptor
+          context: .
 
   build_scaler:
     runs-on: ubuntu-20.04
