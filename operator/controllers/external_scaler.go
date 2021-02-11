@@ -11,18 +11,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func createExternalScaler(
 	ctx context.Context,
 	appInfo config.AppInfo,
-	cl *kubernetes.Clientset,
+	cl client.Client,
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	// NOTE: Scaler port is fixed here because it's a fixed on the scaler main (@see ../scaler/main.go:17)
 	scalerDeployment := k8s.NewDeployment(
+		appInfo.Namespace,
 		appInfo.ExternalScalerDeploymentName(),
 		appInfo.ExternalScalerConfig.Image,
 		[]int32{
@@ -49,8 +50,7 @@ func createExternalScaler(
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
 	)
 	logger.Info("Creating external scaler Deployment", "Deployment", *scalerDeployment)
-	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
-	if _, err := deploymentsCl.Create(ctx, scalerDeployment, metav1.CreateOptions{}); err != nil {
+	if err := cl.Create(ctx, scalerDeployment); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("External scaler deployment already exists, moving on")
 		} else {
@@ -70,14 +70,14 @@ func createExternalScaler(
 		),
 	}
 	scalerService := k8s.NewService(
+		appInfo.Namespace,
 		appInfo.ExternalScalerServiceName(),
 		servicePorts,
 		corev1.ServiceTypeClusterIP,
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
 	)
 	logger.Info("Creating external scaler Service", "Service", *scalerService)
-	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
-	if _, err := servicesCl.Create(ctx, scalerService, metav1.CreateOptions{}); err != nil {
+	if err := cl.Create(ctx, scalerService); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("External scaler service already exists, moving on")
 		} else {

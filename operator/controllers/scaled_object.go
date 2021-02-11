@@ -10,13 +10,13 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func createScaledObject(
 	ctx context.Context,
 	appInfo config.AppInfo,
-	K8sDynamicCl dynamic.Interface,
+	cl client.Client,
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
@@ -31,20 +31,16 @@ func createScaledObject(
 	logger.Info("Creating scaled object", "external_scaler", externalScalerHostname)
 
 	coreScaledObject := k8s.NewScaledObject(
+		appInfo.Namespace,
 		appInfo.ScaledObjectName(),
 		appInfo.Name,
 		externalScalerHostname,
 	)
 	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)
-	// TODO: use r.Client here, not the dynamic one
-	scaledObjectCl := k8s.NewScaledObjectClient(K8sDynamicCl)
-	if _, err := scaledObjectCl.
-		Namespace(appInfo.Namespace).
-		Create(ctx, coreScaledObject, v1.CreateOptions{}); err != nil {
+	if err := cl.Create(ctx, coreScaledObject); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app service already exists, moving on")
 		} else {
-
 			logger.Error(err, "Creating ScaledObject")
 			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingScaledObject).SetMessage(err.Error()))
 			return err
