@@ -45,6 +45,7 @@ func createUserApp(
 		k8s.NewTCPServicePort("http", 8080, appInfo.Port),
 	}
 	service := k8s.NewService(
+		appInfo.Namespace,
 		appInfo.Name,
 		servicePorts,
 		corev1.ServiceTypeClusterIP,
