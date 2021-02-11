@@ -6,11 +6,13 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
@@ -91,10 +93,14 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 
 	// Delete Services
 
-	coreCl := rec.K8sCl.CoreV1().Services(appInfo.Namespace)
-
 	// Delete app service
-	if err := coreCl.Delete(ctx, appInfo.Name, metav1.DeleteOptions{}); err != nil {
+	appService := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appInfo.Name,
+			Namespace: appInfo.Namespace,
+		},
+	}
+	if err := rec.Client.Delete(ctx, appService); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App service not found, moving on")
 		} else {
@@ -106,7 +112,19 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.AppServiceTerminated))
 
 	// Delete interceptor admin and proxy services
-	if err := coreCl.Delete(ctx, appInfo.InterceptorAdminServiceName(), metav1.DeleteOptions{}); err != nil {
+	interceptorAdminService := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appInfo.InterceptorAdminServiceName(),
+			Namespace: appInfo.Namespace,
+		},
+	}
+	interceptorProxyService := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appInfo.InterceptorProxyServiceName(),
+			Namespace: appInfo.Namespace,
+		},
+	}
+	if err := rec.Client.Delete(ctx, interceptorAdminService); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("Interceptor admin service not found, moving on")
 		} else {
@@ -115,7 +133,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 			return err
 		}
 	}
-	if err := coreCl.Delete(ctx, appInfo.InterceptorProxyServiceName(), metav1.DeleteOptions{}); err != nil {
+	if err := rec.Client.Delete(ctx, interceptorProxyService); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("Interceptor proxy service not found, moving on")
 		} else {
@@ -128,7 +146,13 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.InterceptorProxyServiceTerminated))
 
 	// Delete external scaler service
-	if err := coreCl.Delete(ctx, appInfo.ExternalScalerServiceName(), metav1.DeleteOptions{}); err != nil {
+	externalScalerService := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appInfo.ExternalScalerServiceName(),
+			Namespace: appInfo.Namespace,
+		},
+	}
+	if err := rec.Client.Delete(ctx, externalScalerService); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("External scaler service not found, moving on")
 		} else {
@@ -140,9 +164,16 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Terminated, v1.ConditionTrue, v1alpha1.ExternalScalerServiceTerminated))
 
 	// Delete ScaledObject
+	scaledObject := &unstructured.Unstructured{}
+	scaledObject.SetNamespace(appInfo.Namespace)
+	scaledObject.SetName(appInfo.ScaledObjectName())
+	scaledObject.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "keda.sh",
+		Kind:    "ScaledObject",
+		Version: "v1alpha1",
+	})
 	// TODO: use r.Client here, not the dynamic one
-	scaledObjectCl := k8s.NewScaledObjectClient(rec.K8sDynamicCl)
-	if err := scaledObjectCl.Namespace(appInfo.Namespace).Delete(ctx, appInfo.ScaledObjectName(), metav1.DeleteOptions{}); err != nil {
+	if err := rec.Client.Delete(ctx, scaledObject); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App ScaledObject not found, moving on")
 		} else {
