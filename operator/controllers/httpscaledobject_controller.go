@@ -35,8 +35,6 @@ import (
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
 type HTTPScaledObjectReconciler struct {
-	// K8sCl        *kubernetes.Clientset
-	// K8sDynamicCl dynamic.Interface
 	client.Client
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
