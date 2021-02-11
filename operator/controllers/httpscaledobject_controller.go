@@ -134,10 +134,9 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 
 		return ctrl.Result{}, err
-	} else {
-		httpso.AddCondition(*httpv1alpha1.CreateCondition(httpv1alpha1.Ready, v1.ConditionTrue, httpv1alpha1.HTTPScaledObjectIsReady).SetMessage("Finished object creation")).
-			SaveStatus(ctx, logger, rec.Client)
 	}
+	httpso.AddCondition(*httpv1alpha1.CreateCondition(httpv1alpha1.Ready, v1.ConditionTrue, httpv1alpha1.HTTPScaledObjectIsReady).SetMessage("Finished object creation")).
+		SaveStatus(ctx, logger, rec.Client)
 
 	// success reconciling
 	logger.Info("Reconcile success")
