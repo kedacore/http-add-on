@@ -11,13 +11,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func createInterceptor(
 	ctx context.Context,
 	appInfo config.AppInfo,
-	cl *kubernetes.Clientset,
+	cl client.Client,
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
@@ -41,6 +41,7 @@ func createInterceptor(
 	}
 
 	deployment := k8s.NewDeployment(
+		appInfo.Namespace,
 		appInfo.InterceptorDeploymentName(),
 		appInfo.InterceptorConfig.Image,
 		[]int32{
@@ -51,8 +52,7 @@ func createInterceptor(
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	logger.Info("Creating interceptor Deployment", "Deployment", *deployment)
-	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
-	if _, err := deploymentsCl.Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+	if err := cl.Create(ctx, deployment); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("Interceptor deployment already exists, moving on")
 		} else {
@@ -74,6 +74,7 @@ func createInterceptor(
 		),
 	}
 	publicProxyService := k8s.NewService(
+		appInfo.Namespace,
 		appInfo.InterceptorProxyServiceName(),
 		publicPorts,
 		corev1.ServiceTypeLoadBalancer,
@@ -87,14 +88,14 @@ func createInterceptor(
 		),
 	}
 	adminService := k8s.NewService(
+		appInfo.Namespace,
 		appInfo.InterceptorAdminServiceName(),
 		adminPorts,
 		corev1.ServiceTypeClusterIP,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
-	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
-	_, adminErr := servicesCl.Create(ctx, adminService, metav1.CreateOptions{})
-	_, proxyErr := servicesCl.Create(ctx, publicProxyService, metav1.CreateOptions{})
+	adminErr := cl.Create(ctx, adminService)
+	proxyErr := cl.Create(ctx, publicProxyService)
 	if adminErr != nil {
 		if errors.IsAlreadyExists(adminErr) {
 			logger.Info("interceptor admin service already exists, moving on")

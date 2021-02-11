@@ -10,17 +10,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func createUserApp(
 	ctx context.Context,
 	appInfo config.AppInfo,
-	cl *kubernetes.Clientset,
+	cl client.Client,
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	deployment := k8s.NewDeployment(
+		appInfo.Namespace,
 		appInfo.Name,
 		appInfo.Image,
 		[]int32{appInfo.Port},
@@ -28,10 +29,7 @@ func createUserApp(
 		k8s.Labels(appInfo.Name),
 	)
 	logger.Info("Creating app deployment", "deployment", *deployment)
-	// TODO: watch the deployment until it reaches ready state
-	// Option: start the creation here and add another method to check if the resources are created
-	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
-	if _, err := deploymentsCl.Create(ctx, deployment, v1.CreateOptions{}); err != nil {
+	if err := cl.Create(ctx, deployment); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app deployment already exists, moving on")
 		} else {
@@ -52,8 +50,7 @@ func createUserApp(
 		corev1.ServiceTypeClusterIP,
 		k8s.Labels(appInfo.Name),
 	)
-	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
-	if _, err := servicesCl.Create(ctx, service, v1.CreateOptions{}); err != nil {
+	if err := cl.Create(ctx, service); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app service already exists, moving on")
 		} else {

@@ -24,8 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,8 +35,8 @@ import (
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
 type HTTPScaledObjectReconciler struct {
-	K8sCl        *kubernetes.Clientset
-	K8sDynamicCl dynamic.Interface
+	// K8sCl        *kubernetes.Clientset
+	// K8sDynamicCl dynamic.Interface
 	client.Client
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
@@ -139,8 +137,8 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 		return ctrl.Result{}, err
 	} else {
-		httpso.AddCondition(*httpv1alpha1.CreateCondition(httpv1alpha1.Ready,v1.ConditionTrue,httpv1alpha1.HTTPScaledObjectIsReady).SetMessage("Finished object creation")).
-		SaveStatus(ctx, logger, rec.Client)
+		httpso.AddCondition(*httpv1alpha1.CreateCondition(httpv1alpha1.Ready, v1.ConditionTrue, httpv1alpha1.HTTPScaledObjectIsReady).SetMessage("Finished object creation")).
+			SaveStatus(ctx, logger, rec.Client)
 	}
 
 	// success reconciling
