@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,7 +29,6 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -47,11 +45,6 @@ func init() {
 }
 
 func main() {
-	kubeCl, dynamicCl, err := k8s.NewClientset()
-	if err != nil {
-		log.Fatalf("Couldn't create a Kubernetes client (%s)", err)
-	}
-
 	var metricsAddr string
 	var enableLeaderElection bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -88,8 +81,6 @@ func main() {
 		Client:               mgr.GetClient(),
 		Log:                  ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
 		Scheme:               mgr.GetScheme(),
-		K8sCl:                kubeCl,
-		K8sDynamicCl:         dynamicCl,
 		InterceptorConfig:    *interceptorCfg,
 		ExternalScalerConfig: *externalScalerCfg,
 	}).SetupWithManager(mgr); err != nil {
