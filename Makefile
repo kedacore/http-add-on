@@ -74,6 +74,10 @@ helm-delete-operator:
 .PHONY: build-all
 build-all: build-scaler build-interceptor build-operator
 
+.PHONY: test-all
+test-all:
+	go test ./...
+
 .PHONY: docker-build-all
 docker-build-all: docker-build-scaler docker-build-interceptor docker-build-operator
 
