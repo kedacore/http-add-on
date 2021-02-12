@@ -1,0 +1,72 @@
+name: Publish official image to GitHub Container Registry
+
+on:
+  push:
+    tags: [ "v[0-9].[0-9].[0-9]" ]
+
+jobs:
+  build_operator:
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build and push operator image
+        uses: docker/build-push-action@v1.1.1
+        with:
+          # Username used to log in to a Docker registry. If not set then no login will occur
+          username: ${{ secrets.GHCR_AUTH_USER }}
+          # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
+          password: ${{ secrets.GHCR_AUTH_PAT }}
+          # Server address of Docker registry. If not set then will default to Docker Hub
+          registry: ghcr.io
+          # Docker repository to tag the image with
+          repository: ${{ secrets.GHCR_AUTH_USER }}/http-add-on-operator
+          # Automatically tags the built image with the git SHA
+          tag_with_ref: true
+          tags: latest
+          dockerfile: operator/Dockerfile
+
+  build_interceptor:
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build and push interceptor image
+        uses: docker/build-push-action@v1.1.1
+        with:
+          # Username used to log in to a Docker registry. If not set then no login will occur
+          username: ${{ secrets.GHCR_AUTH_USER }}
+          # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
+          password: ${{ secrets.GHCR_AUTH_PAT }}
+          # Server address of Docker registry. If not set then will default to Docker Hub
+          registry: ghcr.io
+          # Docker repository to tag the image with
+          repository: ${{ secrets.GHCR_AUTH_USER }}/http-add-on-interceptor
+          # Automatically tags the built image with the git SHA
+          tag_with_ref: true
+          tags: latest
+          dockerfile: interceptor/Dockerfile
+
+  build_scaler:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build and push scaler image
+        uses: docker/build-push-action@v1.1.1
+        with:
+          # Username used to log in to a Docker registry. If not set then no login will occur
+          username: ${{ secrets.GHCR_AUTH_USER }}
+          # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
+          password: ${{ secrets.GHCR_AUTH_PAT }}
+          # Server address of Docker registry. If not set then will default to Docker Hub
+          registry: ghcr.io
+          # Docker repository to tag the image with
+          repository: ${{ secrets.GHCR_AUTH_USER }}/http-add-on-scaler
+          # Automatically tags the built image with the git SHA
+          tag_with_ref: true
+          tags: latest
+          dockerfile: scaler/Dockerfile
