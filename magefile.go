@@ -13,7 +13,7 @@ import (
 // Global consts
 const (
 	BASE_PACKAGE_NAME string = "http-add-on"
-	DEFAULT_NAMESPACE string = DEFAULT_NAMESPACE
+	DEFAULT_NAMESPACE string = "kedahttp"
 )
 
 // Enum types
@@ -195,7 +195,7 @@ func UpgradeOperator(namespace string, imageRepository string) error {
 	if err := sh.RunV(
 		"helm",
 		"upgrade",
-		DEFAULT_NAMESPACE,
+		"kedahttp",
 		"./charts/keda-http-operator",
 		"--install",
 		"--namespace",
