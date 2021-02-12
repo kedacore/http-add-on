@@ -56,8 +56,8 @@ helm upgrade kedahttp ./charts/keda-http-operator \
     --namespace ${NAMESPACE} \
     --create-namespace \
     --set image=localhost:32000/keda-http-operator \
-	--set externalScalerImage=localhost:32000/keda-http-scaler \
-	--set interceptorImage=localhost:32000/keda-http-interceptor
+	--set images.scaler=localhost:32000/keda-http-scaler \
+	--set images.interceptor=localhost:32000/keda-http-interceptor
 ```
 
 In the above command, `localhost:32000` is the address of the registry from inside a Microk8s cluster.

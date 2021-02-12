@@ -28,6 +28,7 @@ func DeleteDeployment(ctx context.Context, metaInfo NameNamespaceInfo, cl client
 // the deployment in the cluster, it just creates the deployment object
 // in memory
 func NewDeployment(
+	namespace,
 	name,
 	image string,
 	ports []int32,
@@ -45,8 +46,9 @@ func NewDeployment(
 			Kind: "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: labels,
+			Name:      name,
+			Namespace: namespace,
+			Labels:    labels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
