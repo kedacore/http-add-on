@@ -19,7 +19,7 @@ func kedaGVR() schema.GroupVersionResource {
 
 // NewScaledObjectClient returns a new dynamic client capable
 // of interacting with ScaledObjects in a cluster
-// FIX: This seems not to be called anywhere, remove it?
+// TODO: This seems not to be called anywhere, remove it?
 func NewScaledObjectClient(cl dynamic.Interface) dynamic.NamespaceableResourceInterface {
 	return cl.Resource(kedaGVR())
 }
