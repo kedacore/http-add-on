@@ -45,6 +45,10 @@ docker-push-interceptor: docker-build-interceptor
 build-operator:
 	go build -o bin/operator ./operator
 
+.PHONY: test-operator
+test-operator:
+	go test ./operator/...
+
 .PHONY: docker-build-operator
 docker-build-operator:
 	docker build -t ${OPERATOR_DOCKER_IMG} -f operator/Dockerfile .
