@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"context"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,8 +10,8 @@ import (
 )
 
 // DeleteDeployment deletes the deployment given using the client given
-func DeleteDeployment(name string, cl k8sappsv1.DeploymentInterface) error {
-	return cl.Delete(name, &metav1.DeleteOptions{})
+func DeleteDeployment(ctx context.Context, name string, cl k8sappsv1.DeploymentInterface) error {
+	return cl.Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // NewDeployment creates a new deployment object
@@ -17,6 +19,7 @@ func DeleteDeployment(name string, cl k8sappsv1.DeploymentInterface) error {
 // the deployment in the cluster, it just creates the deployment object
 // in memory
 func NewDeployment(
+	namespace,
 	name,
 	image string,
 	ports []int32,
@@ -34,8 +37,9 @@ func NewDeployment(
 			Kind: "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: labels,
+			Name:      name,
+			Namespace: namespace,
+			Labels:    labels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{

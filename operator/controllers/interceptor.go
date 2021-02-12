@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -9,12 +10,14 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func createInterceptor(
+	ctx context.Context,
 	appInfo config.AppInfo,
-	cl *kubernetes.Clientset,
+	cl client.Client,
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
@@ -38,6 +41,7 @@ func createInterceptor(
 	}
 
 	deployment := k8s.NewDeployment(
+		appInfo.Namespace,
 		appInfo.InterceptorDeploymentName(),
 		appInfo.InterceptorConfig.Image,
 		[]int32{
@@ -48,13 +52,12 @@ func createInterceptor(
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	logger.Info("Creating interceptor Deployment", "Deployment", *deployment)
-	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
-	if _, err := deploymentsCl.Create(deployment); err != nil {
+	if err := cl.Create(ctx, deployment); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("Interceptor deployment already exists, moving on")
 		} else {
 			logger.Error(err, "Creating interceptor deployment")
-			httpso.Status.InterceptorStatus = v1alpha1.Error
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, metav1.ConditionFalse, v1alpha1.ErrorCreatingInterceptor).SetMessage(err.Error()))
 			return err
 		}
 	}
@@ -71,6 +74,7 @@ func createInterceptor(
 		),
 	}
 	publicProxyService := k8s.NewService(
+		appInfo.Namespace,
 		appInfo.InterceptorProxyServiceName(),
 		publicPorts,
 		corev1.ServiceTypeLoadBalancer,
@@ -84,20 +88,20 @@ func createInterceptor(
 		),
 	}
 	adminService := k8s.NewService(
+		appInfo.Namespace,
 		appInfo.InterceptorAdminServiceName(),
 		adminPorts,
 		corev1.ServiceTypeClusterIP,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
-	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
-	_, adminErr := servicesCl.Create(adminService)
-	_, proxyErr := servicesCl.Create(publicProxyService)
+	adminErr := cl.Create(ctx, adminService)
+	proxyErr := cl.Create(ctx, publicProxyService)
 	if adminErr != nil {
 		if errors.IsAlreadyExists(adminErr) {
 			logger.Info("interceptor admin service already exists, moving on")
 		} else {
 			logger.Error(adminErr, "Creating interceptor admin service")
-			httpso.Status.InterceptorStatus = v1alpha1.Error
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, metav1.ConditionFalse, v1alpha1.ErrorCreatingInterceptorAdminService).SetMessage(adminErr.Error()))
 			return adminErr
 		}
 	}
@@ -105,12 +109,12 @@ func createInterceptor(
 		if errors.IsAlreadyExists(adminErr) {
 			logger.Info("interceptor proxy service already exists, moving on")
 		} else {
-			logger.Error(adminErr, "Creating interceptor proxy service")
-			httpso.Status.InterceptorStatus = v1alpha1.Error
+			logger.Error(proxyErr, "Creating interceptor proxy service")
+			httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Error, metav1.ConditionFalse, v1alpha1.ErrorCreatingInterceptorProxyService).SetMessage(proxyErr.Error()))
 			return proxyErr
 		}
 	}
 
-	httpso.Status.InterceptorStatus = v1alpha1.Created
+	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created, metav1.ConditionTrue, v1alpha1.InterceptorCreated).SetMessage("Created interceptor"))
 	return nil
 }
