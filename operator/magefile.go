@@ -27,7 +27,7 @@ func controllerGen(ctx context.Context) error {
 			return genErr
 		}
 	}
-	CONTROLLER_GEN_PATH = fmt.Sprintf("%s/%s", genPath, binaryName)
+	CONTROLLER_GEN_PATH = genPath
 	fmt.Printf("Controller gen path set to %q\n", CONTROLLER_GEN_PATH)
 	return nil
 }
