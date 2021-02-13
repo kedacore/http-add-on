@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
+	"os"
 )
 
 const (
@@ -41,13 +42,26 @@ func SetImage(ctx context.Context, image string) error {
 
 func Charts(ctx context.Context) error {
 	mg.SerialDeps(Manifests, mg.F(SetImage, ""))
-	return sh.RunV(
+	chart, err := sh.Output(
 		"kustomize",
 		"build",
 		"config/default",
-		">",
-		"../charts/keda-http-operator/templates/keda-http-operator.yml",
 	)
+	if err != nil {
+		return err
+	}
+
+	file, fErr := os.Create("../charts/keda-http-operator/templates/keda-http-operator.yml")
+	if fErr != nil {
+		return fErr
+	}
+	defer file.Close()
+
+	if _, wErr := file.WriteString(chart); wErr != nil {
+		return wErr
+	}
+
+	return nil
 }
 
 func Manager(ctx context.Context) {
@@ -58,8 +72,9 @@ func Test(ctx context.Context) {
 	mg.SerialDeps(Generate, Fmt, Vet, Manifests)
 }
 
-func Run(ctx context.Context) {
+func Run(ctx context.Context) error {
 	mg.SerialDeps(Generate, Fmt, Vet, Manifests)
+	return sh.RunV("go", "run", "main.go")
 }
 
 func Fmt() error {
@@ -78,7 +93,7 @@ func Manifests() error {
 		fmt.Sprintf("rbac:roleName=%q", RBAC_ROLENAME),
 		"webhook",
 		fmt.Sprintf("paths=%q", "./..."),
-		"output:src:artifacts:config=config/crd/bases",
+		"output:crd:artifacts:config=config/crd/bases",
 	)
 }
 
