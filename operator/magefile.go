@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	IMAGE_NAME  string = "keda-http-addon-controller:latest"
-	CRD_OPTIONS string = "crd:trivialVersions=true"
+	IMAGE_NAME    string = "keda-http-addon-controller:latest"
+	CRD_OPTIONS   string = "crd:trivialVersions=true"
 	RBAC_ROLENAME string = "keda-http-manager-role"
 )
+
 var CONTROLLER_GEN_PATH string = ""
 
 func controllerGen(ctx context.Context) error {
@@ -31,16 +32,15 @@ func controllerGen(ctx context.Context) error {
 	return nil
 }
 
-func SetImage (ctx context.Context, image string) error {
+func SetImage(ctx context.Context, image string) error {
 	if image == "" {
 		image = IMAGE_NAME
 	}
 	return sh.RunV("./scripts/set-kustomize-image.sh", image)
 }
 
-func Charts (ctx context.Context) error {
-	mg.SerialDeps(Manifests)
-	mg.SerialCtxDeps(mg.F(SetImage, ""))
+func Charts(ctx context.Context) error {
+	mg.SerialDeps(Manifests, mg.F(SetImage, ""))
 	return sh.RunV(
 		"kustomize",
 		"build",
@@ -50,27 +50,27 @@ func Charts (ctx context.Context) error {
 	)
 }
 
-func Manager (ctx context.Context) {
+func Manager(ctx context.Context) {
 	mg.SerialDeps(Generate, Fmt, Vet)
 }
 
-func Test (ctx context.Context) {
+func Test(ctx context.Context) {
 	mg.SerialDeps(Generate, Fmt, Vet, Manifests)
 }
 
-func Run (ctx context.Context) {
+func Run(ctx context.Context) {
 	mg.SerialDeps(Generate, Fmt, Vet, Manifests)
 }
 
-func Fmt () error {
+func Fmt() error {
 	return sh.RunV("go", "fmt", "./...")
 }
 
-func Vet () error {
+func Vet() error {
 	return sh.RunV("go", "vet", "./...")
 }
 
-func Manifests () error {
+func Manifests() error {
 	mg.SerialDeps(controllerGen)
 	return sh.RunV(
 		CONTROLLER_GEN_PATH,
@@ -82,7 +82,7 @@ func Manifests () error {
 	)
 }
 
-func Generate () error {
+func Generate() error {
 	mg.SerialDeps(controllerGen)
 	return sh.RunV(
 		CONTROLLER_GEN_PATH,
