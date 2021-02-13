@@ -33,6 +33,7 @@ func controllerGen(ctx context.Context) error {
 	return nil
 }
 
+// Sets the image name for all manifests
 func SetImage(ctx context.Context, image string) error {
 	if image == "" {
 		image = IMAGE_NAME
@@ -40,7 +41,8 @@ func SetImage(ctx context.Context, image string) error {
 	return sh.RunV("./scripts/set-kustomize-image.sh", image)
 }
 
-func Charts(ctx context.Context) error {
+// Creates and copies the chart to the chart directory
+func charts(ctx context.Context) error {
 	mg.SerialDeps(Manifests, mg.F(SetImage, ""))
 	chart, err := sh.Output(
 		"kustomize",
@@ -64,27 +66,33 @@ func Charts(ctx context.Context) error {
 	return nil
 }
 
+// Generates and formats the manager
 func Manager(ctx context.Context) {
 	mg.SerialDeps(Generate, Fmt, Vet)
 }
 
+// Runs go tests
 func Test(ctx context.Context) {
 	mg.SerialDeps(Generate, Fmt, Vet, Manifests)
 }
 
+// Runs the manager
 func Run(ctx context.Context) error {
 	mg.SerialDeps(Generate, Fmt, Vet, Manifests)
 	return sh.RunV("go", "run", "main.go")
 }
 
+// Runs go fmt in this directory
 func Fmt() error {
 	return sh.RunV("go", "fmt", "./...")
 }
 
+// Runs go vet in this directory
 func Vet() error {
 	return sh.RunV("go", "vet", "./...")
 }
 
+// Builds all the manifest files
 func Manifests() error {
 	mg.SerialDeps(controllerGen)
 	return sh.RunV(
@@ -97,6 +105,7 @@ func Manifests() error {
 	)
 }
 
+// Generates the controller
 func Generate() error {
 	mg.SerialDeps(controllerGen)
 	return sh.RunV(
@@ -106,6 +115,7 @@ func Generate() error {
 	)
 }
 
+// Creates the manager
 func All(ctx context.Context) {
 	mg.Deps(Manager)
 }
