@@ -11,7 +11,7 @@ import (
 
 // DeleteDeployment deletes the deployment given using the client given
 func DeleteDeployment(ctx context.Context, name string, cl k8sappsv1.DeploymentInterface) error {
-	return cl.Delete(ctx, name, metav1.DeleteOptions{})
+	return cl.Delete(name, &metav1.DeleteOptions{})
 }
 
 // NewDeployment creates a new deployment object
