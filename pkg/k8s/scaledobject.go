@@ -37,6 +37,15 @@ func NewScaledObject(
 ) *unstructured.Unstructured {
 	// https://keda.sh/docs/1.5/faq/
 	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
+	//
+	// unstructured.Unstructured only supports specific types in it. see here for the list:
+	// https://github.com/kubernetes/apimachinery/blob/v0.17.12/pkg/runtime/converter.go#L449-L476
+	typedLabels := Labels(name)
+	labels := map[string]interface{}{}
+	for k, v := range typedLabels {
+		var vIface interface{} = v
+		labels[k] = vIface
+	}
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "keda.sh/v1alpha1",
@@ -44,13 +53,13 @@ func NewScaledObject(
 			"metadata": map[string]interface{}{
 				"namespace": namespace,
 				"name":      name,
-				"labels":    Labels(name),
+				"labels":    labels,
 			},
 			"spec": map[string]interface{}{
-				"minReplicaCount": 0,
-				"maxReplicaCount": 1000,
-				"pollingInterval": 250,
-				"scaleTargetRef": map[string]string{
+				"minReplicaCount": int64(0),
+				"maxReplicaCount": int64(1000),
+				"pollingInterval": int64(250),
+				"scaleTargetRef": map[string]interface{}{
 					"name": deploymentName,
 					// "apiVersion": "apps/v1",
 					"kind": "Deployment",
@@ -58,7 +67,7 @@ func NewScaledObject(
 				"triggers": []interface{}{
 					map[string]interface{}{
 						"type": "external",
-						"metadata": map[string]string{
+						"metadata": map[string]interface{}{
 							"scalerAddress": scalerAddress,
 						},
 					},

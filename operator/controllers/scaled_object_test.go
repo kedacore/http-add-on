@@ -19,22 +19,24 @@ import (
 var _ = Describe("UserApp", func() {
 	Context("Creating a ScaledObject", func() {
 		It("Should properly create the ScaledObject for the user app", func() {
+			const name = "testapp"
+			const namespace = "testns"
 			ctx := context.Background()
 			cl := fake.NewFakeClient()
 			cfg := config.AppInfo{
-				Name:      "testapp",
+				Name:      name,
 				Port:      8081,
 				Image:     "arschles/testimg",
-				Namespace: "testns",
+				Namespace: namespace,
 			}
 			logger := logrtest.NullLogger{}
 			httpso := &v1alpha1.HTTPScaledObject{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "testns",
-					Name:      "testapp",
+					Namespace: namespace,
+					Name:      name,
 				},
 				Spec: v1alpha1.HTTPScaledObjectSpec{
-					AppName: "testname",
+					AppName: name,
 					Image:   "arschles/testapp",
 					Port:    8081,
 				},
@@ -63,8 +65,18 @@ var _ = Describe("UserApp", func() {
 				Namespace: cfg.Namespace,
 				Name:      cfg.ScaledObjectName(),
 			}, u)
-
 			Expect(err).To(BeNil())
+			metadataIface, found := u.Object["metadata"]
+			metadata, ok := metadataIface.(map[string]interface{})
+			Expect(found).To(BeTrue())
+			Expect(ok).To(BeTrue())
+			Expect(metadata["namespace"]).To(Equal(namespace))
+			Expect(metadata["name"]).To(Equal(cfg.ScaledObjectName()))
+			specIFace, found := u.Object["spec"]
+			_, ok = specIFace.(map[string]interface{})
+			Expect(found).To(BeTrue())
+			Expect(ok).To(BeTrue())
+
 		})
 	})
 })
