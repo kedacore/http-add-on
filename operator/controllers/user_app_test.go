@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-logr/logr"
+	logrtest "github.com/go-logr/logr/testing"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
 	. "github.com/onsi/ginkgo"
@@ -21,14 +21,14 @@ var _ = Describe("UserApp", func() {
 	Context("Creating a user app", func() {
 		It("Should properly create a deployment and a service", func() {
 			ctx := context.Background()
-			cl := fake.NewClientBuilder().Build()
+			cl := fake.NewFakeClient()
 			cfg := config.AppInfo{
 				Name:      "testapp",
 				Port:      8081,
 				Image:     "arschles/testimg",
 				Namespace: "testns",
 			}
-			logger := logr.Discard()
+			logger := logrtest.NullLogger{}
 			httpso := &v1alpha1.HTTPScaledObject{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "testns",
