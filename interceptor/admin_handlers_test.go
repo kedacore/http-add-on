@@ -5,15 +5,6 @@ import (
 	"errors"
 )
 
-type fakeQueueCountReader struct {
-	current int
-	err     error
-}
-
-func (f *fakeQueueCountReader) Current() (int, error) {
-	return f.current, f.err
-}
-
 func (i *InterceptorSuite) TestQueueSizeHandlerSuccess() {
 	reader := &fakeQueueCountReader{
 		current: 123,
