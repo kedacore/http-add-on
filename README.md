@@ -23,6 +23,8 @@ The HTTP add-on is composed of multiple mostly independent components. This desi
 
 We have written a complete design document. Please see it at [docs/design.md](./docs/design.md).
 
+If you have further questions about the project, please see our [FAQ document](./docs/faq.md).
+
 ## Installation
 
 Please see the [complete installation instructions](./docs/install.md).
