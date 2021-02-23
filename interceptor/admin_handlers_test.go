@@ -3,9 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"net/http/httptest"
-
-	echo "github.com/labstack/echo/v4"
 )
 
 type fakeQueueCountReader struct {
@@ -24,10 +21,7 @@ func (i *InterceptorSuite) TestQueueSizeHandlerSuccess() {
 	}
 
 	handler := newQueueSizeHandler(reader)
-	req := httptest.NewRequest("GET", "/queue", nil)
-	rec := httptest.NewRecorder()
-	e := echo.New()
-	echoCtx := e.NewContext(req, rec)
+	_, echoCtx, rec := newTestCtx("GET", "/queue")
 	err := handler(echoCtx)
 	i.NoError(err)
 	i.Equal(200, rec.Code, "response code")
@@ -49,10 +43,7 @@ func (i *InterceptorSuite) TestQueueSizeHandlerFail() {
 	}
 
 	handler := newQueueSizeHandler(reader)
-	req := httptest.NewRequest("GET", "/queue", nil)
-	rec := httptest.NewRecorder()
-	e := echo.New()
-	echoCtx := e.NewContext(req, rec)
+	_, echoCtx, rec := newTestCtx("GET", "/queue")
 	err := handler(echoCtx)
 	i.Error(err)
 	i.Equal(500, rec.Code, "response code")
