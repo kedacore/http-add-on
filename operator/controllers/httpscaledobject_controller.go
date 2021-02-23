@@ -25,9 +25,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
@@ -52,7 +50,8 @@ type HTTPScaledObjectReconciler struct {
 
 // Reconcile reconciles a newly created, deleted, or otherwise changed
 // HTTPScaledObject
-func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+	ctx := context.Background()
 	logger := rec.Log.WithValues("HTTPScaledObject.Namespace", req.Namespace, "HTTPScaledObject.Name", req.Name)
 	logger.Info("Reconciliation start")
 
@@ -146,6 +145,6 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 // SetupWithManager starts up reconciliation with the given manager
 func (rec *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&httpv1alpha1.HTTPScaledObject{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&httpv1alpha1.HTTPScaledObject{}).
 		Complete(rec)
 }
