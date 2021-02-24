@@ -1,6 +1,6 @@
 # Installing the KEDA HTTP Add On
 
-The HTTP Add On is highly module and, as expected, builds on top of KEDA core. Below are some additional components:
+The HTTP Add On is highly modular and, as expected, builds on top of KEDA core. Below are some additional components:
 
 - **Operator** - watches for `ScaledHTTPObject` CRD resources and creates necessary backing Kubernetes resources (e.g. `Deployment`s, `Service`s, `ScaledObject`s, and so forth)
 - **Scaler** - communicates scaling-related metrics to KEDA. By default, the operator will install this for you as necessary.
@@ -56,8 +56,8 @@ helm upgrade kedahttp ./charts/keda-http-operator \
     --namespace ${NAMESPACE} \
     --create-namespace \
     --set image=localhost:32000/keda-http-operator \
-	--set externalScalerImage=localhost:32000/keda-http-scaler \
-	--set interceptorImage=localhost:32000/keda-http-interceptor
+	--set images.scaler=localhost:32000/keda-http-scaler \
+	--set images.interceptor=localhost:32000/keda-http-interceptor
 ```
 
 In the above command, `localhost:32000` is the address of the registry from inside a Microk8s cluster.
