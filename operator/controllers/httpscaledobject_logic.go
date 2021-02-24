@@ -30,16 +30,16 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		"reconciler.appObjects",
 		"removeObjects",
 		"HTTPScaledObject.name",
-		appInfo.Name,
+		appInfo.App.Name,
 		"HTTPScaledObject.namespace",
-		appInfo.Namespace,
+		appInfo.App.Namespace,
 	)
 
 	// Delete deployments
-	appsCl := rec.K8sCl.AppsV1().Deployments(appInfo.Namespace)
+	appsCl := rec.K8sCl.AppsV1().Deployments(appInfo.App.Namespace)
 
 	// Delete app deployment
-	if err := appsCl.Delete(appInfo.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := appsCl.Delete(appInfo.App.Name, &metav1.DeleteOptions{}); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App deployment not found, moving on")
 		} else {
@@ -73,10 +73,10 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	}
 
 	// Delete Services
-	coreCl := rec.K8sCl.CoreV1().Services(appInfo.Namespace)
+	coreCl := rec.K8sCl.CoreV1().Services(appInfo.App.Namespace)
 
 	// Delete app service
-	if err := coreCl.Delete(appInfo.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := coreCl.Delete(appInfo.App.Name, &metav1.DeleteOptions{}); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App service not found, moving on")
 		} else {
@@ -123,7 +123,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	// Delete ScaledObject
 	// TODO: use r.Client here, not the dynamic one
 	scaledObjectCl := k8s.NewScaledObjectClient(rec.K8sDynamicCl)
-	if err := scaledObjectCl.Namespace(appInfo.Namespace).Delete(appInfo.ScaledObjectName(), &metav1.DeleteOptions{}); err != nil {
+	if err := scaledObjectCl.Namespace(appInfo.App.Namespace).Delete(appInfo.ScaledObjectName(), &metav1.DeleteOptions{}); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App ScaledObject not found, moving on")
 		} else {
@@ -147,9 +147,9 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		"reconciler.appObjects",
 		"addObjects",
 		"HTTPScaledObject.name",
-		appInfo.Name,
+		appInfo.App.Name,
 		"HTTPScaledObject.namespace",
-		appInfo.Namespace,
+		appInfo.App.Namespace,
 	)
 
 	// set initial statuses
@@ -184,10 +184,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	// this needs to be submitted so that KEDA will scale the app's deployment
 	if err := createScaledObject(appInfo, rec.K8sDynamicCl, logger, httpso); err != nil {
 		return err
-
 	}
-
-	// TODO: Create a new ingress resource that will point to the interceptor
 
 	return nil
 }

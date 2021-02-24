@@ -32,7 +32,7 @@ func createExternalScaler(
 			},
 			{
 				Name:  "KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE",
-				Value: appInfo.Namespace,
+				Value: appInfo.App.Namespace,
 			},
 			{
 				Name:  "KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE",
@@ -46,7 +46,7 @@ func createExternalScaler(
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
 	)
 	logger.Info("Creating external scaler Deployment", "Deployment", *scalerDeployment)
-	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
+	deploymentsCl := cl.AppsV1().Deployments(appInfo.App.Namespace)
 	if _, err := deploymentsCl.Create(scalerDeployment); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("External scaler deployment already exists, moving on")
@@ -72,7 +72,7 @@ func createExternalScaler(
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
 	)
 	logger.Info("Creating external scaler Service", "Service", *scalerService)
-	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
+	servicesCl := cl.CoreV1().Services(appInfo.App.Namespace)
 	if _, err := servicesCl.Create(scalerService); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("External scaler service already exists, moving on")

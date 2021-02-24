@@ -22,7 +22,7 @@ func createScaledObject(
 	externalScalerHostname := fmt.Sprintf(
 		"%s.%s.svc.cluster.local:%d",
 		appInfo.ExternalScalerServiceName(),
-		appInfo.Namespace,
+		appInfo.App.Namespace,
 		appInfo.ExternalScalerConfig.Port,
 	)
 
@@ -30,14 +30,14 @@ func createScaledObject(
 
 	coreScaledObject := k8s.NewScaledObject(
 		appInfo.ScaledObjectName(),
-		appInfo.Name,
+		appInfo.App.Name,
 		externalScalerHostname,
 	)
 	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)
 	// TODO: use r.Client here, not the dynamic one
 	scaledObjectCl := k8s.NewScaledObjectClient(K8sDynamicCl)
 	if _, err := scaledObjectCl.
-		Namespace(appInfo.Namespace).
+		Namespace(appInfo.App.Namespace).
 		Create(coreScaledObject, metav1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app service already exists, moving on")

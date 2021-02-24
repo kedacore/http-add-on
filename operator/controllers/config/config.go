@@ -6,6 +6,16 @@ import (
 	"github.com/kedacore/http-add-on/pkg/env"
 )
 
+// App holds configuration for the application. It gets this information from the
+// HTTPScaledObject, so it's not static
+type App struct {
+	Name        string
+	Port        int32
+	Image       string
+	Namespace   string
+	IngressHost string
+}
+
 // Interceptor holds static configuration info for the interceptor
 type Interceptor struct {
 	Image     string

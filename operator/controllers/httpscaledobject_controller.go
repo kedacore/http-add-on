@@ -82,11 +82,17 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	image := httpso.Spec.Image
 	port := httpso.Spec.Port
 
+	// TODO: get this from the HTTPScaledObject. we'll need to update the schema to include it
+	ingressHost := "abcd.com"
+
 	appInfo := config.AppInfo{
-		Name:                 appName,
-		Port:                 port,
-		Image:                image,
-		Namespace:            req.Namespace,
+		App: config.App{
+			Name:        appName,
+			Port:        port,
+			Image:       image,
+			Namespace:   req.Namespace,
+			IngressHost: ingressHost,
+		},
 		InterceptorConfig:    rec.InterceptorConfig,
 		ExternalScalerConfig: rec.ExternalScalerConfig,
 	}

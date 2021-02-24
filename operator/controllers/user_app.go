@@ -17,16 +17,16 @@ func createUserApp(
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	deployment := k8s.NewDeployment(
-		appInfo.Name,
-		appInfo.Image,
-		[]int32{appInfo.Port},
+		appInfo.App.Name,
+		appInfo.App.Image,
+		[]int32{appInfo.App.Port},
 		[]corev1.EnvVar{},
-		k8s.Labels(appInfo.Name),
+		k8s.Labels(appInfo.App.Name),
 	)
 	logger.Info("Creating app deployment", "deployment", *deployment)
 	// TODO: watch the deployment until it reaches ready state
 	// Option: start the creation here and add another method to check if the resources are created
-	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
+	deploymentsCl := cl.AppsV1().Deployments(appInfo.App.Namespace)
 	if _, err := deploymentsCl.Create(deployment); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app deployment already exists, moving on")
@@ -39,15 +39,15 @@ func createUserApp(
 	httpso.Status.DeploymentStatus = v1alpha1.Created
 
 	servicePorts := []corev1.ServicePort{
-		k8s.NewTCPServicePort("http", 8080, appInfo.Port),
+		k8s.NewTCPServicePort("http", 8080, appInfo.App.Port),
 	}
 	service := k8s.NewService(
-		appInfo.Name,
+		appInfo.App.Name,
 		servicePorts,
 		corev1.ServiceTypeClusterIP,
-		k8s.Labels(appInfo.Name),
+		k8s.Labels(appInfo.App.Name),
 	)
-	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
+	servicesCl := cl.CoreV1().Services(appInfo.App.Namespace)
 	if _, err := servicesCl.Create(service); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app service already exists, moving on")

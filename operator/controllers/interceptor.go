@@ -21,11 +21,11 @@ func createInterceptor(
 	interceptorEnvs := []corev1.EnvVar{
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_NAME",
-			Value: appInfo.Name,
+			Value: appInfo.App.Name,
 		},
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_PORT",
-			Value: fmt.Sprintf("%d", appInfo.Port),
+			Value: fmt.Sprintf("%d", appInfo.App.Port),
 		},
 		{
 			Name:  "KEDA_HTTP_PROXY_PORT",
@@ -48,7 +48,7 @@ func createInterceptor(
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	logger.Info("Creating interceptor Deployment", "Deployment", *deployment)
-	deploymentsCl := cl.AppsV1().Deployments(appInfo.Namespace)
+	deploymentsCl := cl.AppsV1().Deployments(appInfo.App.Namespace)
 	if _, err := deploymentsCl.Create(deployment); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("Interceptor deployment already exists, moving on")
@@ -70,10 +70,14 @@ func createInterceptor(
 			appInfo.InterceptorConfig.ProxyPort,
 		),
 	}
+	publicProxyServiceType := corev1.ServiceTypeLoadBalancer
+	if appInfo.App.IngressHost != "" {
+		publicProxyServiceType = corev1.ServiceTypeClusterIP
+	}
 	publicProxyService := k8s.NewService(
 		appInfo.InterceptorProxyServiceName(),
 		publicPorts,
-		corev1.ServiceTypeLoadBalancer,
+		publicProxyServiceType,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	adminPorts := []corev1.ServicePort{
@@ -89,7 +93,7 @@ func createInterceptor(
 		corev1.ServiceTypeClusterIP,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
-	servicesCl := cl.CoreV1().Services(appInfo.Namespace)
+	servicesCl := cl.CoreV1().Services(appInfo.App.Namespace)
 	_, adminErr := servicesCl.Create(adminService)
 	_, proxyErr := servicesCl.Create(publicProxyService)
 	if adminErr != nil {
@@ -108,6 +112,27 @@ func createInterceptor(
 			logger.Error(adminErr, "Creating interceptor proxy service")
 			httpso.Status.InterceptorStatus = v1alpha1.Error
 			return proxyErr
+		}
+	}
+
+	// if the app is supposed to use an ingress, then the public proxy service was created
+	// above with type ClusterIP and we need to create an Ingress resource for it here
+	ingress := k8s.NewIngress(
+		appInfo.App.Namespace,
+		appInfo.InterceptorIngressName(),
+		appInfo.App.IngressHost,
+		appInfo.InterceptorProxyServiceName(),
+		appInfo.InterceptorConfig.ProxyPort,
+	)
+	ingressCl := cl.NetworkingV1beta1().Ingresses(appInfo.App.Namespace)
+	_, ingressErr := ingressCl.Create(ingress)
+	if ingressErr != nil {
+		if errors.IsAlreadyExists(ingressErr) {
+			logger.Info("interceptor ingress already exists, moving on")
+		} else {
+			logger.Error(ingressErr, "Creating interceptor ingress")
+			httpso.Status.InterceptorStatus = v1alpha1.Error
+			return ingressErr
 		}
 	}
 
