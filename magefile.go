@@ -34,8 +34,8 @@ func getGitSHA() (string) {
 }
 
 func isValidModule(s string) error {
-	b := (ModuleName)(s)
-	switch (b) {
+	module := (ModuleName)(s)
+	switch (module) {
 	case SCALER, OPERATOR, INTERCEPTOR:
 		return nil
 	}
