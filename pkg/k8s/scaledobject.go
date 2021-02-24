@@ -32,7 +32,8 @@ func NewScaledObject(
 	deploymentName,
 	scalerAddress string,
 	minReplicaCount,
-	maxReplicaCount int) *unstructured.Unstructured {
+	maxReplicaCount int,
+) *unstructured.Unstructured {
 	// https://keda.sh/docs/1.5/faq/
 	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
 	return &unstructured.Unstructured{
@@ -44,8 +45,8 @@ func NewScaledObject(
 				"labels": Labels(name),
 			},
 			"spec": map[string]interface{}{
-				"minReplicaCount": 0,
-				"maxReplicaCount": 1000,
+				"minReplicaCount": minReplicaCount,
+				"maxReplicaCount": maxReplicaCount,
 				"pollingInterval": 250,
 				"scaleTargetRef": map[string]string{
 					"name": deploymentName,
