@@ -6,7 +6,6 @@ import (
 
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 )
 
 func kedaGVR() schema.GroupVersionResource {
@@ -15,13 +14,6 @@ func kedaGVR() schema.GroupVersionResource {
 		Version:  "v1alpha1",
 		Resource: "scaledobjects",
 	}
-}
-
-// NewScaledObjectClient returns a new dynamic client capable
-// of interacting with ScaledObjects in a cluster
-// TODO: This seems not to be called anywhere, remove it?
-func NewScaledObjectClient(cl dynamic.Interface) dynamic.NamespaceableResourceInterface {
-	return cl.Resource(kedaGVR())
 }
 
 // DeleteScaledObject deletes a scaled object with the given name
