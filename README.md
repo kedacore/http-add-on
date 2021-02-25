@@ -24,6 +24,8 @@ customizable installations while allowing us to ship reasonable defaults.
 
 We have written a complete design document. Please see it at [docs/design.md](./docs/design.md).
 
+If you have further questions about the project, please see our [FAQ document](./docs/faq.md).
+
 ## Installation
 
 Please see the [complete installation instructions](./docs/install.md).
