@@ -58,7 +58,7 @@ check the [Magefile](../magefile.go) source code. Below is a list of the most co
 
 In the root directory:
 
-- `./build buildAll`: Builds all the binaries for local testing.
+- `./build All`: Builds all the binaries for local testing.
 - `./build deleteOperator [namespace]`: Deletes the installed add-on in the given `namespace` for the active K8S
   cluster.
 - `./build dockerBuildAll <repository>`: Builds all the images for the `interceptor`, `scaler`, and `operator` modules

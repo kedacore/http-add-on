@@ -104,7 +104,7 @@ func BuildInterceptor(ctx context.Context) error {
 }
 
 // Build all binaries
-func BuildAll() {
+func All() {
 	fmt.Println("Building all binaries")
 	mg.Deps(BuildScaler, BuildOperator, BuildInterceptor)
 }
