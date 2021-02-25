@@ -264,6 +264,25 @@ func DeleteKeda(namespace string) error {
 	return nil
 }
 
+// --- Operator tasks --- //
+
+// Generates the operator
+func Operator() error {
+	if err := sh.RunV("./scripts/run-operator.sh"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Rebuilds all manifests for the operator
+func Manifests() error {
+	if err := sh.RunV("./scripts/create-manifests.sh"); err != nil {
+		return err
+	}
+	return nil
+}
+
 // --- Misc --- //
 
 // Generates protofiles for external scaler
