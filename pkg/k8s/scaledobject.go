@@ -17,13 +17,13 @@ func kedaGVR() schema.GroupVersionResource {
 }
 
 // DeleteScaledObject deletes a scaled object with the given name
-func DeleteScaledObject(ctx context.Context, metaInfo NameNamespaceInfo, cl client.Client) error {
+func DeleteScaledObject(ctx context.Context, name string, namespace string, cl client.Client) error {
 	scaledObj := &unstructured.Unstructured{}
-	scaledObj.SetName(metaInfo.Name)
-	scaledObj.SetNamespace(metaInfo.Namespace)
+	scaledObj.SetName(name)
+	scaledObj.SetNamespace(namespace)
 	scaledObj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group: "keda.sh/v1alpha1",
-		Kind: "ScaledObject",
+		Group:   "keda.sh/v1alpha1",
+		Kind:    "ScaledObject",
 		Version: "v1alpha1",
 	})
 
