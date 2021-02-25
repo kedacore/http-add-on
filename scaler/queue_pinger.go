@@ -26,6 +26,7 @@ type queuePinger struct {
 }
 
 func newQueuePinger(
+	ctx context.Context,
 	k8sCl *kubernetes.Clientset,
 	ns,
 	svcName,
@@ -46,7 +47,7 @@ func newQueuePinger(
 		for {
 			select {
 			case <-pingTicker.C:
-				if err := pinger.requestCounts(context.TODO()); err != nil {
+				if err := pinger.requestCounts(ctx); err != nil {
 					log.Printf("Error getting request counts (%s)", err)
 				}
 			}
