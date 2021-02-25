@@ -54,9 +54,12 @@ type HTTPScaledObjectSpec struct {
 	Port int32 `json:"port"`
 	// (optional) The interval to check for changes.
 	PollingInterval int32 `json:"polling_interval,omitempty"`
+	// (optional) The hostname that should be routed to this app. If not specified, a
+	// Service will be created for this app with type 'LoadBalancer'. If you do specify it,
+	// an Ingress object will be created and you'll be expected to be running a properly
+	// configured ingress controller
+	UseIngress bool `json:"use_ingress,omitempty"`
 }
-
-// TODO: Add ingress configurations
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
