@@ -27,7 +27,7 @@ const (
 
 // --- Utils --- //
 
-func getGitSHA() (string) {
+func getGitSHA() string {
 	output, _ := sh.Output("git", "rev-parse", "--short", "HEAD")
 
 	return output
