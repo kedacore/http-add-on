@@ -63,13 +63,15 @@ In the root directory:
   cluster.
 - `./build dockerBuildAll <repository>`: Builds all the images for the `interceptor`, `scaler`, and `operator` modules
   for the specified `repository`.
-    - You can also build specific images by using `./build dockerBuild <repository> <module>`, where module is one
-      of `interceptor`, `scaler`, or `operator`.
+  - You can also build specific images by using `./build dockerBuild <repository> <module>`, where module is one
+    of `interceptor`, `scaler`, or `operator`.
 - `./build dockerPushAll <repository>`: Pushes all the built images for a given repository.
-    - You can push the images using `./build dockerPush <repository> <module>` like the `dockerBuild` command.
+  - You can push the images using `./build dockerPush <repository> <module>` like the `dockerBuild` command.
 - `./build installKeda [namespace]`: will install KEDA on the given namespace.
 - `./build upgradeOperator [namespace] <image>`: Will install the add-on in the given `namespace` if not installed, or
   update it using the provided `image`.
+- `./build Operator`: Alias to `./operator/build All`, just to have everything on the same dir level.
+- `./build Manifests`: Alias to `./operator/build Manifests`.
 
 > The default values for the `namespace` if not provided (when passed as `""`, like `./build upgradeOperator "" image`) is `kedahttp`
 
