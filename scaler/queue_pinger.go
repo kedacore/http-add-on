@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -25,6 +26,7 @@ type queuePinger struct {
 }
 
 func newQueuePinger(
+	ctx context.Context,
 	k8sCl *kubernetes.Clientset,
 	ns,
 	svcName,
@@ -45,7 +47,7 @@ func newQueuePinger(
 		for {
 			select {
 			case <-pingTicker.C:
-				if err := pinger.requestCounts(); err != nil {
+				if err := pinger.requestCounts(ctx); err != nil {
 					log.Printf("Error getting request counts (%s)", err)
 				}
 			}
@@ -62,10 +64,10 @@ func (q *queuePinger) count() int {
 	return q.lastCount
 }
 
-func (q *queuePinger) requestCounts() error {
+func (q *queuePinger) requestCounts(ctx context.Context) error {
 	log.Printf("queuePinger.requestCounts")
 	endpointsCl := q.k8sCl.CoreV1().Endpoints(q.ns)
-	endpoints, err := endpointsCl.Get(q.svcName, metav1.GetOptions{})
+	endpoints, err := endpointsCl.Get(ctx, q.svcName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

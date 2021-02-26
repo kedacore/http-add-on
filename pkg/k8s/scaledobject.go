@@ -3,10 +3,9 @@ package k8s
 import (
 	"context"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func kedaGVR() schema.GroupVersionResource {
@@ -17,15 +16,21 @@ func kedaGVR() schema.GroupVersionResource {
 	}
 }
 
-// NewScaledObjectClient returns a new dynamic client capable
-// of interacting with ScaledObjects in a cluster
-func NewScaledObjectClient(cl dynamic.Interface) dynamic.NamespaceableResourceInterface {
-	return cl.Resource(kedaGVR())
-}
-
 // DeleteScaledObject deletes a scaled object with the given name
-func DeleteScaledObject(ctx context.Context, name string, cl dynamic.ResourceInterface) error {
-	return cl.Delete(name, &metav1.DeleteOptions{})
+func DeleteScaledObject(ctx context.Context, name string, namespace string, cl client.Client) error {
+	scaledObj := &unstructured.Unstructured{}
+	scaledObj.SetName(name)
+	scaledObj.SetNamespace(namespace)
+	scaledObj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "keda.sh/v1alpha1",
+		Kind:    "ScaledObject",
+		Version: "v1alpha1",
+	})
+
+	if err := cl.Delete(ctx, scaledObj, &client.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
 }
 
 // NewScaledObject creates a new ScaledObject in memory

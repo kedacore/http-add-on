@@ -22,7 +22,7 @@ func NewTCPServicePort(name string, port int32, targetPort int32) corev1.Service
 }
 
 func DeleteService(ctx context.Context, name string, cl k8scorev1.ServiceInterface) error {
-	return cl.Delete(name, &metav1.DeleteOptions{})
+	return cl.Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 func NewService(
