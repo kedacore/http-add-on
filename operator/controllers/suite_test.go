@@ -48,7 +48,9 @@ var _ = BeforeSuite(func(done Done) {
 	// The commented code in this function connects to a test Kubernetes cluster.
 	// We don't currently have tests that exercise functionality that needs a cluster,
 	// so we're keeping it commented.
-	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
+	logf.SetLogger(zap.New(func(opts *zap.Options) {
+		opts.DestWriter = GinkgoWriter
+	}))
 
 	// By("bootstrapping test environment")
 	// useExistingCluster := true
