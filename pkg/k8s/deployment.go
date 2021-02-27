@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -10,11 +11,11 @@ import (
 )
 
 // DeleteDeployment deletes the deployment given using the client given
-func DeleteDeployment(ctx context.Context, metaInfo NameNamespaceInfo, cl client.Client) error {
+func DeleteDeployment(ctx context.Context, namespace, name string, cl client.Client) error {
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: metaInfo.Name,
-			Namespace: metaInfo.Namespace,
+			Name:      name,
+			Namespace: namespace,
 		},
 	}
 	if err := cl.Delete(ctx, deployment, &client.DeleteOptions{}); err != nil {
