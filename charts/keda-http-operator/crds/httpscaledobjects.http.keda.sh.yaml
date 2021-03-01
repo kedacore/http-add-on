@@ -37,17 +37,37 @@ spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
               app_image:
-                description: The image this application will use.
+                description: The image this application will use. Either this or DeploymentName
+                  must be set
                 type: string
               app_name:
                 description: (optional) The name of the application to be created.
                 type: string
+              deployment_spec:
+                description: The name of the deployment to route HTTP requests to
+                  (and to autoscale). Either this or Image must be set
+                properties:
+                  name:
+                    description: The name of the deployment to route to. This is used
+                      when creating the ScaledObject behind the scenes
+                    type: string
+                  selector:
+                    additionalProperties:
+                      type: string
+                    description: The selector for the deployment to route to. This
+                      is used when creating the service behind the scenes
+                    type: object
+                required:
+                - name
+                - selector
+                type: object
               port:
-                description: The port this application will serve on.
+                description: The port this application will serve on. If Image is
+                  set, the HTTP server running in that image must be serving on this
+                  port. If DeploymentName is set, there must be an active
                 format: int32
                 type: integer
             required:
-            - app_image
             - port
             type: object
           status:
