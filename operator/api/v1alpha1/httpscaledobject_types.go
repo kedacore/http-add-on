@@ -61,7 +61,7 @@ const (
 	ScaledObjectTerminated                   HTTPScaledObjectConditionReason = "ScaledObjectTerminated"
 	ScaledObjectTerminationError             HTTPScaledObjectConditionReason = "ScaledObjectTerminationError"
 	PendingCreation                          HTTPScaledObjectConditionReason = "PendingCreation"
-	HTTPScaledObjectIsReady                          HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
+	HTTPScaledObjectIsReady                  HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
 )
 
 const (
@@ -107,11 +107,26 @@ type HTTPScaledObjectCondition struct {
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// (optional) The name of the application to be created.
+	// +optional
 	AppName string `json:"app_name,omitempty"`
-	// The image this application will use.
+	// The image this application will use. Either this or DeploymentName must
+	// be set
+	// +optional
 	Image string `json:"app_image"`
-	// The port this application will serve on.
+	// The name of the deployment to route HTTP requests to (and to autoscale). Either this
+	// or Image must be set
+	// +optional
+	Deployment *DeploymentSpec `json:"deployment_spec"`
+	// The port this application will serve on. If Image is set, the HTTP server
+	// running in that image must be serving on this port. If DeploymentName is set,
+	// there must be an active
 	Port int32 `json:"port"`
+}
+
+type DeploymentSpec struct {
+	// The name of the deployment to route to and autoscale
+	Name string `json:"name"`
+	// Cre
 }
 
 // TODO: Add ingress configurations
