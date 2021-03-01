@@ -16,16 +16,24 @@
 package controllers
 
 import (
+	"context"
 	"testing"
 
+	"github.com/go-logr/logr"
+	logrtest "github.com/go-logr/logr/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/controllers/config"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -42,6 +50,49 @@ func TestAPIs(t *testing.T) {
 	RunSpecsWithDefaultAndCustomReporters(t,
 		"Controller Suite",
 		[]Reporter{printer.NewlineReporter{}})
+}
+
+type commonTestInfra struct {
+	ns      string
+	appName string
+	ctx     context.Context
+	cl      client.Client
+	cfg     config.AppInfo
+	logger  logr.Logger
+	httpso  v1alpha1.HTTPScaledObject
+}
+
+func newCommonTestInfra(namespace, appName string) *commonTestInfra {
+	ctx := context.Background()
+	cl := fake.NewFakeClient()
+	cfg := config.AppInfo{
+		Name:      appName,
+		Port:      8081,
+		Image:     "arschles/testimg",
+		Namespace: namespace,
+	}
+	logger := logrtest.NullLogger{}
+	httpso := v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      appName,
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			AppName: appName,
+			Image:   "arschles/testapp",
+			Port:    8081,
+		},
+	}
+
+	return &commonTestInfra{
+		ns:      namespace,
+		appName: appName,
+		ctx:     ctx,
+		cl:      cl,
+		cfg:     cfg,
+		logger:  logger,
+		httpso:  httpso,
+	}
 }
 
 var _ = BeforeSuite(func(done Done) {
