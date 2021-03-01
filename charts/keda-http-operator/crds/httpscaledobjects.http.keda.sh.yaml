@@ -50,6 +50,13 @@ spec:
                 description: The port this application will serve on.
                 format: int32
                 type: integer
+              use_ingress:
+                description: (optional) The hostname that should be routed to this
+                  app. If not specified, a Service will be created for this app with
+                  type 'LoadBalancer'. If you do specify it, an Ingress object will
+                  be created and you'll be expected to be running a properly configured
+                  ingress controller
+                type: boolean
             required:
             - app_image
             - port
