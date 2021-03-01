@@ -72,8 +72,12 @@ func createInterceptor(
 			appInfo.InterceptorConfig.ProxyPort,
 		),
 	}
+
+	// if there is an ingress hostname set, then the service for the proxy
+	// should be a ClusterIP type. we'll create an Ingress object below to have the ingress
+	// controller route to it
 	publicProxyServiceType := corev1.ServiceTypeLoadBalancer
-	if appInfo.App.IngressHost != "" {
+	if httpso.Spec.IngressHostname != "" {
 		publicProxyServiceType = corev1.ServiceTypeClusterIP
 	}
 	publicProxyService := k8s.NewService(
@@ -124,24 +128,26 @@ func createInterceptor(
 
 	// if the app is supposed to use an ingress, then the public proxy service was created
 	// above with type ClusterIP and we need to create an Ingress resource for it here
-	ingress := k8s.NewIngress(
-		appInfo.App.Namespace,
-		appInfo.InterceptorIngressName(),
-		appInfo.App.IngressHost,
-		appInfo.InterceptorProxyServiceName(),
-		appInfo.InterceptorConfig.ProxyPort,
-	)
-	if err := cl.Create(ctx, ingress); err != nil {
-		if errors.IsAlreadyExists(err) {
-			logger.Info("interceptor ingress already exists, moving on")
-		} else {
-			logger.Error(err, "Creating interceptor ingress")
-			httpso.AddCondition(*v1alpha1.CreateCondition(
-				v1alpha1.Created,
-				metav1.ConditionFalse,
-				v1alpha1.ErrorCreatingInterceptorIngress,
-			).SetMessage("Failed to create interceptor ingress object"))
-			return err
+	if httpso.Spec.IngressHostname != "" {
+		ingress := k8s.NewIngress(
+			appInfo.App.Namespace,
+			appInfo.InterceptorIngressName(),
+			httpso.Spec.IngressHostname,
+			appInfo.InterceptorProxyServiceName(),
+			appInfo.InterceptorConfig.ProxyPort,
+		)
+		if err := cl.Create(ctx, ingress); err != nil {
+			if errors.IsAlreadyExists(err) {
+				logger.Info("interceptor ingress already exists, moving on")
+			} else {
+				logger.Error(err, "Creating interceptor ingress")
+				httpso.AddCondition(*v1alpha1.CreateCondition(
+					v1alpha1.Created,
+					metav1.ConditionFalse,
+					v1alpha1.ErrorCreatingInterceptorIngress,
+				).SetMessage("Failed to create interceptor ingress object"))
+				return err
+			}
 		}
 	}
 

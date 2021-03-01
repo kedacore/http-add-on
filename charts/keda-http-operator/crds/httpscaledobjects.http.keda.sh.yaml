@@ -42,17 +42,21 @@ spec:
               app_name:
                 description: (optional) The name of the application to be created.
                 type: string
+              ingress_hostname:
+                description: (optional) The hostname that should be routed to this
+                  app by the ingress controller. If not specified, a Service will
+                  be created for this app with type 'LoadBalancer'. If you do specify
+                  it, an Ingress object will be created and you'll be expected to
+                  be running a properly configured ingress controller
+                type: string
+              polling_interval:
+                description: (optional) The interval to check for changes.
+                format: int32
+                type: integer
               port:
                 description: The port this application will serve on.
                 format: int32
                 type: integer
-              use_ingress:
-                description: (optional) The hostname that should be routed to this
-                  app. If not specified, a Service will be created for this app with
-                  type 'LoadBalancer'. If you do specify it, an Ingress object will
-                  be created and you'll be expected to be running a properly configured
-                  ingress controller
-                type: boolean
             required:
             - app_image
             - port
@@ -63,7 +67,8 @@ spec:
               conditions:
                 description: List of auditable conditions of the operator
                 items:
-                  description: Condition to store the condition state
+                  description: HTTPScaledObjectCondition stores the current state
+                    of the resource
                   properties:
                     message:
                       description: A human readable message indicating details about

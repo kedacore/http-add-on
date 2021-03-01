@@ -9,11 +9,10 @@ import (
 // App holds configuration for the application. It gets this information from the
 // HTTPScaledObject, so it's not static
 type App struct {
-	Name        string
-	Port        int32
-	Image       string
-	Namespace   string
-	IngressHost string
+	Name      string
+	Port      int32
+	Image     string
+	Namespace string
 }
 
 // Interceptor holds static configuration info for the interceptor
