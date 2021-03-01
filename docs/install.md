@@ -46,6 +46,13 @@ There are two environment variables in the above command that you can set to cus
 - `SCALER_DOCKER_IMG` - the name of the scaler's Docker image (optional - falls back to a sensible default)
 - `INTERCEPTOR_DOCKER_IMG` - the name of the interceptor's Docker image (optional - falls back to a sensible default)
 
+### Ingress
+
+If you specify `ingress_hostname: ${HOSTNAME}.com` in the `spec` section of an `HTTPScaledObject`, the HTTP add on operator will create a `Service` object with a `ClusterIP` type (rather than a `LoadBalancer`) and an `Ingress` object that tells your ingress controller to route the `${HOSTNAME}` that you specified to your newly created app. This implies the following:
+
+- You need to have an [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress/) running and configured to serve the given `${HOSTNAME}` in your cluster.
+- If you don't specify an `ingress_hostname`, the operator will create a `Service` with type `LoadBalancer`. This is an insecure configuration.
+
 ### If You're Installing into a [Microk8s](https://microk8s.io) Cluster
 
 You might be working with a local development cluster like Microk8s, which offers a local, in-cluster registry. In this case, the previous `*_DOCKER_IMG` variables won't work for the Helm chart and you'll need to use a custom `helm` command such as the below:
