@@ -30,10 +30,16 @@ func createScaledObject(
 
 	logger.Info("Creating scaled object", "external_scaler", externalScalerHostname)
 
+	// if the user specified a pre-existing deployment to scale, set the deployment name to that
+	deploymentName := appInfo.Name
+	if httpso.Spec.Deployment != nil {
+		deploymentName = httpso.Spec.Deployment.Name
+	}
+
 	coreScaledObject := k8s.NewScaledObject(
 		appInfo.Namespace,
 		appInfo.ScaledObjectName(),
-		appInfo.Name,
+		deploymentName,
 		externalScalerHostname,
 	)
 	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)

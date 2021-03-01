@@ -20,26 +20,34 @@ func createUserApp(
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	deployment := k8s.NewDeployment(
-		appInfo.Namespace,
-		appInfo.Name,
-		appInfo.Image,
-		[]int32{appInfo.Port},
-		[]corev1.EnvVar{},
-		k8s.Labels(appInfo.Name),
-	)
-	logger.Info("Creating app deployment", "deployment", *deployment)
-	if err := cl.Create(ctx, deployment); err != nil {
-		if errors.IsAlreadyExists(err) {
-			logger.Info("User app deployment already exists, moving on")
-		} else {
-			logger.Error(err, "Creating deployment")
-			condition := v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingAppDeployment).SetMessage(err.Error())
-			httpso.AddCondition(*condition)
-			return err
+	serviceSelector := map[string]string{}
+	// if the image field is not blank, then create a Deployment. Otherwise the user has
+	// declared that they want to scale a Deployment that already exists
+	if httpso.Spec.Image != "" {
+		deployment := k8s.NewDeployment(
+			appInfo.Namespace,
+			appInfo.Name,
+			appInfo.Image,
+			[]int32{appInfo.Port},
+			[]corev1.EnvVar{},
+			k8s.Labels(appInfo.Name),
+		)
+		logger.Info("Creating app deployment", "deployment", *deployment)
+		if err := cl.Create(ctx, deployment); err != nil {
+			if errors.IsAlreadyExists(err) {
+				logger.Info("User app deployment already exists, moving on")
+			} else {
+				logger.Error(err, "Creating deployment")
+				condition := v1alpha1.CreateCondition(v1alpha1.Error, v1.ConditionFalse, v1alpha1.ErrorCreatingAppDeployment).SetMessage(err.Error())
+				httpso.AddCondition(*condition)
+				return err
+			}
 		}
+		httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created, v1.ConditionTrue, v1alpha1.AppDeploymentCreated).SetMessage("App deployment created"))
+		serviceSelector = k8s.Labels(appInfo.Name)
+	} else {
+		serviceSelector = httpso.Spec.Deployment.Selector
 	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Created, v1.ConditionTrue, v1alpha1.AppDeploymentCreated).SetMessage("App deployment created"))
 
 	servicePorts := []corev1.ServicePort{
 		k8s.NewTCPServicePort("http", 8080, appInfo.Port),
@@ -49,7 +57,7 @@ func createUserApp(
 		appInfo.Name,
 		servicePorts,
 		corev1.ServiceTypeClusterIP,
-		k8s.Labels(appInfo.Name),
+		serviceSelector,
 	)
 	if err := cl.Create(ctx, service); err != nil {
 		if errors.IsAlreadyExists(err) {

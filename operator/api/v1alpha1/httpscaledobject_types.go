@@ -123,10 +123,15 @@ type HTTPScaledObjectSpec struct {
 	Port int32 `json:"port"`
 }
 
+// DeploymentSpec contains all the details about a deployment that the user would like
+// to scale and route to
 type DeploymentSpec struct {
-	// The name of the deployment to route to and autoscale
+	// The name of the deployment to route to. This is used when creating the ScaledObject
+	// behind the scenes
 	Name string `json:"name"`
-	// Cre
+	// The selector for the deployment to route to. This is used when creating the service
+	// behind the scenes
+	Selector map[string]string `json:"selector"`
 }
 
 // TODO: Add ingress configurations
