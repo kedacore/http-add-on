@@ -23,10 +23,12 @@ var _ = Describe("UserApp", func() {
 			ctx := context.Background()
 			cl := fake.NewFakeClient()
 			cfg := config.AppInfo{
-				Name:      "testapp",
-				Port:      8081,
-				Image:     "arschles/testimg",
-				Namespace: "testns",
+				App: config.App{
+					Name:      "testapp",
+					Port:      8081,
+					Image:     "arschles/testimg",
+					Namespace: "testns",
+				},
 			}
 			logger := logrtest.NullLogger{}
 			httpso := &v1alpha1.HTTPScaledObject{
@@ -64,25 +66,25 @@ var _ = Describe("UserApp", func() {
 			// check the deployment that was created
 			deployment := &appsv1.Deployment{}
 			err = cl.Get(ctx, client.ObjectKey{
-				Name:      cfg.Name,
-				Namespace: cfg.Namespace,
+				Name:      cfg.App.Name,
+				Namespace: cfg.App.Namespace,
 			}, deployment)
 			Expect(err).To(BeNil())
-			Expect(deployment.Name).To(Equal(cfg.Name))
+			Expect(deployment.Name).To(Equal(cfg.App.Name))
 			Expect(len(deployment.Spec.Template.Spec.Containers)).To(Equal(1))
-			Expect(deployment.Spec.Template.Spec.Containers[0].Image).To(Equal(cfg.Image))
+			Expect(deployment.Spec.Template.Spec.Containers[0].Image).To(Equal(cfg.App.Image))
 
 			// check the service that was created
 			svc := &corev1.Service{}
 			err = cl.Get(ctx, client.ObjectKey{
-				Name:      cfg.Name,
-				Namespace: cfg.Namespace,
+				Name:      cfg.App.Name,
+				Namespace: cfg.App.Namespace,
 			}, svc)
 			Expect(err).To(BeNil())
-			Expect(svc.Name).To(Equal(cfg.Name))
+			Expect(svc.Name).To(Equal(cfg.App.Name))
 			Expect(len(svc.Spec.Ports)).To(Equal(1))
 			Expect(svc.Spec.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
-			Expect(svc.Spec.Ports[0].TargetPort.IntVal).To(Equal(cfg.Port))
+			Expect(svc.Spec.Ports[0].TargetPort.IntVal).To(Equal(cfg.App.Port))
 			Expect(svc.Spec.Ports[0].TargetPort.Type).To(Equal(intstr.Int))
 			Expect(svc.Spec.Ports[0].Port).To(Equal(int32(8080)))
 		})

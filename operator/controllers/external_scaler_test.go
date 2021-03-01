@@ -24,10 +24,12 @@ var _ = Describe("ExternalScaler", func() {
 			ctx := context.Background()
 			cl := fake.NewFakeClient()
 			cfg := config.AppInfo{
-				Name:      name,
-				Port:      8081,
-				Image:     "arschles/testimg",
-				Namespace: namespace,
+				App: config.App{
+					Name:      name,
+					Port:      8081,
+					Image:     "arschles/testimg",
+					Namespace: namespace,
+				},
 			}
 			logger := logrtest.NullLogger{}
 			httpso := &v1alpha1.HTTPScaledObject{
@@ -58,7 +60,7 @@ var _ = Describe("ExternalScaler", func() {
 			deployment := new(appsv1.Deployment)
 			err = cl.Get(ctx, client.ObjectKey{
 				Name:      cfg.ExternalScalerDeploymentName(),
-				Namespace: cfg.Namespace,
+				Namespace: cfg.App.Namespace,
 			}, deployment)
 			Expect(err).To(BeNil())
 
@@ -66,7 +68,7 @@ var _ = Describe("ExternalScaler", func() {
 			service := new(corev1.Service)
 			err = cl.Get(ctx, client.ObjectKey{
 				Name:      cfg.ExternalScalerServiceName(),
-				Namespace: cfg.Namespace,
+				Namespace: cfg.App.Namespace,
 			}, service)
 			Expect(err).To(BeNil())
 

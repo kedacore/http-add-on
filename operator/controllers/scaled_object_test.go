@@ -24,10 +24,12 @@ var _ = Describe("UserApp", func() {
 			ctx := context.Background()
 			cl := fake.NewFakeClient()
 			cfg := config.AppInfo{
-				Name:      name,
-				Port:      8081,
-				Image:     "arschles/testimg",
-				Namespace: namespace,
+				App: config.App{
+					Name:      name,
+					Port:      8081,
+					Image:     "arschles/testimg",
+					Namespace: namespace,
+				},
 			}
 			logger := logrtest.NullLogger{}
 			httpso := &v1alpha1.HTTPScaledObject{
@@ -62,7 +64,7 @@ var _ = Describe("UserApp", func() {
 				Version: "v1alpha1",
 			})
 			err = cl.Get(ctx, client.ObjectKey{
-				Namespace: cfg.Namespace,
+				Namespace: cfg.App.Namespace,
 				Name:      cfg.ScaledObjectName(),
 			}, u)
 			Expect(err).To(BeNil())
