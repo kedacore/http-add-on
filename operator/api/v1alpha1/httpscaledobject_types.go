@@ -112,6 +112,12 @@ type HTTPScaledObjectSpec struct {
 	Image string `json:"app_image"`
 	// The port this application will serve on.
 	Port int32 `json:"port"`
+	// Minimum amount of replicas to have in the deployment (Default 0)
+	// +optional
+	MinReplicas int32 `json:"min_replicas,omitempty" description:"Minimum amount of replicas to have in the deployment (Default 0)"`
+	// Maximum amount of replicas to have in the deployment (Default 100)
+	// +optional
+	MaxReplicas int32 `json:"max_replicas,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
 }
 
 // TODO: Add ingress configurations

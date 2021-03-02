@@ -35,6 +35,8 @@ func createScaledObject(
 		appInfo.ScaledObjectName(),
 		appInfo.Name,
 		externalScalerHostname,
+		appInfo.MinReplicas,
+		appInfo.MaxReplicas,
 	)
 	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)
 	if err := cl.Create(ctx, coreScaledObject); err != nil {

@@ -80,6 +80,16 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 	image := httpso.Spec.Image
 	port := httpso.Spec.Port
 
+	var minReplicas int32
+	if httpso.Spec.MinReplicas > 0 {
+		minReplicas = httpso.Spec.MinReplicas
+	}
+
+	var maxReplicas int32 = 100
+	if httpso.Spec.MaxReplicas > 0 {
+		maxReplicas = httpso.Spec.MaxReplicas
+	}
+
 	appInfo := config.AppInfo{
 		Name:                 appName,
 		Port:                 port,
@@ -87,6 +97,8 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 		Namespace:            req.Namespace,
 		InterceptorConfig:    rec.InterceptorConfig,
 		ExternalScalerConfig: rec.ExternalScalerConfig,
+		MinReplicas:          minReplicas,
+		MaxReplicas:          maxReplicas,
 	}
 
 	if httpso.GetDeletionTimestamp() != nil {
