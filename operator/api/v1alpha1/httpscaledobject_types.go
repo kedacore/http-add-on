@@ -61,7 +61,7 @@ const (
 	ScaledObjectTerminated                   HTTPScaledObjectConditionReason = "ScaledObjectTerminated"
 	ScaledObjectTerminationError             HTTPScaledObjectConditionReason = "ScaledObjectTerminationError"
 	PendingCreation                          HTTPScaledObjectConditionReason = "PendingCreation"
-	HTTPScaledObjectIsReady                          HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
+	HTTPScaledObjectIsReady                  HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
 )
 
 const (
