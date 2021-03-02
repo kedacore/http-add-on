@@ -6,3 +6,5 @@ spec:
     app_name: xkcd
     app_image: arschles/xkcd
     port: 8080
+    min_replicas: 5
+    max_replicas: 10
