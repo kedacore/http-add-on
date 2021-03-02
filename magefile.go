@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
@@ -268,7 +269,7 @@ func DeleteKeda(namespace string) error {
 
 // Generates the operator
 func Operator() error {
-	if err := sh.RunV("./scripts/run-operator.sh"); err != nil {
+	if err := sh.RunV("mage", "-d", "operator", "all"); err != nil {
 		return err
 	}
 
@@ -277,7 +278,7 @@ func Operator() error {
 
 // Rebuilds all manifests for the operator
 func Manifests() error {
-	if err := sh.RunV("./scripts/create-manifests.sh"); err != nil {
+	if err := sh.RunV("mage", "-d", "operator", "manifests"); err != nil {
 		return err
 	}
 	return nil
