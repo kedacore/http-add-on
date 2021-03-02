@@ -40,9 +40,9 @@ func CreateCondition(
 ) *HTTPScaledObjectCondition {
 	cond := HTTPScaledObjectCondition{
 		Timestamp: time.Now().Format(time.RFC3339),
-		Type:   condType,
-		Status: status,
-		Reason: reason,
+		Type:      condType,
+		Status:    status,
+		Reason:    reason,
 	}
 	return &cond
 }

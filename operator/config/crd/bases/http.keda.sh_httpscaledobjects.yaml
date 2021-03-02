@@ -96,6 +96,7 @@ spec:
                       - ScaledObjectTerminated
                       - ScaledObjectTerminationError
                       - PendingCreation
+                      - HTTPScaledObjectIsReady
                       type: string
                     status:
                       description: Status of the condition, one of True, False, Unknown.
@@ -112,6 +113,7 @@ spec:
                       - Unknown
                       - Terminating
                       - Terminated
+                      - Ready
                       type: string
                   required:
                   - status

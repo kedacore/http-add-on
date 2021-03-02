@@ -22,11 +22,12 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
@@ -34,8 +35,6 @@ import (
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
 type HTTPScaledObjectReconciler struct {
-	K8sCl        *kubernetes.Clientset
-	K8sDynamicCl dynamic.Interface
 	client.Client
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
@@ -43,19 +42,20 @@ type HTTPScaledObjectReconciler struct {
 	ExternalScalerConfig config.ExternalScaler
 }
 
-// +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=http.keda.sh,resources=scaledobjects/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=pods;services;configmaps,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=keda.sh,resources=scaledobjects,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=pods;services;configmaps;endpoints;endpoint,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=networking,resources=ingresses,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update;delete
 
 // Reconcile reconciles a newly created, deleted, or otherwise changed
 // HTTPScaledObject
-func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := rec.Log.WithValues("HTTPScaledObject.Namespace", req.Namespace, "HTTPScaledObject.Name", req.Name)
 	logger.Info("Reconciliation start")
 
-	ctx := context.Background()
 	_ = rec.Log.WithValues("httpscaledobject", req.NamespacedName)
 	httpso := &httpv1alpha1.HTTPScaledObject{}
 
@@ -95,7 +95,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		// and don't schedule for another reconcile. Kubernetes
 		// will finalize them
 		// TODO: move this function call into `finalizeScaledObject`
-		removeErr := rec.removeApplicationResources(logger, appInfo, httpso)
+		removeErr := rec.removeApplicationResources(ctx, logger, appInfo, httpso)
 		if removeErr != nil {
 			// if we failed to remove app resources, reschedule a reconcile so we can try
 			// again
@@ -118,6 +118,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createOrUpdateApplicationResources(
+		ctx,
 		logger,
 		appInfo,
 		httpso,
@@ -125,6 +126,7 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		// if we failed to create app resources, remove what we've created and exit
 		logger.Error(err, "Removing app resources")
 		if removeErr := rec.removeApplicationResources(
+			ctx,
 			logger,
 			appInfo,
 			httpso); removeErr != nil {
@@ -133,6 +135,8 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 
 		return ctrl.Result{}, err
 	}
+	httpso.AddCondition(*httpv1alpha1.CreateCondition(httpv1alpha1.Ready, v1.ConditionTrue, httpv1alpha1.HTTPScaledObjectIsReady).SetMessage("Finished object creation")).
+		SaveStatus(ctx, logger, rec.Client)
 
 	// success reconciling
 	logger.Info("Reconcile success")
@@ -142,6 +146,6 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 // SetupWithManager starts up reconciliation with the given manager
 func (rec *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&httpv1alpha1.HTTPScaledObject{}).
+		For(&httpv1alpha1.HTTPScaledObject{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(rec)
 }
