@@ -16,8 +16,6 @@ jobs:
       - name: Set up tags and refs
         id: prep
         run: |
-          SHA="sha-${GITHUB_SHA::8}"
-          echo ::set-output name=sha::${SHA}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
       - name: Set up Buildx
@@ -38,7 +36,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-operator
-          tags: canary,${{ steps.prep.outputs.sha}}
+          tags: canary,sha-${GITHUB_SHA::8}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -56,8 +54,6 @@ jobs:
       - name: Set up tags and refs
         id: prep
         run: |
-          SHA="sha-${GITHUB_SHA::8}"
-          echo ::set-output name=sha::${SHA}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
       - name: Set up Buildx
@@ -78,7 +74,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-interceptor
-          tags: canary,${{ steps.prep.outputs.sha}}
+          tags: canary,sha-${GITHUB_SHA::8}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -95,8 +91,6 @@ jobs:
       - name: Set up tags and refs
         id: prep
         run: |
-          SHA="sha-${GITHUB_SHA::8}"
-          echo ::set-output name=sha::${SHA}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
       - name: Set up Buildx
@@ -117,7 +111,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-scaler
-          tags: canary,${{ steps.prep.outputs.sha}}
+          tags: canary,sha-${GITHUB_SHA::8}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}

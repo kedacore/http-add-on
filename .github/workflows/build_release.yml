@@ -15,10 +15,6 @@ jobs:
       - name: Set up tags and refs
         id: prep
         run: |
-          SHA="sha-${GITHUB_SHA::8}"
-          REF=${GITHUB_REF#refs/tags/}
-          echo ::set-output name=sha::${SHA}
-          echo ::set-output name=ref::${REF}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
       - name: Set up Buildx
@@ -39,7 +35,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-operator
-          tags: latest,${{ steps.prep.outputs.ref}}
+          tags: latest,${GITHUB_REF#refs/tags/}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -58,10 +54,6 @@ jobs:
       - name: Set up tags and refs
         id: prep
         run: |
-          SHA="sha-${GITHUB_SHA::8}"
-          REF=${GITHUB_REF#refs/tags/}
-          echo ::set-output name=sha::${SHA}
-          echo ::set-output name=ref::${REF}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
       - name: Set up Buildx
@@ -82,7 +74,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-interceptor
-          tags: latest,${{ steps.prep.outputs.ref}}
+          tags: latest,${GITHUB_REF#refs/tags/}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -100,10 +92,6 @@ jobs:
       - name: Set up tags and refs
         id: prep
         run: |
-          SHA="sha-${GITHUB_SHA::8}"
-          REF=${GITHUB_REF#refs/tags/}
-          echo ::set-output name=sha::${SHA}
-          echo ::set-output name=ref::${REF}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
       - name: Set up Buildx
@@ -124,7 +112,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-scaler
-          tags: latest,${{ steps.prep.outputs.ref}}
+          tags: latest,${GITHUB_REF#refs/tags/}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
