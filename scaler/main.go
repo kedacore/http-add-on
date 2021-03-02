@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -43,6 +44,7 @@ func main() {
 		log.Fatalf("Couldn't get a Kubernetes client (%s)", err)
 	}
 	pinger := newQueuePinger(
+		context.Background(),
 		k8sCl,
 		namespace,
 		svcName,

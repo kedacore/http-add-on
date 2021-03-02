@@ -42,10 +42,6 @@ spec:
               app_name:
                 description: (optional) The name of the application to be created.
                 type: string
-              polling_interval:
-                description: (optional) The interval to check for changes.
-                format: int32
-                type: integer
               port:
                 description: The port this application will serve on.
                 format: int32
@@ -57,63 +53,73 @@ spec:
           status:
             description: HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
             properties:
-              deployment_status:
-                description: HTTPScaledObjectCreationStatus describes the creation
-                  status of the scaler's additional resources such as Services, Ingresses
-                  and Deployments
-                enum:
-                - Created
-                - Error
-                - Pending
-                - Unknown
-                - Terminating
-                type: string
-              externalscaler_status:
-                description: HTTPScaledObjectCreationStatus describes the creation
-                  status of the scaler's additional resources such as Services, Ingresses
-                  and Deployments
-                enum:
-                - Created
-                - Error
-                - Pending
-                - Unknown
-                - Terminating
-                type: string
-              interceptor_status:
-                description: HTTPScaledObjectCreationStatus describes the creation
-                  status of the scaler's additional resources such as Services, Ingresses
-                  and Deployments
-                enum:
-                - Created
-                - Error
-                - Pending
-                - Unknown
-                - Terminating
-                type: string
-              ready:
-                type: boolean
-              scaledobject_status:
-                description: HTTPScaledObjectCreationStatus describes the creation
-                  status of the scaler's additional resources such as Services, Ingresses
-                  and Deployments
-                enum:
-                - Created
-                - Error
-                - Pending
-                - Unknown
-                - Terminating
-                type: string
-              service_status:
-                description: HTTPScaledObjectCreationStatus describes the creation
-                  status of the scaler's additional resources such as Services, Ingresses
-                  and Deployments
-                enum:
-                - Created
-                - Error
-                - Pending
-                - Unknown
-                - Terminating
-                type: string
+              conditions:
+                description: List of auditable conditions of the operator
+                items:
+                  description: Condition to store the condition state
+                  properties:
+                    message:
+                      description: A human readable message indicating details about
+                        the transition.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition.
+                      enum:
+                      - ErrorCreatingExternalScaler
+                      - ErrorCreatingExternalScalerService
+                      - CreatedExternalScaler
+                      - ErrorCreatingAppDeployment
+                      - AppDeploymentCreated
+                      - ErrorCreatingAppService
+                      - AppServiceCreated
+                      - ErrorCreatingScaledObject
+                      - ScaledObjectCreated
+                      - ErrorCreatingInterceptor
+                      - ErrorCreatingInterceptorAdminService
+                      - ErrorCreatingInterceptorProxyService
+                      - InterceptorCreated
+                      - TerminatingResources
+                      - AppDeploymentTerminationError
+                      - AppDeploymentTerminated
+                      - InterceptorDeploymentTerminated
+                      - InterceptorDeploymentTerminationError
+                      - InterceptorAdminServiceTerminationError
+                      - InterceptorAdminServiceTerminated
+                      - InterceptorProxyServiceTerminationError
+                      - InterceptorProxyServiceTerminated
+                      - ExternalScalerDeploymentTerminationError
+                      - ExternalScalerDeploymentTerminated
+                      - ExternalScalerServiceTerminationError
+                      - ExternalScalerServiceTerminated
+                      - AppServiceTerminationError
+                      - AppServiceTerminated
+                      - ScaledObjectTerminated
+                      - ScaledObjectTerminationError
+                      - PendingCreation
+                      - HTTPScaledObjectIsReady
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    timestamp:
+                      description: Timestamp of the condition
+                      type: string
+                    type:
+                      description: Type of condition
+                      enum:
+                      - Created
+                      - Error
+                      - Pending
+                      - Unknown
+                      - Terminating
+                      - Terminated
+                      - Ready
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
             type: object
         type: object
     served: true
