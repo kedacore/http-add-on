@@ -50,8 +50,15 @@ There are two environment variables in the above command that you can set to cus
 
 If you specify `ingress_hostname: ${HOSTNAME}.com` in the `spec` section of an `HTTPScaledObject`, the HTTP add on operator will create a `Service` object with a `ClusterIP` type (rather than a `LoadBalancer`) and an `Ingress` object that tells your ingress controller to route the `${HOSTNAME}` that you specified to your newly created app. This implies the following:
 
-- You need to have an [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress/) running and configured to serve the given `${HOSTNAME}` in your cluster.
+- **You need to have an [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress/) running and configured to serve the given `${HOSTNAME}` in your cluster.**
 - If you don't specify an `ingress_hostname`, the operator will create a `Service` with type `LoadBalancer`. This is an insecure configuration.
+
+
+>We highly recommend that you set up and ingress controller and set `ingress_hostname` in your `HTTPScaledObject`s.
+
+#### Setting Up and Ingress Controller
+
+As indicated previously, if you set `ingress_hostname` -- which we recommend -- in your `HTTPScaledObject`s, you'll need to have a running and properly configured ingress controller in your cluster. Exhaustive instructions on how to do so, but if you don't have a preference and/or have never installed an ingress controller in a Kubernetes cluster before, we recommend that you use the [NGINX ingress controller](https://kubernetes.github.io/ingress-nginx). You can fairly easily install it using [Helm](https://helm.sh) using this link: [https://kubernetes.github.io/ingress-nginx/deploy/#using-helm](https://kubernetes.github.io/ingress-nginx/deploy/#using-helm).
 
 ### If You're Installing into a [Microk8s](https://microk8s.io) Cluster
 
@@ -63,8 +70,8 @@ helm upgrade kedahttp ./charts/keda-http-operator \
     --namespace ${NAMESPACE} \
     --create-namespace \
     --set image=localhost:32000/keda-http-operator \
-	--set images.scaler=localhost:32000/keda-http-scaler \
-	--set images.interceptor=localhost:32000/keda-http-interceptor
+    --set images.scaler=localhost:32000/keda-http-scaler \
+    --set images.interceptor=localhost:32000/keda-http-interceptor
 ```
 
 In the above command, `localhost:32000` is the address of the registry from inside a Microk8s cluster.
