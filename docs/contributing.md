@@ -37,19 +37,15 @@ Follow the [install instructions](./install.md) to check out how to install and 
 ## Build scripts
 
 This project uses [Mage](https://magefile.org) as opposed to Make because it's way faster to build and push images, as
-well as to run tests and other common tasks.
+well as to run tests and other common tasks. Please install it to have access to the task runner.
 
-It's not required to have Mage installed as a dependency because all the files have been prebuilt as binaries
-called [build](../build) located both on the root directory and the [operator](../operator) directory. You can use the
-original Mage functionality if you have the Mage tool installed in your shell.
-
-> **Note:** The build binary located in the root directory is related to the whole project, so it gives you the ability to control the build and install process of all the modules in this project. On the other hand, the build binary located in the [operator](../operator/build) directory, is **just related to the operator module**.
+> **Note:** The Magefile located in the root directory is related to the whole project, so it gives you the ability to control the build and install process of all the modules in this project. On the other hand, the build binary located in the [operator](../operator/magefile.go) directory, is **just related to the operator module**.
 
 The usage is as follows:
 
-- Type `./build` on the binary directory to print a list of all available commands
-- Type `./build -h <command>` to check the help for that specific command
-- `./build -h` shows the general help
+- Type `mage -l` on the magefile directory to print a list of all available commands
+- Type `mage -h <command>` to check the help for that specific command
+- `mage -h` shows the general help
 
 Most of the commands are simple, and we have a few commands that chain other commands together, for reference on chains,
 check the [Magefile](../magefile.go) source code. Below is a list of the most common build commands
@@ -58,25 +54,25 @@ check the [Magefile](../magefile.go) source code. Below is a list of the most co
 
 In the root directory:
 
-- `./build All`: Builds all the binaries for local testing.
-- `./build deleteOperator [namespace]`: Deletes the installed add-on in the given `namespace` for the active K8S
+- `mage All`: Builds all the binaries for local testing.
+- `mage deleteOperator [namespace]`: Deletes the installed add-on in the given `namespace` for the active K8S
   cluster.
-- `./build dockerBuildAll <repository>`: Builds all the images for the `interceptor`, `scaler`, and `operator` modules
+- `mage dockerBuildAll <repository>`: Builds all the images for the `interceptor`, `scaler`, and `operator` modules
   for the specified `repository`.
-  - You can also build specific images by using `./build dockerBuild <repository> <module>`, where module is one
+  - You can also build specific images by using `mage dockerBuild <repository> <module>`, where module is one
     of `interceptor`, `scaler`, or `operator`.
-- `./build dockerPushAll <repository>`: Pushes all the built images for a given repository.
-  - You can push the images using `./build dockerPush <repository> <module>` like the `dockerBuild` command.
-- `./build installKeda [namespace]`: will install KEDA on the given namespace.
-- `./build upgradeOperator [namespace] <image>`: Will install the add-on in the given `namespace` if not installed, or
+- `mage dockerPushAll <repository>`: Pushes all the built images for a given repository.
+  - You can push the images using `mage dockerPush <repository> <module>` like the `dockerBuild` command.
+- `mage installKeda [namespace]`: will install KEDA on the given namespace.
+- `mage upgradeOperator [namespace] <image>`: Will install the add-on in the given `namespace` if not installed, or
   update it using the provided `image`.
-- `./build Operator`: Alias to `./operator/build All`, just to have everything on the same dir level.
-- `./build Manifests`: Alias to `./operator/build Manifests`.
+- `mage Operator`: Alias to `mage -d operator All`, just to have everything on the same dir level.
+- `mage Manifests`: Alias to `mage -d operator Manifests`.
 
-> The default values for the `namespace` if not provided (when passed as `""`, like `./build upgradeOperator "" image`) is `kedahttp`
+> The default values for the `namespace` if not provided (when passed as `""`, like `mage upgradeOperator "" image`) is `kedahttp`
 
 In the operator directory:
 
-- `./operator/build Manifests`: Builds all the manifest files for Kubernetes, it's important to build after every change
+- `mage Manifests`: Builds all the manifest files for Kubernetes, it's important to build after every change
   to a Kustomize annotation.
-- `./operator/build All`: Generates the operator.
+- `mage All`: Generates the operator.
