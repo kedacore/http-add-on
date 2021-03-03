@@ -4,12 +4,12 @@ This document includes several common scenarios in which this project may be dep
 
 ## Current Containerized HTTP Application In The Cloud, Migrating to Kubernetes
 
-In this use case, an application may be containerized running on a managed cloud platform that supports containers. Below is a non-exhaustive, non-ordered list of some examples:
+In this use case, an application may be containerized running on a managed cloud platform that supports containers. Below is a non-exhaustive, alphabetically-ordered list of some examples:
 
-- [Azure App Services](https://docs.microsoft.com/en-us/azure/app-service/quickstart-custom-container?pivots=container-linux)
-- [Google App Engine Flexible Environment](https://cloud.google.com/appengine/docs/flexible/)
 - [Amazon ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
-- [Digital Ocean App Platform](https://www.digitalocean.com/products/app-platform/)
+- [Azure App Services](https://docs.microsoft.com/en-us/azure/app-service/quickstart-custom-container?pivots=container-linux)
+- - [Digital Ocean App Platform](https://www.digitalocean.com/products/app-platform/)
+- [Google App Engine Flexible Environment](https://cloud.google.com/appengine/docs/flexible/)
 
 The platform may or may not be autoscaling.
 
