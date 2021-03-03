@@ -29,7 +29,11 @@ At that point, the operator will create the proper autoscaling and routing infra
 
 In this use case, an HTTP application is already running in Kubernetes, possibly (but not necessarily) already serving in production to the public internet.
 
-In this case, the reasoning for adding the HTTP Add On would be clear - adding autoscaling based on incoming HTTP traffic. Turning this functionality on can be done transparently and without downtime. An administrator would follow the following two steps:
+In this case, the reasoning for adding the HTTP Add On would be clear - adding autoscaling based on incoming HTTP traffic.
+
+### How You'd Move This Application to KEDA-HTTP
+
+Getting the HTTP add on working can be done transparently and without downtime to the application:
 
 - [Install](./install.md) the add on. This step will have no effect on the running application.
-- Create a new `HTTPScaledObject`. This step activates autoscaling for the `Deployment` that you specify and the application will immediately start scaling up and down based on incoming traffic.
+- Create a new `HTTPScaledObject`. This step activates autoscaling for the `Deployment` that you specify and the application will immediately start scaling up and down based on incoming traffic through the interceptor that was created.
