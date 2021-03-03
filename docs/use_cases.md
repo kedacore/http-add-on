@@ -15,9 +15,13 @@ The platform may or may not be autoscaling.
 
 Moving this application to Kubernetes may make sense for several reasons, but the pros and cons of that decision are out of scope of this document.
 
-If the application _is_ being moved to Kubernetes, though, a `Deployment`, `Service`, and several other resources will need to be created. Several other things may need to be changed, like CI/CD pipelines, ingress controllers, and so on. Once done, the application will successfully be running in production on Kubernetes.
+### How You'd Move This Application to KEDA-HTTP
 
-To add intelligent routing and autoscaling to the infrastructure, the HTTP Add On will need to be [installed](./install.md) and a single `HTTPScaledObject` created in the same namespace as the application's `Deployment` is running.
+If the application _is_ being moved to Kubernetes, you would follow these steps to get it autoscaling and routing with KEDA-HTTP:
+
+- Create a `Deployment` and `Service`
+- [Install](./install.md) the HTTP Add On
+- Create a single `HTTPScaledObject` in the same namespace as the `Deployment` and `Service` you created
 
 At that point, the operator will create the proper autoscaling and routing infrastructure behind the scenes and the application will be ready to scale.
 
