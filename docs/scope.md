@@ -1,6 +1,11 @@
 # The Scope of the KEDA HTTP Add On
 
-Running production HTTP servers in Kubernetes is complicated and involves many pieces of infrastructure. The HTTP Add On aims to autoscale these HTTP servers, but does not aim to extend beyond that scope.
+Running production HTTP servers in Kubernetes is complicated and involves many pieces of infrastructure. The HTTP Add On (called the "add on" hereafter) aims to autoscale these HTTP servers, but does not aim to extend beyond that scope. Generally, this project only aims to do two things:
+
+1. Autoscale arbitrary HTTP servers based on the volume of traffic incoming to it, including to zero
+2 Route HTTP traffic from a given source to an arbitrary HTTP server, as far as we need to efficiently accomplish (1)
+
+The add on only provides this functionality to workloads that _opt in_ to it. We provide more detail below.
 
 ## Autoscaling HTTP
 
@@ -8,4 +13,4 @@ To autoscale HTTP servers, the HTTP Add On needs access to metrics that it can r
 
 The HTTP Add On only includes the necessary infrastructure to respond to new, modified, or deleted `HTTPScaledObject`s, and when one is created, the add on only creates the infrastructure needed specifically to accomplish autoscaling.
 
->As stated above, the current architecture requires an interceptor, which needs to proxy incoming HTTP requests in order to provide autoscaling metrics. That means the scope of the HTTP add on currently needs to include the app's network traffic routing system
+>As stated above, the current architecture requires an "interceptor," which needs to proxy incoming HTTP requests in order to provide autoscaling metrics. That means the scope of the HTTP add on currently needs to include the app's network traffic routing system.
