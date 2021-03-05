@@ -77,7 +77,7 @@ func createInterceptor(
 		appInfo.Namespace,
 		appInfo.InterceptorProxyServiceName(),
 		publicPorts,
-		corev1.ServiceTypeLoadBalancer,
+		corev1.ServiceTypeClusterIP,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	adminPorts := []corev1.ServicePort{
