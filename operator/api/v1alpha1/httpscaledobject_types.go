@@ -106,35 +106,20 @@ type HTTPScaledObjectCondition struct {
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
-	// (optional) The name of the application to be created.
-	// +optional
-	AppName string `json:"app_name,omitempty"`
-	// The image this application will use. Either this or DeploymentName must
-	// be set
-	// +optional
-	Image string `json:"app_image"`
 	// The name of the deployment to route HTTP requests to (and to autoscale). Either this
 	// or Image must be set
-	// +optional
-	Deployment *DeploymentSpec `json:"deployment_spec"`
-	// The port this application will serve on. If Image is set, the HTTP server
-	// running in that image must be serving on this port. If DeploymentName is set,
-	// there must be an active
+	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`
+}
+
+// ScaleTargetRef contains all the details about an HTTP application to scale and route to
+type ScaleTargetRef struct {
+	// The name of the deployment to scale according to HTTP traffic
+	Deployment string `json:"deployment"`
+	// The name of the service to route to
+	Service string `json:"service"`
+	// The port to route to
 	Port int32 `json:"port"`
 }
-
-// DeploymentSpec contains all the details about a deployment that the user would like
-// to scale and route to
-type DeploymentSpec struct {
-	// The name of the deployment to route to. This is used when creating the ScaledObject
-	// behind the scenes
-	Name string `json:"name"`
-	// The selector for the deployment to route to. This is used when creating the service
-	// behind the scenes
-	Selector map[string]string `json:"selector"`
-}
-
-// TODO: Add ingress configurations
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {

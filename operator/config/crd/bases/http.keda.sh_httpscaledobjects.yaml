@@ -36,39 +36,28 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
-              app_image:
-                description: The image this application will use. Either this or DeploymentName
-                  must be set
-                type: string
-              app_name:
-                description: (optional) The name of the application to be created.
-                type: string
-              deployment_spec:
+              scaleTargetRef:
                 description: The name of the deployment to route HTTP requests to
                   (and to autoscale). Either this or Image must be set
                 properties:
-                  name:
-                    description: The name of the deployment to route to. This is used
-                      when creating the ScaledObject behind the scenes
+                  deployment:
+                    description: The name of the deployment to scale according to
+                      HTTP traffic
                     type: string
-                  selector:
-                    additionalProperties:
-                      type: string
-                    description: The selector for the deployment to route to. This
-                      is used when creating the service behind the scenes
-                    type: object
+                  port:
+                    description: The port to route to
+                    format: int32
+                    type: integer
+                  service:
+                    description: The name of the service to route to
+                    type: string
                 required:
-                - name
-                - selector
+                - deployment
+                - port
+                - service
                 type: object
-              port:
-                description: The port this application will serve on. If Image is
-                  set, the HTTP server running in that image must be serving on this
-                  port. If DeploymentName is set, there must be an active
-                format: int32
-                type: integer
             required:
-            - port
+            - scaleTargetRef
             type: object
           status:
             description: HTTPScaledObjectStatus defines the observed state of HTTPScaledObject

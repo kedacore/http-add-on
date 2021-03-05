@@ -28,7 +28,7 @@ func createInterceptor(
 		},
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_PORT",
-			Value: fmt.Sprintf("%d", appInfo.Port),
+			Value: fmt.Sprintf("%d", httpso.Spec.ScaleTargetRef.Port),
 		},
 		{
 			Name:  "KEDA_HTTP_PROXY_PORT",

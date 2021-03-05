@@ -67,8 +67,6 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 	cl := fake.NewFakeClient()
 	cfg := config.AppInfo{
 		Name:      appName,
-		Port:      8081,
-		Image:     "arschles/testimg",
 		Namespace: namespace,
 	}
 	logger := logrtest.NullLogger{}
@@ -78,9 +76,11 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 			Name:      appName,
 		},
 		Spec: v1alpha1.HTTPScaledObjectSpec{
-			AppName: appName,
-			Image:   "arschles/testapp",
-			Port:    8081,
+			ScaleTargetRef: &v1alpha1.ScaleTargetRef{
+				Deployment: appName,
+				Service:    appName,
+				Port:       8081,
+			},
 		},
 	}
 
