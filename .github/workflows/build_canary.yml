@@ -9,8 +9,6 @@ jobs:
   build_operator:
 
     runs-on: ubuntu-20.04
-    env:
-      SHA: ${GITHUB_SHA::8}
 
     steps:
       - uses: actions/checkout@v2
@@ -38,7 +36,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-operator
-          tags: canary,sha-$SHA
+          tags: canary,sha-$(git rev-parse --short HEAD)
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -76,7 +74,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-interceptor
-          tags: canary,sha-$SHA
+          tags: canary,sha-$(git rev-parse --short HEAD)
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -113,7 +111,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           repository: ${{ github.repository_owner }}/http-add-on-scaler
-          tags: canary,sha-$SHA
+          tags: canary,sha-$(git rev-parse --short HEAD)
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
