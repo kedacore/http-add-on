@@ -19,7 +19,8 @@ See that document at [docs/walkthrough.md](./docs/walkthrough.md)
 
 ## Design
 
-The HTTP add-on is composed of multiple mostly independent components. This design was chosen to allow for highly customizable installations while allowing us to ship reasonable defaults.
+The HTTP add-on is composed of multiple mostly independent components. This design was chosen to allow for highly
+customizable installations while allowing us to ship reasonable defaults.
 
 - We have written a complete design document. Please see it at [docs/design.md](./docs/design.md).
 - For more context on the design, please see our [scope document](./docs/scope.md).
@@ -28,6 +29,10 @@ The HTTP add-on is composed of multiple mostly independent components. This desi
 ## Installation
 
 Please see the [complete installation instructions](./docs/install.md).
+
+## Contributing
+
+Please see the [contributing documentation for all instructions](./docs/contributing.md).
 
 ---
 We are a Cloud Native Computing Foundation (CNCF) sandbox project.
