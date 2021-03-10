@@ -13,6 +13,6 @@ To autoscale HTTP servers, the HTTP Add On needs access to metrics that it can r
 
 The HTTP Add On only includes the necessary infrastructure to respond to new, modified, or deleted `HTTPScaledObject`s, and when one is created, the add on only creates the infrastructure needed specifically to accomplish autoscaling.
 
->As stated above, the current architecture requires an "interceptor," which needs to proxy incoming HTTP requests in order to provide autoscaling metrics. That means the scope of the HTTP add on currently needs to include the app's network traffic routing system.
+>As stated above, the current architecture requires an "interceptor", which needs to proxy incoming HTTP requests in order to provide autoscaling metrics. That means the scope of the HTTP add-on currently needs to include the app's network traffic routing system.
 
 To learn more, we recommend reading about our [design](design.md) or go through our [FAQ](faq.md).
