@@ -7,11 +7,9 @@ import (
 	logrtest "github.com/go-logr/logr/testing"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	keda "github.com/kedacore/keda/v2/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -22,7 +20,17 @@ var _ = Describe("UserApp", func() {
 			const name = "testapp"
 			const namespace = "testns"
 			ctx := context.Background()
-			cl := fake.NewFakeClient()
+
+			scheme := runtime.NewScheme()
+			scheme.AddKnownTypeWithName(schema.GroupVersionKind{
+				Kind:    "ScaledObject",
+				Version: "v1alpha1",
+				Group:   "keda.sh",
+			}, &keda.ScaledObject{})
+
+			clBuilder := fake.NewClientBuilder()
+			clBuilder.WithScheme(scheme)
+			cl := clBuilder.Build()
 			cfg := config.AppInfo{
 				Name:      name,
 				Port:      8081,
