@@ -106,9 +106,9 @@ type HTTPScaledObjectCondition struct {
 
 type ReplicaStruct struct {
 	// Minimum amount of replicas to have in the deployment (Default 0)
-	Min int32 `json:"min_replicas,omitempty" description:"Minimum amount of replicas to have in the deployment (Default 0)"`
+	Min int32 `json:"min,omitempty" description:"Minimum amount of replicas to have in the deployment (Default 0)"`
 	// Maximum amount of replicas to have in the deployment (Default 100)
-	Max int32 `json:"max_replicas,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
+	Max int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
 }
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
