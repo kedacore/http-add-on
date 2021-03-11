@@ -6,8 +6,6 @@ type AppInfo struct {
 	Name                 string
 	Port                 int32
 	Image                string
-	MinReplicas          int32
-	MaxReplicas          int32
 	Namespace            string
 	InterceptorConfig    Interceptor
 	ExternalScalerConfig ExternalScaler
