@@ -79,7 +79,7 @@ helm-upgrade-operator:
     --install \
     --namespace ${NAMESPACE} \
     --create-namespace \
-    --set image=${OPERATOR_DOCKER_IMG} \
+    --set images.operator=${OPERATOR_DOCKER_IMG} \
 	--set images.scaler=${SCALER_DOCKER_IMG} \
 	--set images.interceptor=${INTERCEPTOR_DOCKER_IMG}
 

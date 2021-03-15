@@ -57,9 +57,11 @@ var _ = Describe("UserApp", func() {
 			Expect(metadata["namespace"]).To(Equal(testInfra.ns))
 			Expect(metadata["name"]).To(Equal(testInfra.cfg.ScaledObjectName()))
 			specIFace, found := u.Object["spec"]
-			_, ok = specIFace.(map[string]interface{})
+			spec, ok := specIFace.(map[string]interface{})
 			Expect(found).To(BeTrue())
 			Expect(ok).To(BeTrue())
+			Expect(spec["minReplicaCount"]).To(BeNumerically("==", httpso.Spec.Replicas.Min))
+			Expect(spec["maxReplicaCount"]).To(BeNumerically("==", httpso.Spec.Replicas.Max))
 
 		})
 	})

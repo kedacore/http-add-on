@@ -104,11 +104,21 @@ type HTTPScaledObjectCondition struct {
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 // Important: Run "make" to regenerate code after modifying this file
 
+type ReplicaStruct struct {
+	// Minimum amount of replicas to have in the deployment (Default 0)
+	Min int32 `json:"min,omitempty" description:"Minimum amount of replicas to have in the deployment (Default 0)"`
+	// Maximum amount of replicas to have in the deployment (Default 100)
+	Max int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The name of the deployment to route HTTP requests to (and to autoscale). Either this
 	// or Image must be set
 	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`
+	// (optional) Replica information
+	//+optional
+	Replicas ReplicaStruct `json:"replicas,omitempty"`
 }
 
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to

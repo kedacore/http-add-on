@@ -81,6 +81,10 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 				Service:    appName,
 				Port:       8081,
 			},
+			Replicas: httpv1alpha1.ReplicaStruct{
+				Min: 0,
+				Max: 20,
+			},
 		},
 	}
 

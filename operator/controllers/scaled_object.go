@@ -37,6 +37,8 @@ func createScaledObject(
 		appInfo.ScaledObjectName(),
 		deploymentName,
 		externalScalerHostname,
+		httpso.Spec.Replicas.Min,
+		httpso.Spec.Replicas.Max,
 	)
 	logger.Info("Creating ScaledObject", "ScaledObject", *coreScaledObject)
 	if err := cl.Create(ctx, coreScaledObject); err != nil {

@@ -36,6 +36,20 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
+              replicas:
+                description: (optional) Replica information
+                properties:
+                  max:
+                    description: Maximum amount of replicas to have in the deployment
+                      (Default 100)
+                    format: int32
+                    type: integer
+                  min:
+                    description: Minimum amount of replicas to have in the deployment
+                      (Default 0)
+                    format: int32
+                    type: integer
+                type: object
               scaleTargetRef:
                 description: The name of the deployment to route HTTP requests to
                   (and to autoscale). Either this or Image must be set
