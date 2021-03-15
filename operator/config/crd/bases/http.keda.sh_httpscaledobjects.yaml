@@ -42,6 +42,18 @@ spec:
                 description: The port this application will serve on.
                 format: int32
                 type: integer
+              replicas:
+                description: (optional) Replica information
+                properties:
+                  max:
+                    description: Maximum amount of replicas to have in the deployment (Default 100)
+                    format: int32
+                    type: integer
+                  min:
+                    description: Minimum amount of replicas to have in the deployment (Default 0)
+                    format: int32
+                    type: integer
+                type: object
             required:
             - app_image
             - port

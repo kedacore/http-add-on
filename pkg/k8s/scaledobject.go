@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,6 +38,8 @@ func NewScaledObject(
 	name,
 	deploymentName,
 	scalerAddress string,
+	minReplicas int32,
+	maxReplicas int32,
 ) *unstructured.Unstructured {
 	// https://keda.sh/docs/1.5/faq/
 	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
@@ -61,8 +62,8 @@ func NewScaledObject(
 				"labels":    labels,
 			},
 			"spec": map[string]interface{}{
-				"minReplicaCount": int64(0),
-				"maxReplicaCount": int64(1000),
+				"minReplicaCount": int64(minReplicas),
+				"maxReplicaCount": int64(maxReplicas),
 				"pollingInterval": int64(250),
 				"scaleTargetRef": map[string]interface{}{
 					"name": deploymentName,
