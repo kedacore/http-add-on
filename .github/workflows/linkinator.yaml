@@ -1,7 +1,9 @@
 name: Check links on all markdown documents
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   linkinator:
