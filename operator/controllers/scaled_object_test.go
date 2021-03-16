@@ -33,7 +33,7 @@ var _ = Describe("UserApp", func() {
 			cond1 := testInfra.httpso.Status.Conditions[0]
 			cond1ts, err := time.Parse(time.RFC3339, cond1.Timestamp)
 			Expect(err).To(BeNil())
-			Expect(time.Now().Sub(cond1ts) >= 0).To(BeTrue())
+			Expect(time.Since(cond1ts) >= 0).To(BeTrue())
 			Expect(cond1.Type).To(Equal(v1alpha1.Created))
 			Expect(cond1.Status).To(Equal(metav1.ConditionTrue))
 			Expect(cond1.Reason).To(Equal(v1alpha1.ScaledObjectCreated))
@@ -60,8 +60,8 @@ var _ = Describe("UserApp", func() {
 			spec, ok := specIFace.(map[string]interface{})
 			Expect(found).To(BeTrue())
 			Expect(ok).To(BeTrue())
-			Expect(spec["minReplicaCount"]).To(BeNumerically("==", httpso.Spec.Replicas.Min))
-			Expect(spec["maxReplicaCount"]).To(BeNumerically("==", httpso.Spec.Replicas.Max))
+			Expect(spec["minReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Min))
+			Expect(spec["maxReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Max))
 
 		})
 	})
