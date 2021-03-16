@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/go-logr/logr v0.3.0
 	github.com/golang/protobuf v1.4.3
-	github.com/labstack/echo/v4 v4.1.17
+	github.com/labstack/echo/v4 v4.2.1
 	github.com/magefile/mage v1.11.0
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
