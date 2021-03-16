@@ -61,7 +61,7 @@ const (
 	ScaledObjectTerminated                   HTTPScaledObjectConditionReason = "ScaledObjectTerminated"
 	ScaledObjectTerminationError             HTTPScaledObjectConditionReason = "ScaledObjectTerminationError"
 	PendingCreation                          HTTPScaledObjectConditionReason = "PendingCreation"
-	HTTPScaledObjectIsReady                          HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
+	HTTPScaledObjectIsReady                  HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
 )
 
 const (
@@ -104,6 +104,13 @@ type HTTPScaledObjectCondition struct {
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 // Important: Run "make" to regenerate code after modifying this file
 
+type ReplicaStruct struct {
+	// Minimum amount of replicas to have in the deployment (Default 0)
+	Min int32 `json:"min,omitempty" description:"Minimum amount of replicas to have in the deployment (Default 0)"`
+	// Maximum amount of replicas to have in the deployment (Default 100)
+	Max int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// (optional) The name of the application to be created.
@@ -112,6 +119,9 @@ type HTTPScaledObjectSpec struct {
 	Image string `json:"app_image"`
 	// The port this application will serve on.
 	Port int32 `json:"port"`
+	// (optional) Replica information
+	//+optional
+	Replicas ReplicaStruct `json:"replicas,omitempty"`
 }
 
 // TODO: Add ingress configurations

@@ -39,6 +39,10 @@ var _ = Describe("UserApp", func() {
 					AppName: name,
 					Image:   "arschles/testapp",
 					Port:    8081,
+					Replicas: v1alpha1.ReplicaStruct{
+						Min: 5,
+						Max: 10,
+					},
 				},
 			}
 			err := createScaledObject(ctx, cfg, cl, logger, httpso)
@@ -73,9 +77,11 @@ var _ = Describe("UserApp", func() {
 			Expect(metadata["namespace"]).To(Equal(namespace))
 			Expect(metadata["name"]).To(Equal(cfg.ScaledObjectName()))
 			specIFace, found := u.Object["spec"]
-			_, ok = specIFace.(map[string]interface{})
+			spec, ok := specIFace.(map[string]interface{})
 			Expect(found).To(BeTrue())
 			Expect(ok).To(BeTrue())
+			Expect(spec["minReplicaCount"]).To(BeNumerically("==", httpso.Spec.Replicas.Min))
+			Expect(spec["maxReplicaCount"]).To(BeNumerically("==", httpso.Spec.Replicas.Max))
 
 		})
 	})
