@@ -1,5 +1,9 @@
 # KEDA-HTTP Frequently Asked Questions
 
+## Why Does This Project Route HTTP Requests?
+
+In order to autoscale a `Deployment`, KEDA-HTTP needs to be involved with routing HTTP requests. However, the project is minimally involved with routing and we're working on ways to get out of the "critical path" of an HTTP request as much as possible. For more information, please see our [scope](./scope.md) document.
+
 ## How is this Project Similar or Different from [Osiris](https://github.com/deislabs/osiris)?
 
 Osiris and KEDA-HTTP have similar features:
