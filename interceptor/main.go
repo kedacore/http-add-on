@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	nethttp "net/http"
 	"net/url"
 	"time"
 
 	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/kedacore/http-add-on/pkg/http"
 	echo "github.com/labstack/echo/v4"
-	middleware "github.com/labstack/echo/v4/middleware"
 )
 
 func init() {
@@ -46,26 +46,41 @@ func main() {
 	if err != nil {
 		log.Fatalf("KEDA_HTTP_ADMIN_PORT missing")
 	}
+	proxyTimeoutMS := env.GetIntOr("KEDA_HTTP_PROXY_TIMEOUT", 1000)
 
 	q := http.NewMemoryQueue()
-	proxyServer := echo.New()
-	adminServer := echo.New()
 
-	proxyServer.Use(middleware.Logger())
-	proxyServer.Use(countMiddleware(q)) // adds the request counting middleware
-
-	// forwards any request to the destination app after counting
-	proxyServer.Any("/*", newForwardingHandler(svcURL))
-
-	adminServer.GET("/queue", newQueueSizeHandler(q))
-
-	go runServer("proxy", proxyServer, proxyPort)
-	go runServer("admin", adminServer, adminPort)
+	go runAdminServer(q, adminPort)
+	go runProxyServer(
+		q,
+		svcURL,
+		time.Duration(proxyTimeoutMS)*time.Millisecond,
+		proxyPort,
+	)
 
 	select {}
 }
 
-func runServer(name string, e *echo.Echo, port string) {
-	log.Printf("%s server running on port %s", name, port)
-	log.Fatal(e.Start(fmt.Sprintf(":%s", port)))
+func runAdminServer(q http.QueueCountReader, port string) {
+	adminServer := echo.New()
+	adminServer.GET("/queue", newQueueSizeHandler(q))
+
+	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	log.Printf("admin server running on %s", addr)
+	log.Fatal(adminServer.Start(addr))
+}
+
+func runProxyServer(
+	q http.QueueCounter,
+	svcURL *url.URL,
+	proxyTimeout time.Duration,
+	port string,
+) {
+	proxyMux := nethttp.NewServeMux()
+	proxyHdl := newForwardingHandler(svcURL, proxyTimeout)
+	proxyMux.Handle("/*", countMiddleware(q, proxyHdl))
+
+	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	log.Printf("proxy server starting on %s", addr)
+	nethttp.ListenAndServe(addr, proxyMux)
 }
