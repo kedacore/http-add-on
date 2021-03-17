@@ -121,22 +121,24 @@ func TestForwardingHandlerHolds(t *testing.T) {
 	r := require.New(t)
 	// have the origin sleep for less time than the interceptor
 	// will wait
-	const originSleep = 200 * time.Millisecond
-	const proxySleep = 1 * time.Second
+	// const originSleep = 200 * time.Millisecond
+	const proxyTimeout = 1 * time.Second
 
-	const respCode = 400
-	const respBody = "you shouldn't see this!"
-	originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(originSleep)
-		w.WriteHeader(respCode)
-		w.Write([]byte(respBody))
-	})
+	// const respCode = 400
+	// const respBody = "you shouldn't see this!"
+	// originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 	time.Sleep(originSleep)
+	// 	w.WriteHeader(respCode)
+	// 	w.Write([]byte(respBody))
+	// })
 
-	testServer := httptest.NewUnstartedServer(originHdl)
-	defer testServer.Close()
-	forwardURL, err := url.Parse(testServer.URL)
+	// testServer := httptest.NewUnstartedServer(originHdl)
+	// log.Printf("test server URL: %s", testServer.URL)
+	// defer testServer.Close()
+	// forwardURL, err := url.Parse(testServer.URL)
+	forwardURL, err := url.Parse("https://asfgsdfgkjdfg.dev")
 	r.NoError(err)
-	handler := newForwardingHandler(forwardURL, proxySleep)
+	handler := newForwardingHandler(forwardURL, proxyTimeout)
 
 	req, err := http.NewRequest("GET", "/testfwd", nil)
 	r.NoError(err)
@@ -146,30 +148,43 @@ func TestForwardingHandlerHolds(t *testing.T) {
 	// we want to wait for a specified timeout and then start up the backend.
 	// this will effectively test to make sure that the proxy will hold
 	// the _connection_ (not the request necessarily)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	madeRequest := make(chan struct{})
-	go func() {
-		defer wg.Done()
-		handler.ServeHTTP(rec, req)
-		close(madeRequest)
-	}()
-	go func() {
-		defer wg.Done()
-		// wait for the request to be made in the other goroutine,
-		// sleep for 1/2 the time the proxy waits for a connection
-		// and then start up the origin server, which enables the proxy to
-		// establish the connection
-		<-madeRequest
-		time.Sleep(proxySleep / 2)
-		testServer.Start()
-	}()
-	wg.Wait()
+	// var wg sync.WaitGroup
+	// wg.Add(2)
+	// madeRequest := make(chan struct{})
+	// go func() {
+	// 	defer wg.Done()
+	// 	handler.ServeHTTP(rec, req)
+	// 	log.Printf("made the request at %s", time.Now())
+	// 	close(madeRequest)
+	// }()
+	// go func() {
+	// 	defer wg.Done()
+	// 	// wait for the request to be made in the other goroutine,
+	// 	// sleep for 1/2 the time the proxy waits for a connection
+	// 	// and then start up the origin server, which enables the proxy to
+	// 	// establish the connection
+	// 	<-madeRequest
+	// 	log.Printf("request made and notified at %s", time.Now())
+	// 	time.Sleep(proxySleep / 2)
+	// 	log.Printf("woke up at %s", time.Now())
+	// 	testServer.Start()
+	// 	log.Printf("test server started at %s", time.Now())
+	// }()
+	// wg.Wait()
+	reqStart := time.Now()
+	handler.ServeHTTP(rec, req)
+	reqDur := time.Since(reqStart)
+	r.True(
+		reqDur >= proxyTimeout,
+		"request duration (%s) wasn't >= than the proxy's wait time (%s)",
+		reqDur,
+		proxyTimeout,
+	)
 
 	// we should not get a 400 back from the proxy, even though that's
 	// what the origin returns
-	r.Equal(respCode, rec.Code, "response code from proxy")
+	// r.Equal(respCode, rec.Code, "response code from proxy")
 	// nor should we get the handler's body back either. it should be
 	// the proxy's error
-	r.Equal(respBody, rec.Body.String(), "response body from proxy")
+	// r.Equal(respBody, rec.Body.String(), "response body from proxy")
 }
