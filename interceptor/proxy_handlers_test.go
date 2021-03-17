@@ -119,23 +119,8 @@ func TestForwardingHandlerWaits(t *testing.T) {
 // while an origin is not yet listening
 func TestForwardingHandlerHolds(t *testing.T) {
 	r := require.New(t)
-	// have the origin sleep for less time than the interceptor
-	// will wait
-	// const originSleep = 200 * time.Millisecond
 	const proxyTimeout = 1 * time.Second
 
-	// const respCode = 400
-	// const respBody = "you shouldn't see this!"
-	// originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 	time.Sleep(originSleep)
-	// 	w.WriteHeader(respCode)
-	// 	w.Write([]byte(respBody))
-	// })
-
-	// testServer := httptest.NewUnstartedServer(originHdl)
-	// log.Printf("test server URL: %s", testServer.URL)
-	// defer testServer.Close()
-	// forwardURL, err := url.Parse(testServer.URL)
 	forwardURL, err := url.Parse("https://asfgsdfgkjdfg.dev")
 	r.NoError(err)
 	handler := newForwardingHandler(forwardURL, proxyTimeout)
