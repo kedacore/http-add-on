@@ -8,7 +8,7 @@ In this use case, an application may be containerized running on a managed cloud
 
 - [Amazon ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
 - [Azure App Services](https://docs.microsoft.com/en-us/azure/app-service/quickstart-custom-container?pivots=container-linux)
-- - [Digital Ocean App Platform](https://www.digitalocean.com/products/app-platform/)
+- [Digital Ocean App Platform](https://www.digitalocean.com/products/app-platform/)
 - [Google App Engine Flexible Environment](https://cloud.google.com/appengine/docs/flexible/)
 
 The platform may or may not be autoscaling.
