@@ -144,33 +144,6 @@ func TestForwardingHandlerHolds(t *testing.T) {
 	r.NoError(err)
 	rec := httptest.NewRecorder()
 
-	// here, we want to initiate the request to the proxy first, and then
-	// we want to wait for a specified timeout and then start up the backend.
-	// this will effectively test to make sure that the proxy will hold
-	// the _connection_ (not the request necessarily)
-	// var wg sync.WaitGroup
-	// wg.Add(2)
-	// madeRequest := make(chan struct{})
-	// go func() {
-	// 	defer wg.Done()
-	// 	handler.ServeHTTP(rec, req)
-	// 	log.Printf("made the request at %s", time.Now())
-	// 	close(madeRequest)
-	// }()
-	// go func() {
-	// 	defer wg.Done()
-	// 	// wait for the request to be made in the other goroutine,
-	// 	// sleep for 1/2 the time the proxy waits for a connection
-	// 	// and then start up the origin server, which enables the proxy to
-	// 	// establish the connection
-	// 	<-madeRequest
-	// 	log.Printf("request made and notified at %s", time.Now())
-	// 	time.Sleep(proxySleep / 2)
-	// 	log.Printf("woke up at %s", time.Now())
-	// 	testServer.Start()
-	// 	log.Printf("test server started at %s", time.Now())
-	// }()
-	// wg.Wait()
 	reqStart := time.Now()
 	handler.ServeHTTP(rec, req)
 	reqDur := time.Since(reqStart)
@@ -180,11 +153,4 @@ func TestForwardingHandlerHolds(t *testing.T) {
 		reqDur,
 		proxyTimeout,
 	)
-
-	// we should not get a 400 back from the proxy, even though that's
-	// what the origin returns
-	// r.Equal(respCode, rec.Code, "response code from proxy")
-	// nor should we get the handler's body back either. it should be
-	// the proxy's error
-	// r.Equal(respBody, rec.Body.String(), "response body from proxy")
 }
