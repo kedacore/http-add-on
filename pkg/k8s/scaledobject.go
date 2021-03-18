@@ -1,11 +1,20 @@
 package k8s
 
 import (
+	"bytes"
 	"context"
+	"embed"
+	"log"
+	"text/template"
+
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+//go:embed templates
+var scaledObjectTemplateFS embed.FS
 
 func kedaGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -52,33 +61,30 @@ func NewScaledObject(
 		var vIface interface{} = v
 		labels[k] = vIface
 	}
+
+	tpl, err := template.ParseFS(scaledObjectTemplateFS, "templates/scaledobject.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var scaledObjectTemplateBuffer bytes.Buffer
+	tpl.Execute(&scaledObjectTemplateBuffer, map[string]interface{}{
+		"Name": name,
+		"Namespace": namespace,
+		"Labels": labels,
+		"MinReplicas": minReplicas,
+		"MaxReplicas": maxReplicas,
+		"DeploymentName": deploymentName,
+		"ScalerAddress": scalerAddress,
+	})
+
+	var decodedYaml map[string]interface{}
+	decodeErr := yaml.Unmarshal(scaledObjectTemplateBuffer.Bytes(), &decodedYaml)
+	if decodeErr != nil {
+		log.Fatal(err)
+	}
+
 	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "keda.sh/v1alpha1",
-			"kind":       "ScaledObject",
-			"metadata": map[string]interface{}{
-				"namespace": namespace,
-				"name":      name,
-				"labels":    labels,
-			},
-			"spec": map[string]interface{}{
-				"minReplicaCount": int64(minReplicas),
-				"maxReplicaCount": int64(maxReplicas),
-				"pollingInterval": int64(250),
-				"scaleTargetRef": map[string]interface{}{
-					"name": deploymentName,
-					// "apiVersion": "apps/v1",
-					"kind": "Deployment",
-				},
-				"triggers": []interface{}{
-					map[string]interface{}{
-						"type": "external",
-						"metadata": map[string]interface{}{
-							"scalerAddress": scalerAddress,
-						},
-					},
-				},
-			},
-		},
+		Object: decodedYaml,
 	}
 }
