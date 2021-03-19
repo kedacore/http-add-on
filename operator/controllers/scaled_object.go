@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -8,13 +9,15 @@ import (
 	"github.com/kedacore/http-add-on/operator/controllers/config"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func createScaledObject(
+// create ScaledObjects for the app and interceptor
+func createScaledObjects(
+	ctx context.Context,
 	appInfo config.AppInfo,
-	K8sDynamicCl dynamic.Interface,
+	cl client.Client,
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
@@ -28,52 +31,66 @@ func createScaledObject(
 
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostname)
 
-	// create scaled object for app
 	appScaledObject := k8s.NewScaledObject(
-		appInfo.ScaledObjectName(),
+		appInfo.Namespace,
+		config.AppScaledObjectName(httpso),
 		appInfo.Name,
 		externalScalerHostname,
-		0,
-		1000,
+		httpso.Spec.Replicas.Min,
+		httpso.Spec.Replicas.Max,
 	)
-	logger.Info("Creating ScaledObject for app", "ScaledObject", *appScaledObject)
-	scaledObjectCl := k8s.NewScaledObjectClient(K8sDynamicCl)
-	if _, err := scaledObjectCl.
-		Namespace(appInfo.Namespace).
-		Create(appScaledObject, metav1.CreateOptions{}); err != nil {
+
+	interceptorScaledObject := k8s.NewScaledObject(
+		appInfo.Namespace,
+		config.InterceptorScaledObjectName(httpso),
+		appInfo.InterceptorDeploymentName(),
+		externalScalerHostname,
+		httpso.Spec.Replicas.Min,
+		httpso.Spec.Replicas.Max,
+	)
+
+	logger.Info("Creating App ScaledObject", "ScaledObject", *appScaledObject)
+	if err := cl.Create(ctx, appScaledObject); err != nil {
 		if errors.IsAlreadyExists(err) {
 			logger.Info("User app scaled object already exists, moving on")
 		} else {
-
 			logger.Error(err, "Creating ScaledObject")
-			httpso.Status.ScaledObjectStatus = v1alpha1.Error
+			httpso.AddCondition(*v1alpha1.CreateCondition(
+				v1alpha1.Error,
+				v1.ConditionFalse,
+				v1alpha1.ErrorCreatingAppScaledObject,
+			).SetMessage(err.Error()))
 			return err
 		}
 	}
 
-	// create scaled object for interceptor. Make sure to always
-	// have 1 replica available so that incoming traffic gets accepted
-	interceptorScaledObject := k8s.NewScaledObject(
-		appInfo.InterceptorScaledObjectName(),
-		appInfo.InterceptorDeploymentName(),
-		externalScalerHostname,
-		1,
-		1000,
-	)
-	logger.Info("Creating ScaledObject for interceptor", "ScaledObject", *interceptorScaledObject)
-	if _, err := scaledObjectCl.
-		Namespace(appInfo.Namespace).
-		Create(interceptorScaledObject, metav1.CreateOptions{}); err != nil {
+	httpso.AddCondition(*v1alpha1.CreateCondition(
+		v1alpha1.Created,
+		v1.ConditionTrue,
+		v1alpha1.AppScaledObjectCreated,
+	).SetMessage("App ScaledObject created"))
+
+	// Interceptor ScaledObject
+	logger.Info("Creating Interceptor ScaledObject", "ScaledObject", *interceptorScaledObject)
+	if err := cl.Create(ctx, interceptorScaledObject); err != nil {
 		if errors.IsAlreadyExists(err) {
-			logger.Info("Interceptor scaled object already exists, moving on")
+			logger.Info("Interceptor ScaledObject already exists, moving on")
 		} else {
-
-			logger.Error(err, "Creating ScaledObject")
-			httpso.Status.ScaledObjectStatus = v1alpha1.Error
+			logger.Error(err, "Creating Interceptor ScaledObject")
+			httpso.AddCondition(*v1alpha1.CreateCondition(
+				v1alpha1.Error,
+				v1.ConditionFalse,
+				v1alpha1.ErrorCreatingInterceptorScaledObject,
+			).SetMessage(err.Error()))
 			return err
 		}
 	}
 
-	httpso.Status.ScaledObjectStatus = v1alpha1.Created
+	httpso.AddCondition(*v1alpha1.CreateCondition(
+		v1alpha1.Created,
+		v1.ConditionTrue,
+		v1alpha1.InterceptorScaledObjectCreated,
+	).SetMessage("Interceptor Scaled object created"))
+
 	return nil
 }

@@ -3,7 +3,7 @@
 <p style="font-size: 25px" align="center"><b>Kubernetes-based Event Driven Autoscaling - HTTP Add-On</b></p>
 <p style="font-size: 25px" align="center">
 
-KEDA allows for fine-grained autoscaling (including to/from zero) for event driven Kubernetes workloads. With this add-on, you can easily autoscale your HTTP workloads.
+The KEDA HTTP Add On allows Kubernetes users to automatically scale their HTTP servers up and down (including to/from zero) based on incoming HTTP traffic. Please see our [use cases document](./docs/use_cases.md) to learn more about how and why you would use this project.
 
 | 🚧 **Alpha - Not for production** 🚧|
 |---------------------------------------------|
@@ -19,13 +19,20 @@ See that document at [docs/walkthrough.md](./docs/walkthrough.md)
 
 ## Design
 
-The HTTP add-on is composed of multiple mostly independent components. This design was chosen to allow for highly customizable installations while allowing us to ship reasonable defaults.
+The HTTP add-on is composed of multiple mostly independent components. This design was chosen to allow for highly
+customizable installations while allowing us to ship reasonable defaults.
 
-We have written a complete design document. Please see it at [docs/design.md](./docs/design.md).
+- We have written a complete design document. Please see it at [docs/design.md](./docs/design.md).
+- For more context on the design, please see our [scope document](./docs/scope.md).
+- If you have further questions about the project, please see our [FAQ document](./docs/faq.md).
 
 ## Installation
 
 Please see the [complete installation instructions](./docs/install.md).
+
+## Contributing
+
+Please see the [contributing documentation for all instructions](./docs/contributing.md).
 
 ---
 We are a Cloud Native Computing Foundation (CNCF) sandbox project.
