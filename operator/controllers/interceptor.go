@@ -28,7 +28,7 @@ func createInterceptor(
 		},
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_PORT",
-			Value: fmt.Sprintf("%d", appInfo.Port),
+			Value: fmt.Sprintf("%d", httpso.Spec.ScaleTargetRef.Port),
 		},
 		{
 			Name:  "KEDA_HTTP_PROXY_PORT",
@@ -77,7 +77,7 @@ func createInterceptor(
 		appInfo.Namespace,
 		appInfo.InterceptorProxyServiceName(),
 		publicPorts,
-		corev1.ServiceTypeLoadBalancer,
+		corev1.ServiceTypeClusterIP,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	adminPorts := []corev1.ServicePort{
