@@ -82,19 +82,15 @@ spec:
                       - ErrorCreatingExternalScaler
                       - ErrorCreatingExternalScalerService
                       - CreatedExternalScaler
-                      - ErrorCreatingAppDeployment
-                      - AppDeploymentCreated
-                      - ErrorCreatingAppService
-                      - AppServiceCreated
-                      - ErrorCreatingScaledObject
-                      - ScaledObjectCreated
+                      - ErrorCreatingInterceptorScaledObject
+                      - ErrorCreatingAppScaledObject
+                      - AppScaledObjectCreated
+                      - InterceptorScaledObjectCreated
                       - ErrorCreatingInterceptor
                       - ErrorCreatingInterceptorAdminService
                       - ErrorCreatingInterceptorProxyService
                       - InterceptorCreated
                       - TerminatingResources
-                      - AppDeploymentTerminationError
-                      - AppDeploymentTerminated
                       - InterceptorDeploymentTerminated
                       - InterceptorDeploymentTerminationError
                       - InterceptorAdminServiceTerminationError
@@ -105,10 +101,10 @@ spec:
                       - ExternalScalerDeploymentTerminated
                       - ExternalScalerServiceTerminationError
                       - ExternalScalerServiceTerminated
-                      - AppServiceTerminationError
-                      - AppServiceTerminated
-                      - ScaledObjectTerminated
-                      - ScaledObjectTerminationError
+                      - InterceptorScaledObjectTerminated
+                      - AppScaledObjectTerminated
+                      - AppScaledObjectTerminationError
+                      - InterceptorScaledObjectTerminationError
                       - PendingCreation
                       - HTTPScaledObjectIsReady
                       type: string
