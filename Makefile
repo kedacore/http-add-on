@@ -86,6 +86,12 @@ helm-upgrade-operator:
 .PHONY: helm-delete-operator
 helm-delete-operator:
 	helm delete -n ${NAMESPACE} kedahttp
+	
+.PHONY: generate-operator
+generate-operator:
+	cd operator && \
+		make manifests && \
+		cp config/crd/bases/http.keda.sh_httpscaledobjects.yaml ../charts/keda-http-operator/crds/httpscaledobjects.http.keda.sh.yaml
 
 #####
 # universal targets

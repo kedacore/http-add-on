@@ -76,14 +76,8 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}, err
 	}
 
-	appName := httpso.Spec.AppName
-	image := httpso.Spec.Image
-	port := httpso.Spec.Port
-
 	appInfo := config.AppInfo{
-		Name:                 appName,
-		Port:                 port,
-		Image:                image,
+		Name:                 httpso.Spec.ScaleTargetRef.Deployment,
 		Namespace:            req.Namespace,
 		InterceptorConfig:    rec.InterceptorConfig,
 		ExternalScalerConfig: rec.ExternalScalerConfig,
@@ -114,7 +108,13 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// httpso is updated now
-	logger.Info("Reconciling HTTPScaledObject", "Namespace", req.Namespace, "App Name", appName, "image", image, "port", port)
+	logger.Info(
+		"Reconciling HTTPScaledObject",
+		"Namespace",
+		req.Namespace,
+		"DeploymentName",
+		appInfo.Name,
+	)
 
 	// Create required app objects for the application defined by the CRD
 	if err := rec.createOrUpdateApplicationResources(

@@ -31,20 +31,22 @@ git clone https://github.com/kedacore/http-add-on.git
 cd http-add-on
 ```
 
-Next, install the HTTP add on:
+Next, install the HTTP add on. The below command will install the add on if it doesn't already exist:
 
 ```shell
 make helm-upgrade-operator
 ```
 
->The above command will install KEDA HTTP if it doesn't already exist.
+>Installing the HTTP add on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).
 
-There are two environment variables in the above command that you can set to customize how it behaves:
+There are a few environment variables in the above command that you can set to customize how it behaves:
 
 - `NAMESPACE` - which Kubernetes namespace to install KEDA-HTTP. This should be the same as where you installed KEDA itself (required)
-- `OPERATOR_DOCKER_IMG` - the name of the operator's Docker image (optional - falls back to a sensible default)
-- `SCALER_DOCKER_IMG` - the name of the scaler's Docker image (optional - falls back to a sensible default)
-- `INTERCEPTOR_DOCKER_IMG` - the name of the interceptor's Docker image (optional - falls back to a sensible default)
+- `OPERATOR_DOCKER_IMG` - the name of the operator's Docker image (optional - falls back to the latest release)
+- `SCALER_DOCKER_IMG` - the name of the scaler's Docker image (optional - falls back to the latest release)
+- `INTERCEPTOR_DOCKER_IMG` - the name of the interceptor's Docker image (optional - falls back to the latest release)
+
+>I recommend using [direnv](https://direnv.net/) to store your environment variables
 
 ### If You're Installing into a [Microk8s](https://microk8s.io) Cluster
 
