@@ -30,10 +30,12 @@ func createScaledObject(
 
 	logger.Info("Creating scaled object", "external_scaler", externalScalerHostname)
 
+	deploymentName := httpso.Spec.ScaleTargetRef.Deployment
+
 	coreScaledObject := k8s.NewScaledObject(
 		appInfo.Namespace,
 		appInfo.ScaledObjectName(),
-		appInfo.Name,
+		deploymentName,
 		externalScalerHostname,
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,

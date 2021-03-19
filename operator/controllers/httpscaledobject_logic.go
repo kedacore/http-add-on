@@ -206,11 +206,6 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	// set initial statuses
 	httpso.AddCondition(*v1alpha1.CreateCondition(v1alpha1.Pending, v1.ConditionUnknown, v1alpha1.PendingCreation).SetMessage("Identified HTTPScaledObject creation signal"))
 
-	// CREATING THE USER APPLICATION
-	if err := createUserApp(ctx, appInfo, rec.Client, logger, httpso); err != nil {
-		return err
-	}
-
 	// CREATING INTERNAL ADD-ON OBJECTS
 	// Creating the dedicated interceptor
 	if err := createInterceptor(ctx, appInfo, rec.Client, logger, httpso); err != nil {
@@ -230,8 +225,6 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		return err
 
 	}
-
-	// TODO: Create a new ingress resource that will point to the interceptor
 
 	return nil
 }
