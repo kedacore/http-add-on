@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
@@ -28,6 +29,7 @@ var _ = Describe("UserApp", func() {
 				&testInfra.httpso,
 			)
 			Expect(err).To(BeNil())
+
 			// make sure that httpso has the right conditions on it:
 			//
 			// - AppScaledObjectCreated
@@ -63,16 +65,14 @@ var _ = Describe("UserApp", func() {
 			}
 			err = testInfra.cl.Get(testInfra.ctx, objectKey, u)
 			Expect(err).To(BeNil())
-			metadataIface, found := u.Object["metadata"]
-			metadata, ok := metadataIface.(map[string]interface{})
-			Expect(found).To(BeTrue())
-			Expect(ok).To(BeTrue())
+
+			metadata, err := getKeyAsMap(u.Object, "metadata")
+			Expect(err).To(BeNil())
 			Expect(metadata["namespace"]).To(Equal(testInfra.ns))
 			Expect(metadata["name"]).To(Equal(config.AppScaledObjectName(&testInfra.httpso)))
-			specIFace, found := u.Object["spec"]
-			spec, ok := specIFace.(map[string]interface{})
-			Expect(found).To(BeTrue())
-			Expect(ok).To(BeTrue())
+
+			spec, err := getKeyAsMap(u.Object, "spec")
+			Expect(err).To(BeNil())
 			Expect(spec["minReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Min))
 			Expect(spec["maxReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Max))
 
@@ -81,18 +81,29 @@ var _ = Describe("UserApp", func() {
 			objectKey.Name = config.InterceptorScaledObjectName(&testInfra.httpso)
 			err = testInfra.cl.Get(testInfra.ctx, objectKey, u)
 			Expect(err).To(BeNil())
-			metadataIface, found = u.Object["metadata"]
-			metadata, ok = metadataIface.(map[string]interface{})
-			Expect(found).To(BeTrue())
-			Expect(ok).To(BeTrue())
+
+			metadata, err = getKeyAsMap(u.Object, "metadata")
+			Expect(err).To(BeNil())
 			Expect(metadata["namespace"]).To(Equal(testInfra.ns))
 			Expect(metadata["name"]).To(Equal(config.InterceptorScaledObjectName(&testInfra.httpso)))
-			specIFace, found = u.Object["spec"]
-			spec, ok = specIFace.(map[string]interface{})
-			Expect(found).To(BeTrue())
-			Expect(ok).To(BeTrue())
+
+			spec, err = getKeyAsMap(u.Object, "spec")
+			Expect(err).To(BeNil())
 			Expect(spec["minReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Min))
 			Expect(spec["maxReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Max))
 		})
 	})
 })
+
+func getKeyAsMap(m map[string]interface{}, key string) (map[string]interface{}, error) {
+	iface, ok := m[key]
+	if !ok {
+		return nil, fmt.Errorf("key %s not found in map", key)
+	}
+	val, ok := iface.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("key %s was not a map[string]interface{}", key)
+	}
+	return val, nil
+
+}
