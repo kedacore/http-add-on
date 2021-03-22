@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
@@ -10,7 +11,10 @@ import (
 
 	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/kedacore/http-add-on/pkg/http"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	echo "github.com/labstack/echo/v4"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 func init() {
@@ -33,9 +37,18 @@ func getSvcURL() (*url.URL, error) {
 }
 
 func main() {
+	ctx := context.Background()
 	svcURL, err := getSvcURL()
 	if err != nil {
 		log.Fatalf("Service name / port invalid (%s)", err)
+	}
+	deployName, err := env.Get("KEDA_HTTP_TARGET_DEPLOYMENT_NAME")
+	if err != nil {
+		log.Fatal(err)
+	}
+	ns, err := env.Get("KEDA_HTTP_NAMESPACE")
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	proxyPort, err := env.Get("KEDA_HTTP_PROXY_PORT")
@@ -50,9 +63,28 @@ func main() {
 
 	q := http.NewMemoryQueue()
 
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		log.Fatalf("Kubernetes client config not found (%s)", err)
+	}
+	cl, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error creating new Kubernetes ClientSet (%s)", err)
+	}
+	deployInterface := cl.AppsV1().Deployments(ns)
+	deployCache, err := k8s.NewK8sDeploymentCache(
+		ctx,
+		deployInterface,
+	)
+	if err != nil {
+		log.Fatalf("Error creating new deployment cache (%s)", err)
+	}
+
 	go runAdminServer(q, adminPort)
 	go runProxyServer(
 		q,
+		deployName,
+		deployCache,
 		svcURL,
 		time.Duration(proxyTimeoutMS)*time.Millisecond,
 		proxyPort,
@@ -72,12 +104,19 @@ func runAdminServer(q http.QueueCountReader, port string) {
 
 func runProxyServer(
 	q http.QueueCounter,
+	targetDeployName string,
+	deployCache k8s.DeploymentCache,
 	svcURL *url.URL,
 	proxyTimeout time.Duration,
 	port string,
 ) {
 	proxyMux := nethttp.NewServeMux()
-	proxyHdl := newForwardingHandler(svcURL, proxyTimeout)
+	proxyHdl := newForwardingHandler(
+		svcURL,
+		proxyTimeout,
+		deployCache,
+		targetDeployName,
+	)
 	proxyMux.Handle("/*", countMiddleware(q, proxyHdl))
 
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
