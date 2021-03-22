@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	appsv1 "k8s.io/api/apps/v1"
 )
 
@@ -78,7 +79,6 @@ func newForwardingHandler(
 		}
 	})
 }
-
 func forwardRequest(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -86,12 +86,13 @@ func forwardRequest(
 	fwdSvcURL *url.URL,
 ) {
 	// this is adapted from https://pkg.go.dev/net/http#RoundTripper
+	dialCtxFunc := kedanet.DialContextWithRetry(&net.Dialer{
+		Timeout:   holdTimeout,
+		KeepAlive: 30 * time.Second,
+	}, holdTimeout)
 	roundTripper := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   holdTimeout,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialCtxFunc,
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
