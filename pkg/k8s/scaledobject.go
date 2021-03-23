@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"embed"
-	"log"
 	"text/template"
 
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -49,7 +48,7 @@ func NewScaledObject(
 	scalerAddress string,
 	minReplicas int32,
 	maxReplicas int32,
-) *unstructured.Unstructured {
+) (*unstructured.Unstructured, error) {
 	// https://keda.sh/docs/1.5/faq/
 	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
 	//
@@ -64,11 +63,11 @@ func NewScaledObject(
 
 	tpl, err := template.ParseFS(scaledObjectTemplateFS, "templates/scaledobject.yaml")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	var scaledObjectTemplateBuffer bytes.Buffer
-	tpl.Execute(&scaledObjectTemplateBuffer, map[string]interface{}{
+	if tplErr := tpl.Execute(&scaledObjectTemplateBuffer, map[string]interface{}{
 		"Name": name,
 		"Namespace": namespace,
 		"Labels": labels,
@@ -76,15 +75,17 @@ func NewScaledObject(
 		"MaxReplicas": maxReplicas,
 		"DeploymentName": deploymentName,
 		"ScalerAddress": scalerAddress,
-	})
+	}); tplErr != nil {
+		return nil, tplErr
+	}
 
 	var decodedYaml map[string]interface{}
 	decodeErr := yaml.Unmarshal(scaledObjectTemplateBuffer.Bytes(), &decodedYaml)
 	if decodeErr != nil {
-		log.Fatal(err)
+		return nil, decodeErr
 	}
 
 	return &unstructured.Unstructured{
 		Object: decodedYaml,
-	}
+	}, nil
 }
