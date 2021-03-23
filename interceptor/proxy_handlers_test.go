@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 // make sure the forwarding handler forwards normally with a
@@ -202,11 +204,83 @@ func TestForwardingHandlerHoldsNoReplicas(t *testing.T) {
 // are no replicas available on the origin deployment. Once there are
 // replicas available, it will then try to forward the request
 func TestForwardingHandlerHoldsUntilReplicas(t *testing.T) {
+	r := require.New(t)
+	const proxyTimeout = 1 * time.Second
+	// this channel will be closed immediately after the request was
+	// received at the origin, but before a response was sent
+	originRequestCh := make(chan struct{})
 
+	hdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
+		close(originRequestCh)
+		w.WriteHeader(200)
+	})
+	testSrv := httptest.NewServer(hdl)
+	defer testSrv.Close()
+	forwardURL, err := url.Parse(testSrv.URL)
+	r.NoError(err)
+
+	// create a deployment and set the replicas to 0. We'll not
+	// be increasing the replicas beyond 0 so that the proxy holds the
+	// request
+	const ns = "testNS"
+	const deployName = "TestForwardingHandlerHoldsDeployment"
+	deployment := k8s.NewDeployment(
+		ns,
+		deployName,
+		"myimage",
+		[]int32{123},
+		nil,
+		map[string]string{},
+	)
+	deployment.Spec.Replicas = k8s.Int32P(0)
+	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
+		deployName: deployment,
+	})
+	handler := newForwardingHandler(forwardURL, proxyTimeout, cache, deployName)
+
+	req, err := http.NewRequest("GET", "/testfwd", nil)
+	r.NoError(err)
+	rec := httptest.NewRecorder()
+
+	// this channel will be closed immediately after the replicas were increased
+	replicasIncreasedCh := make(chan struct{})
+	go func() {
+		time.Sleep(proxyTimeout / 2)
+		cache.RWM.RLock()
+		defer cache.RWM.RUnlock()
+		watcher := cache.Watchers[deployName]
+		modifiedDeployment := deployment.DeepCopy()
+		modifiedDeployment.Spec.Replicas = k8s.Int32P(1)
+		watcher.Action(watch.Modified, modifiedDeployment)
+		close(replicasIncreasedCh)
+	}()
+	handler.ServeHTTP(rec, req)
+
+	r.True(
+		ensureSignalAfter(replicasIncreasedCh, proxyTimeout/2),
+		"replicas were not increased on origin deployment within %s",
+		proxyTimeout/2,
+	)
+	r.True(
+		ensureSignalAfter(originRequestCh, proxyTimeout),
+		"origin did not receive forwarded request within %s",
+		proxyTimeout,
+	)
 }
 
 // test to make sure that the proxy tries and backs off trying to establish
 // a connection to an origin
 func TestForwardingHandlerRetriesConnection(t *testing.T) {
 
+}
+
+func ensureSignalAfter(signalCh <-chan struct{}, timeout time.Duration) bool {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return false
+	case <-signalCh:
+		return true
+	}
 }

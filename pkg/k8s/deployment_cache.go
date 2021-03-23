@@ -89,13 +89,18 @@ func (k *K8sDeploymentCache) Watch(name string) watch.Interface {
 	})
 }
 
-// MemoryDeploymentCache is a purely in-memory DeploymentCache implementation. It's not
-// concurrency-safe and intended to be used in tests only
+// MemoryDeploymentCache is a purely in-memory DeploymentCache implementation.
+//
+// To ensure this is concurrency-safe, be sure to use RWM properly to protect
+// all accesses to either map in this struct.
 type MemoryDeploymentCache struct {
+	// RWM protects all accesses to either of Watchers or Deployments
+	RWM *sync.RWMutex
+
 	// Watchers holds watchers to be returned by calls to Watch. If Watch is called with a
 	// name that has a key in this map, that function will panic. Otherwise, it will
 	// return the corresponding value
-	Watchers map[string]*watch.FakeWatcher
+	Watchers map[string]*watch.RaceFreeFakeWatcher
 
 	// Deployments holds the deployments to be returned in calls to Get. If Get is called
 	// with a name that exists as a key in this map, the corresponding value will be returned.
@@ -110,17 +115,20 @@ func NewMemoryDeploymentCache(
 	initialDeployments map[string]*appsv1.Deployment,
 ) *MemoryDeploymentCache {
 	ret := &MemoryDeploymentCache{
-		Watchers:    make(map[string]*watch.FakeWatcher),
+		RWM:         new(sync.RWMutex),
+		Watchers:    make(map[string]*watch.RaceFreeFakeWatcher),
 		Deployments: make(map[string]*appsv1.Deployment),
 	}
 	ret.Deployments = initialDeployments
 	for deployName := range initialDeployments {
-		ret.Watchers[deployName] = watch.NewFake()
+		ret.Watchers[deployName] = watch.NewRaceFreeFake()
 	}
 	return ret
 }
 
 func (m *MemoryDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
+	m.RWM.RLock()
+	defer m.RWM.RUnlock()
 	val, ok := m.Deployments[name]
 	if !ok {
 		return nil, fmt.Errorf("Deployment %s not found", name)
@@ -129,6 +137,8 @@ func (m *MemoryDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
 }
 
 func (m *MemoryDeploymentCache) Watch(name string) watch.Interface {
+	m.RWM.RLock()
+	defer m.RWM.RUnlock()
 	val, ok := m.Watchers[name]
 	if !ok {
 		errString := fmt.Sprintf(
