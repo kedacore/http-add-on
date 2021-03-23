@@ -30,7 +30,9 @@ func DialContextWithRetry(coreDialer *net.Dialer, stopAfter time.Duration) DialC
 			Steps:    5,
 		}
 		var retConn stdnet.Conn
+		try := 0
 		err := wait.ExponentialBackoff(backoff, func() (bool, error) {
+			try++
 			conn, err := coreDialer.DialContext(ctx, network, addr)
 			if err != nil {
 				return true, err
@@ -44,4 +46,11 @@ func DialContextWithRetry(coreDialer *net.Dialer, stopAfter time.Duration) DialC
 		return retConn, nil
 	}
 
+}
+
+func NewNetDialer(connectTimeout, keepAlive time.Duration) *stdnet.Dialer {
+	return &net.Dialer{
+		Timeout:   connectTimeout,
+		KeepAlive: keepAlive, // 30 * time.Second,
+	}
 }

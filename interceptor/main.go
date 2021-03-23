@@ -6,12 +6,15 @@ import (
 	"log"
 	"math/rand"
 	nethttp "net/http"
+
 	"net/url"
 	"time"
 
+	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	echo "github.com/labstack/echo/v4"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -59,7 +62,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("KEDA_HTTP_ADMIN_PORT missing")
 	}
-	proxyTimeoutMS := env.GetIntOr("KEDA_HTTP_PROXY_TIMEOUT", 1000)
+	timeouts, err := config.ParseTimeouts()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	q := http.NewMemoryQueue()
 
@@ -79,14 +85,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating new deployment cache (%s)", err)
 	}
+	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, deployName, 1*time.Second)
 
 	go runAdminServer(q, adminPort)
+
 	go runProxyServer(
 		q,
 		deployName,
-		deployCache,
+		waitFunc,
 		svcURL,
-		time.Duration(proxyTimeoutMS)*time.Millisecond,
+		timeouts,
 		proxyPort,
 	)
 
@@ -105,17 +113,19 @@ func runAdminServer(q http.QueueCountReader, port string) {
 func runProxyServer(
 	q http.QueueCounter,
 	targetDeployName string,
-	deployCache k8s.DeploymentCache,
+	waitFunc forwardWaitFunc,
 	svcURL *url.URL,
-	proxyTimeout time.Duration,
+	timeouts *config.Timeouts,
 	port string,
 ) {
 	proxyMux := nethttp.NewServeMux()
+	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
+	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.TotalDial)
 	proxyHdl := newForwardingHandler(
 		svcURL,
-		proxyTimeout,
-		deployCache,
-		targetDeployName,
+		dialContextFunc,
+		waitFunc,
+		timeouts.ResponseHeader,
 	)
 	proxyMux.Handle("/*", countMiddleware(q, proxyHdl))
 

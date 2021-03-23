@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
@@ -147,8 +148,13 @@ func All() {
 }
 
 // Run tests on all the components in this project
-func TestAll() {
-	mg.Deps(TestInterceptor, TestOperator, TestScaler)
+func TestAll() error {
+	out, err := sh.Output("go", "test", "./...")
+	if err != nil {
+		return err
+	}
+	log.Print(out)
+	return nil
 }
 
 // --- Docker --- //
