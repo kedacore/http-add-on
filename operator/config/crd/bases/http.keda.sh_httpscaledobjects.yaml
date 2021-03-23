@@ -32,16 +32,6 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
-              app_image:
-                description: The image this application will use.
-                type: string
-              app_name:
-                description: (optional) The name of the application to be created.
-                type: string
-              port:
-                description: The port this application will serve on.
-                format: int32
-                type: integer
               replicas:
                 description: (optional) Replica information
                 properties:
@@ -54,9 +44,26 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              scaleTargetRef:
+                description: The name of the deployment to route HTTP requests to (and to autoscale). Either this or Image must be set
+                properties:
+                  deployment:
+                    description: The name of the deployment to scale according to HTTP traffic
+                    type: string
+                  port:
+                    description: The port to route to
+                    format: int32
+                    type: integer
+                  service:
+                    description: The name of the service to route to
+                    type: string
+                required:
+                - deployment
+                - port
+                - service
+                type: object
             required:
-            - app_image
-            - port
+            - scaleTargetRef
             type: object
           status:
             description: HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
@@ -75,19 +82,15 @@ spec:
                       - ErrorCreatingExternalScaler
                       - ErrorCreatingExternalScalerService
                       - CreatedExternalScaler
-                      - ErrorCreatingAppDeployment
-                      - AppDeploymentCreated
-                      - ErrorCreatingAppService
-                      - AppServiceCreated
-                      - ErrorCreatingScaledObject
-                      - ScaledObjectCreated
+                      - ErrorCreatingInterceptorScaledObject
+                      - ErrorCreatingAppScaledObject
+                      - AppScaledObjectCreated
+                      - InterceptorScaledObjectCreated
                       - ErrorCreatingInterceptor
                       - ErrorCreatingInterceptorAdminService
                       - ErrorCreatingInterceptorProxyService
                       - InterceptorCreated
                       - TerminatingResources
-                      - AppDeploymentTerminationError
-                      - AppDeploymentTerminated
                       - InterceptorDeploymentTerminated
                       - InterceptorDeploymentTerminationError
                       - InterceptorAdminServiceTerminationError
@@ -98,10 +101,10 @@ spec:
                       - ExternalScalerDeploymentTerminated
                       - ExternalScalerServiceTerminationError
                       - ExternalScalerServiceTerminated
-                      - AppServiceTerminationError
-                      - AppServiceTerminated
-                      - ScaledObjectTerminated
-                      - ScaledObjectTerminationError
+                      - InterceptorScaledObjectTerminated
+                      - AppScaledObjectTerminated
+                      - AppScaledObjectTerminationError
+                      - InterceptorScaledObjectTerminationError
                       - PendingCreation
                       - HTTPScaledObjectIsReady
                       type: string

@@ -4,7 +4,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: keda-http-manager-role
+  name: keda-http-addon-manager-role
 rules:
 - apiGroups:
   - ""

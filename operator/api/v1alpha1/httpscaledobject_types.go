@@ -27,26 +27,22 @@ import (
 type HTTPScaledObjectCreationStatus string
 
 // HTTPScaledObjectConditionReason describes the reason why the condition transitioned
-// +kubebuilder:validation:Enum=ErrorCreatingExternalScaler;ErrorCreatingExternalScalerService;CreatedExternalScaler;ErrorCreatingAppDeployment;AppDeploymentCreated;ErrorCreatingAppService;AppServiceCreated;ErrorCreatingScaledObject;ScaledObjectCreated;ErrorCreatingInterceptor;ErrorCreatingInterceptorAdminService;ErrorCreatingInterceptorProxyService;InterceptorCreated;TerminatingResources;AppDeploymentTerminationError;AppDeploymentTerminated;InterceptorDeploymentTerminated;InterceptorDeploymentTerminationError;InterceptorAdminServiceTerminationError;InterceptorAdminServiceTerminated;InterceptorProxyServiceTerminationError;InterceptorProxyServiceTerminated;ExternalScalerDeploymentTerminationError;ExternalScalerDeploymentTerminated;ExternalScalerServiceTerminationError;ExternalScalerServiceTerminated;AppServiceTerminationError;AppServiceTerminated;ScaledObjectTerminated;ScaledObjectTerminationError;PendingCreation;HTTPScaledObjectIsReady
+// +kubebuilder:validation:Enum=ErrorCreatingExternalScaler;ErrorCreatingExternalScalerService;CreatedExternalScaler;ErrorCreatingInterceptorScaledObject;ErrorCreatingAppScaledObject;AppScaledObjectCreated;InterceptorScaledObjectCreated;ErrorCreatingInterceptor;ErrorCreatingInterceptorAdminService;ErrorCreatingInterceptorProxyService;InterceptorCreated;TerminatingResources;InterceptorDeploymentTerminated;InterceptorDeploymentTerminationError;InterceptorAdminServiceTerminationError;InterceptorAdminServiceTerminated;InterceptorProxyServiceTerminationError;InterceptorProxyServiceTerminated;ExternalScalerDeploymentTerminationError;ExternalScalerDeploymentTerminated;ExternalScalerServiceTerminationError;ExternalScalerServiceTerminated;InterceptorScaledObjectTerminated;AppScaledObjectTerminated;AppScaledObjectTerminationError;InterceptorScaledObjectTerminationError;PendingCreation;HTTPScaledObjectIsReady;
 type HTTPScaledObjectConditionReason string
 
 const (
 	ErrorCreatingExternalScaler              HTTPScaledObjectConditionReason = "ErrorCreatingExternalScaler"
 	ErrorCreatingExternalScalerService       HTTPScaledObjectConditionReason = "ErrorCreatingExternalScalerService"
 	CreatedExternalScaler                    HTTPScaledObjectConditionReason = "CreatedExternalScaler"
-	ErrorCreatingAppDeployment               HTTPScaledObjectConditionReason = "ErrorCreatingAppDeployment"
-	AppDeploymentCreated                     HTTPScaledObjectConditionReason = "AppDeploymentCreated"
-	ErrorCreatingAppService                  HTTPScaledObjectConditionReason = "ErrorCreatingAppService"
-	AppServiceCreated                        HTTPScaledObjectConditionReason = "AppServiceCreated"
-	ErrorCreatingScaledObject                HTTPScaledObjectConditionReason = "ErrorCreatingScaledObject"
-	ScaledObjectCreated                      HTTPScaledObjectConditionReason = "ScaledObjectCreated"
+	ErrorCreatingInterceptorScaledObject     HTTPScaledObjectConditionReason = "ErrorCreatingInterceptorScaledObject"
+	ErrorCreatingAppScaledObject             HTTPScaledObjectConditionReason = "ErrorCreatingAppScaledObject"
+	AppScaledObjectCreated                   HTTPScaledObjectConditionReason = "AppScaledObjectCreated"
+	InterceptorScaledObjectCreated           HTTPScaledObjectConditionReason = "InterceptorScaledObjectCreated"
 	ErrorCreatingInterceptor                 HTTPScaledObjectConditionReason = "ErrorCreatingInterceptor"
 	ErrorCreatingInterceptorAdminService     HTTPScaledObjectConditionReason = "ErrorCreatingInterceptorAdminService"
 	ErrorCreatingInterceptorProxyService     HTTPScaledObjectConditionReason = "ErrorCreatingInterceptorProxyService"
 	InterceptorCreated                       HTTPScaledObjectConditionReason = "InterceptorCreated"
 	TerminatingResources                     HTTPScaledObjectConditionReason = "TerminatingResources"
-	AppDeploymentTerminationError            HTTPScaledObjectConditionReason = "AppDeploymentTerminationError"
-	AppDeploymentTerminated                  HTTPScaledObjectConditionReason = "AppDeploymentTerminated"
 	InterceptorDeploymentTerminated          HTTPScaledObjectConditionReason = "InterceptorDeploymentTerminated"
 	InterceptorDeploymentTerminationError    HTTPScaledObjectConditionReason = "InterceptorDeploymentTerminationError"
 	InterceptorAdminServiceTerminationError  HTTPScaledObjectConditionReason = "InterceptorAdminServiceTerminationError"
@@ -57,10 +53,10 @@ const (
 	ExternalScalerDeploymentTerminated       HTTPScaledObjectConditionReason = "ExternalScalerDeploymentTerminated"
 	ExternalScalerServiceTerminationError    HTTPScaledObjectConditionReason = "ExternalScalerServiceTerminationError"
 	ExternalScalerServiceTerminated          HTTPScaledObjectConditionReason = "ExternalScalerServiceTerminated"
-	AppServiceTerminationError               HTTPScaledObjectConditionReason = "AppServiceTerminationError"
-	AppServiceTerminated                     HTTPScaledObjectConditionReason = "AppServiceTerminated"
-	ScaledObjectTerminated                   HTTPScaledObjectConditionReason = "ScaledObjectTerminated"
-	ScaledObjectTerminationError             HTTPScaledObjectConditionReason = "ScaledObjectTerminationError"
+	InterceptorScaledObjectTerminated        HTTPScaledObjectConditionReason = "InterceptorScaledObjectTerminated"
+	AppScaledObjectTerminated                HTTPScaledObjectConditionReason = "AppScaledObjectTerminated"
+	AppScaledObjectTerminationError          HTTPScaledObjectConditionReason = "AppScaledObjectTerminationError"
+	InterceptorScaledObjectTerminationError  HTTPScaledObjectConditionReason = "InterceptorScaledObjectTerminationError"
 	PendingCreation                          HTTPScaledObjectConditionReason = "PendingCreation"
 	HTTPScaledObjectIsReady                  HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
 )
@@ -119,19 +115,24 @@ type HTTPScaledObjectServiceSpec struct {
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
-	// (optional) The name of the application to be created.
-	AppName string `json:"app_name,omitempty"`
-	// The image this application will use.
-	Image string `json:"app_image"`
-	// The port this application will serve on.
-	Port int32 `json:"port"`
+	// The name of the deployment to route HTTP requests to (and to autoscale). Either this
+	// or Image must be set
+	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`
 	// (optional) Replica information
 	//+optional
 	Replicas ReplicaStruct `json:"replicas,omitempty"`
 	Service HTTPScaledObjectServiceSpec `json:"service,omitempty"`
 }
 
-// TODO: Add ingress configurations
+// ScaleTargetRef contains all the details about an HTTP application to scale and route to
+type ScaleTargetRef struct {
+	// The name of the deployment to scale according to HTTP traffic
+	Deployment string `json:"deployment"`
+	// The name of the service to route to
+	Service string `json:"service"`
+	// The port to route to
+	Port int32 `json:"port"`
+}
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
