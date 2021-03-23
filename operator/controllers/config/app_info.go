@@ -51,7 +51,10 @@ func (a AppInfo) InterceptorDeploymentName() string {
 	return fmt.Sprintf("%s-interceptor", a.Name)
 }
 
-// ScaledObjectName is a convenience method to get the name of the scaled object in Kubernetes
-func (a AppInfo) ScaledObjectName() string {
-	return fmt.Sprintf("%s-scaled-object", a.Name)
+func AppScaledObjectName(httpso *v1alpha1.HTTPScaledObject) string {
+	return fmt.Sprintf("%s-app", httpso.Spec.ScaleTargetRef.Deployment)
+}
+
+func InterceptorScaledObjectName(httpso *v1alpha1.HTTPScaledObject) string {
+	return fmt.Sprintf("%s-interceptor", httpso.Spec.ScaleTargetRef.Deployment)
 }
