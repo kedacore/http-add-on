@@ -9,52 +9,9 @@ import (
 func TestImmediatelySuccessfulProxy(t *testing.T) {
 }
 
-// make sure the forwarding handler doesn't forward if the origin didn't return
-// within the hold timeout
-// func TestForwardingHandlerNoForward(t *testing.T) {
-// 	r := require.New(t)
-// 	const respCode = 400
-// 	const respBody = "you shouldn't see this!"
-// 	var wg sync.WaitGroup
-// 	wg.Add(1)
-// 	originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		wg.Wait()
-// 		w.WriteHeader(respCode)
-// 		w.Write([]byte(respBody))
-// 	})
-
-// 	testServer := httptest.NewServer(originHdl)
-// 	defer testServer.Close()
-// 	forwardURL, err := url.Parse(testServer.URL)
-// 	r.NoError(err)
-
-// 	const ns = "testNS"
-// 	const deployName = "TestForwardingHandlerNoForwardDeploy"
-// 	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
-// 		deployName: k8s.NewDeployment(
-// 			ns,
-// 			deployName,
-// 			"myimage",
-// 			[]int32{123},
-// 			nil,
-// 			map[string]string{},
-// 		),
-// 	})
-// 	handler := newForwardingHandler(forwardURL, 100*time.Millisecond, cache, deployName)
-// 	req, err := http.NewRequest("GET", "/testfwd", nil)
-// 	r.NoError(err)
-// 	rec := httptest.NewRecorder()
-// 	handler.ServeHTTP(rec, req)
-
-// 	// we should not get a 400 back from the proxy, even though that's
-// 	// what the origin returns
-// 	r.Equal(502, rec.Code, "response code from proxy")
-// 	// nor should we get the handler's body back either. it should be
-// 	// the proxy's error
-// 	r.Contains(rec.Body.String(), "Error on backend")
-// 	// tell the handler to be done so that we can close the server
-// 	wg.Done()
-// }
+func TestWaitFailedProxy(t *testing.T) {
+	t.Fatal("TODO")
+}
 
 // // test to make sure that proxy will hold onto a request while an origin is working.
 // // note: this is _not_ the same as a test to hold the request while a connection is being

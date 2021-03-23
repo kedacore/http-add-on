@@ -113,7 +113,56 @@ func TestHeaderTimeoutForwardRequest(t *testing.T) {
 	forwardedRequests := hdl.IncomingRequests()
 	r.Equal(0, len(forwardedRequests))
 	r.Equal(502, res.Code)
+	r.Contains(res.Body.String(), "Error on backend")
 	// the proxy has bailed out, so tell the origin to stop
 	close(originWaitCh)
+}
+
+// Test to ensure that the request forwarder waits for an origin that is slow
+func TestHeaderWaitsForSlowOrigin(t *testing.T) {
+	r := require.New(t)
+	// the origin will wait until this channel receives or is closed
+	originWaitCh := make(chan struct{})
+	const originRespCode = 200
+	const originRespBodyStr = "Hello World!"
+	hdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
+		<-originWaitCh
+		w.WriteHeader(originRespCode)
+		w.Write([]byte(originRespBodyStr))
+	})
+	srv, originURL, err := kedanet.StartTestServer(hdl)
+	r.NoError(err)
+	defer srv.Close()
+	// the origin is gonna wait this long, and we'll make the proxy
+	// have a much longer timeout than this to account for timing issues
+	const originDelay = 500 * time.Millisecond
+	timeouts := &config.Timeouts{
+		TotalDial: 1 * time.Second,
+		Connect:   500 * time.Millisecond,
+		KeepAlive: 2 * time.Second,
+		// the handler is going to take 500 milliseconds to respond, so make the
+		// forwarder wait much longer than that
+		ResponseHeader: originDelay * 4,
+	}
+	dialCtxFunc, timeouts := retryDialContextFunc(timeouts)
+	go func() {
+		// wait for 100ms less than
+		time.Sleep(originDelay)
+		close(originWaitCh)
+	}()
+	const path = "/testfwd"
+	res, req, err := reqAndRes(path)
+	r.NoError(err)
+	forwardRequest(
+		res,
+		req,
+		dialCtxFunc,
+		timeouts.ResponseHeader,
+		originURL,
+	)
+	// wait for the goroutine above to finish, with a little cusion
+	ensureSignalAfter(originWaitCh, originDelay*2)
+	r.Equal(originRespCode, res.Code)
+	r.Equal(originRespBodyStr, res.Body.String())
 
 }
