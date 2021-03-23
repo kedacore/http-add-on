@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -107,6 +108,11 @@ type ReplicaStruct struct {
 	Max int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
 }
 
+type HTTPScaledObjectServiceSpec struct {
+	Type corev1.ServiceType
+	ServicePort int32
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The name of the deployment to route HTTP requests to (and to autoscale). Either this
@@ -115,6 +121,7 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Replica information
 	//+optional
 	Replicas ReplicaStruct `json:"replicas,omitempty"`
+	Service HTTPScaledObjectServiceSpec `json:"service,omitempty"`
 }
 
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to
