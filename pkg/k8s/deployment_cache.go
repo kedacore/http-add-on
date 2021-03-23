@@ -88,3 +88,54 @@ func (k *K8sDeploymentCache) Watch(name string) watch.Interface {
 		return evt, true
 	})
 }
+
+// MemoryDeploymentCache is a purely in-memory DeploymentCache implementation. It's not
+// concurrency-safe and intended to be used in tests only
+type MemoryDeploymentCache struct {
+	// Watchers holds watchers to be returned by calls to Watch. If Watch is called with a
+	// name that has a key in this map, that function will panic. Otherwise, it will
+	// return the corresponding value
+	Watchers map[string]*watch.FakeWatcher
+
+	// Deployments holds the deployments to be returned in calls to Get. If Get is called
+	// with a name that exists as a key in this map, the corresponding value will be returned.
+	// Otherwise, an error will be returned
+	Deployments map[string]*appsv1.Deployment
+}
+
+// NewMemoryDeploymentCache creates a new MemoryDeploymentCache with the Deployments map set to
+// initialDeployments, and the Watchers map initialized with a newly created and otherwise
+// untouched FakeWatcher for each key in the initialDeployments map
+func NewMemoryDeploymentCache(
+	initialDeployments map[string]*appsv1.Deployment,
+) *MemoryDeploymentCache {
+	ret := &MemoryDeploymentCache{
+		Watchers:    make(map[string]*watch.FakeWatcher),
+		Deployments: make(map[string]*appsv1.Deployment),
+	}
+	ret.Deployments = initialDeployments
+	for deployName := range initialDeployments {
+		ret.Watchers[deployName] = watch.NewFake()
+	}
+	return ret
+}
+
+func (m *MemoryDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
+	val, ok := m.Deployments[name]
+	if !ok {
+		return nil, fmt.Errorf("Deployment %s not found", name)
+	}
+	return val, nil
+}
+
+func (m *MemoryDeploymentCache) Watch(name string) watch.Interface {
+	val, ok := m.Watchers[name]
+	if !ok {
+		errString := fmt.Sprintf(
+			"(github.com/kedacore/http-add-on/pkg/k8s).MemoryDeploymentCacher.Watch(%s) called, but that name doesn't exist in watchers map",
+			name,
+		)
+		panic(errString)
+	}
+	return val
+}

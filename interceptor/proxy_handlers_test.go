@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 // make sure the forwarding handler forwards normally with a
@@ -29,9 +31,21 @@ func TestForwardingHandler(t *testing.T) {
 	testServer := httptest.NewServer(originHdl)
 	defer testServer.Close()
 	forwardURL, err := url.Parse(testServer.URL)
-
 	r.NoError(err)
-	handler := newForwardingHandler(forwardURL, 1*time.Second)
+
+	const ns = "testNS"
+	const deployName = "TestForwardingHandlerDeploy"
+	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
+		deployName: k8s.NewDeployment(
+			ns,
+			deployName,
+			"myimage",
+			[]int32{123},
+			nil,
+			map[string]string{},
+		),
+	})
+	handler := newForwardingHandler(forwardURL, 1*time.Second, cache, deployName)
 	const path = "/testfwd"
 	req, err := http.NewRequest("GET", path, nil)
 	r.NoError(err)
@@ -62,7 +76,20 @@ func TestForwardingHandlerNoForward(t *testing.T) {
 	defer testServer.Close()
 	forwardURL, err := url.Parse(testServer.URL)
 	r.NoError(err)
-	handler := newForwardingHandler(forwardURL, 100*time.Millisecond)
+
+	const ns = "testNS"
+	const deployName = "TestForwardingHandlerNoForwardDeploy"
+	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
+		deployName: k8s.NewDeployment(
+			ns,
+			deployName,
+			"myimage",
+			[]int32{123},
+			nil,
+			map[string]string{},
+		),
+	})
+	handler := newForwardingHandler(forwardURL, 100*time.Millisecond, cache, deployName)
 	req, err := http.NewRequest("GET", "/testfwd", nil)
 	r.NoError(err)
 	rec := httptest.NewRecorder()
@@ -81,7 +108,7 @@ func TestForwardingHandlerNoForward(t *testing.T) {
 // test to make sure that proxy will hold onto a request while an origin is working.
 // note: this is _not_ the same as a test to hold the request while a connection is being
 // established
-func TestForwardingHandlerWaits(t *testing.T) {
+func TestForwardingHandlerWaitsForOrigin(t *testing.T) {
 	r := require.New(t)
 	// have the origin sleep for less time than the interceptor
 	// will wait
@@ -100,7 +127,20 @@ func TestForwardingHandlerWaits(t *testing.T) {
 	defer testServer.Close()
 	forwardURL, err := url.Parse(testServer.URL)
 	r.NoError(err)
-	handler := newForwardingHandler(forwardURL, proxySleep)
+
+	const ns = "testNS"
+	const deployName = "TestForwardingHandlerWaitsDeployment"
+	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
+		deployName: k8s.NewDeployment(
+			ns,
+			deployName,
+			"myimage",
+			[]int32{123},
+			nil,
+			map[string]string{},
+		),
+	})
+	handler := newForwardingHandler(forwardURL, proxySleep, cache, deployName)
 
 	req, err := http.NewRequest("GET", "/testfwd", nil)
 	r.NoError(err)
@@ -115,15 +155,33 @@ func TestForwardingHandlerWaits(t *testing.T) {
 	r.Equal(respBody, rec.Body.String(), "response body from proxy")
 }
 
-// test to make sure that proxy will wait to try and establish a connection
-// while an origin is not yet listening
-func TestForwardingHandlerHolds(t *testing.T) {
+// test to make sure that proxy will wait and never try to establish a connection
+// to the origin while there are no replicas, and eventually time out
+func TestForwardingHandlerHoldsNoReplicas(t *testing.T) {
 	r := require.New(t)
 	const proxyTimeout = 1 * time.Second
 
 	forwardURL, err := url.Parse("https://asfgsdfgkjdfg.dev")
 	r.NoError(err)
-	handler := newForwardingHandler(forwardURL, proxyTimeout)
+
+	// create a deployment and set the replicas to 0. We'll not
+	// be increasing the replicas beyond 0 so that the proxy holds the
+	// request
+	const ns = "testNS"
+	const deployName = "TestForwardingHandlerHoldsDeployment"
+	deployment := k8s.NewDeployment(
+		ns,
+		deployName,
+		"myimage",
+		[]int32{123},
+		nil,
+		map[string]string{},
+	)
+	deployment.Spec.Replicas = k8s.Int32P(0)
+	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
+		deployName: deployment,
+	})
+	handler := newForwardingHandler(forwardURL, proxyTimeout, cache, deployName)
 
 	req, err := http.NewRequest("GET", "/testfwd", nil)
 	r.NoError(err)
@@ -138,4 +196,17 @@ func TestForwardingHandlerHolds(t *testing.T) {
 		reqDur,
 		proxyTimeout,
 	)
+}
+
+// test to make sure that the proxy holds the request while there
+// are no replicas available on the origin deployment. Once there are
+// replicas available, it will then try to forward the request
+func TestForwardingHandlerHoldsUntilReplicas(t *testing.T) {
+
+}
+
+// test to make sure that the proxy tries and backs off trying to establish
+// a connection to an origin
+func TestForwardingHandlerRetriesConnection(t *testing.T) {
+
 }
