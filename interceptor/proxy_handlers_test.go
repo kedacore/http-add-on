@@ -22,9 +22,9 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	t.Fatal("TODO")
 }
 
-// ensureSignalAfter ensures that signalCh receives (or is closed) before
-// timeout
-func ensureSignalAfter(signalCh <-chan struct{}, timeout time.Duration) bool {
+// ensureSignalAfter returns true if signalCh receives before timeout, false otherwise.
+// it blocks for timeout at most
+func ensureSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) bool {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
@@ -35,9 +35,9 @@ func ensureSignalAfter(signalCh <-chan struct{}, timeout time.Duration) bool {
 	}
 }
 
-// ensuireNoSignalAfter ensures that signalCh does not receive (and is not closed)
-// within timeout
-func ensureNoSignalAfter(signalCh <-chan struct{}, timeout time.Duration) bool {
+// ensureNoSignalAfter returns false is signalCh receives before timeout, true otherwise.
+// it blocks for timeout at most
+func ensureNoSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) bool {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {

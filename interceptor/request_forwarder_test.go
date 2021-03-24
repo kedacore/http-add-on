@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +12,7 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/config"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 // returns a kedanet.DialContextFunc by calling kedanet.DialContextWithRetry. if you pass nil for the
@@ -22,11 +25,10 @@ func retryDialContextFunc(timeouts *config.Timeouts) (kedanet.DialContextFunc, *
 			Connect:        100 * time.Millisecond,
 			KeepAlive:      100 * time.Millisecond,
 			ResponseHeader: 500 * time.Millisecond,
-			TotalDial:      500 * time.Millisecond,
 		}
 	}
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
-	return kedanet.DialContextWithRetry(dialer, timeouts.TotalDial), timeouts
+	return kedanet.DialContextWithRetry(dialer), timeouts
 }
 
 func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {
@@ -39,7 +41,7 @@ func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {
 	return resRecorder, req, nil
 }
 
-func TestForwardRequest(t *testing.T) {
+func TestForwarderSuccess(t *testing.T) {
 	r := require.New(t)
 	// this channel will be closed after the request was received, but
 	// before the response was sent
@@ -69,7 +71,7 @@ func TestForwardRequest(t *testing.T) {
 	)
 
 	r.True(
-		ensureSignalAfter(reqRecvCh, 100*time.Millisecond),
+		ensureSignalBeforeTimeout(reqRecvCh, 100*time.Millisecond),
 		"request was not received within %s",
 		100*time.Millisecond,
 	)
@@ -87,7 +89,7 @@ func TestForwardRequest(t *testing.T) {
 }
 
 // Test to make sure that the request forwarder times out if headers aren't returned in time
-func TestHeaderTimeoutForwardRequest(t *testing.T) {
+func TestForwarderHeaderTimeout(t *testing.T) {
 	r := require.New(t)
 	// the origin will wait until this channel receives or is closed
 	originWaitCh := make(chan struct{})
@@ -119,7 +121,7 @@ func TestHeaderTimeoutForwardRequest(t *testing.T) {
 }
 
 // Test to ensure that the request forwarder waits for an origin that is slow
-func TestHeaderWaitsForSlowOrigin(t *testing.T) {
+func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	r := require.New(t)
 	// the origin will wait until this channel receives or is closed
 	originWaitCh := make(chan struct{})
@@ -137,7 +139,6 @@ func TestHeaderWaitsForSlowOrigin(t *testing.T) {
 	// have a much longer timeout than this to account for timing issues
 	const originDelay = 500 * time.Millisecond
 	timeouts := &config.Timeouts{
-		TotalDial: 1 * time.Second,
 		Connect:   500 * time.Millisecond,
 		KeepAlive: 2 * time.Second,
 		// the handler is going to take 500 milliseconds to respond, so make the
@@ -161,8 +162,44 @@ func TestHeaderWaitsForSlowOrigin(t *testing.T) {
 		originURL,
 	)
 	// wait for the goroutine above to finish, with a little cusion
-	ensureSignalAfter(originWaitCh, originDelay*2)
+	ensureSignalBeforeTimeout(originWaitCh, originDelay*2)
 	r.Equal(originRespCode, res.Code)
 	r.Equal(originRespBodyStr, res.Body.String())
 
+}
+
+func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
+	r := require.New(t)
+	noSuchURL, err := url.Parse(fmt.Sprintf("https://%s.com", string(uuid.NewUUID())))
+	r.NoError(err)
+	t.Logf("no such URL: %s", noSuchURL.String())
+
+	timeouts := &config.Timeouts{
+		Connect:        2 * time.Millisecond,
+		KeepAlive:      1 * time.Millisecond,
+		ResponseHeader: 50 * time.Millisecond,
+	}
+	dialCtxFunc, timeouts := retryDialContextFunc(timeouts)
+	res, req, err := reqAndRes("/test")
+	r.NoError(err)
+
+	// this channel will be closed after forwardRequest returns
+	forwardDoneSignal := make(chan struct{})
+	go func() {
+		start := time.Now()
+		forwardRequest(
+			res,
+			req,
+			dialCtxFunc,
+			timeouts.ResponseHeader,
+			noSuchURL,
+		)
+		log.Printf("forwardRequest took %s", time.Since(start))
+		close(forwardDoneSignal)
+	}()
+	// forwardDoneSignal shouldn't signal until after the total dial timeout.
+	// this includes all of the exponential backoffs etc...
+	r.True(ensureNoSignalBeforeTimeout(forwardDoneSignal, 100*time.Second))
+	r.Equal(502, res.Code)
+	r.Contains(res.Body.String(), "Error on backend")
 }
