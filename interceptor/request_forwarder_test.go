@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,7 +12,6 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/config"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 // returns a kedanet.DialContextFunc by calling kedanet.DialContextWithRetry. if you pass nil for the
@@ -35,7 +34,6 @@ func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {
 	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
 		return nil, nil, err
-
 	}
 	resRecorder := httptest.NewRecorder()
 	return resRecorder, req, nil
@@ -170,9 +168,8 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 
 func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	r := require.New(t)
-	noSuchURL, err := url.Parse(fmt.Sprintf("https://%s.com", string(uuid.NewUUID())))
+	noSuchURL, err := url.Parse("https://localhost:65533")
 	r.NoError(err)
-	t.Logf("no such URL: %s", noSuchURL.String())
 
 	timeouts := &config.Timeouts{
 		Connect:        2 * time.Millisecond,
@@ -184,6 +181,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	r.NoError(err)
 
 	// this channel will be closed after forwardRequest returns
+	start := time.Now()
 	forwardDoneSignal := make(chan struct{})
 	go func() {
 		start := time.Now()
@@ -197,9 +195,32 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 		log.Printf("forwardRequest took %s", time.Since(start))
 		close(forwardDoneSignal)
 	}()
-	// forwardDoneSignal shouldn't signal until after the total dial timeout.
-	// this includes all of the exponential backoffs etc...
-	r.True(ensureNoSignalBeforeTimeout(forwardDoneSignal, 100*time.Second))
-	r.Equal(502, res.Code)
+
+	// forwardDoneSignal should close _after_ the total timeout of forwardRequest.
+	//
+	// forwardRequest uses dialCtxFunc to establish network connections, and dialCtxFunc does
+	// exponential backoff. It starts at 2ms (timeouts.Connect above), doubles every time, and stops after 5 tries,
+	// so that's 2ms + 4ms + 8ms + 16ms + 32ms, or SUM(2^N) where N is in [1, 5]
+	expectedForwardTimeout := time.Duration(sumExp(2, 5)) * time.Millisecond
+	r.True(
+		ensureNoSignalBeforeTimeout(forwardDoneSignal, expectedForwardTimeout),
+		"signal returned after %s, expected not to return until %s",
+		time.Since(start),
+		expectedForwardTimeout,
+	)
+	r.Equal(
+		502,
+		res.Code,
+		"unexpected code, response body was '%s'",
+		res.Body.String(),
+	)
 	r.Contains(res.Body.String(), "Error on backend")
+}
+
+func sumExp(initial, num int) int {
+	ret := initial
+	for i := 2; i <= num; i++ {
+		ret += int(math.Pow(float64(initial), float64(num)))
+	}
+	return ret
 }
