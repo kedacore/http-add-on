@@ -33,7 +33,7 @@ func TestDialContextWithRetry(t *testing.T) {
 	start := time.Now()
 	_, err := dRetry(ctx, network, addr)
 	r.Error(err, "error was not found")
-	r.True(err == wait.ErrWaitTimeout, "error was not a wait.ErrWaitTimeout")
+
 	elapsed := time.Since(start)
 	r.GreaterOrEqual(
 		elapsed,
