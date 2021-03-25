@@ -120,7 +120,7 @@ func runProxyServer(
 ) {
 	proxyMux := nethttp.NewServeMux()
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
-	dialContextFunc := kedanet.DialContextWithRetry(dialer)
+	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
 	proxyHdl := newForwardingHandler(
 		svcURL,
 		dialContextFunc,

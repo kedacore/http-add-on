@@ -9,16 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-func minTotalBackoffDuration(backoff wait.Backoff) time.Duration {
-	initial := backoff.Duration.Milliseconds()
-	retMS := backoff.Duration.Milliseconds()
-	numSteps := backoff.Steps
-	for i := 2; i <= numSteps; i++ {
-		retMS += int64(initial) * int64(i)
-	}
-	return time.Duration(retMS) * time.Millisecond
-}
-
 func TestDialContextWithRetry(t *testing.T) {
 	r := require.New(t)
 
@@ -38,7 +28,7 @@ func TestDialContextWithRetry(t *testing.T) {
 	ctx := context.Background()
 	dialer := NewNetDialer(connTimeout, keepAlive)
 	dRetry := DialContextWithRetry(dialer, backoff)
-	minTotalWaitDur := minTotalBackoffDuration(backoff)
+	minTotalWaitDur := MinTotalBackoffDuration(backoff)
 
 	start := time.Now()
 	_, err := dRetry(ctx, network, addr)

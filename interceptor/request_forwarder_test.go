@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,30 +11,27 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/config"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
+
+func defaultTimeouts() config.Timeouts {
+	return config.Timeouts{
+		Connect:        100 * time.Millisecond,
+		KeepAlive:      100 * time.Millisecond,
+		ResponseHeader: 500 * time.Millisecond,
+	}
+}
 
 // returns a kedanet.DialContextFunc by calling kedanet.DialContextWithRetry. if you pass nil for the
 // timeoutConfig, it uses standard values. otherwise it uses the one you passed.
 //
 // the returned config.Timeouts is what was passed to the DialContextWithRetry function
-func retryDialContextFunc(timeouts *config.Timeouts) (kedanet.DialContextFunc, *config.Timeouts) {
-	if timeouts == nil {
-		timeouts = &config.Timeouts{
-			Connect:        100 * time.Millisecond,
-			KeepAlive:      100 * time.Millisecond,
-			ResponseHeader: 500 * time.Millisecond,
-		}
-	}
+func retryDialContextFunc(
+	timeouts config.Timeouts,
+	backoff wait.Backoff,
+) kedanet.DialContextFunc {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
-	return kedanet.DialContextWithRetry(dialer), timeouts
-}
-
-func sumExp(initial, num int) int {
-	ret := initial
-	for i := 2; i <= num; i++ {
-		ret += int(math.Pow(float64(initial), float64(num)))
-	}
-	return ret
+	return kedanet.DialContextWithRetry(dialer, backoff)
 }
 
 func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {
@@ -67,7 +63,8 @@ func TestForwarderSuccess(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	dialCtxFunc, timeouts := retryDialContextFunc(nil)
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	forwardRequest(
 		res,
 		req,
@@ -107,7 +104,8 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 
-	dialCtxFunc, timeouts := retryDialContextFunc(nil)
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	forwardRequest(
@@ -144,14 +142,15 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	// the origin is gonna wait this long, and we'll make the proxy
 	// have a much longer timeout than this to account for timing issues
 	const originDelay = 500 * time.Millisecond
-	timeouts := &config.Timeouts{
+	timeouts := config.Timeouts{
 		Connect:   500 * time.Millisecond,
 		KeepAlive: 2 * time.Second,
 		// the handler is going to take 500 milliseconds to respond, so make the
 		// forwarder wait much longer than that
 		ResponseHeader: originDelay * 4,
 	}
-	dialCtxFunc, timeouts := retryDialContextFunc(timeouts)
+
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	go func() {
 		// wait for 100ms less than
 		time.Sleep(originDelay)
@@ -179,12 +178,12 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	noSuchURL, err := url.Parse("https://localhost:65533")
 	r.NoError(err)
 
-	timeouts := &config.Timeouts{
+	timeouts := config.Timeouts{
 		Connect:        2 * time.Millisecond,
 		KeepAlive:      1 * time.Millisecond,
 		ResponseHeader: 50 * time.Millisecond,
 	}
-	dialCtxFunc, timeouts := retryDialContextFunc(timeouts)
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	res, req, err := reqAndRes("/test")
 	r.NoError(err)
 
@@ -209,7 +208,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	// forwardRequest uses dialCtxFunc to establish network connections, and dialCtxFunc does
 	// exponential backoff. It starts at 2ms (timeouts.Connect above), doubles every time, and stops after 5 tries,
 	// so that's 2ms + 4ms + 8ms + 16ms + 32ms, or SUM(2^N) where N is in [1, 5]
-	expectedForwardTimeout := time.Duration(sumExp(2, 5)) * time.Millisecond
+	expectedForwardTimeout := kedanet.MinTotalBackoffDuration(timeouts.DefaultBackoff())
 	r.True(
 		ensureNoSignalBeforeTimeout(forwardDoneSignal, expectedForwardTimeout),
 		"signal returned after %s, expected not to return until %s",
