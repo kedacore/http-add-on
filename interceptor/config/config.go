@@ -9,9 +9,17 @@ import (
 
 // Timeouts is the configuration for connection and HTTP timeouts
 type Timeouts struct {
-	Connect        time.Duration `envconfig:"KEDA_HTTP_CONNECT_TIMEOUT"`
-	KeepAlive      time.Duration `envconfig:"KEDA_HTTP_KEEP_ALIVE"`
+	// connection timeout
+	Connect time.Duration `envconfig:"KEDA_HTTP_CONNECT_TIMEOUT"`
+	// interval between keepalive probes
+	KeepAlive time.Duration `envconfig:"KEDA_HTTP_KEEP_ALIVE"`
+	// timeout between when HTTP request is sent and response headers need
+	// to show up
 	ResponseHeader time.Duration `envconfig:"KEDA_RESPONSE_HEADER_TIMEOUT"`
+	// time to wait for condition before connecting and sending request.
+	// most commonly, this is how long to wait until the origin deployment
+	// has >= 1 replica
+	WaitFunc time.Duration `envconfig:"KEDA_CONDITION_WAIT_TIMEOUT"`
 }
 
 // Backoff returns a wait.Backoff based on the timeouts in t

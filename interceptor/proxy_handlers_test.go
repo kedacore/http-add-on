@@ -31,6 +31,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		originURL,
 		dialCtxFunc,
 		waitFunc,
+		timeouts.WaitFunc,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"
@@ -59,6 +60,7 @@ func TestWaitFailedConnection(t *testing.T) {
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
+		timeouts.WaitFunc,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"
@@ -66,6 +68,53 @@ func TestWaitFailedConnection(t *testing.T) {
 	r.NoError(err)
 
 	hdl.ServeHTTP(res, req)
+
+	r.Equal(502, res.Code, "response code was unexpected")
+}
+
+func TestTimesOutOnWaitFunc(t *testing.T) {
+	r := require.New(t)
+
+	timeouts := defaultTimeouts()
+	timeouts.WaitFunc = 10 * time.Millisecond
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+
+	// the wait func will close this channel immediately after it's called, but before it starts
+	// waiting for waitFuncCh
+	waitFuncCalledCh := make(chan struct{})
+	// the wait func will wait for waitFuncCh to receive or be closed before it proceeds
+	waitFuncCh := make(chan struct{})
+	waitFunc := func() error {
+		close(waitFuncCalledCh)
+		<-waitFuncCh
+		return nil
+	}
+	noSuchURL, err := url.Parse("http://localhost:60002")
+	r.NoError(err)
+	hdl := newForwardingHandler(
+		noSuchURL,
+		dialCtxFunc,
+		waitFunc,
+		timeouts.WaitFunc,
+		timeouts.ResponseHeader,
+	)
+	const path = "/testfwd"
+	res, req, err := reqAndRes(path)
+	r.NoError(err)
+
+	start := time.Now()
+	waitDur := timeouts.WaitFunc * 2
+	go func() {
+		time.Sleep(waitDur)
+		close(waitFuncCh)
+	}()
+	hdl.ServeHTTP(res, req)
+	select {
+	case <-waitFuncCalledCh:
+	case <-time.After(1 * time.Second):
+		r.Fail("the wait function wasn't called")
+	}
+	r.GreaterOrEqual(time.Since(start), waitDur)
 
 	r.Equal(502, res.Code, "response code was unexpected")
 }
@@ -92,6 +141,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
+		timeouts.WaitFunc,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"
@@ -141,6 +191,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		originURL,
 		dialCtxFunc,
 		waitFunc,
+		timeouts.WaitFunc,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"

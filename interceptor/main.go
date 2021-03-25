@@ -125,6 +125,7 @@ func runProxyServer(
 		svcURL,
 		dialContextFunc,
 		waitFunc,
+		timeouts.WaitFunc,
 		timeouts.ResponseHeader,
 	)
 	proxyMux.Handle("/*", countMiddleware(q, proxyHdl))

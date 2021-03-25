@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -25,10 +26,13 @@ func newForwardingHandler(
 	fwdSvcURL *url.URL,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
+	waitTimeout time.Duration,
 	respTimeout time.Duration,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		grp, _ := errgroup.WithContext(r.Context())
+		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
+		defer done()
+		grp, _ := errgroup.WithContext(ctx)
 		grp.Go(waitFunc)
 		waitErr := grp.Wait()
 		if waitErr != nil {
