@@ -8,6 +8,7 @@ import (
 	"time"
 
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
+	"golang.org/x/sync/errgroup"
 )
 
 func moreThanPtr(i *int32, target int32) bool {
@@ -27,7 +28,9 @@ func newForwardingHandler(
 	respTimeout time.Duration,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		waitErr := waitFunc()
+		grp, _ := errgroup.WithContext(r.Context())
+		grp.Go(waitFunc)
+		waitErr := grp.Wait()
 		if waitErr != nil {
 			log.Printf("Error, not forwarding request")
 			w.WriteHeader(502)
