@@ -35,7 +35,7 @@ func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialCont
 		// executes. Using a standard counter makes this algorithm less likely to introduce
 		// a bug
 		var lastError error
-		for i := 0; i < numDialTries+10; i++ {
+		for i := 0; i < numDialTries; i++ {
 			conn, err := coreDialer.DialContext(ctx, network, addr)
 			if err == nil {
 				return conn, nil
