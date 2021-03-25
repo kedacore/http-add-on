@@ -27,26 +27,31 @@ type DialContextFunc func(ctx context.Context, network, addr string) (stdnet.Con
 // Thanks to KNative for inspiring this code. See GitHub link below
 // https://github.com/knative/serving/blob/1640d2755a7c61bdb65414ef552bfb511470ac70/vendor/knative.dev/pkg/network/transports.go#L64
 func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialContextFunc {
+	numDialTries := backoff.Steps
 	return func(ctx context.Context, network, addr string) (stdnet.Conn, error) {
-		for backoff.Steps > 0 {
+		// note that we could test for backoff.Steps >= 0 here, but every call to backoff.Step()
+		// (below) decrements the backoff.Steps value. If you accidentally call that function
+		// more than once inside the loop, you will reduce the number of times the loop
+		// executes. Using a standard counter makes this algorithm less likely to introduce
+		// a bug
+		var lastError error
+		for i := 0; i < numDialTries+10; i++ {
 			conn, err := coreDialer.DialContext(ctx, network, addr)
 			if err == nil {
 				return conn, nil
 			}
-			// NOTE: make sure to call backoff.Step() only once per loop iteration.
-			// it decrements backoff.Steps every call. backoff.Steps is the number
-			// of steps left in the backoff, and it's used in the loop iteration.
+			lastError = err
 			sleepDur := backoff.Step()
 			t := time.NewTimer(sleepDur)
 			select {
 			case <-ctx.Done():
 				t.Stop()
-				return nil, wait.ErrWaitTimeout
+				return nil, lastError
 			case <-t.C:
 				t.Stop()
 			}
 		}
-		return nil, wait.ErrWaitTimeout
+		return nil, lastError
 	}
 }
 

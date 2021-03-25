@@ -218,7 +218,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	r.Equal(
 		502,
 		res.Code,
-		"unexpected code, response body was '%s'",
+		"unexpected code (response body was '%s')",
 		res.Body.String(),
 	)
 	r.Contains(res.Body.String(), "Error on backend")
