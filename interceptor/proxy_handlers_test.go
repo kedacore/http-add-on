@@ -1,13 +1,45 @@
 package main
 
 import (
+	"net/http"
 	"testing"
 	"time"
+
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
+	"github.com/stretchr/testify/require"
 )
 
 // the proxy should successfully forward a request to a running server
 func TestImmediatelySuccessfulProxy(t *testing.T) {
-	t.Fatal("TODO")
+	r := require.New(t)
+
+	originHdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("test response"))
+	})
+	srv, originURL, err := kedanet.StartTestServer(originHdl)
+	r.NoError(err)
+	defer srv.Close()
+
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	waitFunc := func() error {
+		return nil
+	}
+	hdl := newForwardingHandler(
+		originURL,
+		dialCtxFunc,
+		waitFunc,
+		timeouts.ResponseHeader,
+	)
+	const path = "/testfwd"
+	res, req, err := reqAndRes(path)
+	r.NoError(err)
+
+	hdl.ServeHTTP(res, req)
+
+	r.Equal(200, res.Code, "response code was unexpected")
+	r.Equal("test response", res.Body.String())
 }
 
 // the proxy should wait for a timeout and fail if there is no origin to connect
