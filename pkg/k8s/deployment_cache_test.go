@@ -64,8 +64,10 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 	watcher := cache.Watch(name)
 	defer watcher.Stop()
 
+	createSentCh := make(chan struct{})
 	createErrCh := make(chan error)
 	go func() {
+		time.Sleep(200 * time.Millisecond)
 		_, err := fakeDeployments.Create(
 			ctx,
 			expectedDepl,
@@ -73,12 +75,22 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 		)
 		if err != nil {
 			createErrCh <- err
+		} else {
+			close(createSentCh)
 		}
 	}()
 
+	// first make sure that the send happened, and there was no error
 	select {
+	case <-createSentCh:
 	case err := <-createErrCh:
 		r.NoError(err, "error creating the new deployment to trigger the event")
+	case <-time.After(400 * time.Millisecond):
+		r.Fail("the create operation didn't happen after 400 ms")
+	}
+
+	// then make sure that the deployment was actually received
+	select {
 	case obj := <-watcher.ResultChan():
 		depl, ok := obj.Object.(*appsv1.Deployment)
 		r.True(ok, "expected a deployment but got a %#V", obj)
