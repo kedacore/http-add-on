@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -45,13 +46,111 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 // the proxy should wait for a timeout and fail if there is no origin to connect
 // to
 func TestWaitFailedConnection(t *testing.T) {
-	t.Fatal("TODO")
+	r := require.New(t)
+
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	waitFunc := func() error {
+		return nil
+	}
+	noSuchURL, err := url.Parse("http://localhost:60002")
+	r.NoError(err)
+	hdl := newForwardingHandler(
+		noSuchURL,
+		dialCtxFunc,
+		waitFunc,
+		timeouts.ResponseHeader,
+	)
+	const path = "/testfwd"
+	res, req, err := reqAndRes(path)
+	r.NoError(err)
+
+	hdl.ServeHTTP(res, req)
+
+	r.Equal(502, res.Code, "response code was unexpected")
+}
+
+func TestWaitsForWaitFunc(t *testing.T) {
+	r := require.New(t)
+
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+
+	// the wait func will close this channel immediately after it's called, but before it starts
+	// waiting for waitFuncCh
+	waitFuncCalledCh := make(chan struct{})
+	// the wait func will wait for waitFuncCh to receive or be closed before it proceeds
+	waitFuncCh := make(chan struct{})
+	waitFunc := func() error {
+		close(waitFuncCalledCh)
+		<-waitFuncCh
+		return nil
+	}
+	noSuchURL, err := url.Parse("http://localhost:60002")
+	r.NoError(err)
+	hdl := newForwardingHandler(
+		noSuchURL,
+		dialCtxFunc,
+		waitFunc,
+		timeouts.ResponseHeader,
+	)
+	const path = "/testfwd"
+	res, req, err := reqAndRes(path)
+	r.NoError(err)
+
+	start := time.Now()
+	waitDur := 10 * time.Millisecond
+	go func() {
+		time.Sleep(waitDur)
+		close(waitFuncCh)
+	}()
+	hdl.ServeHTTP(res, req)
+	select {
+	case <-waitFuncCalledCh:
+	case <-time.After(1 * time.Second):
+		r.Fail("the wait function wasn't called")
+	}
+	r.GreaterOrEqual(time.Since(start), waitDur)
+
+	r.Equal(502, res.Code, "response code was unexpected")
 }
 
 // the proxy should connect to a server, and then time out if the server doesn't
 // respond in time
 func TestWaitHeaderTimeout(t *testing.T) {
-	t.Fatal("TODO")
+	r := require.New(t)
+
+	// the origin will wait for this channel to receive or close before it sends any data back to the
+	// proxy
+	originHdlCh := make(chan struct{})
+	originHdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
+		<-originHdlCh
+		w.WriteHeader(200)
+		w.Write([]byte("test response"))
+	})
+	srv, originURL, err := kedanet.StartTestServer(originHdl)
+	r.NoError(err)
+	defer srv.Close()
+
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	waitFunc := func() error {
+		return nil
+	}
+	hdl := newForwardingHandler(
+		originURL,
+		dialCtxFunc,
+		waitFunc,
+		timeouts.ResponseHeader,
+	)
+	const path = "/testfwd"
+	res, req, err := reqAndRes(path)
+	r.NoError(err)
+
+	hdl.ServeHTTP(res, req)
+
+	r.Equal(502, res.Code, "response code was unexpected")
+	close(originHdlCh)
 }
 
 // ensureSignalAfter returns true if signalCh receives before timeout, false otherwise.

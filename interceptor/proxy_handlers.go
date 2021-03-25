@@ -25,12 +25,8 @@ func newForwardingHandler(
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
 	respTimeout time.Duration,
-	// deployCache k8s.DeploymentCache,
-	// deployName string,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Incoming request for %s", fwdSvcURL.String())
-
 		waitErr := waitFunc()
 		if waitErr != nil {
 			log.Printf("Error, not forwarding request")
