@@ -17,11 +17,6 @@ func forwardRequest(
 	respHeaderTimeout time.Duration,
 	fwdSvcURL *url.URL,
 ) {
-	// this is adapted from https://pkg.go.dev/net/http#RoundTripper
-	// dialCtxFunc := kedanet.DialContextWithRetry(&net.Dialer{
-	// 	Timeout:   holdTimeout,
-	// 	KeepAlive: 30 * time.Second,
-	// }, holdTimeout)
 	roundTripper := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           dialCtxFunc,
