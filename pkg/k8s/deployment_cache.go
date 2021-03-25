@@ -70,7 +70,7 @@ func (k *K8sDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
 	defer k.rwm.RUnlock()
 	evt, ok := k.latestEvts[name]
 	if !ok {
-		return nil, fmt.Errorf("No deployment %s found", name)
+		return nil, fmt.Errorf("no deployment %s found", name)
 	}
 	return evt.Object.(*appsv1.Deployment), nil
 }
