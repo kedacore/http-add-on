@@ -21,11 +21,10 @@ func newDeployReplicasForwardWaitFunc(
 		if err != nil {
 			// if we didn't get the initial deployment state, bail out
 			return fmt.Errorf("Error getting state for deployment %s (%s)", deployName, err)
-		} else {
-			// if there is 1 or more replica, we're done waiting
-			if moreThanPtr(deployment.Spec.Replicas, 0) {
-				return nil
-			}
+		}
+		// if there is 1 or more replica, we're done waiting
+		if moreThanPtr(deployment.Spec.Replicas, 0) {
+			return nil
 		}
 
 		watcher := deployCache.Watch(deployName)
