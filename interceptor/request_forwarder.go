@@ -47,7 +47,7 @@ func forwardRequest(
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		w.WriteHeader(502)
 		log.Printf("In error handler (%s)", err)
-		errMsg := fmt.Sprintf("Error on backend (%s)", err)
+		errMsg := fmt.Errorf("Error on backend (%w)", err).Error()
 		w.Write([]byte(errMsg))
 	}
 
