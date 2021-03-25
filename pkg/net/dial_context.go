@@ -9,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
+// DialContextFunc is a function that matches the (net).Dialer.DialContext functions's
+// signature
 type DialContextFunc func(ctx context.Context, network, addr string) (stdnet.Conn, error)
 
 // DialContextWithRetry creates a new DialContextFunc --
@@ -24,38 +26,32 @@ type DialContextFunc func(ctx context.Context, network, addr string) (stdnet.Con
 //
 // Thanks to KNative for inspiring this code. See GitHub link below
 // https://github.com/knative/serving/blob/1640d2755a7c61bdb65414ef552bfb511470ac70/vendor/knative.dev/pkg/network/transports.go#L64
-func DialContextWithRetry(coreDialer *net.Dialer) DialContextFunc {
+func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialContextFunc {
 	return func(ctx context.Context, network, addr string) (stdnet.Conn, error) {
-		backoff := wait.Backoff{
-			Duration: coreDialer.Timeout,
-			Factor:   2,
-			Jitter:   0.5,
-			Steps:    5,
-		}
-		var retConn stdnet.Conn
-		try := 0
-		err := wait.ExponentialBackoff(backoff, func() (bool, error) {
-			try++
+		for backoff.Steps > 0 {
 			conn, err := coreDialer.DialContext(ctx, network, addr)
-			if err != nil {
-				// if the dial failed, return false and an error so that the
-				// backoff will continue, rather than just bailing out
-				return false, nil
+			if err == nil {
+				return conn, nil
 			}
-			// if we succeeded in dialing, return true and no error
-			retConn = conn
-			return true, nil
-		})
-		if err != nil {
-			// err will either be the error the internal function returned
-			// or wait.ErrWaitTimeout
-			return nil, err
+			// NOTE: make sure to call backoff.Step() only once per loop iteration.
+			// it decrements backoff.Steps every call. backoff.Steps is the number
+			// of steps left in the backoff, and it's used in the loop iteration.
+			sleepDur := backoff.Step()
+			t := time.NewTimer(sleepDur)
+			select {
+			case <-ctx.Done():
+				t.Stop()
+				return nil, wait.ErrWaitTimeout
+			case <-t.C:
+				t.Stop()
+			}
 		}
-		return retConn, nil
+		return nil, wait.ErrWaitTimeout
 	}
-
 }
 
+// NewNetDialer creates a new (net).Dialer with the given connection timeout and
+// keep alive duration.
 func NewNetDialer(connectTimeout, keepAlive time.Duration) *stdnet.Dialer {
 	return &net.Dialer{
 		Timeout:   connectTimeout,
