@@ -30,6 +30,14 @@ func retryDialContextFunc(timeouts *config.Timeouts) (kedanet.DialContextFunc, *
 	return kedanet.DialContextWithRetry(dialer), timeouts
 }
 
+func sumExp(initial, num int) int {
+	ret := initial
+	for i := 2; i <= num; i++ {
+		ret += int(math.Pow(float64(initial), float64(num)))
+	}
+	return ret
+}
+
 func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {
 	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
@@ -215,12 +223,4 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 		res.Body.String(),
 	)
 	r.Contains(res.Body.String(), "Error on backend")
-}
-
-func sumExp(initial, num int) int {
-	ret := initial
-	for i := 2; i <= num; i++ {
-		ret += int(math.Pow(float64(initial), float64(num)))
-	}
-	return ret
 }
