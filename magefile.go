@@ -291,14 +291,14 @@ func GenerateScalerProto() error {
 	if err := sh.RunV(
 		"protoc",
 		"--go_out",
-		"scaler/gen/",
+		".",
 		"--go_opt",
 		"paths=source_relative",
 		"--go-grpc_out",
-		"scaler/gen/",
+		".",
 		"--go-grpc_opt",
 		"paths=source_relative",
-		"scaler/scaler.proto",
+		"proto/scaler.proto",
 	); err != nil {
 		return err
 	}

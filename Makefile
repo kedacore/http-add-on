@@ -8,15 +8,6 @@ NAMESPACE?=kedahttp
 # scaler targets
 #####
 
-.PHONY: gen-scaler
-gen-scaler:
-	protoc \
-		--go_out=scaler/gen/ \
-		--go_opt=paths=source_relative \
-		--go-grpc_out=scaler/gen/ \
-		--go-grpc_opt=paths=source_relative \
-		scaler/scaler.proto
-
 .PHONY: build-scaler
 build-scaler:
 	go build -o bin/scaler ./scaler

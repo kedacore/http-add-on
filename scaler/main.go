@@ -13,7 +13,7 @@ import (
 
 	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
+	externalscaler "github.com/kedacore/http-add-on/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
