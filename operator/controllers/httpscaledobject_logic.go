@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
@@ -262,7 +263,11 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		return createScalerErr
 	}
 
-	if err := waitForScaler(externalScalerHostName); err != nil {
+	if err := waitForScaler(ctx,
+		externalScalerHostName,
+		5,
+		500*time.Millisecond,
+	); err != nil {
 		return err
 	}
 

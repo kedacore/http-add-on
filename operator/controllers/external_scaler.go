@@ -9,8 +9,7 @@ import (
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	scaler "github.com/kedacore/http-add-on/proto"
-	"google.golang.org/grpc"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -115,14 +114,31 @@ func createExternalScaler(
 // a non-nil error if that fails.
 func waitForScaler(
 	ctx context.Context,
-	addr string,
+	cl client.Client,
+	scalerDeplNS,
+	scalerDeplName string,
 	retries uint,
 	retryDelay time.Duration,
-	host string,
 ) error {
 
-	dial := func(ctx context.Context) (*grpc.ClientConn, error) {
-		return grpc.DialContext(ctx, addr, grpc.WithInsecure())
+	checkStatus := func() error {
+		depl := &appsv1.Deployment{}
+		if err := cl.Get(ctx, client.ObjectKey{
+			Namespace: scalerDeplNS,
+			Name:      scalerDeplName,
+		}, depl); err != nil {
+			return err
+		}
+
+		if depl.Status.ReadyReplicas > 0 {
+			return nil
+		}
+
+		return fmt.Errorf(
+			"No replicas ready for scaler deployment %s/%s",
+			scalerDeplNS,
+			scalerDeplName,
+		)
 	}
 
 	// this returns an error if the context is done, so need to
@@ -139,15 +155,17 @@ func waitForScaler(
 		}
 	}
 	for tryNum := uint(0); tryNum < retries; tryNum++ {
-		conn, err := dial(ctx)
-		if err != nil {
-			if retryErr := waitForRetry(ctx); err != nil {
-				return retryErr
-			}
-			continue
+		statusErr := checkStatus()
+		if statusErr == nil {
+			return nil
 		}
-
-		cl := scaler.NewExternalScalerClient(conn)
+		if retryErr := waitForRetry(ctx); retryErr != nil {
+			return retryErr
+		}
 	}
 
+	return fmt.Errorf(
+		"Scaler failed to start up within %d",
+		retryDelay*time.Duration(retries),
+	)
 }
