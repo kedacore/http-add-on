@@ -180,7 +180,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	r.NoError(err)
 
 	timeouts := config.Timeouts{
-		Connect:        2 * time.Millisecond,
+		Connect:        10 * time.Millisecond,
 		KeepAlive:      1 * time.Millisecond,
 		ResponseHeader: 50 * time.Millisecond,
 	}
@@ -188,21 +188,16 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	res, req, err := reqAndRes("/test")
 	r.NoError(err)
 
-	// this channel will be closed after forwardRequest returns
 	start := time.Now()
-	forwardDoneSignal := make(chan struct{})
-	go func() {
-		start := time.Now()
-		forwardRequest(
-			res,
-			req,
-			dialCtxFunc,
-			timeouts.ResponseHeader,
-			noSuchURL,
-		)
-		log.Printf("forwardRequest took %s", time.Since(start))
-		close(forwardDoneSignal)
-	}()
+	forwardRequest(
+		res,
+		req,
+		dialCtxFunc,
+		timeouts.ResponseHeader,
+		noSuchURL,
+	)
+	elapsed := time.Since(start)
+	log.Printf("forwardRequest took %s", elapsed)
 
 	// forwardDoneSignal should close _after_ the total timeout of forwardRequest.
 	//
@@ -210,9 +205,10 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	// exponential backoff. It starts at 2ms (timeouts.Connect above), doubles every time, and stops after 5 tries,
 	// so that's 2ms + 4ms + 8ms + 16ms + 32ms, or SUM(2^N) where N is in [1, 5]
 	expectedForwardTimeout := kedanet.MinTotalBackoffDuration(timeouts.DefaultBackoff())
-	r.True(
-		ensureNoSignalBeforeTimeout(forwardDoneSignal, expectedForwardTimeout),
-		"signal returned after %s, expected not to return until %s",
+	r.GreaterOrEqualf(
+		elapsed,
+		expectedForwardTimeout,
+		"proxy returned after %s, expected not to return until %s",
 		time.Since(start),
 		expectedForwardTimeout,
 	)

@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"fmt"
 	"net"
 	stdnet "net"
 	"time"
@@ -46,7 +47,7 @@ func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialCont
 			select {
 			case <-ctx.Done():
 				t.Stop()
-				return nil, lastError
+				return nil, fmt.Errorf("context timed out: %s", ctx.Err())
 			case <-t.C:
 				t.Stop()
 			}
