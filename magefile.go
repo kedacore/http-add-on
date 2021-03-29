@@ -36,7 +36,7 @@ func getGitSHA() string {
 
 func isValidModule(s string) error {
 	module := (ModuleName)(s)
-	switch (module) {
+	switch module {
 	case SCALER, OPERATOR, INTERCEPTOR:
 		return nil
 	}
@@ -304,4 +304,27 @@ func GenerateScalerProto() error {
 	}
 
 	return nil
+}
+
+// Create a new example HTTPScaledObject
+func NewHTTPSO(ctx context.Context, namespace string) error {
+	return sh.RunWithV(
+		make(map[string]string),
+		"kubectl", "create", "-f", "examples/httpscaledobject.yaml", "-n", namespace,
+	)
+}
+
+func ShowHTTPSO(ctx context.Context, namespace string) error {
+	return sh.RunWithV(
+		make(map[string]string),
+		"kubectl", "get", "httpscaledobject", "-n", namespace,
+	)
+}
+
+// Delete the example HTTPScaledObject created from NewHTTPSO
+func DeleteHTTPSO(ctx context.Context, namespace string) error {
+	return sh.RunWithV(
+		make(map[string]string),
+		"kubectl", "delete", "httpscaledobject", "xkcd", "-n", namespace,
+	)
 }
