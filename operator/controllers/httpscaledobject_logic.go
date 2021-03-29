@@ -251,17 +251,33 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	}
 
 	// create dedicated external scaler for this app
-	if err := createExternalScaler(ctx, appInfo, rec.Client, logger, httpso); err != nil {
+	externalScalerHostName, createScalerErr := createExternalScaler(
+		ctx,
+		appInfo,
+		rec.Client,
+		logger,
+		httpso,
+	)
+	if createScalerErr != nil {
+		return createScalerErr
+	}
 
+	if err := waitForScaler(externalScalerHostName); err != nil {
 		return err
-
 	}
 
 	// create the KEDA core ScaledObjects (not the HTTP one) for the app deployment
 	// and the interceptor deployment.
 	// this needs to be submitted so that KEDA will scale both the app and
 	// interceptor
-	if err := createScaledObjects(ctx, appInfo, rec.Client, logger, httpso); err != nil {
+	if err := createScaledObjects(
+		ctx,
+		appInfo,
+		rec.Client,
+		logger,
+		externalScalerHostName,
+		httpso,
+	); err != nil {
 		return err
 
 	}
