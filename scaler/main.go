@@ -54,9 +54,14 @@ func startGrpcServer(ctx context.Context, port int, pinger *queuePinger) func() 
 		if err != nil {
 			log.Fatalf("failed to listen: %v", err)
 		}
+
 		grpcServer := grpc.NewServer()
 		externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger))
 		reflection.Register(grpcServer)
+		go func() {
+			<-ctx.Done()
+			lis.Close()
+		}()
 		return grpcServer.Serve(lis)
 	}
 }
@@ -76,6 +81,11 @@ func startHealthcheckServer(ctx context.Context, port int) func() error {
 			Handler: mux,
 		}
 		log.Printf("Serving health check server on %s", addr)
+
+		go func() {
+			<-ctx.Done()
+			srv.Shutdown(ctx)
+		}()
 		return srv.ListenAndServe()
 	}
 }
