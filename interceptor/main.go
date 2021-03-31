@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
-	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
@@ -24,47 +23,19 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-// getSvcURL formats the app service name and port into a URL
-func getSvcURL() (*url.URL, error) {
-	// the name of the service that fronts the user's app
-	svcName, err := env.Get("KEDA_HTTP_APP_SERVICE_NAME")
-	if err != nil {
-		return nil, err
-	}
-	svcPort, err := env.Get("KEDA_HTTP_APP_SERVICE_PORT")
-	if err != nil {
-		return nil, err
-	}
-	hostPortStr := fmt.Sprintf("http://%s:%s", svcName, svcPort)
-	return url.Parse(hostPortStr)
-}
-
 func main() {
+	timeoutCfg := config.MustParseTimeouts()
+	originCfg := config.MustParseOrigin()
+	servingCfg := config.MustParseServing()
 	ctx := context.Background()
-	svcURL, err := getSvcURL()
-	if err != nil {
-		log.Fatalf("Service name / port invalid (%s)", err)
-	}
-	deployName, err := env.Get("KEDA_HTTP_TARGET_DEPLOYMENT_NAME")
-	if err != nil {
-		log.Fatal(err)
-	}
-	ns, err := env.Get("KEDA_HTTP_NAMESPACE")
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	proxyPort, err := env.Get("KEDA_HTTP_PROXY_PORT")
+	deployName := originCfg.TargetDeploymentName
+	ns := originCfg.Namespace
+	proxyPort := servingCfg.ProxyPort
+	adminPort := servingCfg.AdminPort
+	svcURL, err := originCfg.ServiceURL()
 	if err != nil {
-		log.Fatalf("KEDA_HTTP_PROXY_PORT missing")
-	}
-	adminPort, err := env.Get("KEDA_HTTP_ADMIN_PORT")
-	if err != nil {
-		log.Fatalf("KEDA_HTTP_ADMIN_PORT missing")
-	}
-	timeouts, err := config.ParseTimeouts()
-	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Invalid origin service URL: %s", err)
 	}
 
 	q := http.NewMemoryQueue()
@@ -94,18 +65,18 @@ func main() {
 		deployName,
 		waitFunc,
 		svcURL,
-		timeouts,
+		timeoutCfg,
 		proxyPort,
 	)
 
 	select {}
 }
 
-func runAdminServer(q http.QueueCountReader, port string) {
+func runAdminServer(q http.QueueCountReader, port int) {
 	adminServer := echo.New()
 	adminServer.GET("/queue", newQueueSizeHandler(q))
 
-	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	log.Printf("admin server running on %s", addr)
 	log.Fatal(adminServer.Start(addr))
 }
@@ -116,7 +87,7 @@ func runProxyServer(
 	waitFunc forwardWaitFunc,
 	svcURL *url.URL,
 	timeouts *config.Timeouts,
-	port string,
+	port int,
 ) {
 	proxyMux := nethttp.NewServeMux()
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
@@ -125,7 +96,7 @@ func runProxyServer(
 		svcURL,
 		dialContextFunc,
 		waitFunc,
-		timeouts.WaitFunc,
+		timeouts.DeploymentReplicas,
 		timeouts.ResponseHeader,
 	)
 	proxyMux.Handle("/*", countMiddleware(q, proxyHdl))
