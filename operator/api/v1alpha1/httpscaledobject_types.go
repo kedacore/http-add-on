@@ -138,6 +138,15 @@ type HTTPScaledObjectStatus struct {
 // HTTPScaledObject is the Schema for the scaledobjects API
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:path=httpscaledobjects,scope=Namespaced,shortName=httpso
+// +kubebuilder:printcolumn:name="ScaleTargetDeploymentName",type="string",JSONPath=".spec.scaleTargetRef.deploymentName"
+// +kubebuilder:printcolumn:name="ScaleTargetServiceName",type="string",JSONPath=".spec.scaleTargetRef"
+// +kubebuilder:printcolumn:name="ScaleTargetPort",type="integer",JSONPath=".spec.scaleTargetRef"
+// +kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.replicas.min"
+// +kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.replicas.max"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Active",type="string",JSONPath=".status.conditions[?(@.type==\"HTTPScaledObjectIsReady\")].status"
+
 type HTTPScaledObject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
