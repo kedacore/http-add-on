@@ -2,12 +2,14 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // DeleteDeployment deletes the deployment given using the client given
@@ -76,4 +78,38 @@ func NewDeployment(
 	}
 
 	return deployment
+}
+
+func ensureLeadingSlash(str string) string {
+	if len(str) == 0 {
+		return str
+	}
+	if str[0] != '/' {
+		str = fmt.Sprintf("/%s", str)
+	}
+	return str
+}
+
+func AddHTTPLivenessProbe(depl *appsv1.Deployment, httpPath string, port int) {
+	httpPath = ensureLeadingSlash(httpPath)
+	depl.Spec.Template.Spec.Containers[0].LivenessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: httpPath,
+				Port: intstr.FromInt(port),
+			},
+		},
+	}
+}
+
+func AddHTTPReadinessProbe(depl *appsv1.Deployment, httpPath string, port int) {
+	httpPath = ensureLeadingSlash(httpPath)
+	depl.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: httpPath,
+				Port: intstr.FromInt(port),
+			},
+		},
+	}
 }
