@@ -31,7 +31,7 @@ func createScaledObjects(
 
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostname)
 
-	appScaledObject := k8s.NewScaledObject(
+	appScaledObject, appErr := k8s.NewScaledObject(
 		appInfo.Namespace,
 		config.AppScaledObjectName(httpso),
 		appInfo.Name,
@@ -39,8 +39,11 @@ func createScaledObjects(
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,
 	)
+	if appErr != nil {
+		return appErr
+	}
 
-	interceptorScaledObject := k8s.NewScaledObject(
+	interceptorScaledObject, interceptorErr := k8s.NewScaledObject(
 		appInfo.Namespace,
 		config.InterceptorScaledObjectName(httpso),
 		appInfo.InterceptorDeploymentName(),
@@ -48,6 +51,9 @@ func createScaledObjects(
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,
 	)
+	if interceptorErr != nil {
+		return interceptorErr
+	}
 
 	logger.Info("Creating App ScaledObject", "ScaledObject", *appScaledObject)
 	if err := cl.Create(ctx, appScaledObject); err != nil {
