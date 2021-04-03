@@ -12,7 +12,7 @@ require (
 	github.com/onsi/gomega v1.11.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.0
-	google.golang.org/grpc v1.33.2
+	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
 	k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver v0.20.2 // indirect
