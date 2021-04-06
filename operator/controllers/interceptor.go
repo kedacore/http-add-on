@@ -62,14 +62,23 @@ func createInterceptor(
 		}
 	}
 
+	exposedPort := int32(80)
+	if httpso.Spec.Service.Port != 0 {
+		exposedPort = httpso.Spec.Service.Port
+	}
+
+	serviceType := corev1.ServiceTypeClusterIP
+	if httpso.Spec.Service.Type != "" {
+		serviceType = httpso.Spec.Service.Type
+	}
+
 	// create two services for the interceptor:
 	// - for the public proxy
 	// - for the admin server (that has the /queue endpoint)
 	publicPorts := []corev1.ServicePort{
 		k8s.NewTCPServicePort(
 			"proxy",
-			// TODO: make this the public port - probably 80
-			80,
+			exposedPort,
 			appInfo.InterceptorConfig.ProxyPort,
 		),
 	}
@@ -77,7 +86,7 @@ func createInterceptor(
 		appInfo.Namespace,
 		appInfo.InterceptorProxyServiceName(),
 		publicPorts,
-		corev1.ServiceTypeClusterIP,
+		serviceType,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	adminPorts := []corev1.ServicePort{

@@ -109,8 +109,8 @@ type ReplicaStruct struct {
 }
 
 type HTTPScaledObjectServiceSpec struct {
-	Type corev1.ServiceType
-	ServicePort int32
+	Type corev1.ServiceType `json:"type,omitempty" description:"Type of the exposed service created to serve de interceptor"`
+	Port int32 `json:"public_port,omitempty" description:"Public exposed port of the interceptor"`
 }
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
