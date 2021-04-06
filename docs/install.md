@@ -22,9 +22,20 @@ make helm-upgrade-keda
 
 >This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA must be installed in every namespace that you'd like to host KEDA-HTTP powered apps.
 
+## Install via Helm Chart
+
+This repository is within KEDA's default helm repository on [kedacore/charts](http://github.com/kedacore/charts), you can install it by running:
+
+```console
+helm repo add kedacore https://kedacore.github.io/charts
+helm repo update
+
+helm install http-add-on kedacore/http-add-on --create-namespace --namespace keda
+```
+
 ## Installing HTTP Components
 
-This repository comes with a Helm chart built in. To install the HTTP add on with sensible defaults, first check out this repository and `cd` into the root directory (if you haven't already):
+This repository also comes with a Helm chart built in. To install the HTTP add on with sensible defaults, first check out this repository and `cd` into the root directory (if you haven't already):
 
 ```shell
 git clone https://github.com/kedacore/http-add-on.git
@@ -58,8 +69,8 @@ helm upgrade kedahttp ./charts/keda-http-operator \
     --namespace ${NAMESPACE} \
     --create-namespace \
     --set image=localhost:32000/keda-http-operator \
-	--set images.scaler=localhost:32000/keda-http-scaler \
-	--set images.interceptor=localhost:32000/keda-http-interceptor
+  --set images.scaler=localhost:32000/keda-http-scaler \
+  --set images.interceptor=localhost:32000/keda-http-interceptor
 ```
 
 In the above command, `localhost:32000` is the address of the registry from inside a Microk8s cluster.
