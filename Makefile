@@ -1,7 +1,7 @@
 GIT_TAG?=$(shell git rev-parse --short HEAD)
-SCALER_DOCKER_IMG?=arschles/keda-http-scaler:${GIT_TAG}
-INTERCEPTOR_DOCKER_IMG?=arschles/keda-http-interceptor:${GIT_TAG}
-OPERATOR_DOCKER_IMG?=arschles/keda-http-operator:${GIT_TAG}
+SCALER_DOCKER_IMG?=ghcr.io/kedacore/http-add-on-scaler:sha-${GIT_SHA}
+INTERCEPTOR_DOCKER_IMG?=ghcr.io/kedacore/keda-http-interceptor:sha-${GIT_TAG}
+OPERATOR_DOCKER_IMG?=ghcr.io/kedacore/keda-http-operator:sha-${GIT_TAG}
 NAMESPACE?=kedahttp
 
 #####
