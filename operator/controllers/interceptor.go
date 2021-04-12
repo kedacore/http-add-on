@@ -22,14 +22,26 @@ func createInterceptor(
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	interceptorEnvs := []corev1.EnvVar{
+		// timeouts all have reasonable defaults in the interceptor config
+
+		// config regarding the origin
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_NAME",
 			Value: appInfo.Name,
 		},
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_PORT",
-			Value: fmt.Sprintf("%d", appInfo.Port),
+			Value: fmt.Sprintf("%d", httpso.Spec.ScaleTargetRef.Port),
 		},
+		{
+			Name:  "KEDA_HTTP_TARGET_DEPLOYMENT_NAME",
+			Value: httpso.Spec.ScaleTargetRef.Deployment,
+		},
+		{
+			Name:  "KEDA_HTTP_NAMESPACE",
+			Value: httpso.Namespace,
+		},
+		// config about how the interceptor should serve
 		{
 			Name:  "KEDA_HTTP_PROXY_PORT",
 			Value: fmt.Sprintf("%d", appInfo.InterceptorConfig.ProxyPort),
@@ -77,7 +89,7 @@ func createInterceptor(
 		appInfo.Namespace,
 		appInfo.InterceptorProxyServiceName(),
 		publicPorts,
-		corev1.ServiceTypeLoadBalancer,
+		corev1.ServiceTypeClusterIP,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	adminPorts := []corev1.ServicePort{
