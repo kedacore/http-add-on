@@ -1,7 +1,7 @@
 GIT_TAG?=$(shell git rev-parse --short HEAD)
-SCALER_DOCKER_IMG?=arschles/keda-http-scaler:${GIT_TAG}
-INTERCEPTOR_DOCKER_IMG?=arschles/keda-http-interceptor:${GIT_TAG}
-OPERATOR_DOCKER_IMG?=arschles/keda-http-operator:${GIT_TAG}
+SCALER_DOCKER_IMG?=ghcr.io/kedacore/http-add-on-scaler:sha-${GIT_SHA}
+INTERCEPTOR_DOCKER_IMG?=ghcr.io/kedacore/keda-http-interceptor:sha-${GIT_TAG}
+OPERATOR_DOCKER_IMG?=ghcr.io/kedacore/keda-http-operator:sha-${GIT_TAG}
 NAMESPACE?=kedahttp
 
 #####
@@ -86,6 +86,12 @@ helm-upgrade-operator:
 .PHONY: helm-delete-operator
 helm-delete-operator:
 	helm delete -n ${NAMESPACE} kedahttp
+	
+.PHONY: generate-operator
+generate-operator:
+	cd operator && \
+		make manifests && \
+		cp config/crd/bases/http.keda.sh_httpscaledobjects.yaml ../charts/keda-http-operator/crds/httpscaledobjects.http.keda.sh.yaml
 
 #####
 # universal targets

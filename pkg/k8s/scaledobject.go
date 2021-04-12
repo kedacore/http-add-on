@@ -1,11 +1,19 @@
 package k8s
 
 import (
+	"bytes"
 	"context"
+	"embed"
+	"text/template"
+
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+//go:embed templates
+var scaledObjectTemplateFS embed.FS
 
 func kedaGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -40,7 +48,7 @@ func NewScaledObject(
 	scalerAddress string,
 	minReplicas int32,
 	maxReplicas int32,
-) *unstructured.Unstructured {
+) (*unstructured.Unstructured, error) {
 	// https://keda.sh/docs/1.5/faq/
 	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
 	//
@@ -52,33 +60,32 @@ func NewScaledObject(
 		var vIface interface{} = v
 		labels[k] = vIface
 	}
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "keda.sh/v1alpha1",
-			"kind":       "ScaledObject",
-			"metadata": map[string]interface{}{
-				"namespace": namespace,
-				"name":      name,
-				"labels":    labels,
-			},
-			"spec": map[string]interface{}{
-				"minReplicaCount": int64(minReplicas),
-				"maxReplicaCount": int64(maxReplicas),
-				"pollingInterval": int64(250),
-				"scaleTargetRef": map[string]interface{}{
-					"name": deploymentName,
-					// "apiVersion": "apps/v1",
-					"kind": "Deployment",
-				},
-				"triggers": []interface{}{
-					map[string]interface{}{
-						"type": "external",
-						"metadata": map[string]interface{}{
-							"scalerAddress": scalerAddress,
-						},
-					},
-				},
-			},
-		},
+
+	tpl, err := template.ParseFS(scaledObjectTemplateFS, "templates/scaledobject.yaml")
+	if err != nil {
+		return nil, err
 	}
+
+	var scaledObjectTemplateBuffer bytes.Buffer
+	if tplErr := tpl.Execute(&scaledObjectTemplateBuffer, map[string]interface{}{
+		"Name": name,
+		"Namespace": namespace,
+		"Labels": labels,
+		"MinReplicas": minReplicas,
+		"MaxReplicas": maxReplicas,
+		"DeploymentName": deploymentName,
+		"ScalerAddress": scalerAddress,
+	}); tplErr != nil {
+		return nil, tplErr
+	}
+
+	var decodedYaml map[string]interface{}
+	decodeErr := yaml.Unmarshal(scaledObjectTemplateBuffer.Bytes(), &decodedYaml)
+	if decodeErr != nil {
+		return nil, decodeErr
+	}
+
+	return &unstructured.Unstructured{
+		Object: decodedYaml,
+	}, nil
 }
