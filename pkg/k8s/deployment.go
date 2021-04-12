@@ -57,7 +57,7 @@ func NewDeployment(
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
-			Replicas: int32P(1),
+			Replicas: Int32P(1),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
