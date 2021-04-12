@@ -21,7 +21,6 @@ func createExternalScaler(
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	// NOTE: Scaler port is fixed here because it's a fixed on the scaler main (@see ../scaler/main.go:17)
 	scalerDeployment := k8s.NewDeployment(
 		appInfo.Namespace,
 		appInfo.ExternalScalerDeploymentName(),
