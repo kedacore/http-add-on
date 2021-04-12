@@ -39,3 +39,15 @@ func GetInt32Or(envName string, otherwise int32) int32 {
 	}
 	return int32(val)
 }
+
+func GetIntOr(envName string, otherwise int) int {
+	strVal, err := Get(envName)
+	if err != nil {
+		return otherwise
+	}
+	val, err := strconv.Atoi(strVal)
+	if err != nil {
+		return otherwise
+	}
+	return val
+}

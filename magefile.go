@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
@@ -36,7 +37,7 @@ func getGitSHA() string {
 
 func isValidModule(s string) error {
 	module := (ModuleName)(s)
-	switch (module) {
+	switch module {
 	case SCALER, OPERATOR, INTERCEPTOR:
 		return nil
 	}
@@ -78,6 +79,18 @@ func BuildScaler(ctx context.Context) error {
 	return nil
 }
 
+// Run tests on the Scaler
+func TestScaler(ctx context.Context) error {
+	fmt.Println("Running scaler tests")
+	testOutput, err := sh.Output("go", "test", "./scaler/...")
+	if err != nil {
+		return err
+	}
+	fmt.Println(testOutput)
+
+	return nil
+}
+
 // Generate Go build of the operator binary
 func BuildOperator(ctx context.Context) error {
 	fmt.Println("Running operator binary build")
@@ -87,6 +100,18 @@ func BuildOperator(ctx context.Context) error {
 	}
 	fmt.Println("Finished building operator")
 	fmt.Println("Command Output: ", out)
+
+	return nil
+}
+
+// Run operator tests
+func TestOperator(ctx context.Context) error {
+	fmt.Println("Running operator tests")
+	testOutput, err := sh.Output("go", "test", "./operator/...")
+	if err != nil {
+		return err
+	}
+	fmt.Println(testOutput)
 
 	return nil
 }
@@ -104,10 +129,32 @@ func BuildInterceptor(ctx context.Context) error {
 	return nil
 }
 
+// Run interceptor tests
+func TestInterceptor(ctx context.Context) error {
+	fmt.Println("Running interceptor tests")
+	testOutput, err := sh.Output("go", "test", "./interceptor/...")
+	if err != nil {
+		return err
+	}
+	fmt.Println(testOutput)
+
+	return nil
+}
+
 // Build all binaries
 func All() {
 	fmt.Println("Building all binaries")
 	mg.Deps(BuildScaler, BuildOperator, BuildInterceptor)
+}
+
+// Run tests on all the components in this project
+func TestAll() error {
+	out, err := sh.Output("go", "test", "./...")
+	if err != nil {
+		return err
+	}
+	log.Print(out)
+	return nil
 }
 
 // --- Docker --- //
