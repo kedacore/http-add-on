@@ -1,0 +1,37 @@
+name: Build Images
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build_scaler:
+    
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build The Scaler
+        run:
+          docker build -t scaler -f scaler/Dockerfile .
+  
+  build_operator:
+    
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build The Operator
+        run:
+          docker build -t operator -f operator/Dockerfile .
+
+  build_interceptor:
+    
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build The Interceptor
+        run:
+          docker build -t interceptor -f interceptor/Dockerfile .
