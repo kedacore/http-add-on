@@ -16,10 +16,10 @@ import (
 
 func defaultTimeouts() config.Timeouts {
 	return config.Timeouts{
-		Connect:        100 * time.Millisecond,
-		KeepAlive:      100 * time.Millisecond,
-		ResponseHeader: 500 * time.Millisecond,
-		WaitFunc:       1 * time.Second,
+		Connect:            100 * time.Millisecond,
+		KeepAlive:          100 * time.Millisecond,
+		ResponseHeader:     500 * time.Millisecond,
+		DeploymentReplicas: 1 * time.Second,
 	}
 }
 

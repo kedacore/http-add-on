@@ -31,7 +31,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		originURL,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.WaitFunc,
+		timeouts.DeploymentReplicas,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"
@@ -60,7 +60,7 @@ func TestWaitFailedConnection(t *testing.T) {
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.WaitFunc,
+		timeouts.DeploymentReplicas,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"
@@ -76,7 +76,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	timeouts.WaitFunc = 10 * time.Millisecond
+	timeouts.DeploymentReplicas = 10 * time.Millisecond
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
 	// the wait func will close this channel immediately after it's called, but before it starts
@@ -95,7 +95,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.WaitFunc,
+		timeouts.DeploymentReplicas,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"
@@ -103,7 +103,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	r.NoError(err)
 
 	start := time.Now()
-	waitDur := timeouts.WaitFunc * 2
+	waitDur := timeouts.DeploymentReplicas * 2
 	go func() {
 		time.Sleep(waitDur)
 		close(waitFuncCh)
@@ -141,7 +141,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.WaitFunc,
+		timeouts.DeploymentReplicas,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"
@@ -191,7 +191,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		originURL,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.WaitFunc,
+		timeouts.DeploymentReplicas,
 		timeouts.ResponseHeader,
 	)
 	const path = "/testfwd"

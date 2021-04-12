@@ -101,7 +101,7 @@ func runProxyServer(
 	)
 	proxyMux.Handle("/*", countMiddleware(q, proxyHdl))
 
-	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	log.Printf("proxy server starting on %s", addr)
 	nethttp.ListenAndServe(addr, proxyMux)
 }
