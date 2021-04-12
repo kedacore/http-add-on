@@ -1,71 +1,107 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
+	nethttp "net/http"
+
 	"net/url"
 	"time"
 
-	"github.com/kedacore/http-add-on/pkg/env"
+	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/http"
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	echo "github.com/labstack/echo/v4"
-	middleware "github.com/labstack/echo/v4/middleware"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-// getSvcURL formats the app service name and port into a URL
-func getSvcURL() (*url.URL, error) {
-	// the name of the service that fronts the user's app
-	svcName, err := env.Get("KEDA_HTTP_APP_SERVICE_NAME")
-	if err != nil {
-		return nil, err
-	}
-	svcPort, err := env.Get("KEDA_HTTP_APP_SERVICE_PORT")
-	if err != nil {
-		return nil, err
-	}
-	hostPortStr := fmt.Sprintf("http://%s:%s", svcName, svcPort)
-	return url.Parse(hostPortStr)
-}
-
 func main() {
-	svcURL, err := getSvcURL()
-	if err != nil {
-		log.Fatalf("Service name / port invalid (%s)", err)
-	}
+	timeoutCfg := config.MustParseTimeouts()
+	originCfg := config.MustParseOrigin()
+	servingCfg := config.MustParseServing()
+	ctx := context.Background()
 
-	proxyPort, err := env.Get("KEDA_HTTP_PROXY_PORT")
+	deployName := originCfg.TargetDeploymentName
+	ns := originCfg.Namespace
+	proxyPort := servingCfg.ProxyPort
+	adminPort := servingCfg.AdminPort
+	svcURL, err := originCfg.ServiceURL()
 	if err != nil {
-		log.Fatalf("KEDA_HTTP_PROXY_PORT missing")
-	}
-	adminPort, err := env.Get("KEDA_HTTP_ADMIN_PORT")
-	if err != nil {
-		log.Fatalf("KEDA_HTTP_ADMIN_PORT missing")
+		log.Fatalf("Invalid origin service URL: %s", err)
 	}
 
 	q := http.NewMemoryQueue()
-	proxyServer := echo.New()
-	adminServer := echo.New()
 
-	proxyServer.Use(middleware.Logger())
-	proxyServer.Use(countMiddleware(q)) // adds the request counting middleware
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		log.Fatalf("Kubernetes client config not found (%s)", err)
+	}
+	cl, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error creating new Kubernetes ClientSet (%s)", err)
+	}
+	deployInterface := cl.AppsV1().Deployments(ns)
+	deployCache, err := k8s.NewK8sDeploymentCache(
+		ctx,
+		deployInterface,
+	)
+	if err != nil {
+		log.Fatalf("Error creating new deployment cache (%s)", err)
+	}
+	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, deployName, 1*time.Second)
 
-	// forwards any request to the destination app after counting
-	proxyServer.Any("/*", newForwardingHandler(svcURL))
+	go runAdminServer(q, adminPort)
 
-	adminServer.GET("/queue", newQueueSizeHandler(q))
-
-	go runServer("proxy", proxyServer, proxyPort)
-	go runServer("admin", adminServer, adminPort)
+	go runProxyServer(
+		q,
+		deployName,
+		waitFunc,
+		svcURL,
+		timeoutCfg,
+		proxyPort,
+	)
 
 	select {}
 }
 
-func runServer(name string, e *echo.Echo, port string) {
-	log.Printf("%s server running on port %s", name, port)
-	log.Fatal(e.Start(fmt.Sprintf(":%s", port)))
+func runAdminServer(q http.QueueCountReader, port int) {
+	adminServer := echo.New()
+	adminServer.GET("/queue", newQueueSizeHandler(q))
+
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	log.Printf("admin server running on %s", addr)
+	log.Fatal(adminServer.Start(addr))
+}
+
+func runProxyServer(
+	q http.QueueCounter,
+	targetDeployName string,
+	waitFunc forwardWaitFunc,
+	svcURL *url.URL,
+	timeouts *config.Timeouts,
+	port int,
+) {
+	proxyMux := nethttp.NewServeMux()
+	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
+	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
+	proxyHdl := newForwardingHandler(
+		svcURL,
+		dialContextFunc,
+		waitFunc,
+		timeouts.DeploymentReplicas,
+		timeouts.ResponseHeader,
+	)
+	proxyMux.Handle("/*", countMiddleware(q, proxyHdl))
+
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	log.Printf("proxy server starting on %s", addr)
+	nethttp.ListenAndServe(addr, proxyMux)
 }
