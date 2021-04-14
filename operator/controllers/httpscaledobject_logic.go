@@ -263,8 +263,11 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		return createScalerErr
 	}
 
-	if err := waitForScaler(ctx,
-		externalScalerHostName,
+	if err := waitForScaler(
+		ctx,
+		rec.Client,
+		appInfo.Namespace,
+		appInfo.ExternalScalerDeploymentName(),
 		5,
 		500*time.Millisecond,
 	); err != nil {

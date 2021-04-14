@@ -25,6 +25,8 @@ func createExternalScaler(
 	logger logr.Logger,
 	httpso *v1alpha1.HTTPScaledObject,
 ) (string, error) {
+	scalerPort := appInfo.ExternalScalerConfig.Port
+	healthCheckPort := scalerPort + 1
 	scalerDeployment := k8s.NewDeployment(
 		appInfo.Namespace,
 		appInfo.ExternalScalerDeploymentName(),
@@ -35,7 +37,11 @@ func createExternalScaler(
 		[]corev1.EnvVar{
 			{
 				Name:  "KEDA_HTTP_SCALER_PORT",
-				Value: fmt.Sprintf("%d", appInfo.ExternalScalerConfig.Port),
+				Value: fmt.Sprintf("%d", scalerPort),
+			},
+			{
+				Name:  "KEDA_HTTP_HEALTH_PORT",
+				Value: fmt.Sprintf("%d", healthCheckPort),
 			},
 			{
 				Name:  "KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE",
@@ -52,6 +58,28 @@ func createExternalScaler(
 		},
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
 	)
+	if err := k8s.AddLivenessProbe(
+		scalerDeployment,
+		"/livez",
+		int(healthCheckPort),
+	); err != nil {
+		logger.Error(err, "Creating liveness check")
+		condition := v1alpha1.CreateCondition(v1alpha1.Error, metav1.ConditionFalse, v1alpha1.ErrorCreatingExternalScaler).SetMessage(err.Error())
+		httpso.AddCondition(*condition)
+		return "", err
+	}
+
+	if err := k8s.AddReadinessProbe(
+		scalerDeployment,
+		"/healthz",
+		int(healthCheckPort),
+	); err != nil {
+		logger.Error(err, "Creating readiness check")
+		condition := v1alpha1.CreateCondition(v1alpha1.Error, metav1.ConditionFalse, v1alpha1.ErrorCreatingExternalScaler).SetMessage(err.Error())
+		httpso.AddCondition(*condition)
+		return "", err
+	}
+
 	logger.Info("Creating external scaler Deployment", "Deployment", *scalerDeployment)
 	if err := cl.Create(ctx, scalerDeployment); err != nil {
 		if errors.IsAlreadyExists(err) {
