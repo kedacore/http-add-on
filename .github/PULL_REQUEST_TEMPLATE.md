@@ -9,6 +9,9 @@ _Provide a description of what has been changed_
 ### Checklist
 
 - [ ] Commits are signed with Developer Certificate of Origin (DCO)
-- [ ] A PR is opened to update the documentation on [our docs repo](https://github.com/kedacore/keda-docs)
+- [ ] Any necessary documentation is added, such as:
+  - [`README.md`](/README.md)
+  - [`docs/`](./docs)
+  - [The docs repo](https://github.com/kedacore/keda-docs)
 
 Fixes #
