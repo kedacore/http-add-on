@@ -22,13 +22,13 @@ func createScaledObjects(
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 
-	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostname)
+	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
 
 	appScaledObject, appErr := k8s.NewScaledObject(
 		appInfo.Namespace,
 		config.AppScaledObjectName(httpso),
 		appInfo.Name,
-		externalScalerHostname,
+		externalScalerHostName,
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,
 	)
@@ -40,7 +40,7 @@ func createScaledObjects(
 		appInfo.Namespace,
 		config.InterceptorScaledObjectName(httpso),
 		appInfo.InterceptorDeploymentName(),
-		externalScalerHostname,
+		externalScalerHostName,
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,
 	)
