@@ -36,8 +36,7 @@ Follow the [install instructions](./install.md) to check out how to install and 
 
 ## Build scripts
 
-This project uses [Mage](https://magefile.org) as opposed to Make because it's way faster to build and push images, as
-well as to run tests and other common tasks. Please install it to have access to the task runner.
+This project uses [Mage](https://magefile.org) as opposed to Make because it's way faster to build and push images, as well as to run tests and other common tasks. Please install [version v1.11.0](https://github.com/magefile/mage/releases/tag/v1.11.0) or above to have access to the task runner.
 
 > **Note:** The Magefile located in the root directory is related to the whole project, so it gives you the ability to control the build and install process of all the modules in this project. On the other hand, the build binary located in the [operator](../operator/magefile.go) directory, is **just related to the operator module**.
 
