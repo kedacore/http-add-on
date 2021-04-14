@@ -83,10 +83,10 @@ func BuildScaler(ctx context.Context) error {
 func TestScaler(ctx context.Context) error {
 	fmt.Println("Running scaler tests")
 	testOutput, err := sh.Output("go", "test", "./scaler/...")
+	fmt.Println(testOutput)
 	if err != nil {
 		return err
 	}
-	fmt.Println(testOutput)
 
 	return nil
 }
