@@ -36,3 +36,8 @@ service:
   type: ClusterIP
   port: 8080
 
+autoscaling:
+  enabled: false
+
+ingress:
+  enabled: false
