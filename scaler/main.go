@@ -68,7 +68,6 @@ func startGrpcServer(ctx context.Context, port int, pinger *queuePinger) func() 
 
 func startHealthcheckServer(ctx context.Context, port int) func() error {
 	return func() error {
-		addr := fmt.Sprintf("0.0.0.0:%d", port)
 		mux := http.NewServeMux()
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
@@ -77,10 +76,10 @@ func startHealthcheckServer(ctx context.Context, port int) func() error {
 			w.WriteHeader(200)
 		})
 		srv := &http.Server{
-			Addr:    addr,
+			Addr:    fmt.Sprintf(":%d", port),
 			Handler: mux,
 		}
-		log.Printf("Serving health check server on %s", addr)
+		log.Printf("Serving health check server on port %d", port)
 
 		go func() {
 			<-ctx.Done()
