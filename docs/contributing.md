@@ -54,7 +54,7 @@ check the [Magefile](../magefile.go) source code. Below is a list of the most co
 In the root directory:
 
 - `mage All`: Builds all the binaries for local testing.
-- `mage deleteOperator [namespace]`: Deletes the installed add-on in the given `namespace` for the active K8S
+- `mage operator:deleterelease [namespace]`: Deletes the installed add-on in the given `namespace` for the active K8S
   cluster.
 - `mage dockerBuildAll <repository>`: Builds all the images for the `interceptor`, `scaler`, and `operator` modules
   for the specified `repository`.
@@ -72,6 +72,6 @@ In the root directory:
 
 In the operator directory:
 
-- `mage Manifests`: Builds all the manifest files for Kubernetes, it's important to build after every change
+- `mage operator:manifests`: Builds all the manifest files for Kubernetes, it's important to build after every change
   to a Kustomize annotation.
-- `mage All`: Generates the operator.
+- `mage all`: Builds all binaries.

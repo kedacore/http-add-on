@@ -66,8 +66,10 @@ func getFullImageName(repository string, module string) string {
 
 var goBuild = sh.OutCmd("go", "build", "-o")
 
+type Scaler mg.Namespace
+
 // Generate Go build of the scaler binary
-func BuildScaler(ctx context.Context) error {
+func (Scaler) Build(ctx context.Context) error {
 	fmt.Println("Running scaler binary build")
 	out, err := goBuild("bin/scaler", "./scaler")
 	if err != nil {
@@ -80,7 +82,7 @@ func BuildScaler(ctx context.Context) error {
 }
 
 // Run tests on the Scaler
-func TestScaler(ctx context.Context) error {
+func (Scaler) Test(ctx context.Context) error {
 	fmt.Println("Running scaler tests")
 	testOutput, err := sh.Output("go", "test", "./scaler/...")
 	if err != nil {
@@ -91,8 +93,10 @@ func TestScaler(ctx context.Context) error {
 	return nil
 }
 
+type Operator mg.Namespace
+
 // Generate Go build of the operator binary
-func BuildOperator(ctx context.Context) error {
+func (Operator) Build(ctx context.Context) error {
 	fmt.Println("Running operator binary build")
 	out, err := goBuild("bin/operator", "./operator")
 	if err != nil {
@@ -116,8 +120,10 @@ func TestOperator(ctx context.Context) error {
 	return nil
 }
 
+type Interceptor mg.Namespace
+
 // Generate Go build of the interceptor binary
-func BuildInterceptor(ctx context.Context) error {
+func (Interceptor) Build(ctx context.Context) error {
 	fmt.Println("Running interceptor binary build")
 	out, err := goBuild("bin/interceptor", "./interceptor")
 	if err != nil {
@@ -130,7 +136,7 @@ func BuildInterceptor(ctx context.Context) error {
 }
 
 // Run interceptor tests
-func TestInterceptor(ctx context.Context) error {
+func (Interceptor) Test(ctx context.Context) error {
 	fmt.Println("Running interceptor tests")
 	testOutput, err := sh.Output("go", "test", "./interceptor/...")
 	if err != nil {
@@ -144,11 +150,14 @@ func TestInterceptor(ctx context.Context) error {
 // Build all binaries
 func All() {
 	fmt.Println("Building all binaries")
-	mg.Deps(BuildScaler, BuildOperator, BuildInterceptor)
+	scaler := Scaler{}
+	operator := Operator{}
+	interceptor := Interceptor{}
+	mg.Deps(scaler.Build, operator.Build, interceptor.Build)
 }
 
 // Run tests on all the components in this project
-func TestAll() error {
+func Test() error {
 	out, err := sh.Output("go", "test", "./...")
 	if err != nil {
 		return err
@@ -235,7 +244,7 @@ func DockerPushAll(repository string) {
 // Issuing "mage helmupgradeoperator kedahttp kedacore" will download
 // "kedacore/http-add-on-operator:{SHA}" image and install along with the
 // interceptor and scaler images on the same SHA
-func UpgradeOperator(namespace string, imageRepository string) error {
+func (Operator) UpgradeRelease(namespace string, imageRepository string) error {
 	if namespace == "" {
 		namespace = DEFAULT_NAMESPACE
 	}
@@ -263,7 +272,7 @@ func UpgradeOperator(namespace string, imageRepository string) error {
 }
 
 // Deletes the operator release
-func DeleteOperator(namespace string) error {
+func (Operator) DeleteRelease(namespace string) error {
 	if namespace == "" {
 		namespace = DEFAULT_NAMESPACE
 	}
@@ -315,7 +324,7 @@ func DeleteKeda(namespace string) error {
 // --- Operator tasks --- //
 
 // Generates the operator
-func Operator() error {
+func (Operator) Generate() error {
 	if err := sh.RunV("mage", "-d", "operator", "all"); err != nil {
 		return err
 	}
@@ -324,7 +333,7 @@ func Operator() error {
 }
 
 // Rebuilds all manifests for the operator
-func Manifests() error {
+func (Operator) Manifests() error {
 	if err := sh.RunV("mage", "-d", "operator", "manifests"); err != nil {
 		return err
 	}
@@ -334,7 +343,7 @@ func Manifests() error {
 // --- Misc --- //
 
 // Generates protofiles for external scaler
-func GenerateScalerProto() error {
+func (Scaler) GenerateProto() error {
 	if err := sh.RunV(
 		"protoc",
 		"--go_out",
