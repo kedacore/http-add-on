@@ -36,14 +36,15 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          repository: ${{ github.repository_owner }}/http-add-on-operator
-          tags: canary,sha-${{steps.prep.outputs.sha}}
+          tags: |
+            ${{ github.repository_owner }}/http-add-on-operator:canary,${{ github.repository_owner }}/http-add-on-operator:sha-${{ steps.prep.outputs.sha }}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: operator/Dockerfile
           context: .
+          push: true
 
   build_interceptor:
 
@@ -75,14 +76,14 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          repository: ${{ github.repository_owner }}/http-add-on-interceptor
-          tags: canary,sha-${{steps.prep.outputs.sha}}
+          tags: ${{ github.repository_owner }}/http-add-on-interceptor:canary,${{ github.repository_owner }}/http-add-on-interceptor:sha-${{steps.prep.outputs.sha}}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: interceptor/Dockerfile
           context: .
+          push: true
 
   build_scaler:
     runs-on: ubuntu-20.04
@@ -113,11 +114,11 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          repository: ${{ github.repository_owner }}/http-add-on-scaler
-          tags: canary,sha-${{steps.prep.outputs.sha}}
+          tags: ${{ github.repository_owner }}/http-add-on-scaler:canary,${{ github.repository_owner }}/http-add-on-scaler:sha-${{steps.prep.outputs.sha}}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: scaler/Dockerfile
           context: .
+          push: true
