@@ -30,7 +30,7 @@ the service, you can host your own with a series of amazing tools like:
 - [K3S](https://k3s.io/)
 - [KinD (Kubernetes in Docker)](https://kind.sigs.k8s.io/)
 
-### Keda
+### KEDA
 
 Follow the [install instructions](./install.md) to check out how to install and get this add-on up and running.
 
@@ -38,40 +38,38 @@ Follow the [install instructions](./install.md) to check out how to install and 
 
 This project uses [Mage](https://magefile.org) as opposed to Make because it's way faster to build and push images, as well as to run tests and other common tasks. Please install [version v1.11.0](https://github.com/magefile/mage/releases/tag/v1.11.0) or above to have access to the task runner.
 
-> **Note:** The Magefile located in the root directory is related to the whole project, so it gives you the ability to control the build and install process of all the modules in this project. On the other hand, the build binary located in the [operator](../operator/magefile.go) directory, is **just related to the operator module**.
+### In the Root Directory
 
-The usage is as follows:
+The Magefile located in the root directory has targets useful for the whole project. There is another magefile [in the operator directory](../operator/magefile.go), which has targets more specific to the operator module.
 
-- Type `mage -l` on the magefile directory to print a list of all available commands
-- Type `mage -h <command>` to check the help for that specific command
-- `mage -h` shows the general help
+The most useful and common commands from the root directory are listed below. Please see the "In the Operator Directory" section for the operator-specific targets. Whther you're in the root or the operator directory, you can always run the following general helper commands:
 
-Most of the commands are simple, and we have a few commands that chain other commands together, for reference on chains,
-check the [Magefile](../magefile.go) source code. Below is a list of the most common build commands
+- `mage -l`: shows a list of all available commands
+- `mage -h <command>`: shows command-specific details
+- `mage -h`: shows the general help
 
 > All commands are case insensitive, so `buildAll` and `buildall` are the same.
 
-In the root directory:
+- `mage build`: Builds all the binaries for local testing.
+- `mage test`: Tests the entire codebase
+- `mage dockerbuild`: Builds all docker images
+  - Please see the below "Environment Variables" section for more information on this command
+- `mage dockerpush`: Pushes all docker images, without building them first
+  - Please see the below "Environment Variables" section for more information on this command
 
-- `mage All`: Builds all the binaries for local testing.
-- `mage deleteOperator [namespace]`: Deletes the installed add-on in the given `namespace` for the active K8S
-  cluster.
-- `mage dockerBuildAll <repository>`: Builds all the images for the `interceptor`, `scaler`, and `operator` modules
-  for the specified `repository`.
-  - You can also build specific images by using `mage dockerBuild <repository> <module>`, where module is one
-    of `interceptor`, `scaler`, or `operator`.
-- `mage dockerPushAll <repository>`: Pushes all the built images for a given repository.
-  - You can push the images using `mage dockerPush <repository> <module>` like the `dockerBuild` command.
-- `mage installKeda [namespace]`: will install KEDA on the given namespace.
-- `mage upgradeOperator [namespace] <image>`: Will install the add-on in the given `namespace` if not installed, or
-  update it using the provided `image`.
-- `mage Operator`: Alias to `mage -d operator All`, just to have everything on the same dir level.
-- `mage Manifests`: Alias to `mage -d operator Manifests`.
-
-> The default values for the `namespace` if not provided (when passed as `""`, like `mage upgradeOperator "" image`) is `kedahttp`
-
-In the operator directory:
+### In the Operator Directory
 
 - `mage Manifests`: Builds all the manifest files for Kubernetes, it's important to build after every change
   to a Kustomize annotation.
 - `mage All`: Generates the operator.
+
+### Required Environment Variables
+
+Some of the above commands require several environment variables to be set. You should set them once in your environment to ensure that you can run these targets. We recommend using [direnv](https://direnv.net) to set these environment variables once, so that you don't need to remember to do it.
+
+- `KEDAHTTP_SCALER_IMAGE`: the fully qualified name of the [scaler](../scaler) image. This is used to build, push, and install the scaler into a Kubernetes cluster (required)
+- `KEDAHTTP_INTERCEPTOR_IMAGE`: the fully qualified name of the [interceptor](../interceptor) image. This is used to build, push, and install the interceptor into a Kubernetes cluster (required)
+- `KEDAHTTP_OPERATOR_IMAGE`: the fully qualified name of the [operator](../operator) image. This is used to build, push, and install the operator into a Kubernetes cluster (required)
+- `KEDAHTTP_NAMESPACE`: the Kubernetes namespace to which to install the add on and other required components (optional, defaults to `kedahttp`)
+
+>Suffic any `*_IMAGE` variable with `<keda-git-sha>` and the build system will automatically replace it with `sha-$(git rev-parse --short HEAD)`

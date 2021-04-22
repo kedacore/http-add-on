@@ -4,70 +4,31 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
+	"github.com/kedacore/http-add-on/pkg/build"
+	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
 
 // Global consts
 const (
-	BASE_PACKAGE_NAME string = "http-add-on"
 	DEFAULT_NAMESPACE string = "kedahttp"
+
+	SCALER_IMAGE_ENV_VAR      = "KEDAHTTP_SCALER_IMAGE"
+	INTERCEPTOR_IMAGE_ENV_VAR = "KEDAHTTP_INTERCEPTOR_IMAGE"
+	OPERATOR_IMAGE_ENV_VAR    = "KEDAHTTP_OPERATOR_IMAGE"
+	NAMESPACE_ENV_VAR         = "KEDAHTTP_NAMESPACE"
 )
-
-// Enum types
-type ModuleName string
-
-const (
-	SCALER      ModuleName = "scaler"
-	INTERCEPTOR ModuleName = "interceptor"
-	OPERATOR    ModuleName = "operator"
-)
-
-// --- Utils --- //
-
-func getGitSHA() string {
-	output, _ := sh.Output("git", "rev-parse", "--short", "HEAD")
-
-	return output
-}
-
-func isValidModule(s string) error {
-	module := (ModuleName)(s)
-	switch module {
-	case SCALER, OPERATOR, INTERCEPTOR:
-		return nil
-	}
-	return errors.New(fmt.Sprintf("Invalid image name %q", s))
-}
-
-func getSlash(repository string) string {
-	if repository == "" {
-		return ""
-	}
-	return "/"
-}
-
-func getFullImageName(repository string, module string) string {
-	return fmt.Sprintf(
-		"%s%s%s-%v:%s",
-		repository,
-		getSlash(repository),
-		BASE_PACKAGE_NAME,
-		module,
-		getGitSHA(),
-	)
-}
-
-// --- Go Builds --- //
 
 var goBuild = sh.OutCmd("go", "build", "-o")
 
+type Scaler mg.Namespace
+
 // Generate Go build of the scaler binary
-func BuildScaler(ctx context.Context) error {
+func (Scaler) Build(ctx context.Context) error {
 	fmt.Println("Running scaler binary build")
 	out, err := goBuild("bin/scaler", "./scaler")
 	if err != nil {
@@ -80,7 +41,7 @@ func BuildScaler(ctx context.Context) error {
 }
 
 // Run tests on the Scaler
-func TestScaler(ctx context.Context) error {
+func (Scaler) Test(ctx context.Context) error {
 	fmt.Println("Running scaler tests")
 	testOutput, err := sh.Output("go", "test", "./scaler/...")
 	if err != nil {
@@ -91,8 +52,26 @@ func TestScaler(ctx context.Context) error {
 	return nil
 }
 
+func (Scaler) DockerBuild(ctx context.Context) error {
+	img, err := build.GetImageName(SCALER_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerBuild(img, "scaler/Dockerfile", ".")
+}
+
+func (Scaler) DockerPush(ctx context.Context) error {
+	image, err := build.GetImageName(SCALER_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerPush(image)
+}
+
+type Operator mg.Namespace
+
 // Generate Go build of the operator binary
-func BuildOperator(ctx context.Context) error {
+func (Operator) Build(ctx context.Context) error {
 	fmt.Println("Running operator binary build")
 	out, err := goBuild("bin/operator", "./operator")
 	if err != nil {
@@ -105,7 +84,7 @@ func BuildOperator(ctx context.Context) error {
 }
 
 // Run operator tests
-func TestOperator(ctx context.Context) error {
+func (Operator) Test(ctx context.Context) error {
 	fmt.Println("Running operator tests")
 	testOutput, err := sh.Output("go", "test", "./operator/...")
 	if err != nil {
@@ -116,8 +95,26 @@ func TestOperator(ctx context.Context) error {
 	return nil
 }
 
+func (Operator) DockerBuild(ctx context.Context) error {
+	img, err := build.GetImageName(OPERATOR_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerBuild(img, "operator/Dockerfile", ".")
+}
+
+func (Operator) DockerPush(ctx context.Context) error {
+	image, err := build.GetImageName(OPERATOR_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerPush(image)
+}
+
+type Interceptor mg.Namespace
+
 // Generate Go build of the interceptor binary
-func BuildInterceptor(ctx context.Context) error {
+func (Interceptor) Build(ctx context.Context) error {
 	fmt.Println("Running interceptor binary build")
 	out, err := goBuild("bin/interceptor", "./interceptor")
 	if err != nil {
@@ -130,7 +127,7 @@ func BuildInterceptor(ctx context.Context) error {
 }
 
 // Run interceptor tests
-func TestInterceptor(ctx context.Context) error {
+func (Interceptor) Test(ctx context.Context) error {
 	fmt.Println("Running interceptor tests")
 	testOutput, err := sh.Output("go", "test", "./interceptor/...")
 	if err != nil {
@@ -141,14 +138,36 @@ func TestInterceptor(ctx context.Context) error {
 	return nil
 }
 
+// Build the interceptor docker image. This command reads the value of the
+// KEDAHTTP_INTERCEPTOR_IMAGE environment variable to get the interceptor image
+// name. It fails otherwise
+func (Interceptor) DockerBuild(ctx context.Context) error {
+	image, err := build.GetImageName(INTERCEPTOR_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerBuild(image, "interceptor/Dockerfile", ".")
+}
+
+func (Interceptor) DockerPush(ctx context.Context) error {
+	image, err := build.GetImageName(INTERCEPTOR_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerPush(image)
+}
+
 // Build all binaries
-func All() {
+func Build() {
 	fmt.Println("Building all binaries")
-	mg.Deps(BuildScaler, BuildOperator, BuildInterceptor)
+	scaler := Scaler{}
+	interceptor := Interceptor{}
+	operator := Operator{}
+	mg.Deps(scaler.Build, operator.Build, interceptor.Build)
 }
 
 // Run tests on all the components in this project
-func TestAll() error {
+func Test() error {
 	out, err := sh.Output("go", "test", "./...")
 	if err != nil {
 		return err
@@ -160,73 +179,17 @@ func TestAll() error {
 // --- Docker --- //
 
 // Builds a docker image specified by the name argument with the repository prefix
-func DockerBuild(ctx context.Context, repository string, name string) error {
-	if err := isValidModule(name); err != nil {
-		return err
-	}
-
-	fmt.Println(fmt.Sprintf(
-		"Running docker build for image %q",
-		getFullImageName(repository, name),
-	))
-
-	err := sh.RunV(
-		"docker",
-		"build",
-		"-t",
-		getFullImageName(repository, name),
-		"-f",
-		fmt.Sprintf("%s/Dockerfile", name),
-		".",
-	)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(fmt.Sprintf("Finished building %q", getFullImageName(repository, name)))
+func DockerBuild(ctx context.Context) error {
+	scaler, operator, interceptor := Scaler{}, Interceptor{}, Operator{}
+	mg.Deps(scaler.DockerBuild, operator.DockerBuild, interceptor.DockerBuild)
 	return nil
 }
 
 // Pushes a given image name to a given repository
-func DockerPush(ctx context.Context, repository string, name string) error {
-	if err := isValidModule(name); err != nil {
-		return err
-	}
-
-	fmt.Println(fmt.Sprintf(
-		"Running docker push for image %q",
-		getFullImageName(repository, name),
-	))
-
-	err := sh.RunV(
-		"docker",
-		"push",
-		getFullImageName(repository, name),
-	)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(fmt.Sprintf("Finished pushing %q", getFullImageName(repository, name)))
+func DockerPush(ctx context.Context) error {
+	scaler, operator, interceptor := Scaler{}, Interceptor{}, Operator{}
+	mg.Deps(scaler.DockerPush, operator.DockerPush, interceptor.DockerPush)
 	return nil
-}
-
-// Builds all the images to the given repository
-func DockerBuildAll(repository string) {
-	var fns []interface{}
-	for _, module := range []ModuleName{SCALER, OPERATOR, INTERCEPTOR} {
-		fns = append(fns, mg.F(DockerBuild, repository, (string)(module)))
-	}
-	mg.Deps(fns...)
-}
-
-// Pushes all the images to the given repository
-func DockerPushAll(repository string) {
-	var fns []interface{}
-	for _, module := range []ModuleName{SCALER, OPERATOR, INTERCEPTOR} {
-		fns = append(fns, mg.F(DockerPush, repository, (string)(module)))
-	}
-	mg.Deps(fns...)
 }
 
 // --- Helm --- //
@@ -235,9 +198,22 @@ func DockerPushAll(repository string) {
 // Issuing "mage helmupgradeoperator kedahttp kedacore" will download
 // "kedacore/http-add-on-operator:{SHA}" image and install along with the
 // interceptor and scaler images on the same SHA
-func UpgradeOperator(namespace string, imageRepository string) error {
-	if namespace == "" {
+func UpgradeOperator(ctx context.Context) error {
+	namespace, err := env.Get(NAMESPACE_ENV_VAR)
+	if err != nil {
 		namespace = DEFAULT_NAMESPACE
+	}
+	operatorImg, err := build.GetImageName(OPERATOR_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	scalerImg, err := build.GetImageName(SCALER_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	interceptorImg, err := build.GetImageName(INTERCEPTOR_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
 	}
 
 	if err := sh.RunV(
@@ -250,11 +226,11 @@ func UpgradeOperator(namespace string, imageRepository string) error {
 		namespace,
 		"--create-namespace",
 		"--set",
-		fmt.Sprintf("image=%s", getFullImageName(imageRepository, "operator")),
+		fmt.Sprintf("images.operator=%s", operatorImg),
 		"--set",
-		fmt.Sprintf("images.scaler=%s", getFullImageName(imageRepository, "scaler")),
+		fmt.Sprintf("images.scaler=%s", scalerImg),
 		"--set",
-		fmt.Sprintf("images.interceptor=%s", getFullImageName(imageRepository, "interceptor")),
+		fmt.Sprintf("images.interceptor=%s", interceptorImg),
 	); err != nil {
 		return err
 	}
@@ -263,8 +239,9 @@ func UpgradeOperator(namespace string, imageRepository string) error {
 }
 
 // Deletes the operator release
-func DeleteOperator(namespace string) error {
-	if namespace == "" {
+func DeleteOperator(ctx context.Context) error {
+	namespace, err := env.Get(NAMESPACE_ENV_VAR)
+	if err != nil {
 		namespace = DEFAULT_NAMESPACE
 	}
 	if err := sh.RunV("helm", "delete", "-n", namespace, "kedahttp"); err != nil {
@@ -274,8 +251,9 @@ func DeleteOperator(namespace string) error {
 }
 
 // Installs or upgrades KEDA in the given namespace
-func InstallKeda(namespace string) error {
-	if namespace == "" {
+func InstallKeda(ctx context.Context) error {
+	namespace, err := env.Get(NAMESPACE_ENV_VAR)
+	if err != nil {
 		namespace = DEFAULT_NAMESPACE
 	}
 	if err := sh.RunV(
@@ -296,8 +274,9 @@ func InstallKeda(namespace string) error {
 }
 
 // Deletes the installed release of KEDA in the given namespaces
-func DeleteKeda(namespace string) error {
-	if namespace == "" {
+func DeleteKeda(ctx context.Context) error {
+	namespace, err := env.Get(NAMESPACE_ENV_VAR)
+	if err != nil {
 		namespace = DEFAULT_NAMESPACE
 	}
 	if err := sh.RunV(
@@ -315,7 +294,7 @@ func DeleteKeda(namespace string) error {
 // --- Operator tasks --- //
 
 // Generates the operator
-func Operator() error {
+func (Operator) Generate() error {
 	if err := sh.RunV("mage", "-d", "operator", "all"); err != nil {
 		return err
 	}
@@ -324,7 +303,7 @@ func Operator() error {
 }
 
 // Rebuilds all manifests for the operator
-func Manifests() error {
+func (Operator) BuildManifests() error {
 	if err := sh.RunV("mage", "-d", "operator", "manifests"); err != nil {
 		return err
 	}
@@ -334,7 +313,7 @@ func Manifests() error {
 // --- Misc --- //
 
 // Generates protofiles for external scaler
-func GenerateScalerProto() error {
+func (Scaler) GenerateProto() error {
 	if err := sh.RunV(
 		"protoc",
 		"--go_out",
