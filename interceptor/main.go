@@ -58,6 +58,13 @@ func main() {
 	}
 	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, deployName, 1*time.Second)
 
+	log.Printf(
+		"Interceptor started, forwarding to service %s:%s, watching deployment %s",
+		originCfg.AppServiceName,
+		originCfg.AppServicePort,
+		originCfg.TargetDeploymentName,
+	)
+
 	go runAdminServer(q, adminPort)
 
 	go runProxyServer(
