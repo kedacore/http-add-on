@@ -41,3 +41,23 @@ As said above, you need to route your HTTP traffic to the `Service` that the add
 ```
 
 >The service will always be a `ClusterIP` type and will be created in the same namespace as the `HTTPScaledObject` you created.
+
+#### Installing and Using the [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/#using-helm) Ingress Controller
+
+As mentioned above, the `Service` that the add-on creates will be inaccessible over the network from outside of your Kubernetes cluster.
+
+While you can access it via the `kubectl port-forward` command above, we recommend against using that in a production setting. Instead, we recommend that you use an [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) to route to the interceptor service. This section describes how to set up and use the NGINX Ingress controller.
+
+First, install the controller using the commands below. These commands use Helm v3. For other installation methods, see the [installation page](https://kubernetes.github.io/ingress-nginx/deploy/).
+
+```shell
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install ingress-nginx ingress-nginx/ingress-nginx -n ${NAMESPACE}
+```
+
+An [`Ingress`](https://kubernetes.io/docs/concepts/services-networking/ingress/) resource was already created as part of the [xkcd chart](../charts/xkcd/templates/ingress.yaml), so the installed NGINX ingress controller will initialize, detect the `Ingress`, and begin routing to the xkcd interceptor `Service`.
+
+When you're ready, please run `kubectl get svc -n ${NAMESPACE}`, find the `ingress-nginx-controller` service, and copy and paste its `EXTERNAL-IP`. This is the IP address that your application will be running at on the public internet.
+
+>Note: you should go further and set your DNS records appropriately and set up a TLS certificate for this IP address. Instructions to do that are out of scope of this document, though.
