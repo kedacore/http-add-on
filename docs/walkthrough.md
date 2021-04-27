@@ -19,7 +19,8 @@ helm install xkcd ./charts/xkcd -n ${NAMESPACE}
 You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object points the To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```shell
-kubectl create -f -n $NAMESPACE examples/httpscaledobject.yaml
+kubectl create -n $NAMESPACE -f examples/httpscaledobject.yaml
+
 ```
 
 >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/http_scaled_object.md).
@@ -29,7 +30,7 @@ kubectl create -f -n $NAMESPACE examples/httpscaledobject.yaml
 You've now installed a web application and activated autoscaling by creating an `HTTPScaledObject` for it. For autoscaling to work properly, HTTP traffic needs to route through the `Service` that the add on has set up. You can use `kubectl port-forward` to quickly test things out:
 
 ```shell
-k port-forward svc/xkcd-interceptor-proxy -n ${NAMESPACE} 8080:80 
+kubectl port-forward svc/xkcd-interceptor-proxy -n ${NAMESPACE} 8080:80 
 ```
 
 ### Routing to the Right `Service`
