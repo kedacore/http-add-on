@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
+	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -47,6 +48,7 @@ func createExternalScaler(
 			},
 		},
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
+		env.GetOr("SCALER_PULL_POLICY", "Always"),
 	)
 	logger.Info("Creating external scaler Deployment", "Deployment", *scalerDeployment)
 	if err := cl.Create(ctx, scalerDeployment); err != nil {

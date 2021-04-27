@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
+	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -62,6 +63,7 @@ func createInterceptor(
 		},
 		interceptorEnvs,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
+		env.GetOr("INTERCEPTOR_PULL_POLICY", "Always"),
 	)
 	logger.Info("Creating interceptor Deployment", "Deployment", *deployment)
 	if err := cl.Create(ctx, deployment); err != nil {
