@@ -1,5 +1,7 @@
 # The `HTTPScaledObject`
 
+>This document reflects the specification of the `HTTPScaledObject` resource for the latest version
+
 Each `HTTPScaledObject` looks approximately like the below:
 
 ```yaml
