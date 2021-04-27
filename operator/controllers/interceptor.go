@@ -27,11 +27,11 @@ func createInterceptor(
 		// config regarding the origin
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_NAME",
-			Value: appInfo.Name,
+			Value: httpso.Spec.Service.Name,
 		},
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_PORT",
-			Value: fmt.Sprintf("%d", httpso.Spec.ScaleTargetRef.Port),
+			Value: fmt.Sprintf("%d", httpso.Spec.Service.Port),
 		},
 		{
 			Name:  "KEDA_HTTP_TARGET_DEPLOYMENT_NAME",

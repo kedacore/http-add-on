@@ -109,8 +109,9 @@ type ReplicaStruct struct {
 }
 
 type HTTPScaledObjectServiceSpec struct {
-	Type corev1.ServiceType `json:"type,omitempty" description:"Type of the exposed service created to serve de interceptor"`
+	Type corev1.ServiceType `json:"type,omitempty" description:"Type of the exposed service created to serve the interceptor"`
 	Port int32 `json:"public_port,omitempty" description:"Public exposed port of the interceptor"`
+	Name string `json:"name" description:"The name of the service to route the application to"`
 }
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
@@ -128,10 +129,6 @@ type HTTPScaledObjectSpec struct {
 type ScaleTargetRef struct {
 	// The name of the deployment to scale according to HTTP traffic
 	Deployment string `json:"deployment"`
-	// The name of the service to route to
-	Service string `json:"service"`
-	// The port to route to
-	Port int32 `json:"port"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
