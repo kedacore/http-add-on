@@ -11,6 +11,20 @@ The KEDA HTTP Add On allows Kubernetes users to automatically scale their HTTP s
 
 >This codebase moves very quickly. We can't currently guarantee that any part of it will work. Neither the complete feature set nor known issues may be fully documented. Similarly, issues filed against this project may not be responded to quickly or at all. **We will release and announce a beta release of this project**, and after we do that, we will document and respond to issues properly.
 
+## HTTP Autoscaling Made Simple
+
+[KEDA](https://github.com/kedacore/keda) provides a reliable and well tested solution to scaling your workloads based on external events. The project supports a wide variety of [scalers](https://keda.sh/docs/2.2/scalers/) - sources of these events, in other words. These scalers are systems that produce precisely measurable events via an API.
+
+KEDA does not, however, include an HTTP-based scaler out of the box for several reasons:
+
+- The concept of an HTTP "event" is not well defined.
+- There's no out-of-the-box single system that can provide an API to measure the current number of incoming HTTP events or requests.
+- The infrastructure required to achieve these measurements is more complex and, in some cases, needs to be integrated into the HTTP routing system in the cluster (e.g. the ingress controller).
+
+For these reasons, the KEDA core project has purposely not built generic HTTP-based scaling into the core.
+
+This project, often called KEDA-HTTP, exists to provide that scaling. It is composed of simple, isolated components and includes an opinionated way to put them together.
+
 ## Walkthrough
 
 Although this is an **alpha release** project right now, we have prepared a walkthrough document that with instructions on getting started for basic usage.
