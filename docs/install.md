@@ -30,7 +30,7 @@ This repository is within KEDA's default helm repository on [kedacore/charts](ht
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
 
-helm install http-add-on kedacore/http-add-on --create-namespace --namespace keda
+helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace keda
 ```
 
 ## Installing HTTP Components
@@ -64,7 +64,7 @@ There are a few environment variables in the above command that you can set to c
 You might be working with a local development cluster like Microk8s, which offers a local, in-cluster registry. In this case, the previous `*_DOCKER_IMG` variables won't work for the Helm chart and you'll need to use a custom `helm` command such as the below:
 
 ```shell
-helm upgrade kedahttp ./charts/keda-http-operator \
+helm upgrade kedahttp ./charts/keda-add-ons-http \
     --install \
     --namespace ${NAMESPACE} \
     --create-namespace \
