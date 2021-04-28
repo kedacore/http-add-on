@@ -5,6 +5,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+  IMAGE_OPERATOR_NAME: ${{ env.IMAGE_PREFIX }}/http-add-on-operator
+  IMAGE_INTERCEPTOR_NAME: ${{ env.IMAGE_PREFIX }}/http-add-on-interceptor
+  IMAGE_SCALER_NAME: ${{ env.IMAGE_PREFIX }}/http-add-on-scaler
+
 jobs:
   build_operator:
 
@@ -37,7 +43,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           tags: |
-            ${{ github.repository_owner }}/http-add-on-operator:canary,${{ github.repository_owner }}/http-add-on-operator:sha-${{ steps.prep.outputs.sha }}
+            ${{ env.IMAGE_OPERATOR_NAME }}:canary,${{ env.IMAGE_OPERATOR_NAME }}:sha-${{ steps.prep.outputs.sha }}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -76,7 +82,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          tags: ${{ github.repository_owner }}/http-add-on-interceptor:canary,${{ github.repository_owner }}/http-add-on-interceptor:sha-${{steps.prep.outputs.sha}}
+          tags: ${{ env.IMAGE_INTERCEPTOR_NAME }}:canary,${{ env.IMAGE_INTERCEPTOR_NAME }}:sha-${{steps.prep.outputs.sha}}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -114,7 +120,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          tags: ${{ github.repository_owner }}/http-add-on-scaler:canary,${{ github.repository_owner }}/http-add-on-scaler:sha-${{steps.prep.outputs.sha}}
+          tags: ${{ env.IMAGE_SCALER_NAME }}:canary,${{ env.IMAGE_SCALER_NAME }}:sha-${{steps.prep.outputs.sha}}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
