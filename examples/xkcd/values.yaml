@@ -4,7 +4,7 @@ image:
   repository: arschles/xkcd
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -35,3 +35,11 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 8080
+
+autoscaling:
+  http:
+    minReplicas: 5
+    maxReplicas: 10
+
+ingress:
+  enabled: false
