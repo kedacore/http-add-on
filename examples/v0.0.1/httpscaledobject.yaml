@@ -1,0 +1,8 @@
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+    name: xkcd
+spec:
+    app_name: xkcd
+    app_image: arschles/xkcd
+    port: 8080

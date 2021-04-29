@@ -15,6 +15,6 @@ spec:
     name: {{ .DeploymentName }}
     kind: Deployment
   triggers:
-    type: external
-    metadata:
-      scalerAddress: {{ .ScalerAddress }}
+    - type: external
+      metadata:
+        scalerAddress: {{ .ScalerAddress }}
