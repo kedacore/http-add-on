@@ -19,7 +19,7 @@ helm install xkcd ./charts/xkcd -n ${NAMESPACE}
 You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object points the To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```shell
-kubectl create -f -n $NAMESPACE examples/httpscaledobject.yaml
+kubectl create -f -n $NAMESPACE examples/v0.0.2/httpscaledobject.yaml
 ```
 
 >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/http_scaled_object.md).

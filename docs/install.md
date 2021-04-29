@@ -48,7 +48,7 @@ There are a few values that you can pass to the above `helm install` command by 
 - `images.interceptor` - the name of the interceptor's Docker image.
   - The default is `ghcr.io/kedacore/http-add-on-interceptor:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
   
-#### A Note for Developers and Local Cluster Users
+### A Note for Developers and Local Cluster Users
 
 Local clusters like [Microk8s](https://microk8s.io/) offer in-cluster image registries. These are popular tools to speed up and ease local development. If you use such a tool for local development, we recommend that you use and push your images to its local registry. When you do, you'll want to set your `images.*` variables to the address of the local registry. In the case of MicroK8s, that address is `localhost:32000` and the `helm install` command would look like the following:
 
@@ -59,3 +59,7 @@ helm install kedahttp ./charts/keda-http-operator \
     --set images.scaler=localhost:32000/keda-http-scaler \
     --set images.interceptor=localhost:32000/keda-http-interceptor
 ```
+
+## Next Steps
+
+Now that you're finished installing KEDA and the HTTP Add On, please proceed to the [walkthrough](./walkthrough.md) to test out your new installation.
