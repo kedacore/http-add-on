@@ -64,6 +64,9 @@ There are a few environment variables in the above command that you can set to c
 You might be working with a local development cluster like Microk8s, which offers a local, in-cluster registry. In this case, the previous `*_DOCKER_IMG` variables won't work for the Helm chart and you'll need to use a custom `helm` command such as the below:
 
 ```shell
+helm repo add kedacore https://kedacore.github.io/charts
+helm repo update
+helm pull kedacore/keda-add-ons-http --untar --untardir ./charts
 helm upgrade kedahttp ./charts/keda-add-ons-http \
     --install \
     --namespace ${NAMESPACE} \
