@@ -60,6 +60,7 @@ type ExternalScaler struct {
 func NewExternalScalerFromEnv() (*ExternalScaler, error) {
 	image, err := env.Get("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_IMAGE")
 	port := env.GetInt32Or("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT", 8091)
+	pullPolicy := env.GetOr("SCALER_PULL_POLICY", "Always")
 	if err != nil {
 		return nil, fmt.Errorf("Missing KEDAHTTP_EXTERNAL_SCALER_IMAGE")
 	}
