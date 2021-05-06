@@ -15,13 +15,13 @@ type Interceptor struct {
 	PullPolicy corev1.PullPolicy
 }
 
-func ensureValidPolicy (policy string) (corev1.PullPolicy, error) {
+func ensureValidPolicy (policy string) error {
 	converted := corev1.PullPolicy(policy)
 	switch (converted) {
 	case corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever:
-		return converted, nil
+		return nil
 	}
-	return nil, fmt.Errorf("Policy %q is not a valid Pull Policy. Accepted values are: %s, %s, %s", policy, corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever)
+	return fmt.Errorf("Policy %q is not a valid Pull Policy. Accepted values are: %s, %s, %s", policy, corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever)
 }
 
 // NewInterceptorFromEnv gets interceptor configuration values from environment variables and/or
@@ -34,8 +34,8 @@ func NewInterceptorFromEnv() (*Interceptor, error) {
 	}
 	adminPort := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_ADMIN_PORT", 8090)
 	proxyPort := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_PROXY_PORT", 8091)
-	pullPolicy, policyErr := ensureValidPolicy(env.GetOr("INTERCEPTOR_PULL_POLICY", "Always"))
-	if policyErr != nil {
+	pullPolicy := env.GetOr("INTERCEPTOR_PULL_POLICY", "Always")
+	if policyErr := ensureValidPolicy(pullPolicy); policyErr != nil {
 		return nil, policyErr
 	}
 
@@ -43,7 +43,7 @@ func NewInterceptorFromEnv() (*Interceptor, error) {
 		Image:     image,
 		AdminPort: adminPort,
 		ProxyPort: proxyPort,
-		PullPolicy: pullPolicy,
+		PullPolicy: corev1.PullPolicy(pullPolicy),
 	}, nil
 }
 
@@ -63,14 +63,14 @@ func NewExternalScalerFromEnv() (*ExternalScaler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Missing KEDAHTTP_EXTERNAL_SCALER_IMAGE")
 	}
-	pullPolicy, policyErr := ensureValidPolicy(env.GetOr("SCALER_PULL_POLICY", "Always"))
-	if policyErr != nil {
+	pullPolicy := env.GetOr("SCALER_PULL_POLICY", "Always")
+	if policyErr := ensureValidPolicy(pullPolicy); policyErr != nil {
 		return nil, policyErr
 	}
 
 	return &ExternalScaler{
 		Image: image,
 		Port:  port,
-		PullPolicy: pullPolicy,
+		PullPolicy: corev1.PullPolicy(pullPolicy),
 	}, nil
 }
