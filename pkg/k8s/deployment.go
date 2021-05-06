@@ -35,6 +35,7 @@ func NewDeployment(
 	ports []int32,
 	env []corev1.EnvVar,
 	labels map[string]string,
+	pullPolicy string,
 ) *appsv1.Deployment {
 	containerPorts := make([]corev1.ContainerPort, len(ports))
 	for i, port := range ports {
@@ -65,7 +66,7 @@ func NewDeployment(
 						{
 							Image:           image,
 							Name:            name,
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: corev1.PullPolicy(pullPolicy),
 							Ports:           containerPorts,
 							Env:             env,
 						},

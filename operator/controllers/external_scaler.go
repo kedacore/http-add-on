@@ -47,6 +47,7 @@ func createExternalScaler(
 			},
 		},
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
+		appInfo.ExternalScalerConfig.PullPolicy,
 	)
 	logger.Info("Creating external scaler Deployment", "Deployment", *scalerDeployment)
 	if err := cl.Create(ctx, scalerDeployment); err != nil {

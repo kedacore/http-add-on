@@ -25,6 +25,7 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 		nil,
 		nil,
 		make(map[string]string),
+		"Always",
 	)
 	fakeClientset := k8sfake.NewSimpleClientset(expectedDepl)
 	fakeApps := fakeClientset.AppsV1()
@@ -54,6 +55,7 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 		nil,
 		nil,
 		make(map[string]string),
+		"Always",
 	)
 	fakeClientset := k8sfake.NewSimpleClientset()
 	fakeDeployments := fakeClientset.AppsV1().Deployments(ns)
