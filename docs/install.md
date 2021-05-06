@@ -17,7 +17,7 @@ Before you install any of these components, you need to install KEDA. Below are 
 ```shell
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
-make helm-upgrade-keda
+helm install keda kedacore/keda --namespace ${NAMESPACE} --set watchNamespace=${NAMESPACE}
 ```
 
 >This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA must be installed in every namespace that you'd like to host KEDA-HTTP powered apps.
@@ -45,23 +45,23 @@ cd http-add-on
 Next, install the HTTP add on. The below command will install the add on if it doesn't already exist:
 
 ```shell
-make helm-upgrade-operator
+helm install kedahttp ./charts/keda-http-operator -n ${NAMESPACE}
 ```
 
 >Installing the HTTP add on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).
 
-There are a few environment variables in the above command that you can set to customize how it behaves:
+There are a few values that you can pass to the above `helm install` command by including `--set NAME=VALUE` on the command line.
 
-- `NAMESPACE` - which Kubernetes namespace to install KEDA-HTTP. This should be the same as where you installed KEDA itself (required)
-- `OPERATOR_DOCKER_IMG` - the name of the operator's Docker image (optional - falls back to the latest release)
-- `SCALER_DOCKER_IMG` - the name of the scaler's Docker image (optional - falls back to the latest release)
-- `INTERCEPTOR_DOCKER_IMG` - the name of the interceptor's Docker image (optional - falls back to the latest release)
+- `images.operator` - the name of the operator's Docker image.
+  - The default is `ghcr.io/kedacore/http-add-on-operator:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
+- `images.scaler` - the name of the scaler's Docker image.
+  - The default is The default is `ghcr.io/kedacore/http-add-on-scaler:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
+- `images.interceptor` - the name of the interceptor's Docker image.
+  - The default is `ghcr.io/kedacore/http-add-on-interceptor:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
 
->I recommend using [direnv](https://direnv.net/) to store your environment variables
+### A Note for Developers and Local Cluster Users
 
-### If You're Installing into a [Microk8s](https://microk8s.io) Cluster
-
-You might be working with a local development cluster like Microk8s, which offers a local, in-cluster registry. In this case, the previous `*_DOCKER_IMG` variables won't work for the Helm chart and you'll need to use a custom `helm` command such as the below:
+Local clusters like [Microk8s](https://microk8s.io/) offer in-cluster image registries. These are popular tools to speed up and ease local development. If you use such a tool for local development, we recommend that you use and push your images to its local registry. When you do, you'll want to set your `images.*` variables to the address of the local registry. In the case of MicroK8s, that address is `localhost:32000` and the `helm install` command would look like the following:
 
 ```shell
 helm repo add kedacore https://kedacore.github.io/charts
@@ -76,4 +76,6 @@ helm upgrade kedahttp ./charts/keda-add-ons-http \
     --set images.interceptor=localhost:32000/keda-http-interceptor
 ```
 
-In the above command, `localhost:32000` is the address of the registry from inside a Microk8s cluster.
+## Next Steps
+
+Now that you're finished installing KEDA and the HTTP Add On, please proceed to the [walkthrough](./walkthrough.md) to test out your new installation.

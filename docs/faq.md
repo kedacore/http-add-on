@@ -25,7 +25,7 @@ KNative serving and KEDA-HTTP both have core support for autoscaling, including 
 - Complex deployment strategies like [blue-green](https://knative.dev/docs/serving/samples/blue-green-deployment/)
 - Supporting other autoscaling mechanisms beyond the built-in [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), such as the [KNative Pod Autoscaler (KPA)](https://knative.dev/docs/serving/autoscaling/autoscaling-concepts/#knative-pod-autoscaler-kpa)
 
-Additionally, KNative requires a service mesh, while KEDA-HTTP does not out of the box (support for that is forthcoming).
+Additionally, KNative supports a service mesh, while KEDA-HTTP does not out of the box (support for that is forthcoming).
 
 ## How is this Project Similar or Different from [OpenFaaS](https://www.openfaas.com/)
 
