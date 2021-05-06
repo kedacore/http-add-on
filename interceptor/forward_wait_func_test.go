@@ -26,6 +26,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 			[]int32{123},
 			nil,
 			map[string]string{},
+			"Always",
 		),
 	})
 	waitFunc := newDeployReplicasForwardWaitFunc(
@@ -54,6 +55,7 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 		[]int32{123},
 		nil,
 		map[string]string{},
+		"Always",
 	)
 	deployment.Spec.Replicas = k8s.Int32P(0)
 	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
@@ -84,6 +86,7 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		[]int32{123},
 		nil,
 		map[string]string{},
+		"Always",
 	)
 	deployment.Spec.Replicas = k8s.Int32P(0)
 	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
