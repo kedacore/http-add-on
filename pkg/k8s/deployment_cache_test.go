@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -25,7 +26,7 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 		nil,
 		nil,
 		make(map[string]string),
-		"Always",
+		core.PullAlways,
 	)
 	fakeClientset := k8sfake.NewSimpleClientset(expectedDepl)
 	fakeApps := fakeClientset.AppsV1()
@@ -55,7 +56,7 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 		nil,
 		nil,
 		make(map[string]string),
-		"Always",
+		core.PullAlways,
 	)
 	fakeClientset := k8sfake.NewSimpleClientset()
 	fakeDeployments := fakeClientset.AppsV1().Deployments(ns)
