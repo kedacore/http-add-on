@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -26,6 +27,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 			[]int32{123},
 			nil,
 			map[string]string{},
+			corev1.PullAlways,
 		),
 	})
 	waitFunc := newDeployReplicasForwardWaitFunc(
@@ -54,6 +56,7 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 		[]int32{123},
 		nil,
 		map[string]string{},
+		corev1.PullAlways,
 	)
 	deployment.Spec.Replicas = k8s.Int32P(0)
 	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
@@ -83,6 +86,7 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		[]int32{123},
 		nil,
 		map[string]string{},
+		corev1.PullAlways,
 	)
 	deployment.Spec.Replicas = k8s.Int32P(0)
 	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
