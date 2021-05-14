@@ -62,6 +62,7 @@ func createInterceptor(
 		},
 		interceptorEnvs,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
+		appInfo.InterceptorConfig.PullPolicy,
 	)
 	logger.Info("Creating interceptor Deployment", "Deployment", *deployment)
 	if err := cl.Create(ctx, deployment); err != nil {

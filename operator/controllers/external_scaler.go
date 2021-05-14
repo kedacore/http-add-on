@@ -57,6 +57,7 @@ func createExternalScaler(
 			},
 		},
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
+		appInfo.ExternalScalerConfig.PullPolicy,
 	)
 	if err := k8s.AddLivenessProbe(
 		scalerDeployment,

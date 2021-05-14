@@ -5,10 +5,9 @@ on:
     tags: [ "v[0-9].[0-9].[0-9]" ]
 
 env:
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
-  IMAGE_OPERATOR_NAME: ${{ env.IMAGE_PREFIX }}/http-add-on-operator
-  IMAGE_INTERCEPTOR_NAME: ${{ env.IMAGE_PREFIX }}/http-add-on-interceptor
-  IMAGE_SCALER_NAME: ${{ env.IMAGE_PREFIX }}/http-add-on-scaler
+  IMAGE_OPERATOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-operator
+  IMAGE_INTERCEPTOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-interceptor
+  IMAGE_SCALER_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-scaler
 
 jobs:
   build_operator:
