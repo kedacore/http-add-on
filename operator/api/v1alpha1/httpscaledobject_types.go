@@ -115,6 +115,8 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Replica information
 	//+optional
 	Replicas ReplicaStruct `json:"replicas,omitempty"`
+	//(optional) Target metric value
+	TargetMetric int32 `json:"targetMetric,omitempty" description:"The target metric value for the HPA (Default 100)"`
 }
 
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to

@@ -6,10 +6,13 @@ package main
 
 import (
 	context "context"
+	"log"
 	"math/rand"
+	"strconv"
 	"time"
 
 	empty "github.com/golang/protobuf/ptypes/empty"
+	"github.com/kedacore/http-add-on/pkg/env"
 	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
 )
 
@@ -60,15 +63,30 @@ func (e *impl) StreamIsActive(
 	}
 }
 
+func getTargetMetric() int64 {
+	targetMetricStr, err := env.Get("KEDA_HTTP_SCALER_TARGET_METRIC")
+	if err != nil {
+		return 100
+	}
+	targetMetric, err := strconv.Atoi(targetMetricStr)
+	if err != nil {
+		log.Fatalf("Cannot convert target metric to integer")
+	}
+	return int64(targetMetric)
+}
+
 func (e *impl) GetMetricSpec(
 	_ context.Context,
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
+
+	targetMetricValue := getTargetMetric()
+
 	return &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{
 				MetricName: "queueSize",
-				TargetSize: 100,
+				TargetSize: targetMetricValue,
 			},
 		},
 	}, nil
