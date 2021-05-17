@@ -50,6 +50,8 @@ helm install kedahttp ./charts/keda-http-operator -n ${NAMESPACE}
 
 >Installing the HTTP add on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).
 
+### Customizing the Installation
+
 There are a few values that you can pass to the above `helm install` command by including `--set NAME=VALUE` on the command line.
 
 - `images.operator` - the name of the operator's Docker image.
