@@ -58,6 +58,13 @@ func main() {
 	}
 	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, deployName, 1*time.Second)
 
+	log.Printf(
+		"Interceptor started, forwarding to service %s:%s, watching deployment %s",
+		originCfg.AppServiceName,
+		originCfg.AppServicePort,
+		originCfg.TargetDeploymentName,
+	)
+
 	go runAdminServer(q, adminPort)
 
 	go runProxyServer(
@@ -89,7 +96,6 @@ func runProxyServer(
 	timeouts *config.Timeouts,
 	port int,
 ) {
-	proxyMux := nethttp.NewServeMux()
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
 	proxyHdl := newForwardingHandler(
@@ -99,9 +105,8 @@ func runProxyServer(
 		timeouts.DeploymentReplicas,
 		timeouts.ResponseHeader,
 	)
-	proxyMux.Handle("/*", countMiddleware(q, proxyHdl))
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	log.Printf("proxy server starting on %s", addr)
-	nethttp.ListenAndServe(addr, proxyMux)
+	nethttp.ListenAndServe(addr, countMiddleware(q, proxyHdl))
 }
