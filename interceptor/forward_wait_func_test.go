@@ -38,7 +38,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 
 	ctx, done := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer done()
-	group, ctx := errgroup.WithContext(ctx)
+	group, _ := errgroup.WithContext(ctx)
 	group.Go(waitFunc)
 	r.NoError(group.Wait())
 }
@@ -63,7 +63,6 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 		deployName: deployment,
 	})
 
-	const timeout = 200 * time.Millisecond
 	waitFunc := newDeployReplicasForwardWaitFunc(
 		cache,
 		deployName,
