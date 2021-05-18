@@ -216,16 +216,3 @@ func ensureSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) 
 		return true
 	}
 }
-
-// ensureNoSignalAfter returns false is signalCh receives before timeout, true otherwise.
-// it blocks for timeout at most
-func ensureNoSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) bool {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return true
-	case <-signalCh:
-		return false
-	}
-}
