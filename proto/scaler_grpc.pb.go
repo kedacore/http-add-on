@@ -229,5 +229,5 @@ var _ExternalScaler_serviceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "scaler/scaler.proto",
+	Metadata: "proto/scaler.proto",
 }
