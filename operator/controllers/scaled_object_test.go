@@ -16,6 +16,8 @@ import (
 
 var _ = Describe("UserApp", func() {
 	Context("Creating a ScaledObject", func() {
+		const externalScalerHostName = "mysvc.myns.svc.cluster.local:9090"
+
 		var testInfra *commonTestInfra
 		BeforeEach(func() {
 			testInfra = newCommonTestInfra("testns", "testapp")
@@ -26,6 +28,7 @@ var _ = Describe("UserApp", func() {
 				testInfra.cfg,
 				testInfra.cl,
 				testInfra.logger,
+				externalScalerHostName,
 				&testInfra.httpso,
 			)
 			Expect(err).To(BeNil())
