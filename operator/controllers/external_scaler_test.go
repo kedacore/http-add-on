@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
@@ -19,7 +20,7 @@ var _ = Describe("ExternalScaler", func() {
 			testInfra = newCommonTestInfra("testns", "testapp")
 		})
 		It("Should properly create the Deployment and Service", func() {
-			err := createExternalScaler(
+			scalerHostName, err := createExternalScaler(
 				testInfra.ctx,
 				testInfra.cfg,
 				testInfra.cl,
@@ -27,6 +28,13 @@ var _ = Describe("ExternalScaler", func() {
 				&testInfra.httpso,
 			)
 			Expect(err).To(BeNil())
+			cfg := testInfra.cfg
+			Expect(scalerHostName).To(Equal(fmt.Sprintf(
+				"%s.%s.svc.cluster.local:%d",
+				cfg.ExternalScalerServiceName(),
+				cfg.Namespace,
+				cfg.ExternalScalerConfig.Port,
+			)))
 
 			// // make sure that httpso has the right conditions on it
 			Expect(len(testInfra.httpso.Status.Conditions)).To(Equal(1))
@@ -45,6 +53,16 @@ var _ = Describe("ExternalScaler", func() {
 				Namespace: testInfra.cfg.Namespace,
 			}, deployment)
 			Expect(err).To(BeNil())
+			// check that the external scaler service deployment object has liveness
+			// and readiness probes set to the correct values
+			Expect(len(deployment.Spec.Template.Spec.Containers)).To(Equal(1))
+			container := deployment.Spec.Template.Spec.Containers[0]
+			Expect(container.LivenessProbe).To(Not(BeNil()))
+			Expect(container.LivenessProbe.Handler.HTTPGet).To(Not(BeNil()))
+			Expect(container.LivenessProbe.Handler.HTTPGet.Path).To(Equal("/livez"))
+			Expect(container.ReadinessProbe).To(Not(BeNil()))
+			Expect(container.ReadinessProbe.Handler.HTTPGet).To(Not(BeNil()))
+			Expect(container.ReadinessProbe.Handler.HTTPGet.Path).To(Equal("/healthz"))
 
 			// check that the external scaler service was created
 			service := new(corev1.Service)
@@ -53,7 +71,6 @@ var _ = Describe("ExternalScaler", func() {
 				Namespace: testInfra.cfg.Namespace,
 			}, service)
 			Expect(err).To(BeNil())
-
 		})
 	})
 
