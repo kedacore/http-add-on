@@ -5,6 +5,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  IMAGE_OPERATOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-operator
+  IMAGE_INTERCEPTOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-interceptor
+  IMAGE_SCALER_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-scaler
+
 jobs:
   build_operator:
 
@@ -28,7 +33,7 @@ jobs:
           # Username used to log in to a Docker registry. If not set then no login will occur
           username: ${{ github.repository_owner }}
           # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
-          password: ${{ secrets.GHCR_AUTH_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
 
@@ -37,7 +42,7 @@ jobs:
         with:
           # Docker repository to tag the image with
           tags: |
-            ${{ github.repository_owner }}/http-add-on-operator:canary,${{ github.repository_owner }}/http-add-on-operator:sha-${{ steps.prep.outputs.sha }}
+            ${{ env.IMAGE_OPERATOR_NAME }}:canary,${{ env.IMAGE_OPERATOR_NAME }}:sha-${{ steps.prep.outputs.sha }}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -76,7 +81,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          tags: ${{ github.repository_owner }}/http-add-on-interceptor:canary,${{ github.repository_owner }}/http-add-on-interceptor:sha-${{steps.prep.outputs.sha}}
+          tags: ${{ env.IMAGE_INTERCEPTOR_NAME }}:canary,${{ env.IMAGE_INTERCEPTOR_NAME }}:sha-${{steps.prep.outputs.sha}}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -106,7 +111,7 @@ jobs:
           # Username used to log in to a Docker registry. If not set then no login will occur
           username: ${{ github.repository_owner }}
           # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
-          password: ${{ secrets.GHCR_AUTH_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
 
@@ -114,7 +119,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          tags: ${{ github.repository_owner }}/http-add-on-scaler:canary,${{ github.repository_owner }}/http-add-on-scaler:sha-${{steps.prep.outputs.sha}}
+          tags: ${{ env.IMAGE_SCALER_NAME }}:canary,${{ env.IMAGE_SCALER_NAME }}:sha-${{steps.prep.outputs.sha}}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
