@@ -1,5 +1,0 @@
-version: v0.1.0-v1alpha1
-images:
-  operator: ghcr.io/kedacore/http-add-on-operator:latest
-  interceptor: ghcr.io/kedacore/http-add-on-interceptor:latest
-  scaler: ghcr.io/kedacore/http-add-on-scaler:latest
