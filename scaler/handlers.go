@@ -6,13 +6,10 @@ package main
 
 import (
 	context "context"
-	"log"
 	"math/rand"
-	"strconv"
 	"time"
 
 	empty "github.com/golang/protobuf/ptypes/empty"
-	"github.com/kedacore/http-add-on/pkg/env"
 	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
 )
 
@@ -21,12 +18,13 @@ func init() {
 }
 
 type impl struct {
-	pinger *queuePinger
+	pinger       *queuePinger
+	targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(pinger *queuePinger) *impl {
-	return &impl{pinger: pinger}
+func newImpl(pinger *queuePinger, targetMetric int64) *impl {
+	return &impl{pinger: pinger, targetMetric: targetMetric}
 }
 
 func (e *impl) Ping(context.Context, *empty.Empty) (*empty.Empty, error) {
@@ -63,25 +61,11 @@ func (e *impl) StreamIsActive(
 	}
 }
 
-func getTargetMetric() int64 {
-	targetMetricStr, err := env.Get("KEDA_HTTP_SCALER_TARGET_METRIC")
-	if err != nil {
-		return 100
-	}
-	targetMetric, err := strconv.Atoi(targetMetricStr)
-	if err != nil {
-		log.Fatalf("Cannot convert target metric to integer")
-	}
-	return int64(targetMetric)
-}
-
 func (e *impl) GetMetricSpec(
 	_ context.Context,
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
-
-	targetMetricValue := getTargetMetric()
-
+	targetMetricValue := e.targetMetric
 	return &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{

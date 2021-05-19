@@ -19,6 +19,8 @@ import (
 )
 
 func main() {
+	//The target metric value
+	targetMetric := env.GetInt64Or("KEDA_HTTP_SCALER_TARGET_METRIC", 100)
 	// The port to run this scaler server on
 	portStr, err := env.Get("KEDA_HTTP_SCALER_PORT")
 	if err != nil {
@@ -51,10 +53,10 @@ func main() {
 		targetPortStr,
 		time.NewTicker(500*time.Millisecond),
 	)
-	log.Fatal(startGrpcServer(portStr, pinger))
+	log.Fatal(startGrpcServer(portStr, pinger, targetMetric))
 }
 
-func startGrpcServer(port string, pinger *queuePinger) error {
+func startGrpcServer(port string, pinger *queuePinger, targetMetric int64) error {
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
 	log.Printf("Serving external scaler on %s", addr)
 	lis, err := net.Listen("tcp", addr)
@@ -62,7 +64,7 @@ func startGrpcServer(port string, pinger *queuePinger) error {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger))
+	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger, targetMetric))
 	reflection.Register(grpcServer)
 	return grpcServer.Serve(lis)
 }
