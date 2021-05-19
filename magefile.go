@@ -44,10 +44,10 @@ func (Scaler) Build(ctx context.Context) error {
 func (Scaler) Test(ctx context.Context) error {
 	fmt.Println("Running scaler tests")
 	testOutput, err := sh.Output("go", "test", "./scaler/...")
+	fmt.Println(testOutput)
 	if err != nil {
 		return err
 	}
-	fmt.Println(testOutput)
 
 	return nil
 }
@@ -317,17 +317,40 @@ func (Scaler) GenerateProto() error {
 	if err := sh.RunV(
 		"protoc",
 		"--go_out",
-		"scaler/gen/",
+		".",
 		"--go_opt",
 		"paths=source_relative",
 		"--go-grpc_out",
-		"scaler/gen/",
+		".",
 		"--go-grpc_opt",
 		"paths=source_relative",
-		"scaler/scaler.proto",
+		"proto/scaler.proto",
 	); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// Create a new example HTTPScaledObject
+func NewHTTPSO(ctx context.Context, namespace string) error {
+	return sh.RunWithV(
+		make(map[string]string),
+		"kubectl", "create", "-f", "examples/httpscaledobject.yaml", "-n", namespace,
+	)
+}
+
+func ShowHTTPSO(ctx context.Context, namespace string) error {
+	return sh.RunWithV(
+		make(map[string]string),
+		"kubectl", "get", "httpscaledobject", "-n", namespace,
+	)
+}
+
+// Delete the example HTTPScaledObject created from NewHTTPSO
+func DeleteHTTPSO(ctx context.Context, namespace string) error {
+	return sh.RunWithV(
+		make(map[string]string),
+		"kubectl", "delete", "httpscaledobject", "xkcd", "-n", namespace,
+	)
 }

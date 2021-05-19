@@ -10,7 +10,7 @@ import (
 	"time"
 
 	empty "github.com/golang/protobuf/ptypes/empty"
-	externalscaler "github.com/kedacore/http-add-on/scaler/gen/scaler"
+	externalscaler "github.com/kedacore/http-add-on/proto"
 )
 
 func init() {
