@@ -22,7 +22,7 @@ helm install keda kedacore/keda --namespace ${NAMESPACE} --set watchNamespace=${
 
 >This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA must be installed in every namespace that you'd like to host KEDA-HTTP powered apps.
 
-## Installing HTTP Components
+## Installing The HTTP Add On
 
 This repository comes with a Helm chart built in. To install the HTTP add on with sensible defaults, first check out this repository and `cd` into the root directory (if you haven't already):
 
@@ -39,6 +39,8 @@ helm install kedahttp ./charts/keda-http-operator -n ${NAMESPACE}
 
 >Installing the HTTP add on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).
 
+### Customizing the Installation
+
 There are a few values that you can pass to the above `helm install` command by including `--set NAME=VALUE` on the command line.
 
 - `images.operator` - the name of the operator's Docker image.
@@ -48,6 +50,19 @@ There are a few values that you can pass to the above `helm install` command by 
 - `images.interceptor` - the name of the interceptor's Docker image.
   - The default is `ghcr.io/kedacore/http-add-on-interceptor:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
   
+### Installing The Canary Version
+
+The above command installs the latest official [release](https://github.com/kedacore/http-add-on/releases) of the HTTP Add On. We also build unique images for every push to the `main` branch with the tag `canary`. If you'd like to install the HTTP Add On with those images, use the below command:
+
+```shell
+helm install kedahttp ./charts/keda-http-operator -n ${NAMESPACE} \
+  --set images.operator=ghcr.io/kedacore/http-add-on-operator:canary \
+  --set images.scaler=ghcr.io/kedacore/http-add-on-scalar:canary \
+  --set images.interceptor=ghcr.io/kedacore/http-add-on-interceptor:canary
+```
+
+>If you're trying out the add on for the first time, we recommend using the `latest` tag.
+
 ### A Note for Developers and Local Cluster Users
 
 Local clusters like [Microk8s](https://microk8s.io/) offer in-cluster image registries. These are popular tools to speed up and ease local development. If you use such a tool for local development, we recommend that you use and push your images to its local registry. When you do, you'll want to set your `images.*` variables to the address of the local registry. In the case of MicroK8s, that address is `localhost:32000` and the `helm install` command would look like the following:
