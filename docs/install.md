@@ -10,17 +10,15 @@ The HTTP Add On is highly modular and, as expected, builds on top of KEDA core. 
 
 ## Installing KEDA
 
-Before you install any of these components, you need to install KEDA. Below are simplified instructions for doing so with [Helm](https://helm.sh), but if you need anything more customized, please see the [official KEDA deployment documentation](https://keda.sh/docs/2.0/deploy/).
+Before you install any of these components, you need to install KEDA. Below are simplified instructions for doing so with [Helm](https://helm.sh), but if you need anything more customized, please see the [official KEDA deployment documentation](https://keda.sh/docs/2.0/deploy/). If you need to install Helm, refer to the [installation guide](https://helm.sh/docs/intro/install/).
 
->If you need to install Helm, refer to the [installation guide](https://helm.sh/docs/intro/install/)
+>This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA and the HTTP Addon provide scaling functionality to only one namespace per installation.
 
-```shell
+```console
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
 helm install keda kedacore/keda --namespace ${NAMESPACE} --set watchNamespace=${NAMESPACE}
 ```
-
->This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA must be installed in every namespace that you'd like to host KEDA-HTTP powered apps.
 
 ## Install via Helm Chart
 
@@ -29,23 +27,7 @@ This repository is within KEDA's default helm repository on [kedacore/charts](ht
 ```console
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
-
-helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace keda
-```
-
-## Installing HTTP Components
-
-This repository also comes with a Helm chart built in. To install the HTTP add on with sensible defaults, first check out this repository and `cd` into the root directory (if you haven't already):
-
-```shell
-git clone https://github.com/kedacore/http-add-on.git
-cd http-add-on
-```
-
-Next, install the HTTP add on. The below command will install the add on if it doesn't already exist:
-
-```shell
-helm install kedahttp ./charts/keda-http-operator -n ${NAMESPACE}
+helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE}
 ```
 
 >Installing the HTTP add on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).
@@ -60,6 +42,12 @@ There are a few values that you can pass to the above `helm install` command by 
   - The default is The default is `ghcr.io/kedacore/http-add-on-scaler:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
 - `images.interceptor` - the name of the interceptor's Docker image.
   - The default is `ghcr.io/kedacore/http-add-on-interceptor:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
+
+>If you want to install the latest build of the HTTP Add on, use the `:canary` tag for all of the above 3 images. The installation command to use `:canary` would look like the below:
+
+```console
+helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.operator=ghcr.io/kedacore/http-add-on-operator:canary --set images.scaler=ghcr.io/kedacore/http-add-on-scaler:canary --set images.interceptor=ghcr.io/kedacore/http-add-on-interceptor:canary
+```
 
 ### A Note for Developers and Local Cluster Users
 
