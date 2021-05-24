@@ -36,17 +36,15 @@ helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespa
 
 There are a few values that you can pass to the above `helm install` command by including `--set NAME=VALUE` on the command line.
 
-- `images.operator` - the name of the operator's Docker image.
-  - The default is `ghcr.io/kedacore/http-add-on-operator:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
-- `images.scaler` - the name of the scaler's Docker image.
-  - The default is The default is `ghcr.io/kedacore/http-add-on-scaler:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
-- `images.interceptor` - the name of the interceptor's Docker image.
-  - The default is `ghcr.io/kedacore/http-add-on-interceptor:latest`, which maps to the latest release at [github.com/kedacore/http-add-on/releases](https://github.com/kedacore/http-add-on/releases)
+- `images.operator` - the name of the operator's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-operator`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-operator).
+- `images.scaler` - the name of the scaler's Docker image, not including the tag.  Defaults to [`ghcr.io/kedacore/http-add-on-scaler`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-scaler).
+- `images.interceptor` - the name of the interceptor's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-interceptor`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-interceptor).
+- `version` - the tag to use for all the above docker images. Defaults to the [latest stable release](https://github.com/kedacore/http-add-on/releases).
 
->If you want to install the latest build of the HTTP Add on, use the `:canary` tag for all of the above 3 images. The installation command to use `:canary` would look like the below:
+>If you want to install the latest build of the HTTP Add on, set `version` to `canary`:
 
 ```console
-helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.operator=ghcr.io/kedacore/http-add-on-operator:canary --set images.scaler=ghcr.io/kedacore/http-add-on-scaler:canary --set images.interceptor=ghcr.io/kedacore/http-add-on-interceptor:canary
+helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set version=canary
 ```
 
 ### A Note for Developers and Local Cluster Users
