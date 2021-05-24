@@ -47,6 +47,8 @@ There are a few values that you can pass to the above `helm install` command by 
 helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set version=canary
 ```
 
+For an exhaustive list of configuration options, see the official HTTP Addon chart [values.yaml file](https://github.com/kedacore/charts/blob/master/http-add-on/values.yaml).
+
 ### A Note for Developers and Local Cluster Users
 
 Local clusters like [Microk8s](https://microk8s.io/) offer in-cluster image registries. These are popular tools to speed up and ease local development. If you use such a tool for local development, we recommend that you use and push your images to its local registry. When you do, you'll want to set your `images.*` variables to the address of the local registry. In the case of MicroK8s, that address is `localhost:32000` and the `helm install` command would look like the following:
