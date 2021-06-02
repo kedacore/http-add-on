@@ -6,11 +6,13 @@ If you haven't installed KEDA and the HTTP Add On (this project), please do so f
 
 ## Creating An Application
 
-You'll need to install a `Deployment` and `Service` first. You'll tell the add on to begin scaling it up and down after this step. Use this [Helm](https://helm.sh) command to create the resources you need:
+You'll need to install a `Deployment` and `Service` first. You'll tell the add on to begin scaling it up and down after this step. Use the below [Helm](https://helm.sh) command to create the resources you need.
 
 ```shell
-helm install xkcd ./charts/xkcd -n ${NAMESPACE}
+helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 ```
+
+You'll need to clone the repository to get access to this chart. If you have your own `Deployment` and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
 
 >To remove the app, run `helm delete xkcd -n ${NAMESPACE}`
 
