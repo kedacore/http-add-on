@@ -8,11 +8,13 @@ There are many areas we can use contributions - ranging from code, documentation
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Project governance](#project-governance)
-- [Including Documentation Changes](#including-documentation-changes)
-- [Developer Certificate of Origin: Signing your work](#developer-certificate-of-origin-signing-your-work)
-  - [Every commit needs to be signed](#every-commit-needs-to-be-signed)
-  - [I didn't sign my commit, now what?!](#i-didnt-sign-my-commit-now-what)
+- [Contributing to KEDA](#contributing-to-keda)
+  - [Project governance](#project-governance)
+  - [Including Documentation Changes](#including-documentation-changes)
+  - [Developer Certificate of Origin: Signing your work](#developer-certificate-of-origin-signing-your-work)
+    - [Every commit needs to be signed](#every-commit-needs-to-be-signed)
+    - [I didn't sign my commit, now what?!](#i-didnt-sign-my-commit-now-what)
+    - [Code of Conduct](#code-of-conduct)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -66,3 +68,7 @@ git add -A
 git commit -sm "one commit on <branch-name>"
 git push --force
 ```
+
+### Code of Conduct
+
+Everybody involved with this project needs to follow a [Code of Conduct](./CODE_OF_CONDUCT.md). Please take a moment to familiarize yourself with this document.
