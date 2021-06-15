@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net"
-	stdnet "net"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // DialContextFunc is a function that matches the (net).Dialer.DialContext functions's
 // signature
-type DialContextFunc func(ctx context.Context, network, addr string) (stdnet.Conn, error)
+type DialContextFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // DialContextWithRetry creates a new DialContextFunc --
 // which has the same signature as the net.Conn.DialContext function --
@@ -27,9 +27,14 @@ type DialContextFunc func(ctx context.Context, network, addr string) (stdnet.Con
 //
 // Thanks to KNative for inspiring this code. See GitHub link below
 // https://github.com/knative/serving/blob/20815258c92d0f26100031c71a91d0bef930a475/vendor/knative.dev/pkg/network/transports.go#L70
-func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialContextFunc {
+func DialContextWithRetry(
+	logger logr.Logger,
+	coreDialer *net.Dialer,
+	backoff wait.Backoff,
+) DialContextFunc {
+	logger = logger.WithName("pkg.net.DialContextWithRetry")
 	numDialTries := backoff.Steps
-	return func(ctx context.Context, network, addr string) (stdnet.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		// note that we could test for backoff.Steps >= 0 here, but every call to backoff.Step()
 		// (below) decrements the backoff.Steps value. If you accidentally call that function
 		// more than once inside the loop, you will reduce the number of times the loop
@@ -47,6 +52,12 @@ func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialCont
 			select {
 			case <-ctx.Done():
 				t.Stop()
+				logger.Error(
+					ctx.Err(),
+					"timeout dialing backend app",
+					"address",
+					addr,
+				)
 				return nil, fmt.Errorf("context timed out: %s", ctx.Err())
 			case <-t.C:
 				t.Stop()
@@ -58,7 +69,7 @@ func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialCont
 
 // NewNetDialer creates a new (net).Dialer with the given connection timeout and
 // keep alive duration.
-func NewNetDialer(connectTimeout, keepAlive time.Duration) *stdnet.Dialer {
+func NewNetDialer(connectTimeout, keepAlive time.Duration) *net.Dialer {
 	return &net.Dialer{
 		Timeout:   connectTimeout,
 		KeepAlive: keepAlive,

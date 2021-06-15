@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 )
@@ -12,15 +14,23 @@ import (
 type forwardWaitFunc func() error
 
 func newDeployReplicasForwardWaitFunc(
+	logger logr.Logger,
 	deployCache k8s.DeploymentCache,
 	deployName string,
 	totalWait time.Duration,
 ) forwardWaitFunc {
+	logger = logger.WithName("newDeployReplicasForwardWaitFunc")
 	return func() error {
 		deployment, err := deployCache.Get(deployName)
 		if err != nil {
 			// if we didn't get the initial deployment state, bail out
-			return fmt.Errorf("Error getting state for deployment %s (%s)", deployName, err)
+			logger.Error(
+				err,
+				"getting deployment cache",
+				"deploymentName",
+				deployName,
+			)
+			return fmt.Errorf("getting state for deployment %s (%s)", deployName, err)
 		}
 		// if there is 1 or more replica, we're done waiting
 		if moreThanPtr(deployment.Spec.Replicas, 0) {
@@ -29,7 +39,11 @@ func newDeployReplicasForwardWaitFunc(
 
 		watcher := deployCache.Watch(deployName)
 		if err != nil {
-			return fmt.Errorf("Error getting the stream of deployment changes")
+			logger.Error(
+				err,
+				"getting stream of deployment changes",
+			)
+			return fmt.Errorf("getting the stream of deployment changes")
 		}
 		defer watcher.Stop()
 		eventCh := watcher.ResultChan()
@@ -51,7 +65,16 @@ func newDeployReplicasForwardWaitFunc(
 				}
 			case <-timer.C:
 				// otherwise, if we hit the end of the timeout, fail
-				return fmt.Errorf("Timeout expired waiting for deployment %s to reach > 0 replicas", deployName)
+				logger.Error(
+					errors.New("timeout"),
+					"waiting for deploument to reach > 0 replicas",
+					"deploymentName",
+					deployName,
+				)
+				return fmt.Errorf(
+					"timeout expired waiting for deployment %s to reach > 0 replicas",
+					deployName,
+				)
 			}
 		}
 	}

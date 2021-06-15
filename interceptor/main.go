@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	nethttp "net/http"
+	"os"
 
 	"net/url"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -17,6 +18,7 @@ import (
 	echo "github.com/labstack/echo/v4"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2/klogr"
 )
 
 func init() {
@@ -24,6 +26,7 @@ func init() {
 }
 
 func main() {
+	logger := klogr.New()
 	timeoutCfg := config.MustParseTimeouts()
 	originCfg := config.MustParseOrigin()
 	servingCfg := config.MustParseServing()
@@ -35,18 +38,21 @@ func main() {
 	adminPort := servingCfg.AdminPort
 	svcURL, err := originCfg.ServiceURL()
 	if err != nil {
-		log.Fatalf("Invalid origin service URL: %s", err)
+		logger.Error(err, "Invalid origin service URL")
+		os.Exit(1)
 	}
 
 	q := http.NewMemoryQueue()
 
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		log.Fatalf("Kubernetes client config not found (%s)", err)
+		logger.Error(err, "Finding Kubernetes config in cluster")
+		os.Exit(1)
 	}
 	cl, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error creating new Kubernetes ClientSet (%s)", err)
+		logger.Error(err, "creating new Kubernetes client")
+		os.Exit(1)
 	}
 	deployInterface := cl.AppsV1().Deployments(ns)
 	deployCache, err := k8s.NewK8sDeploymentCache(
@@ -54,20 +60,30 @@ func main() {
 		deployInterface,
 	)
 	if err != nil {
-		log.Fatalf("Error creating new deployment cache (%s)", err)
+		logger.Error(err, "creating new deployment cache")
+		os.Exit(1)
 	}
-	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, deployName, 1*time.Second)
+	waitFunc := newDeployReplicasForwardWaitFunc(
+		logger,
+		deployCache,
+		deployName,
+		1*time.Second,
+	)
 
-	log.Printf(
-		"Interceptor started, forwarding to service %s:%s, watching deployment %s",
+	logger.Info(
+		"Interceptor Starting",
+		"appServiceName",
 		originCfg.AppServiceName,
+		"appServicePort",
 		originCfg.AppServicePort,
+		"targetDeploymentName",
 		originCfg.TargetDeploymentName,
 	)
 
-	go runAdminServer(q, adminPort)
+	go runAdminServer(logger, q, adminPort)
 
 	go runProxyServer(
+		logger,
 		q,
 		deployName,
 		waitFunc,
@@ -79,16 +95,26 @@ func main() {
 	select {}
 }
 
-func runAdminServer(q http.QueueCountReader, port int) {
+func runAdminServer(
+	logger logr.Logger,
+	q http.QueueCountReader,
+	port int,
+) {
+	logger = logger.WithName("runAdminServer")
 	adminServer := echo.New()
 	adminServer.GET("/queue", newQueueSizeHandler(q))
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	log.Printf("admin server running on %s", addr)
-	log.Fatal(adminServer.Start(addr))
+	logger.Info(
+		"starting admin server",
+		"address",
+		addr,
+	)
+	logger.Error(adminServer.Start(addr), "running admin server")
 }
 
 func runProxyServer(
+	logger logr.Logger,
 	q http.QueueCounter,
 	targetDeployName string,
 	waitFunc forwardWaitFunc,
@@ -96,9 +122,15 @@ func runProxyServer(
 	timeouts *config.Timeouts,
 	port int,
 ) {
+	logger = logger.WithName("runProxyServer")
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
-	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
+	dialContextFunc := kedanet.DialContextWithRetry(
+		logger,
+		dialer,
+		timeouts.DefaultBackoff(),
+	)
 	proxyHdl := newForwardingHandler(
+		logger,
 		svcURL,
 		dialContextFunc,
 		waitFunc,
@@ -107,6 +139,9 @@ func runProxyServer(
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	log.Printf("proxy server starting on %s", addr)
-	nethttp.ListenAndServe(addr, countMiddleware(q, proxyHdl))
+	logger.Info("proxy server starting", "address", addr)
+	logger.Error(
+		nethttp.ListenAndServe(addr, countMiddleware(q, proxyHdl)),
+		"running proxy server",
+	)
 }
