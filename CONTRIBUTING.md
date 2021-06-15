@@ -1,18 +1,30 @@
 # Contributing to KEDA
 
-Thanks for helping make KEDA better 😍.
+Thanks for helping make KEDA and the HTTP Addon better 😍.
 
-There are many areas we can use contributions - ranging from code, documentation, feature proposals, issue triage, samples, and content creation.
+There are many areas to which you can contribute to this project, including:
+
+- Code
+- Documentation
+- Feature proposals
+- Issue triage
+- Pull request reviews
+- Samples
+- Documentation
+
+This document outlines the process you should follow to contribute to this project. If you are contributing code, please also see [docs/developing.md](./docs/developing.md) for technical details on getting your development environment set up.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of contents**
+## Table of contents**
 
-- [Project governance](#project-governance)
-- [Including Documentation Changes](#including-documentation-changes)
-- [Developer Certificate of Origin: Signing your work](#developer-certificate-of-origin-signing-your-work)
-  - [Every commit needs to be signed](#every-commit-needs-to-be-signed)
-  - [I didn't sign my commit, now what?!](#i-didnt-sign-my-commit-now-what)
+- [Contributing to KEDA](#contributing-to-keda)
+  - [Table of contents**](#table-of-contents)
+  - [Project governance](#project-governance)
+  - [Including Documentation Changes](#including-documentation-changes)
+  - [Developer Certificate of Origin: Signing your work](#developer-certificate-of-origin-signing-your-work)
+    - [Every commit needs to be signed](#every-commit-needs-to-be-signed)
+    - [I didn't sign my commit, now what?!](#i-didnt-sign-my-commit-now-what)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -29,7 +41,8 @@ For any contribution you make that impacts the behavior or experience of KEDA, p
 ### Every commit needs to be signed
 
 The Developer Certificate of Origin (DCO) is a lightweight way for contributors to certify that they wrote or otherwise have the right to submit the code they are contributing to the project. Here is the full text of the DCO, reformatted for readability:
-```
+
+```shell
 By making a contribution to this project, I certify that:
 
     (a) The contribution was created in whole or in part by me and I have the right to submit it under the open source license indicated in the file; or
@@ -43,13 +56,15 @@ By making a contribution to this project, I certify that:
 
 Contributors sign-off that they adhere to these requirements by adding a `Signed-off-by` line to commit messages.
 
-```
+```shell
 This is my commit message
 
 Signed-off-by: Random J Developer <random@developer.example.org>
 ```
+
 Git even has a `-s` command line option to append this automatically to your commit message:
-```
+
+```shell
 $ git commit -s -m 'This is my commit message'
 ```
 
@@ -59,7 +74,7 @@ Each Pull Request is checked  whether or not commits in a Pull Request do contai
 
 No worries - You can easily replay your changes, sign them and force push them!
 
-```
+```shell
 git checkout <branch-name>
 git reset $(git merge-base main <branch-name>)
 git add -A
