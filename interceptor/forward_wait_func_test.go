@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -31,6 +32,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 		),
 	})
 	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
 		cache,
 		deployName,
 		1*time.Second,
@@ -64,6 +66,7 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 	})
 
 	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
 		cache,
 		deployName,
 		1*time.Second,
@@ -92,7 +95,12 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
 		deployName: deployment,
 	})
-	waitFunc := newDeployReplicasForwardWaitFunc(cache, deployName, totalWaitDur)
+	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
+		cache,
+		deployName,
+		totalWaitDur,
+	)
 	// this channel will be closed immediately after the replicas were increased
 	replicasIncreasedCh := make(chan struct{})
 	go func() {

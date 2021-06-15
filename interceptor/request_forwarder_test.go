@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,11 @@ func retryDialContextFunc(
 	backoff wait.Backoff,
 ) kedanet.DialContextFunc {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
-	return kedanet.DialContextWithRetry(dialer, backoff)
+	return kedanet.DialContextWithRetry(
+		logr.Discard(),
+		dialer,
+		backoff,
+	)
 }
 
 func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {

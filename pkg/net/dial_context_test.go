@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -27,7 +28,7 @@ func TestDialContextWithRetry(t *testing.T) {
 
 	ctx := context.Background()
 	dialer := NewNetDialer(connTimeout, keepAlive)
-	dRetry := DialContextWithRetry(dialer, backoff)
+	dRetry := DialContextWithRetry(logr.Discard(), dialer, backoff)
 	minTotalWaitDur := MinTotalBackoffDuration(backoff)
 
 	start := time.Now()

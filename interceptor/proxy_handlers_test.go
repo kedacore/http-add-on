@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
 )
@@ -28,6 +29,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		return nil
 	}
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		originURL,
 		dialCtxFunc,
 		waitFunc,
@@ -57,6 +59,7 @@ func TestWaitFailedConnection(t *testing.T) {
 	noSuchURL, err := url.Parse("http://localhost:60002")
 	r.NoError(err)
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
@@ -92,6 +95,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	noSuchURL, err := url.Parse("http://localhost:60002")
 	r.NoError(err)
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
@@ -138,6 +142,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	noSuchURL, err := url.Parse("http://localhost:60002")
 	r.NoError(err)
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
@@ -188,6 +193,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		return nil
 	}
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		originURL,
 		dialCtxFunc,
 		waitFunc,
