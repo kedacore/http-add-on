@@ -4,6 +4,8 @@ Thanks for helping make KEDA better 😍.
 
 There are many areas we can use contributions - ranging from code, documentation, feature proposals, issue triage, samples, and content creation.
 
+This document details high-level guidance for contributing to this repository. For specific technical guidance on contributing, please see [docs/contributing.md](./docs/contributing.md).
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
@@ -71,4 +73,6 @@ git push --force
 
 ### Code of Conduct
 
-Everybody involved with this project needs to follow a [Code of Conduct](./CODE_OF_CONDUCT.md). Please take a moment to familiarize yourself with this document.
+This project has a [Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md), which everybody involved must follow. Please take a moment to familiarize yourself with this document.
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to a project maintainer.

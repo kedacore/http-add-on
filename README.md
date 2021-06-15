@@ -51,3 +51,9 @@ Please see the [contributing documentation for all instructions](./docs/contribu
 ---
 We are a Cloud Native Computing Foundation (CNCF) sandbox project.
 <p align="center"><img src="https://raw.githubusercontent.com/kedacore/keda/main/images/logo-cncf.svg" height="75px"></p>
+
+## Code of Conduct
+
+This project has a [Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md), which everybody involved must follow. Please take a moment to familiarize yourself with this document.
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to a project maintainer.
