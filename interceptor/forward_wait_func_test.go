@@ -32,7 +32,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 		),
 	})
 	waitFunc := newDeployReplicasForwardWaitFunc(
-		logr.Discard(),
+		logr.DiscardLogger{},
 		cache,
 		deployName,
 		1*time.Second,
