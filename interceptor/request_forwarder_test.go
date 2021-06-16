@@ -34,7 +34,7 @@ func retryDialContextFunc(
 ) kedanet.DialContextFunc {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	return kedanet.DialContextWithRetry(
-		logr.Discard(),
+		logr.DiscardLogger{},
 		dialer,
 		backoff,
 	)
@@ -108,9 +108,22 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	})
 	srv, originURL, err := kedanet.StartTestServer(hdl)
 	r.NoError(err)
-	defer srv.Close()
+	defer func() {
+		// close the channel before the server, so that the server
+		// isn't waiting for a response when we try to shut it down
+		close(originWaitCh)
+		srv.Close()
+	}()
 
-	timeouts := defaultTimeouts()
+	// const originDelay = 500 * time.Millisecond
+	timeouts := config.Timeouts{
+		Connect:   500 * time.Millisecond,
+		KeepAlive: 2 * time.Second,
+		// the handler is going to take 500 milliseconds to respond, so make the
+		// forwarder wait much longer than that
+		ResponseHeader: 1 * time.Millisecond, //originDelay * 4,
+	}
+
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
@@ -125,9 +138,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	forwardedRequests := hdl.IncomingRequests()
 	r.Equal(0, len(forwardedRequests))
 	r.Equal(502, res.Code)
-	r.Contains(res.Body.String(), "Error on backend")
-	// the proxy has bailed out, so tell the origin to stop
-	close(originWaitCh)
+	r.Contains(res.Body.String(), "error on backend")
 }
 
 // Test to ensure that the request forwarder waits for an origin that is slow
@@ -223,5 +234,5 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 		"unexpected code (response body was '%s')",
 		res.Body.String(),
 	)
-	r.Contains(res.Body.String(), "Error on backend")
+	r.Contains(res.Body.String(), "error on backend")
 }

@@ -28,7 +28,7 @@ func TestDialContextWithRetry(t *testing.T) {
 
 	ctx := context.Background()
 	dialer := NewNetDialer(connTimeout, keepAlive)
-	dRetry := DialContextWithRetry(logr.Discard(), dialer, backoff)
+	dRetry := DialContextWithRetry(logr.DiscardLogger{}, dialer, backoff)
 	minTotalWaitDur := MinTotalBackoffDuration(backoff)
 
 	start := time.Now()

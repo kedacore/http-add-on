@@ -59,7 +59,7 @@ func TestWaitFailedConnection(t *testing.T) {
 	noSuchURL, err := url.Parse("http://localhost:60002")
 	r.NoError(err)
 	hdl := newForwardingHandler(
-		logr.Discard(),
+		logr.DiscardLogger{},
 		noSuchURL,
 		dialCtxFunc,
 		waitFunc,
