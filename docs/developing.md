@@ -1,6 +1,6 @@
-# Contributing
+# Developing
 
-In this file you'll find all the references needed for you to start contributing with the HTTP Add-on project.
+In this file you'll find all the references needed for you to start contributing code to the HTTP Add-on project.
 
 ## Getting started
 
