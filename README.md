@@ -46,7 +46,9 @@ Please see the [complete installation instructions](./docs/install.md).
 
 ## Contributing
 
-Please see the [contributing documentation for all instructions](./docs/contributing.md).
+This project follows the KEDA contributing guidelines, which are outlined in [CONTRIBUTING.md](https://github.com/kedacore/.github/blob/main/CONTRIBUTING.md).
+
+If you would like to contribute code to this project, please see [docs/developing.md](./docs/developing.md).
 
 ---
 We are a Cloud Native Computing Foundation (CNCF) sandbox project.
