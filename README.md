@@ -54,6 +54,4 @@ We are a Cloud Native Computing Foundation (CNCF) sandbox project.
 
 ## Code of Conduct
 
-This project has a [Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md), which everybody involved must follow. Please take a moment to familiarize yourself with this document.
-
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to a project maintainer.
+Please refer to the organization-wide [Code of Conduct document](https://github.com/kedacore/.github/blob/main/CODE_OF_CONDUCT.md).
