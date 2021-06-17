@@ -5,28 +5,14 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"time"
-
-	kedanet "github.com/kedacore/http-add-on/pkg/net"
 )
 
 func forwardRequest(
 	w http.ResponseWriter,
 	r *http.Request,
-	dialCtxFunc kedanet.DialContextFunc,
-	respHeaderTimeout time.Duration,
+	roundTripper http.RoundTripper,
 	fwdSvcURL *url.URL,
 ) {
-	roundTripper := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           dialCtxFunc,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		ResponseHeaderTimeout: respHeaderTimeout,
-	}
 	proxy := httputil.NewSingleHostReverseProxy(fwdSvcURL)
 	proxy.Transport = roundTripper
 	proxy.Director = func(req *http.Request) {
