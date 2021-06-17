@@ -53,3 +53,7 @@ If you would like to contribute code to this project, please see [docs/developin
 ---
 We are a Cloud Native Computing Foundation (CNCF) sandbox project.
 <p align="center"><img src="https://raw.githubusercontent.com/kedacore/keda/main/images/logo-cncf.svg" height="75px"></p>
+
+## Code of Conduct
+
+Please refer to the organization-wide [Code of Conduct document](https://github.com/kedacore/.github/blob/main/CODE_OF_CONDUCT.md).
