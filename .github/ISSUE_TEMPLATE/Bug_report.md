@@ -8,9 +8,7 @@ A clear and concise description of what the bug is.
 
 ## Expected Behavior
 
-
 ## Actual Behavior
-
 
 ## Steps to Reproduce the Problem
 
@@ -20,7 +18,7 @@ A clear and concise description of what the bug is.
 
 ## Specifications
 
-  - **KEDA Version:** *Please elaborate*
-  - **Platform & Version:** *Please elaborate*
-  - **Kubernetes Version:** *Please elaborate*
-  - **Scaler(s):** *Please elaborate*
+- **KEDA Version:** *Please elaborate*
+- **KEDA HTTP Add-on Version:** *Please elaborate*
+- **Platform & Version:** *Please elaborate*
+- **Kubernetes Version:** *Please elaborate*
