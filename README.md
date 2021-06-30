@@ -7,7 +7,7 @@ The KEDA HTTP Add On allows Kubernetes users to automatically scale their HTTP s
 
 | 🚧 **Project status: beta** 🚧|
 |---------------------------------------------|
-| ⚠ The HTTP add-on currently is in [beta](https://github.com/kedacore/http-add-on/releases/tag/0.1.0). We can't yet recommend it for production usage because we are still developing and testing it. It may have "rough edges" including missing documentation, bugs and other issues. It is currently provided as-is without support.
+| ⚠ The HTTP add-on currently is in [beta](https://github.com/kedacore/http-add-on/releases/tag/v0.1.0). We can't yet recommend it for production usage because we are still developing and testing it. It may have "rough edges" including missing documentation, bugs and other issues. It is currently provided as-is without support.
 
 ## HTTP Autoscaling Made Simple
 
