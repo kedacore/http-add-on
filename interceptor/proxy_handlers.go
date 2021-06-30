@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/go-logr/logr"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"golang.org/x/sync/errgroup"
 )
@@ -23,12 +23,14 @@ func moreThanPtr(i *int32, target int32) bool {
 // fwdSvcURL must have a valid scheme in it. The best way to do this is
 // create a URL with url.Parse("https://...")
 func newForwardingHandler(
+	logger logr.Logger,
 	fwdSvcURL *url.URL,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
 	waitTimeout time.Duration,
 	respTimeout time.Duration,
 ) http.Handler {
+	logger = logger.WithName("newForwardingHandler")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
 		defer done()
@@ -36,7 +38,7 @@ func newForwardingHandler(
 		grp.Go(waitFunc)
 		waitErr := grp.Wait()
 		if waitErr != nil {
-			log.Printf("Error, not forwarding request")
+			logger.Error(waitErr, "Returning 502 to client")
 			w.WriteHeader(502)
 			w.Write([]byte(fmt.Sprintf("error on backend (%s)", waitErr)))
 			return
