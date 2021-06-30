@@ -2,7 +2,9 @@
 
 After you've installed KEDA and the HTTP Add On (this project, we'll call it the "add on" for short), this document will show you how to get started with an example app.
 
-If you haven't installed KEDA and the HTTP Add On (this project), please do so first. Follow instructions [install.md](./install.md) to complete your installation. Before you continue, make sure that you have your `NAMESPACE` environment variable set to the same value as it was when you installed.
+If you haven't installed KEDA and the HTTP Add On (this project), please do so first. Follow instructions [install.md](./install.md) to complete your installation.
+
+>Before you continue, make sure that you have your `NAMESPACE` environment variable set to the same value as it was when you installed.
 
 ## Creating An Application
 
@@ -31,7 +33,7 @@ kubectl create -f -n $NAMESPACE examples/v0.0.2/httpscaledobject.yaml
 You've now installed a web application and activated autoscaling by creating an `HTTPScaledObject` for it. For autoscaling to work properly, HTTP traffic needs to route through the `Service` that the add on has set up. You can use `kubectl port-forward` to quickly test things out:
 
 ```shell
-k port-forward svc/xkcd-interceptor-proxy -n ${NAMESPACE} 8080:80
+kubectl port-forward svc/xkcd-interceptor-proxy -n ${NAMESPACE} 8080:80
 ```
 
 ### Routing to the Right `Service`
