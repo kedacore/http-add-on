@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	nethttp "net/http"
+	"net/url"
 	"time"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
@@ -14,7 +15,6 @@ import (
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	echo "github.com/labstack/echo/v4"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -56,24 +56,30 @@ func main() {
 	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, 1*time.Second)
 	routingTable := routing.NewTable()
 
+	operatorRoutingFetchURL, err := operatorCfg.RoutingFetchURL()
+	if err != nil {
+		log.Fatal("error getting the operator URL ", err)
+	}
+
 	log.Printf("Interceptor starting")
 
 	errGrp, ctx := errgroup.WithContext(ctx)
 	errGrp.Go(func() error {
-		return runAdminServer(q, adminPort)
+		return runAdminServer(
+			operatorRoutingFetchURL,
+			q,
+			routingTable,
+			adminPort,
+		)
 	})
 	errGrp.Go(func() error {
-		operatorURL, err := operatorCfg.OperatorURL()
-		if err != nil {
-			return errors.Wrap(err, "getting operator URL")
-		}
 		log.Printf(
 			"routing table update loop starting for operator URL %v",
-			*operatorURL,
+			*operatorRoutingFetchURL,
 		)
 		return routing.StartUpdateLoop(
 			ctx,
-			operatorURL,
+			operatorRoutingFetchURL,
 			routingTable,
 		)
 	})
@@ -91,9 +97,21 @@ func main() {
 	log.Fatal(errGrp.Wait())
 }
 
-func runAdminServer(q http.QueueCountReader, port int) error {
+func runAdminServer(
+	routingFetchURL *url.URL,
+	q http.QueueCountReader,
+	routingTable *routing.Table,
+	port int,
+) error {
 	adminServer := echo.New()
-	adminServer.GET("/queue", newQueueSizeHandler(q))
+	adminServer.GET(
+		"/queue",
+		newQueueSizeHandler(q),
+	)
+	adminServer.GET(
+		"/routing_ping",
+		newRoutingPingHandler(routingFetchURL, routingTable),
+	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	log.Printf("admin server running on %s", addr)

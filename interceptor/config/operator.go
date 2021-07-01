@@ -10,16 +10,18 @@ import (
 // Operator is the configuration for where and how the interceptor
 // makes RPC calls to the operator
 type Operator struct {
-	OperatorServiceName string `envconfig:"KEDA_HTTP_OPERATOR_SERVICE_NAME" required:"true"`
-	OperatorServicePort string `envconfig:"KEDA_HTTP_OPERATOR_SERVICE_PORT" required:"true"`
+	OperatorServiceName      string `envconfig:"KEDA_HTTP_OPERATOR_SERVICE_NAME" required:"true"`
+	OperatorServicePort      string `envconfig:"KEDA_HTTP_OPERATOR_SERVICE_PORT" required:"true"`
+	OperatorRoutingTablePath string `envconfig:"KEDA_HTTP_OPERATOR_ROUTING_TABLE_PATH" default:"routing"`
 }
 
 // ServiceURL formats the app service name and port into a URL
-func (o *Operator) OperatorURL() (*url.URL, error) {
+func (o *Operator) RoutingFetchURL() (*url.URL, error) {
 	urlStr := fmt.Sprintf(
-		"http://%s:%s",
+		"http://%s:%s/%s",
 		o.OperatorServiceName,
 		o.OperatorServicePort,
+		o.OperatorRoutingTablePath,
 	)
 	u, err := url.Parse(urlStr)
 	if err != nil {

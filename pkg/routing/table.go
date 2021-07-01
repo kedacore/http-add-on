@@ -89,6 +89,8 @@ func (t *Table) AddTarget(
 	return nil
 }
 
+// RemoveTarget removes host, if it exists, and its corresponding Target entry in
+// the routing table. If it does not exist, returns a non-nil error
 func (t *Table) RemoveTarget(host string) error {
 	t.l.Lock()
 	defer t.l.Unlock()
@@ -98,4 +100,15 @@ func (t *Table) RemoveTarget(host string) error {
 	}
 	delete(t.m, host)
 	return nil
+}
+
+// Replace replaces t's routing table with newTable's.
+//
+// This function is concurrency safe for t, but not for newTable.
+// The caller must ensure that no other goroutine is writing to
+// newTable at the time at which they call this function.
+func (t *Table) Replace(newTable *Table) {
+	t.l.Lock()
+	defer t.l.Unlock()
+	t.m = newTable.m
 }
