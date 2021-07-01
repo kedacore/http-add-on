@@ -19,7 +19,7 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 
 	const ns = "testns"
 	const name = "testdepl"
-	expectedDepl := NewDeployment(
+	expectedDepl := newDeployment(
 		ns,
 		name,
 		"testimg",
@@ -49,7 +49,7 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 
 	const ns = "testns"
 	const name = "testdepl"
-	expectedDepl := NewDeployment(
+	expectedDepl := newDeployment(
 		ns,
 		name,
 		"testimg",

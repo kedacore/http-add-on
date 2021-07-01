@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -37,6 +39,25 @@ func NewTable() *Table {
 	}
 }
 
+func (t *Table) MarshalJSON() ([]byte, error) {
+	t.l.RLock()
+	defer t.l.RUnlock()
+	var b bytes.Buffer
+	err := json.NewEncoder(&b).Encode(t.m)
+	if err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func (t *Table) UnmarshalJSON(data []byte) error {
+	t.l.Lock()
+	defer t.l.Unlock()
+	t.m = map[string]Target{}
+	b := bytes.NewBuffer(data)
+	return json.NewDecoder(b).Decode(&t.m)
+}
+
 func (t *Table) Lookup(host string) (Target, error) {
 	t.l.RLock()
 	defer t.l.RUnlock()
@@ -45,4 +66,36 @@ func (t *Table) Lookup(host string) (Target, error) {
 		return Target{}, ErrTargetNotFound
 	}
 	return ret, nil
+}
+
+// AddTarget registers target for host in the routing table t
+// if it didn't already exist.
+//
+// returns a non-nil error if it did already exist
+func (t *Table) AddTarget(
+	host string,
+	target Target,
+) error {
+	t.l.Lock()
+	defer t.l.Unlock()
+	_, ok := t.m[host]
+	if ok {
+		return fmt.Errorf(
+			"host %s is already registered in the routing table",
+			host,
+		)
+	}
+	t.m[host] = target
+	return nil
+}
+
+func (t *Table) RemoveTarget(host string) error {
+	t.l.Lock()
+	defer t.l.Unlock()
+	_, ok := t.m[host]
+	if !ok {
+		return fmt.Errorf("host %s did not exist in the routing table", host)
+	}
+	delete(t.m, host)
+	return nil
 }

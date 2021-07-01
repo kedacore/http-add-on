@@ -33,6 +33,15 @@ func (a AppInfo) ExternalScalerDeploymentName() string {
 	return fmt.Sprintf("%s-external-scaler", a.Name)
 }
 
+func (a AppInfo) ExternalScalerHostName() string {
+	return fmt.Sprintf(
+		"%s.%s.svc.cluster.local:%d",
+		a.ExternalScalerServiceName(),
+		a.Namespace,
+		a.ExternalScalerConfig.Port,
+	)
+}
+
 // InterceptorAdminServiceName is a convenience method to get the name of the interceptor
 // service for the admin endpoints in Kubernetes
 func (a AppInfo) InterceptorAdminServiceName() string {

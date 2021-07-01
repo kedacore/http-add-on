@@ -12,8 +12,6 @@ import (
 type Operator struct {
 	OperatorServiceName string `envconfig:"KEDA_HTTP_OPERATOR_SERVICE_NAME" required:"true"`
 	OperatorServicePort string `envconfig:"KEDA_HTTP_OPERATOR_SERVICE_PORT" required:"true"`
-	// Namespace is the namespace that this interceptor is running in
-	Namespace string `envconfig:"KEDA_HTTP_NAMESPACE" required:"true"`
 }
 
 // ServiceURL formats the app service name and port into a URL
