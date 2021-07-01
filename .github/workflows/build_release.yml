@@ -21,6 +21,11 @@ jobs:
         id: prep
         run: |
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      
+      - name: Get the version
+        id: get_version
+        run: |
+          echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v1
@@ -39,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          tags: ${{ env.IMAGE_OPERATOR_NAME }}:latest,${{ env.IMAGE_OPERATOR_NAME }}:${GITHUB_REF#refs/tags/v}
+          tags: ${{ env.IMAGE_OPERATOR_NAME }}:latest,${{ env.IMAGE_OPERATOR_NAME }}:${{ steps.get_version.outputs.VERSION }}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -78,7 +83,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          tags: ${{ env.IMAGE_INTERCEPTOR_NAME }}:latest,${{ env.IMAGE_INTERCEPTOR_NAME }}:${GITHUB_REF#refs/tags/v}
+          tags: ${{ env.IMAGE_INTERCEPTOR_NAME }}:latest,${{ env.IMAGE_INTERCEPTOR_NAME }}:${{ steps.get_version.outputs.VERSION }}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
@@ -116,7 +121,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          tags: ${{ env.IMAGE_SCALER_NAME }}:latest,${{ env.IMAGE_SCALER_NAME }}:${GITHUB_REF#refs/tags/v}
+          tags: ${{ env.IMAGE_SCALER_NAME }}:latest,${{ env.IMAGE_SCALER_NAME }}:${{ steps.get_version.outputs.VERSION }}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
