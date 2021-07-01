@@ -33,11 +33,9 @@ var _ = Describe("UserApp", func() {
 			)
 			Expect(err).To(BeNil())
 
-			// make sure that httpso has the right conditions on it:
-			//
-			// - AppScaledObjectCreated
-			// - InterceptorScaledObjectCreated
-			Expect(len(testInfra.httpso.Status.Conditions)).To(Equal(2))
+			// make sure that httpso has the AppScaledObjectCreated
+			// condition on it
+			Expect(len(testInfra.httpso.Status.Conditions)).To(Equal(1))
 
 			cond1 := testInfra.httpso.Status.Conditions[0]
 			cond1ts, err := time.Parse(time.RFC3339, cond1.Timestamp)
@@ -46,14 +44,6 @@ var _ = Describe("UserApp", func() {
 			Expect(cond1.Type).To(Equal(v1alpha1.Created))
 			Expect(cond1.Status).To(Equal(metav1.ConditionTrue))
 			Expect(cond1.Reason).To(Equal(v1alpha1.AppScaledObjectCreated))
-
-			cond2 := testInfra.httpso.Status.Conditions[1]
-			cond2ts, err := time.Parse(time.RFC3339, cond2.Timestamp)
-			Expect(err).To(BeNil())
-			Expect(time.Since(cond2ts) >= 0).To(BeTrue())
-			Expect(cond2.Type).To(Equal(v1alpha1.Created))
-			Expect(cond2.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond2.Reason).To(Equal(v1alpha1.InterceptorScaledObjectCreated))
 
 			// check that the app ScaledObject was created
 			u := &unstructured.Unstructured{}
@@ -75,22 +65,6 @@ var _ = Describe("UserApp", func() {
 			Expect(metadata["name"]).To(Equal(config.AppScaledObjectName(&testInfra.httpso)))
 
 			spec, err := getKeyAsMap(u.Object, "spec")
-			Expect(err).To(BeNil())
-			Expect(spec["minReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Min))
-			Expect(spec["maxReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Max))
-
-			// check that the interceptor ScaledObject was created
-
-			objectKey.Name = config.InterceptorScaledObjectName(&testInfra.httpso)
-			err = testInfra.cl.Get(testInfra.ctx, objectKey, u)
-			Expect(err).To(BeNil())
-
-			metadata, err = getKeyAsMap(u.Object, "metadata")
-			Expect(err).To(BeNil())
-			Expect(metadata["namespace"]).To(Equal(testInfra.ns))
-			Expect(metadata["name"]).To(Equal(config.InterceptorScaledObjectName(&testInfra.httpso)))
-
-			spec, err = getKeyAsMap(u.Object, "spec")
 			Expect(err).To(BeNil())
 			Expect(spec["minReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Min))
 			Expect(spec["maxReplicaCount"]).To(BeNumerically("==", testInfra.httpso.Spec.Replicas.Max))

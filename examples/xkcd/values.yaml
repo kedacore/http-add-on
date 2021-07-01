@@ -1,5 +1,5 @@
 replicaCount: 1
-
+host: myhost.com
 image:
   repository: arschles/xkcd
   pullPolicy: Always
@@ -38,7 +38,7 @@ service:
 
 autoscaling:
   http:
-    minReplicas: 5
+    minReplicas: 0
     maxReplicas: 10
 
 ingress:

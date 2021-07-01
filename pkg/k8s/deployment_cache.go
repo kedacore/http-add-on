@@ -57,7 +57,12 @@ func NewK8sDeploymentCache(
 			evt := <-ch
 			ret.broadcaster.Action(evt.Type, evt.Object)
 			ret.rwm.Lock()
-			depl := evt.Object.(*appsv1.Deployment)
+			depl, ok := evt.Object.(*appsv1.Deployment)
+			// if we didn't get back a deployment in the event,
+			// something is wrong that we can't fix, so just continue
+			if !ok {
+				continue
+			}
 			ret.latestEvts[depl.GetObjectMeta().GetName()] = evt
 			ret.rwm.Unlock()
 		}

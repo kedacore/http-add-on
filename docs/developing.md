@@ -72,4 +72,89 @@ Some of the above commands require several environment variables to be set. You 
 - `KEDAHTTP_OPERATOR_IMAGE`: the fully qualified name of the [operator](../operator) image. This is used to build, push, and install the operator into a Kubernetes cluster (required)
 - `KEDAHTTP_NAMESPACE`: the Kubernetes namespace to which to install the add on and other required components (optional, defaults to `kedahttp`)
 
->Suffic any `*_IMAGE` variable with `<keda-git-sha>` and the build system will automatically replace it with `sha-$(git rev-parse --short HEAD)`
+>Suffix any `*_IMAGE` variable with `<keda-git-sha>` and the build system will automatically replace it with `sha-$(git rev-parse --short HEAD)`
+
+## Helpful Tips
+
+The below tips assist with debugging, introspecting, or observing the current state of a running HTTP addon installation. They involve making network requests to cluster-internal (i.e. `ClusterIP` `Service`s). 
+
+There are generally two ways to communicate with these services.
+
+### Use `kubectl proxy`
+
+`kubectl proxy` establishes an authenticated connection to the Kubernetes API server, runs a local web server, and lets you execute REST API requests against `localhost` as if you were executing them against the Kubernetes API server.
+
+To establish one, run the following command in a separate terminal window:
+
+```shell
+kubectl proxy -p 9898
+```
+
+>You'll keep this proxy running throughout all of your testing, so make sure you keep this terminal window open.
+
+### Use a dedicated running pod
+
+The second way to communicate with these services is almost the opposite as the previous. Instead of bringing the API server to you with `kubectl proxy`, you'll be creating an execution environment closer to the API server.
+
+First, launch a container with an interactive shell in Kubernetes with the following command (substituting your namespace in for `$NAMESPACE`):
+
+```shell
+kubectl run -it alpine --image=alpine -n $NAMESPACE
+```
+
+Then, when you see a `curl` command below, replace the entire path up to and including the `/proxy/` segment with just the name of the service and its port. For example, `curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/routing_ping` would just become `curl -L keda-add-ons-http-interceptor-admin:9090/routing_ping`
+
+### Routing Table - Interceptor
+
+Any interceptor pod has both a _proxy_ and _admin_ server running inside it. The proxy server is where users send HTTP requests to, and the admin server is for internal use. You can use this server to
+
+1. Prompt the interceptor to re-fetch the routing table from the interceptor, or
+2. Print out the interceptor's current routing table (useful for debugging)
+
+Assuming you've run `kubectl proxy` in a separate terminal window, prompt for a re-fetch with the below command (substitute `${NAMESPACE}` for your appropriate namespace):
+
+Then, to prompt for a re-fetch (in a separate terminal shell):
+
+```shell
+curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/routing_ping
+```
+
+>To print out the current routing table without a re-fetch, replace `routing_ping` with `routing_table`
+
+### Queue Counts - Interceptor
+
+You can use the same interceptor port forward that you established in the previous section to fetch the HTTP pending queue counts table. This is the same table that the external scaler requests. See the "Queue Counts - Scaler" section below for more details on that.
+
+To fetch the queue counts from an interceptor, ensure you've established a `kubectl proxy` on port 9898 and use the below `curl` command (again, substituting your preferred namespace for `$NAMESPACE`):
+
+```shell
+curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/queue
+```
+
+### Routing Table - Operator
+
+The operator pod (whose name looks like `keda-add-ons-http-controller-manager-1234567`) has a similar `/routing_table` endpoint as the interceptor. That data returned from this endpoint, however, is the source of truth. Interceptors fetch their copies of the routing table from this endpoint. Accessing data from this endpoint is similar.
+
+Ensure that you are running `kubectl proxy -p 9898` and then, in a separate terminal window, fetch the routing table from the operator with this `curl` command (again, substitute your namespace in for `${NAMESPACE}`):
+
+```shell
+curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-operator-admin:9090/proxy/routing_table
+```
+
+### Queue Counts - Scaler
+
+The external scaler fetches pending queue counts from each interceptor in the system, aggregates and stores them, and then returns them to KEDA when requested. KEDA fetches these data via the [standard gRPC external scaler interface](https://keda.sh/docs/2.3/concepts/external-scalers/#external-scaler-grpc-interface).
+
+For convenience, the scaler also provides a plain HTTP server from which you can also fetch these metrics. 
+
+Ensure that you are running `kubectl proxy -p 9898` and then, in a separate terminal window, fetch the routing table from the operator with this `curl` command (again, substitute your namespace in for `${NAMESPACE}`):
+
+```shell
+curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-external-scaler:9091/proxy/queue
+```
+
+Or, you can prompt the scaler to fetch counts from all interceptors, aggregate, store, and return counts:
+
+```shell
+curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-external-scaler:9091/proxy/queue_ping
+```

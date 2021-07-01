@@ -13,10 +13,23 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
+// Note for Mac M1 users building Docker images:
+// If you want to build images for Linux (like, for example, an
+// AKS/GKE/EKS, DOKS cluster), you need to use docker's buildx driver
+// to do so. This would be the command to build the interceptor for
+// 64 Bit Amd and ARM platforms on Linux, for example:
+//
+//	docker buildx build --platform linux/amd64,linux/arm64 --push -t testingkeda.azurecr.io/interceptor:testing -f interceptor/Dockerfile .
+//
+// See
+// https://blog.jaimyn.dev/how-to-build-multi-architecture-docker-images-on-an-m1-mac/
+// for more details.
+
 // Global consts
 const (
 	DEFAULT_NAMESPACE string = "kedahttp"
 
+	ACR_REGISTRY_NAME         = "KEDAHTTP_ACR_REGISTRY"
 	SCALER_IMAGE_ENV_VAR      = "KEDAHTTP_SCALER_IMAGE"
 	INTERCEPTOR_IMAGE_ENV_VAR = "KEDAHTTP_INTERCEPTOR_IMAGE"
 	OPERATOR_IMAGE_ENV_VAR    = "KEDAHTTP_OPERATOR_IMAGE"
@@ -58,6 +71,27 @@ func (Scaler) DockerBuild(ctx context.Context) error {
 		return err
 	}
 	return build.DockerBuild(img, "scaler/Dockerfile", ".")
+}
+
+// Build the scaler docker image using ACR tasks.
+//
+// This command reads the value of the following environment variables:
+//
+// - KEDAHTTP_ACR_REGISTRY - for the value of the --registry flag
+// - KEDAHTTP_SCALER_IMAGE -- for the value of the --image flag
+//
+// it returns an error if either of the env vars are not set or they are and
+// the build fails.
+func (Scaler) DockerBuildACR(ctx context.Context) error {
+	registry, err := env.Get(ACR_REGISTRY_NAME)
+	if err != nil {
+		return err
+	}
+	image, err := build.GetImageName(SCALER_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerBuildACR(registry, image, "scaler/Dockerfile", ".")
 }
 
 func (Scaler) DockerPush(ctx context.Context) error {
@@ -103,6 +137,27 @@ func (Operator) DockerBuild(ctx context.Context) error {
 	return build.DockerBuild(img, "operator/Dockerfile", ".")
 }
 
+// Build the operator docker image using ACR tasks.
+//
+// This command reads the value of the following environment variables:
+//
+// - KEDAHTTP_ACR_REGISTRY - for the value of the --registry flag
+// - KEDAHTTP_INTERCEPTOR_IMAGE -- for the value of the --image flag
+//
+// it returns an error if either of the env vars are not set or they are and
+// the build fails.
+func (Operator) DockerBuildACR(ctx context.Context) error {
+	registry, err := env.Get(ACR_REGISTRY_NAME)
+	if err != nil {
+		return err
+	}
+	image, err := build.GetImageName(OPERATOR_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerBuildACR(registry, image, "operator/Dockerfile", ".")
+}
+
 func (Operator) DockerPush(ctx context.Context) error {
 	image, err := build.GetImageName(OPERATOR_IMAGE_ENV_VAR)
 	if err != nil {
@@ -138,15 +193,36 @@ func (Interceptor) Test(ctx context.Context) error {
 	return nil
 }
 
-// Build the interceptor docker image. This command reads the value of the
-// KEDAHTTP_INTERCEPTOR_IMAGE environment variable to get the interceptor image
-// name. It fails otherwise
+// DockerBuild builds the interceptor docker image. It looks for the
+// KEDAHTTP_INTERCEPTOR_IMAGE environment variable and builds the image with
+// that as the name
 func (Interceptor) DockerBuild(ctx context.Context) error {
 	image, err := build.GetImageName(INTERCEPTOR_IMAGE_ENV_VAR)
 	if err != nil {
 		return err
 	}
 	return build.DockerBuild(image, "interceptor/Dockerfile", ".")
+}
+
+// Build the interceptor docker image using ACR tasks.
+//
+// This command reads the value of the following environment variables:
+//
+// - KEDAHTTP_ACR_REGISTRY - for the value of the --registry flag
+// - KEDAHTTP_INTERCEPTOR_IMAGE -- for the value of the --image flag
+//
+// it returns an error if either of the env vars are not set or they are and
+// the build fails.
+func (Interceptor) DockerBuildACR(ctx context.Context) error {
+	registry, err := env.Get(ACR_REGISTRY_NAME)
+	if err != nil {
+		return err
+	}
+	image, err := build.GetImageName(INTERCEPTOR_IMAGE_ENV_VAR)
+	if err != nil {
+		return err
+	}
+	return build.DockerBuildACR(registry, image, "interceptor/Dockerfile", ".")
 }
 
 func (Interceptor) DockerPush(ctx context.Context) error {
@@ -178,10 +254,18 @@ func Test() error {
 
 // --- Docker --- //
 
-// Builds a docker image specified by the name argument with the repository prefix
+// DockerBuild builds the operator, scaler and interceptor images in parallel
 func DockerBuild(ctx context.Context) error {
 	scaler, operator, interceptor := Scaler{}, Interceptor{}, Operator{}
 	mg.Deps(scaler.DockerBuild, operator.DockerBuild, interceptor.DockerBuild)
+	return nil
+}
+
+// DockerBuildACR builds the operator, scaler and interceptor images in parallel,
+// all using ACR tasks
+func DockerBuildACR(ctx context.Context) error {
+	scaler, operator, interceptor := Scaler{}, Interceptor{}, Operator{}
+	mg.Deps(scaler.DockerBuildACR, operator.DockerBuildACR, interceptor.DockerBuildACR)
 	return nil
 }
 
@@ -291,6 +375,27 @@ func DeleteKeda(ctx context.Context) error {
 	return nil
 }
 
+func InstallXKCD(ctx context.Context) error {
+	namespace, err := env.Get(NAMESPACE_ENV_VAR)
+	if err != nil {
+		namespace = DEFAULT_NAMESPACE
+	}
+	if err := sh.RunV(
+		"helm",
+		"upgrade",
+		"xkcd",
+		"./examples/xkcd",
+		"--install",
+		"--namespace",
+		namespace,
+		"--create-namespace",
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // --- Operator tasks --- //
 
 // Generates the operator
@@ -353,4 +458,8 @@ func DeleteHTTPSO(ctx context.Context, namespace string) error {
 		make(map[string]string),
 		"kubectl", "delete", "httpscaledobject", "xkcd", "-n", namespace,
 	)
+}
+
+func TestE2E(ctx context.Context) error {
+	return sh.RunV("go", "test", "-test.v", "./e2e...")
 }

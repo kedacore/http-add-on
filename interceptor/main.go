@@ -3,18 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	nethttp "net/http"
-
-	"net/url"
+	"os"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
-	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
-	echo "github.com/labstack/echo/v4"
+	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/kedacore/http-add-on/pkg/routing"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -24,82 +25,165 @@ func init() {
 }
 
 func main() {
+	lggr, err := pkglog.NewZapr()
+	if err != nil {
+		fmt.Println("Error building logger", err)
+		os.Exit(1)
+	}
 	timeoutCfg := config.MustParseTimeouts()
-	originCfg := config.MustParseOrigin()
 	servingCfg := config.MustParseServing()
 	ctx := context.Background()
 
-	deployName := originCfg.TargetDeploymentName
-	ns := originCfg.Namespace
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
-	svcURL, err := originCfg.ServiceURL()
-	if err != nil {
-		log.Fatalf("Invalid origin service URL: %s", err)
-	}
-
-	q := http.NewMemoryQueue()
 
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		log.Fatalf("Kubernetes client config not found (%s)", err)
+		lggr.Error(err, "Kubernetes client config not found")
+		os.Exit(1)
 	}
 	cl, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error creating new Kubernetes ClientSet (%s)", err)
+		lggr.Error(err, "creating new Kubernetes ClientSet")
+		os.Exit(1)
 	}
-	deployInterface := cl.AppsV1().Deployments(ns)
+	deployInterface := cl.AppsV1().Deployments(
+		servingCfg.CurrentNamespace,
+	)
 	deployCache, err := k8s.NewK8sDeploymentCache(
 		ctx,
 		deployInterface,
 	)
 	if err != nil {
-		log.Fatalf("Error creating new deployment cache (%s)", err)
+		lggr.Error(err, "creating new deployment cache")
+		os.Exit(1)
 	}
-	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, deployName, 1*time.Second)
 
-	log.Printf(
-		"Interceptor started, forwarding to service %s:%s, watching deployment %s",
-		originCfg.AppServiceName,
-		originCfg.AppServicePort,
-		originCfg.TargetDeploymentName,
+	configMapsInterface := cl.CoreV1().ConfigMaps(servingCfg.CurrentNamespace)
+
+	waitFunc := newDeployReplicasForwardWaitFunc(deployCache)
+
+	lggr.Info("Interceptor starting")
+
+	q := queue.NewMemory()
+	routingTable := routing.NewTable()
+
+	lggr.Info(
+		"Fetching initial routing table",
 	)
-
-	go runAdminServer(q, adminPort)
-
-	go runProxyServer(
+	if err := routing.GetTable(
+		ctx,
+		lggr,
+		configMapsInterface,
+		routingTable,
 		q,
-		deployName,
-		waitFunc,
-		svcURL,
-		timeoutCfg,
-		proxyPort,
-	)
+	); err != nil {
+		lggr.Error(err, "fetching routing table")
+		os.Exit(1)
+	}
 
-	select {}
+	errGrp, ctx := errgroup.WithContext(ctx)
+
+	// start the update loop that updates the routing table from
+	// the ConfigMap that the operator updates as HTTPScaledObjects
+	// enter and exit the system
+	errGrp.Go(func() error {
+		return routing.StartConfigMapRoutingTableUpdater(
+			ctx,
+			lggr,
+			time.Duration(servingCfg.RoutingTableUpdateDurationMS)*time.Millisecond,
+			configMapsInterface,
+			routingTable,
+			q,
+		)
+	})
+
+	// start the administrative server. this is the server
+	// that serves the queue size API
+	errGrp.Go(func() error {
+		lggr.Info(
+			"starting the admin server",
+			"port",
+			adminPort,
+		)
+		return runAdminServer(
+			lggr,
+			configMapsInterface,
+			q,
+			routingTable,
+			adminPort,
+		)
+	})
+
+	errGrp.Go(func() error {
+		lggr.Info(
+			"starting the proxy server",
+			"port",
+			proxyPort,
+		)
+		return runProxyServer(
+			lggr,
+			q,
+			waitFunc,
+			routingTable,
+			timeoutCfg,
+			proxyPort,
+		)
+	})
+
+	// errGrp.Wait() should hang forever for healthy admin and proxy servers.
+	// if it returns an error, log and exit immediately.
+	waitErr := errGrp.Wait()
+	lggr.Error(waitErr, "error with interceptor")
+	os.Exit(1)
 }
 
-func runAdminServer(q http.QueueCountReader, port int) {
-	adminServer := echo.New()
-	adminServer.GET("/queue", newQueueSizeHandler(q))
+func runAdminServer(
+	lggr logr.Logger,
+	cmGetter k8s.ConfigMapGetter,
+	q queue.Counter,
+	routingTable *routing.Table,
+	port int,
+) error {
+	lggr = lggr.WithName("runAdminServer")
+	adminServer := nethttp.NewServeMux()
+	queue.AddCountsRoute(
+		lggr,
+		adminServer,
+		q,
+	)
+	routing.AddFetchRoute(
+		lggr,
+		adminServer,
+		routingTable,
+	)
+	routing.AddPingRoute(
+		lggr,
+		adminServer,
+		cmGetter,
+		routingTable,
+		q,
+	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	log.Printf("admin server running on %s", addr)
-	log.Fatal(adminServer.Start(addr))
+	lggr.Info("admin server starting", "address", addr)
+	return nethttp.ListenAndServe(addr, adminServer)
 }
 
 func runProxyServer(
-	q http.QueueCounter,
-	targetDeployName string,
+	lggr logr.Logger,
+	q queue.Counter,
 	waitFunc forwardWaitFunc,
-	svcURL *url.URL,
+	routingTable *routing.Table,
 	timeouts *config.Timeouts,
 	port int,
-) {
+) error {
+	lggr = lggr.WithName("runProxyServer")
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
 	proxyHdl := newForwardingHandler(
-		svcURL,
+		lggr,
+		routingTable,
 		dialContextFunc,
 		waitFunc,
 		timeouts.DeploymentReplicas,
@@ -107,6 +191,6 @@ func runProxyServer(
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	log.Printf("proxy server starting on %s", addr)
-	nethttp.ListenAndServe(addr, countMiddleware(q, proxyHdl))
+	lggr.Info("proxy server starting", "address", addr)
+	return nethttp.ListenAndServe(addr, countMiddleware(lggr, q, proxyHdl))
 }

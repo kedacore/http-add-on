@@ -17,6 +17,8 @@ type config struct {
 	// TargetPort is the port on TargetService to which to issue metrics RPC requests to
 	// interceptors
 	TargetPort int `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_PORT" required:"true"`
+
+	TargetPendingRequests int `envconfig:"KEDA_HTTP_SCALER_TARGET_PENDING_REQUESTS" default:"100"`
 }
 
 func mustParseConfig() *config {

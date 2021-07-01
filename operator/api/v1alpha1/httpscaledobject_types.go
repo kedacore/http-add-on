@@ -26,38 +26,17 @@ import (
 type HTTPScaledObjectCreationStatus string
 
 // HTTPScaledObjectConditionReason describes the reason why the condition transitioned
-// +kubebuilder:validation:Enum=ErrorCreatingExternalScaler;ErrorCreatingExternalScalerService;CreatedExternalScaler;ErrorCreatingInterceptorScaledObject;ErrorCreatingAppScaledObject;AppScaledObjectCreated;InterceptorScaledObjectCreated;ErrorCreatingInterceptor;ErrorCreatingInterceptorAdminService;ErrorCreatingInterceptorProxyService;InterceptorCreated;TerminatingResources;InterceptorDeploymentTerminated;InterceptorDeploymentTerminationError;InterceptorAdminServiceTerminationError;InterceptorAdminServiceTerminated;InterceptorProxyServiceTerminationError;InterceptorProxyServiceTerminated;ExternalScalerDeploymentTerminationError;ExternalScalerDeploymentTerminated;ExternalScalerServiceTerminationError;ExternalScalerServiceTerminated;InterceptorScaledObjectTerminated;AppScaledObjectTerminated;AppScaledObjectTerminationError;InterceptorScaledObjectTerminationError;PendingCreation;HTTPScaledObjectIsReady;
+// +kubebuilder:validation:Enum=ErrorCreatingAppScaledObject;AppScaledObjectCreated;TerminatingResources;AppScaledObjectTerminated;AppScaledObjectTerminationError;PendingCreation;HTTPScaledObjectIsReady;
 type HTTPScaledObjectConditionReason string
 
 const (
-	ErrorCreatingExternalScaler              HTTPScaledObjectConditionReason = "ErrorCreatingExternalScaler"
-	ErrorCreatingExternalScalerService       HTTPScaledObjectConditionReason = "ErrorCreatingExternalScalerService"
-	CreatedExternalScaler                    HTTPScaledObjectConditionReason = "CreatedExternalScaler"
-	ErrorCreatingInterceptorScaledObject     HTTPScaledObjectConditionReason = "ErrorCreatingInterceptorScaledObject"
-	ErrorCreatingAppScaledObject             HTTPScaledObjectConditionReason = "ErrorCreatingAppScaledObject"
-	AppScaledObjectCreated                   HTTPScaledObjectConditionReason = "AppScaledObjectCreated"
-	InterceptorScaledObjectCreated           HTTPScaledObjectConditionReason = "InterceptorScaledObjectCreated"
-	ErrorCreatingInterceptor                 HTTPScaledObjectConditionReason = "ErrorCreatingInterceptor"
-	ErrorCreatingInterceptorAdminService     HTTPScaledObjectConditionReason = "ErrorCreatingInterceptorAdminService"
-	ErrorCreatingInterceptorProxyService     HTTPScaledObjectConditionReason = "ErrorCreatingInterceptorProxyService"
-	InterceptorCreated                       HTTPScaledObjectConditionReason = "InterceptorCreated"
-	TerminatingResources                     HTTPScaledObjectConditionReason = "TerminatingResources"
-	InterceptorDeploymentTerminated          HTTPScaledObjectConditionReason = "InterceptorDeploymentTerminated"
-	InterceptorDeploymentTerminationError    HTTPScaledObjectConditionReason = "InterceptorDeploymentTerminationError"
-	InterceptorAdminServiceTerminationError  HTTPScaledObjectConditionReason = "InterceptorAdminServiceTerminationError"
-	InterceptorAdminServiceTerminated        HTTPScaledObjectConditionReason = "InterceptorAdminServiceTerminated"
-	InterceptorProxyServiceTerminationError  HTTPScaledObjectConditionReason = "InterceptorProxyServiceTerminationError"
-	InterceptorProxyServiceTerminated        HTTPScaledObjectConditionReason = "InterceptorProxyServiceTerminated"
-	ExternalScalerDeploymentTerminationError HTTPScaledObjectConditionReason = "ExternalScalerDeploymentTerminationError"
-	ExternalScalerDeploymentTerminated       HTTPScaledObjectConditionReason = "ExternalScalerDeploymentTerminated"
-	ExternalScalerServiceTerminationError    HTTPScaledObjectConditionReason = "ExternalScalerServiceTerminationError"
-	ExternalScalerServiceTerminated          HTTPScaledObjectConditionReason = "ExternalScalerServiceTerminated"
-	InterceptorScaledObjectTerminated        HTTPScaledObjectConditionReason = "InterceptorScaledObjectTerminated"
-	AppScaledObjectTerminated                HTTPScaledObjectConditionReason = "AppScaledObjectTerminated"
-	AppScaledObjectTerminationError          HTTPScaledObjectConditionReason = "AppScaledObjectTerminationError"
-	InterceptorScaledObjectTerminationError  HTTPScaledObjectConditionReason = "InterceptorScaledObjectTerminationError"
-	PendingCreation                          HTTPScaledObjectConditionReason = "PendingCreation"
-	HTTPScaledObjectIsReady                  HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
+	ErrorCreatingAppScaledObject    HTTPScaledObjectConditionReason = "ErrorCreatingAppScaledObject"
+	AppScaledObjectCreated          HTTPScaledObjectConditionReason = "AppScaledObjectCreated"
+	TerminatingResources            HTTPScaledObjectConditionReason = "TerminatingResources"
+	AppScaledObjectTerminated       HTTPScaledObjectConditionReason = "AppScaledObjectTerminated"
+	AppScaledObjectTerminationError HTTPScaledObjectConditionReason = "AppScaledObjectTerminationError"
+	PendingCreation                 HTTPScaledObjectConditionReason = "PendingCreation"
+	HTTPScaledObjectIsReady         HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
 )
 
 const (
@@ -109,12 +88,18 @@ type ReplicaStruct struct {
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
+	// The host to route. All requests with this host in the "Host"
+	// header will be routed to the Service and Port specified
+	// in the scaleTargetRef
+	Host string `json:"host"`
 	// The name of the deployment to route HTTP requests to (and to autoscale). Either this
 	// or Image must be set
 	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`
 	// (optional) Replica information
 	//+optional
 	Replicas ReplicaStruct `json:"replicas,omitempty"`
+	//(optional) Target metric value
+	TargetPendingRequests int32 `json:"targetPendingRequests,omitempty" description:"The target metric value for the HPA (Default 100)"`
 }
 
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to
