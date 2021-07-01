@@ -24,8 +24,8 @@ func TestQueueSizeHandlerSuccess(t *testing.T) {
 	decodeErr := json.NewDecoder(rec.Body).Decode(&respMap)
 	r.NoError(decodeErr)
 	r.Equalf(1, len(respMap), "response JSON length was not 1")
-	sizeVal, ok := respMap["current_size"]
-	r.Truef(ok, "'current_size' entry not available in return JSON")
+	sizeVal, ok := respMap["sample.com"]
+	r.Truef(ok, "'sample.com' entry not available in return JSON")
 	r.Equalf(reader.current, sizeVal, "returned JSON queue size was wrong")
 	reader.err = errors.New("test error")
 	r.Error(handler(echoCtx))

@@ -18,8 +18,6 @@ func newQueueSizeHandler(q http.QueueCountReader) echo.HandlerFunc {
 			c.Error(err)
 			return err
 		}
-		return c.JSON(200, map[string]int{
-			"current_size": cur,
-		})
+		return c.JSON(200, cur)
 	}
 }

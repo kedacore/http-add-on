@@ -22,7 +22,7 @@ type queuePinger struct {
 	adminPort    string
 	pingMut      *sync.RWMutex
 	lastPingTime time.Time
-	lastCount    int
+	allCounts    map[string]int
 }
 
 func newQueuePinger(
@@ -44,24 +44,20 @@ func newQueuePinger(
 
 	go func() {
 		defer pingTicker.Stop()
-		for {
-			select {
-			case <-pingTicker.C:
-				if err := pinger.requestCounts(ctx); err != nil {
-					log.Printf("Error getting request counts (%s)", err)
-				}
+		for range pingTicker.C {
+			if err := pinger.requestCounts(ctx); err != nil {
+				log.Printf("Error getting request counts (%s)", err)
 			}
 		}
-
 	}()
 
 	return pinger
 }
 
-func (q *queuePinger) count() int {
+func (q *queuePinger) counts() map[string]int {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
-	return q.lastCount
+	return q.allCounts
 }
 
 func (q *queuePinger) requestCounts(ctx context.Context) error {
@@ -72,7 +68,7 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		return err
 	}
 
-	queueSizeCh := make(chan int)
+	queueSizeCh := make(chan map[string]int)
 	var wg sync.WaitGroup
 
 	for _, subset := range endpoints.Subsets {
@@ -92,10 +88,9 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 					log.Printf("Error decoding request to %s (%s)", completeAddr, err)
 					return
 				}
-				curSize := respData["current_size"]
-				log.Printf("\n--\ncurSize for address %s: %d\n--\n", addr, curSize)
-				queueSizeCh <- curSize
-				log.Printf("Sent curSize %d for address %s", curSize, addr)
+				log.Printf("\n--\ncurSize for address %s: %v\n--\n", addr, respData)
+				queueSizeCh <- respData
+				log.Printf("Sent curSize %v for address %s", respData, addr)
 			}(addr.IP)
 		}
 	}
@@ -105,16 +100,18 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		close(queueSizeCh)
 	}()
 
-	total := 0
+	totalCounts := make(map[string]int)
 	for count := range queueSizeCh {
-		total += count
+		for host, val := range count {
+			totalCounts[host] += val
+		}
 	}
 
 	q.pingMut.Lock()
 	defer q.pingMut.Unlock()
-	q.lastCount = total
+	q.allCounts = totalCounts
 	q.lastPingTime = time.Now()
-	log.Printf("Finished getting aggregate current size %d", q.lastCount)
+	log.Printf("Finished getting aggregate current sizes %v", q.allCounts)
 
 	return nil
 
