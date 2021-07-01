@@ -54,7 +54,6 @@ func main() {
 		log.Fatalf("Error creating new deployment cache (%s)", err)
 	}
 	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, 1*time.Second)
-	routingTable := routing.NewTable()
 
 	operatorRoutingFetchURL, err := operatorCfg.RoutingFetchURL()
 	if err != nil {
@@ -62,6 +61,11 @@ func main() {
 	}
 
 	log.Printf("Interceptor starting")
+	log.Printf("Fetching initial routing table")
+	routingTable, err := fetchRoutingTable(ctx, operatorRoutingFetchURL)
+	if err != nil {
+		log.Fatal("error fetching routing table ", err)
+	}
 
 	errGrp, ctx := errgroup.WithContext(ctx)
 	errGrp.Go(func() error {
