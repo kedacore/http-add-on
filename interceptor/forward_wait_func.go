@@ -38,13 +38,9 @@ func newDeployReplicasForwardWaitFunc(
 		for {
 			select {
 			case event := <-eventCh:
-				deployment := event.Object.(*appsv1.Deployment)
-				if err != nil {
-					log.Printf(
-						"Error getting deployment %s after change was triggered (%s)",
-						deployName,
-						err,
-					)
+				deployment, ok := event.Object.(*appsv1.Deployment)
+				if !ok {
+					log.Println("Didn't get a deployment back in event")
 				}
 				if moreThanPtr(deployment.Spec.Replicas, 0) {
 					return nil
