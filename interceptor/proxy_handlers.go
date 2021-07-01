@@ -27,8 +27,18 @@ func newForwardingHandler(
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
 	waitTimeout time.Duration,
-	respTimeout time.Duration,
+	respHeaderTimeout time.Duration,
 ) http.Handler {
+	roundTripper := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialCtxFunc,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ResponseHeaderTimeout: respHeaderTimeout,
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		routingTarget, err := routingTable.Lookup(r.Host)
 		if err != nil {
@@ -61,6 +71,6 @@ func newForwardingHandler(
 			w.Write([]byte("error getting backend service URL"))
 			return
 		}
-		forwardRequest(w, r, dialCtxFunc, respTimeout, targetSvcURL)
+		forwardRequest(w, r, roundTripper, targetSvcURL)
 	})
 }
