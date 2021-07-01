@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"time"
 
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
+	"github.com/kedacore/http-add-on/pkg/routing"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -23,17 +23,24 @@ func moreThanPtr(i *int32, target int32) bool {
 // fwdSvcURL must have a valid scheme in it. The best way to do this is
 // create a URL with url.Parse("https://...")
 func newForwardingHandler(
-	fwdSvcURL *url.URL,
+	routingTable *routing.Table,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
 	waitTimeout time.Duration,
 	respTimeout time.Duration,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		routingTarget, err := routingTable.Lookup(r.Host)
+		if err != nil {
+			w.WriteHeader(404)
+			w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host)))
+		}
 		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
 		defer done()
 		grp, _ := errgroup.WithContext(ctx)
-		grp.Go(waitFunc)
+		grp.Go(func() error {
+			return waitFunc(routingTarget.Deployment)
+		})
 		waitErr := grp.Wait()
 		if waitErr != nil {
 			log.Printf("Error, not forwarding request")
@@ -41,7 +48,19 @@ func newForwardingHandler(
 			w.Write([]byte(fmt.Sprintf("error on backend (%s)", waitErr)))
 			return
 		}
-
-		forwardRequest(w, r, dialCtxFunc, respTimeout, fwdSvcURL)
+		host := r.Host
+		target, err := routingTable.Lookup(host)
+		if err != nil {
+			w.WriteHeader(404)
+			w.Write([]byte(fmt.Sprintf("Host %s not routable", host)))
+			return
+		}
+		targetSvcURL, err := target.ServiceURL()
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("error getting backend service URL"))
+			return
+		}
+		forwardRequest(w, r, dialCtxFunc, respTimeout, targetSvcURL)
 	})
 }

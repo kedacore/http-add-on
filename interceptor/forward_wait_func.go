@@ -9,14 +9,13 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 )
 
-type forwardWaitFunc func() error
+type forwardWaitFunc func(string) error
 
 func newDeployReplicasForwardWaitFunc(
 	deployCache k8s.DeploymentCache,
-	deployName string,
 	totalWait time.Duration,
 ) forwardWaitFunc {
-	return func() error {
+	return func(deployName string) error {
 		deployment, err := deployCache.Get(deployName)
 		if err != nil {
 			// if we didn't get the initial deployment state, bail out
