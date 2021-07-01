@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/kedacore/http-add-on/pkg/env"
 	corev1 "k8s.io/api/core/v1"
@@ -9,19 +10,23 @@ import (
 
 // Interceptor holds static configuration info for the interceptor
 type Interceptor struct {
-	Image     string
-	ProxyPort int32
-	AdminPort int32
+	Image      string
+	ProxyPort  int32
+	AdminPort  int32
 	PullPolicy corev1.PullPolicy
 }
 
-func ensureValidPolicy (policy string) error {
+func (i Interceptor) AdminPortString() string {
+	return strconv.Itoa(int(i.AdminPort))
+}
+
+func ensureValidPolicy(policy string) error {
 	converted := corev1.PullPolicy(policy)
-	switch (converted) {
+	switch converted {
 	case corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever:
 		return nil
 	}
-	return fmt.Errorf("Policy %q is not a valid Pull Policy. Accepted values are: %s, %s, %s", policy, corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever)
+	return fmt.Errorf("policy %q is not a valid Pull Policy. Accepted values are: %s, %s, %s", policy, corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever)
 }
 
 // NewInterceptorFromEnv gets interceptor configuration values from environment variables and/or
@@ -40,17 +45,17 @@ func NewInterceptorFromEnv() (*Interceptor, error) {
 	}
 
 	return &Interceptor{
-		Image:     image,
-		AdminPort: adminPort,
-		ProxyPort: proxyPort,
+		Image:      image,
+		AdminPort:  adminPort,
+		ProxyPort:  proxyPort,
 		PullPolicy: corev1.PullPolicy(pullPolicy),
 	}, nil
 }
 
 // ExternalScaler holds static configuration info for the external scaler
 type ExternalScaler struct {
-	Image string
-	Port  int32
+	Image      string
+	Port       int32
 	PullPolicy corev1.PullPolicy
 }
 
@@ -70,8 +75,8 @@ func NewExternalScalerFromEnv() (*ExternalScaler, error) {
 	}
 
 	return &ExternalScaler{
-		Image: image,
-		Port:  port,
+		Image:      image,
+		Port:       port,
 		PullPolicy: corev1.PullPolicy(pullPolicy),
 	}, nil
 }

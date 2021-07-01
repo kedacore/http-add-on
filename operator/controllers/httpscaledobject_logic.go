@@ -86,8 +86,14 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		v1alpha1.InterceptorScaledObjectTerminated,
 	))
 
-	if err := rec.RoutingTable.RemoveTarget(
+	if err := removeAndUpdateRoutingTable(
+		ctx,
+		rec.Client,
+		rec.RoutingTable,
 		httpso.Spec.Host,
+		httpso.ObjectMeta.Namespace,
+		appInfo.InterceptorAdminServiceName(),
+		appInfo.InterceptorConfig.AdminPortString(),
 	); err != nil {
 		return err
 	}
@@ -133,12 +139,18 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		return err
 	}
 
-	if err := rec.RoutingTable.AddTarget(
+	if err := addAndUpdateRoutingTable(
+		ctx,
+		rec.Client,
+		rec.RoutingTable,
 		httpso.Spec.Host,
 		routing.Target{
 			Service: httpso.Spec.ScaleTargetRef.Service,
 			Port:    int(httpso.Spec.ScaleTargetRef.Port),
 		},
+		httpso.ObjectMeta.Namespace,
+		appInfo.InterceptorAdminServiceName(),
+		rec.InterceptorConfig.AdminPortString(),
 	); err != nil {
 		return err
 	}

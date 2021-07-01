@@ -5,12 +5,13 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -68,31 +69,39 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		return err
 	}
 
+	endpointURLs, err := k8s.EndpointsForService(
+		ctx,
+		endpoints,
+		q.svcName,
+		q.adminPort,
+	)
+	if err != nil {
+		return err
+	}
+
 	queueSizeCh := make(chan map[string]int)
 	var wg sync.WaitGroup
 
-	for _, subset := range endpoints.Subsets {
-		for _, addr := range subset.Addresses {
-			wg.Add(1)
-			go func(addr string) {
-				defer wg.Done()
-				completeAddr := fmt.Sprintf("http://%s:%s/queue", addr, q.adminPort)
-				resp, err := http.Get(completeAddr)
-				if err != nil {
-					log.Printf("Error in pinger with GET %s (%s)", completeAddr, err)
-					return
-				}
-				defer resp.Body.Close()
-				respData := map[string]int{}
-				if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-					log.Printf("Error decoding request to %s (%s)", completeAddr, err)
-					return
-				}
-				log.Printf("\n--\ncurSize for address %s: %v\n--\n", addr, respData)
-				queueSizeCh <- respData
-				log.Printf("Sent curSize %v for address %s", respData, addr)
-			}(addr.IP)
-		}
+	for _, endpoint := range endpointURLs {
+		wg.Add(1)
+		go func(u *url.URL) {
+			defer wg.Done()
+			completeAddr := u.String()
+			resp, err := http.Get(completeAddr)
+			if err != nil {
+				log.Printf("Error in pinger with GET %s (%s)", completeAddr, err)
+				return
+			}
+			defer resp.Body.Close()
+			respData := map[string]int{}
+			if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+				log.Printf("Error decoding request to %s (%s)", completeAddr, err)
+				return
+			}
+			log.Printf("\n--\ncurSize for address %s: %v\n--\n", completeAddr, respData)
+			queueSizeCh <- respData
+			log.Printf("Sent curSize %v for address %s", respData, completeAddr)
+		}(endpoint)
 	}
 
 	go func() {
