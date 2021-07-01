@@ -5,11 +5,9 @@
 
 The KEDA HTTP Add On allows Kubernetes users to automatically scale their HTTP servers up and down (including to/from zero) based on incoming HTTP traffic. Please see our [use cases document](./docs/use_cases.md) to learn more about how and why you would use this project.
 
-| 🚧 **Alpha - Not for production** 🚧|
+| 🚧 **Project status: beta** 🚧|
 |---------------------------------------------|
-| ⚠ The HTTP add-on is in [experimental stage](https://github.com/kedacore/keda/issues/538) and not ready for production. <br /><br />It is provided as-is without support.
-
->This codebase moves very quickly. We can't currently guarantee that any part of it will work. Neither the complete feature set nor known issues may be fully documented. Similarly, issues filed against this project may not be responded to quickly or at all. **We will release and announce a beta release of this project**, and after we do that, we will document and respond to issues properly.
+| ⚠ The HTTP add-on currently is in [beta](https://github.com/kedacore/http-add-on/releases/tag/v0.1.0). We can't yet recommend it for production usage because we are still developing and testing it. It may have "rough edges" including missing documentation, bugs and other issues. It is currently provided as-is without support.
 
 ## HTTP Autoscaling Made Simple
 
@@ -27,7 +25,7 @@ This project, often called KEDA-HTTP, exists to provide that scaling. It is comp
 
 ## Walkthrough
 
-Although this is an **alpha release** project right now, we have prepared a walkthrough document that with instructions on getting started for basic usage.
+Although this is currently a **beta release** project, we have prepared a walkthrough document that with instructions on getting started for basic usage.
 
 See that document at [docs/walkthrough.md](./docs/walkthrough.md)
 
