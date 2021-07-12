@@ -53,3 +53,30 @@ func TestTableRemove(t *testing.T) {
 	r.Equal(Target{}, retTgt)
 	r.Equal(ErrTargetNotFound, err)
 }
+
+func TestTableReplace(t *testing.T) {
+	r := require.New(t)
+	const host1 = "testreplhost1"
+	const host2 = "testreplhost2"
+	tgt1 := Target{
+		Service:    "tgt1",
+		Port:       9090,
+		Deployment: "depl1",
+	}
+	tgt2 := Target{
+		Service:    "tgt2",
+		Port:       9091,
+		Deployment: "depl2",
+	}
+	// create two routing tables, each with different targets
+	tbl1 := NewTable()
+	tbl1.AddTarget(host1, tgt1)
+	tbl2 := NewTable()
+	tbl2.AddTarget(host2, tgt2)
+
+	// replace the second table with the first and ensure that the tables
+	// are now equal
+	tbl2.Replace(tbl1)
+
+	r.Equal(tbl1, tbl2)
+}
