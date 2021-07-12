@@ -29,3 +29,27 @@ func TestTableJSONRoundTrip(t *testing.T) {
 	r.Equal(tgt.Port, retTarget.Port)
 	r.Equal(tgt.Deployment, retTarget.Deployment)
 }
+
+func TestTableRemove(t *testing.T) {
+	const host = "testrm"
+	r := require.New(t)
+	tgt := Target{
+		Service:    "testrm",
+		Port:       8084,
+		Deployment: "testrmdepl",
+	}
+
+	tbl := NewTable()
+
+	// add the target to the table and ensure that you can look it up
+	tbl.AddTarget(host, tgt)
+	retTgt, err := tbl.Lookup(host)
+	r.Equal(tgt, retTgt)
+	r.NoError(err)
+
+	// remove the target and ensure that you can't look it up
+	r.NoError(tbl.RemoveTarget(host))
+	retTgt, err = tbl.Lookup(host)
+	r.Equal(Target{}, retTgt)
+	r.Equal(ErrTargetNotFound, err)
+}
