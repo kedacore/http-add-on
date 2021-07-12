@@ -20,6 +20,10 @@ import (
 // 64 Bit Amd and ARM platforms on Linux, for example:
 //
 //	docker buildx build --platform linux/amd64,linux/arm64 --push -t testingkeda.azurecr.io/interceptor:testing -f interceptor/Dockerfile .
+//
+// See
+// https://blog.jaimyn.dev/how-to-build-multi-architecture-docker-images-on-an-m1-mac/
+// for more details.
 
 // Global consts
 const (
