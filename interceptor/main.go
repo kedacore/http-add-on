@@ -84,7 +84,6 @@ func main() {
 		return routing.StartUpdateLoop(
 			ctx,
 			operatorCfg.RoutingTableUpdateDuration(),
-			operatorRoutingFetchURL,
 			routingTable,
 			func(ctx context.Context) (*routing.Table, error) {
 				return fetchRoutingTable(ctx, operatorRoutingFetchURL)

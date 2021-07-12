@@ -2,7 +2,6 @@ package routing
 
 import (
 	"context"
-	"net/url"
 	"time"
 
 	"github.com/pkg/errors"
@@ -20,7 +19,6 @@ import (
 func StartUpdateLoop(
 	ctx context.Context,
 	updateInterval time.Duration,
-	routingFetchURL *url.URL,
 	t *Table,
 	fetcher func(ctx context.Context) (*Table, error),
 ) error {
