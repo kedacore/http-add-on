@@ -52,6 +52,7 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var adminPort int
+	var routingTablePath string
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
@@ -61,6 +62,13 @@ func main() {
 		"admin-port",
 		9090,
 		"The port on which to run the admin server. This is the port on which RPCs will be accepted to get the routing table",
+	)
+
+	flag.StringVar(
+		&routingTablePath,
+		"routing-table-path",
+		"routing",
+		"The path to serve the routing table on, without the leading slash",
 	)
 	flag.Parse()
 
@@ -118,6 +126,7 @@ func main() {
 		return admin.StartServer(
 			ctx,
 			ctrl.Log.WithName("admin"),
+			routingTablePath,
 			adminPort,
 			routingTable,
 		)
