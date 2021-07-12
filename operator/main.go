@@ -89,7 +89,7 @@ func main() {
 		os.Exit(1)
 	}
 	routingTable := routing.NewTable()
-	if err = (&controllers.HTTPScaledObjectReconciler{
+	if err := (&controllers.HTTPScaledObjectReconciler{
 		Client:               mgr.GetClient(),
 		Log:                  ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
 		Scheme:               mgr.GetScheme(),
@@ -104,10 +104,15 @@ func main() {
 
 	ctx := context.Background()
 	errGrp, ctx := errgroup.WithContext(ctx)
+
+	// start the control loop
 	errGrp.Go(func() error {
 		setupLog.Info("starting manager")
 		return mgr.Start(ctrl.SetupSignalHandler())
 	})
+
+	// start the admin server to serve routing table information
+	// to the interceptors
 	errGrp.Go(func() error {
 		setupLog.Info("starting admin RPC server")
 		return admin.StartServer(
