@@ -122,7 +122,13 @@ func main() {
 	// start the admin server to serve routing table information
 	// to the interceptors
 	errGrp.Go(func() error {
-		setupLog.Info("starting admin RPC server")
+		setupLog.Info(
+			"starting admin RPC server",
+			"port",
+			adminPort,
+			"routingTablePath",
+			routingTablePath,
+		)
 		return admin.StartServer(
 			ctx,
 			ctrl.Log.WithName("admin"),
