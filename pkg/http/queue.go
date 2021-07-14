@@ -1,6 +1,8 @@
 package http
 
-import "sync"
+import (
+	"sync"
+)
 
 // QueueCountReader represents the size of a virtual HTTP queue, possibly
 // distributed across multiple HTTP server processes. It only can access
@@ -10,7 +12,7 @@ import "sync"
 type QueueCountReader interface {
 	// Current returns the current count of pending requests
 	// for the given hostname
-	Current() (map[string]int, error)
+	Current() (*QueueCounts, error)
 }
 
 // QueueCounter represents a virtual HTTP queue, possibly distributed across
@@ -54,8 +56,10 @@ func (r *MemoryQueue) Resize(host string, delta int) error {
 }
 
 // Current returns the current size of the queue.
-func (r *MemoryQueue) Current() (map[string]int, error) {
+func (r *MemoryQueue) Current() (*QueueCounts, error) {
 	r.mut.RLock()
 	defer r.mut.RUnlock()
-	return r.countMap, nil
+	cts := NewQueueCounts()
+	cts.Counts = r.countMap
+	return cts, nil
 }

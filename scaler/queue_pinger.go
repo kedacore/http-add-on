@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	pkghttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -79,7 +80,7 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		return err
 	}
 
-	queueSizeCh := make(chan map[string]int)
+	countsCh := make(chan *pkghttp.QueueCounts)
 	var wg sync.WaitGroup
 
 	for _, endpoint := range endpointURLs {
@@ -93,25 +94,25 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 				return
 			}
 			defer resp.Body.Close()
-			respData := map[string]int{}
-			if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+			counts := pkghttp.NewQueueCounts()
+			if err := json.NewDecoder(resp.Body).Decode(counts); err != nil {
 				log.Printf("Error decoding request to %s (%s)", completeAddr, err)
 				return
 			}
-			log.Printf("\n--\ncurSize for address %s: %v\n--\n", completeAddr, respData)
-			queueSizeCh <- respData
-			log.Printf("Sent curSize %v for address %s", respData, completeAddr)
+			log.Printf("\n--\ncurSize for address %s: %v\n--\n", completeAddr, counts)
+			countsCh <- counts
+			log.Printf("Sent curSize %v for address %s", counts, completeAddr)
 		}(endpoint)
 	}
 
 	go func() {
 		wg.Wait()
-		close(queueSizeCh)
+		close(countsCh)
 	}()
 
 	totalCounts := make(map[string]int)
-	for count := range queueSizeCh {
-		for host, val := range count {
+	for count := range countsCh {
+		for host, val := range count.Counts {
 			totalCounts[host] += val
 		}
 	}
