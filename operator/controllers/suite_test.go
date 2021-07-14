@@ -78,8 +78,10 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 		Spec: v1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: &v1alpha1.ScaleTargetRef{
 				Deployment: appName,
-				Service:    appName,
-				Port:       8081,
+			},
+			Service: httpv1alpha1.HTTPScaledObjectServiceSpec{
+				Port: 8081,
+				Name: appName,
 			},
 			Replicas: httpv1alpha1.ReplicaStruct{
 				Min: 0,

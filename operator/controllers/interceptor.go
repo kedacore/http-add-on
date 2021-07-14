@@ -27,11 +27,11 @@ func createInterceptor(
 		// config regarding the origin
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_NAME",
-			Value: appInfo.Name,
+			Value: httpso.Spec.Service.Name,
 		},
 		{
 			Name:  "KEDA_HTTP_APP_SERVICE_PORT",
-			Value: fmt.Sprintf("%d", httpso.Spec.ScaleTargetRef.Port),
+			Value: fmt.Sprintf("%d", httpso.Spec.Service.Port),
 		},
 		{
 			Name:  "KEDA_HTTP_TARGET_DEPLOYMENT_NAME",
@@ -75,14 +75,23 @@ func createInterceptor(
 		}
 	}
 
+	exposedPort := int32(80)
+	if httpso.Spec.Service.Port != 0 {
+		exposedPort = httpso.Spec.Service.Port
+	}
+
+	serviceType := corev1.ServiceTypeClusterIP
+	if httpso.Spec.Service.Type != "" {
+		serviceType = httpso.Spec.Service.Type
+	}
+
 	// create two services for the interceptor:
 	// - for the public proxy
 	// - for the admin server (that has the /queue endpoint)
 	publicPorts := []corev1.ServicePort{
 		k8s.NewTCPServicePort(
 			"proxy",
-			// TODO: make this the public port - probably 80
-			80,
+			exposedPort,
 			appInfo.InterceptorConfig.ProxyPort,
 		),
 	}
@@ -90,7 +99,7 @@ func createInterceptor(
 		appInfo.Namespace,
 		appInfo.InterceptorProxyServiceName(),
 		publicPorts,
-		corev1.ServiceTypeClusterIP,
+		serviceType,
 		k8s.Labels(appInfo.InterceptorDeploymentName()),
 	)
 	adminPorts := []corev1.ServicePort{
