@@ -79,7 +79,7 @@ func main() {
 	errGrp.Go(func() error {
 		log.Printf(
 			"routing table update loop starting for operator URL %v",
-			*operatorRoutingFetchURL,
+			operatorRoutingFetchURL.String(),
 		)
 		return routing.StartUpdateLoop(
 			ctx,
