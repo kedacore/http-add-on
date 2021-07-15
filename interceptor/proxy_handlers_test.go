@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,12 +14,8 @@ import (
 
 // the proxy should successfully forward a request to a running server
 func TestImmediatelySuccessfulProxy(t *testing.T) {
+	const host = "TestImmediatelySuccessfulProxy.testing"
 	r := require.New(t)
-	target := routing.Target{
-		Service:    "testsvc",
-		Port:       8081,
-		Deployment: "testdepl",
-	}
 
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -27,7 +25,14 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(originURL.String(), target)
+	portInt, err := strconv.Atoi(originURL.Port())
+	r.NoError(err)
+	target := routing.Target{
+		Service:    strings.Split(originURL.Host, ":")[0],
+		Port:       portInt,
+		Deployment: "testdepl",
+	}
+	routingTable.AddTarget(host, target)
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
@@ -43,17 +48,19 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
+	req.Host = host
 	r.NoError(err)
 
 	hdl.ServeHTTP(res, req)
 
-	r.Equal(200, res.Code, "response code was unexpected")
+	r.Equal(200, res.Code, "expected response code 200")
 	r.Equal("test response", res.Body.String())
 }
 
 // the proxy should wait for a timeout and fail if there is no origin to connect
 // to
 func TestWaitFailedConnection(t *testing.T) {
+	const host = "TestWaitFailedConnection.testing"
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
@@ -61,9 +68,8 @@ func TestWaitFailedConnection(t *testing.T) {
 	waitFunc := func(deplName string) error {
 		return nil
 	}
-	noSuchURL := "http://localhost:60002"
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchURL, routing.Target{
+	routingTable.AddTarget(host, routing.Target{
 		Service:    "nosuchdepl",
 		Port:       8081,
 		Deployment: "nosuchdepl",
@@ -77,6 +83,7 @@ func TestWaitFailedConnection(t *testing.T) {
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
+	req.Host = host
 	r.NoError(err)
 
 	hdl.ServeHTTP(res, req)
@@ -101,10 +108,10 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 		<-waitFuncCh
 		return nil
 	}
-	noSuchURL := "http://localhost:60002"
+	noSuchHost := "TestTimesOutOnWaitFunc.testing"
 
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchURL, routing.Target{
+	routingTable.AddTarget(noSuchHost, routing.Target{
 		Service:    "nosuchsvc",
 		Port:       9091,
 		Deployment: "nosuchdepl",
@@ -133,7 +140,6 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 		r.Fail("the wait function wasn't called")
 	}
 	r.GreaterOrEqual(time.Since(start), waitDur)
-
 	r.Equal(502, res.Code, "response code was unexpected")
 }
 
