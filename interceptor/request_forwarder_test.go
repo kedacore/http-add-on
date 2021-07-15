@@ -115,7 +115,10 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	defer srv.Close()
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	timeouts.Connect = 10 * time.Millisecond
+	timeouts.ResponseHeader = 10 * time.Millisecond
+	backoff := timeouts.Backoff(2, 2, 1)
+	dialCtxFunc := retryDialContextFunc(timeouts, backoff)
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	forwardRequest(
@@ -128,7 +131,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	forwardedRequests := hdl.IncomingRequests()
 	r.Equal(0, len(forwardedRequests))
 	r.Equal(502, res.Code)
-	r.Contains(res.Body.String(), "Error on backend")
+	r.Contains(res.Body.String(), "error on backend")
 	// the proxy has bailed out, so tell the origin to stop
 	close(originWaitCh)
 }
