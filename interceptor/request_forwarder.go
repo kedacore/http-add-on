@@ -26,6 +26,9 @@ func forwardRequest(
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		w.WriteHeader(502)
+		// note: we can only use the '%w' directive inside of fmt.Errorf,
+		// not Sprintf or anything similar. this means we have to create the
+		// failure string in this slightly convoluted way.
 		errMsg := fmt.Errorf("error on backend (%w)", err).Error()
 		w.Write([]byte(errMsg))
 	}
