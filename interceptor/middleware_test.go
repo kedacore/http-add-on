@@ -4,7 +4,6 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -13,13 +12,10 @@ import (
 
 func TestCountMiddleware(t *testing.T) {
 	r := require.New(t)
-	queueCounter := &fakeQueueCounter{}
-	var wg sync.WaitGroup
-	wg.Add(1)
+	queueCounter := newFakeQueueCounter()
 	middleware := countMiddleware(
 		queueCounter,
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			wg.Done()
 			w.WriteHeader(200)
 			w.Write([]byte("OK"))
 		}),
@@ -32,34 +28,31 @@ func TestCountMiddleware(t *testing.T) {
 		middleware.ServeHTTP(rec, req)
 	}()
 
-	// after the handler was called, first wait for it to complete.
-	// then check to make sure the pending queue size was increased and decreased.
-	//
-	// the increase and decrease operations happen in goroutines, so the ordering
-	// isn't guaranteed
-	wg.Wait()
-	timer := time.NewTimer(200 * time.Millisecond)
+	const timeout = 5000 * time.Millisecond
+	timer := time.NewTimer(timeout)
 	defer timer.Stop()
-	resizes := []int{}
-	done := false
-	for i := 0; i < 2; i++ {
-		if len(resizes) == 2 || done {
-			break
-		}
-		select {
-		case i := <-queueCounter.resizedCh:
-			resizes = append(resizes, i)
-		case <-timer.C:
-			// effectively breaks out of the outer loop.
-			// putting a 'break' here will only break out
-			// of the select block
-			done = true
-		}
-	}
+
+	// we expect the queue to be resized twice. once to mark
+	// a pending HTTP request, then a second time to remove it.
+	// by the end of both sends, resize1 + resize2 should be 0,
+	// or in other words, the queue size should be back to zero
 	agg := 0
-	for _, delta := range resizes {
-		r.Equal(1, math.Abs(float64(delta)))
-		agg += delta
+	for i := 0; i < 2; i++ {
+		select {
+		case delta := <-queueCounter.resizedCh:
+			r.Equal(float64(1), math.Abs(float64(delta)))
+			agg += delta
+		case <-timer.C:
+			r.FailNow(
+				"timed out waiting for the count middleware",
+				"timeout was %s, iteration %d",
+				timeout,
+				i,
+			)
+		}
 	}
+
 	r.Equal(0, agg, "sum of all the resize operations")
+	r.Equal(200, rec.Code)
+	r.Equal("OK", rec.Body.String())
 }
