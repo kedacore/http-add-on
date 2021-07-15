@@ -7,9 +7,8 @@ import (
 	"github.com/kedacore/http-add-on/pkg/http"
 )
 
-// countMiddleware takes que MemoryQueue previously initiated and increments the
-// size of it before sending the request to the original app, after the request
-// is finished, it decrements the queue size
+// countMiddleware adds 1 to the given queue counter, executes next
+// (by calling ServeHTTP on it), then decrements the queue counter
 func countMiddleware(q http.QueueCounter, next nethttp.Handler) nethttp.Handler {
 	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		host := r.Host
