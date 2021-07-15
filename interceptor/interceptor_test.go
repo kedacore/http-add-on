@@ -20,6 +20,12 @@ type fakeQueueCounter struct {
 	resizedCh chan int
 }
 
+func newFakeQueueCounter() *fakeQueueCounter {
+	return &fakeQueueCounter{
+		resizedCh: make(chan int),
+	}
+}
+
 func (f *fakeQueueCounter) Resize(host string, i int) error {
 	f.resizedCh <- i
 	return nil
