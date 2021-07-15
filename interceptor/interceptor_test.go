@@ -25,10 +25,12 @@ func (f *fakeQueueCounter) Resize(host string, i int) error {
 	return nil
 }
 
-func (f *fakeQueueCounter) Current() (map[string]int, error) {
-	return map[string]int{
+func (f *fakeQueueCounter) Current() (*http.QueueCounts, error) {
+	ret := http.NewQueueCounts()
+	ret.Counts = map[string]int{
 		"sample.com": 0,
-	}, nil
+	}
+	return ret, nil
 }
 
 var _ http.QueueCountReader = &fakeQueueCountReader{}
@@ -38,8 +40,10 @@ type fakeQueueCountReader struct {
 	err     error
 }
 
-func (f *fakeQueueCountReader) Current() (map[string]int, error) {
-	return map[string]int{
+func (f *fakeQueueCountReader) Current() (*http.QueueCounts, error) {
+	ret := http.NewQueueCounts()
+	ret.Counts = map[string]int{
 		"sample.com": f.current,
-	}, f.err
+	}
+	return ret, f.err
 }

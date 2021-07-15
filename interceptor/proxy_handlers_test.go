@@ -2,17 +2,22 @@ package main
 
 import (
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
+	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/stretchr/testify/require"
 )
 
 // the proxy should successfully forward a request to a running server
 func TestImmediatelySuccessfulProxy(t *testing.T) {
 	r := require.New(t)
+	target := routing.Target{
+		Service:    "testsvc",
+		Port:       8081,
+		Deployment: "testdepl",
+	}
 
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -21,14 +26,16 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
 	r.NoError(err)
 	defer srv.Close()
+	routingTable := routing.NewTable()
+	routingTable.AddTarget(originURL.String(), target)
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func() error {
+	waitFunc := func(deployName string) error {
 		return nil
 	}
 	hdl := newForwardingHandler(
-		originURL,
+		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		timeouts.DeploymentReplicas,
@@ -51,13 +58,18 @@ func TestWaitFailedConnection(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func() error {
+	waitFunc := func(deplName string) error {
 		return nil
 	}
-	noSuchURL, err := url.Parse("http://localhost:60002")
-	r.NoError(err)
+	noSuchURL := "http://localhost:60002"
+	routingTable := routing.NewTable()
+	routingTable.AddTarget(noSuchURL, routing.Target{
+		Service:    "nosuchdepl",
+		Port:       8081,
+		Deployment: "nosuchdepl",
+	})
 	hdl := newForwardingHandler(
-		noSuchURL,
+		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		timeouts.DeploymentReplicas,
@@ -84,15 +96,21 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	waitFuncCalledCh := make(chan struct{})
 	// the wait func will wait for waitFuncCh to receive or be closed before it proceeds
 	waitFuncCh := make(chan struct{})
-	waitFunc := func() error {
+	waitFunc := func(deplName string) error {
 		close(waitFuncCalledCh)
 		<-waitFuncCh
 		return nil
 	}
-	noSuchURL, err := url.Parse("http://localhost:60002")
-	r.NoError(err)
+	noSuchURL := "http://localhost:60002"
+
+	routingTable := routing.NewTable()
+	routingTable.AddTarget(noSuchURL, routing.Target{
+		Service:    "nosuchsvc",
+		Port:       9091,
+		Deployment: "nosuchdepl",
+	})
 	hdl := newForwardingHandler(
-		noSuchURL,
+		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		timeouts.DeploymentReplicas,
@@ -130,15 +148,20 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	waitFuncCalledCh := make(chan struct{})
 	// the wait func will wait for waitFuncCh to receive or be closed before it proceeds
 	waitFuncCh := make(chan struct{})
-	waitFunc := func() error {
+	waitFunc := func(deplName string) error {
 		close(waitFuncCalledCh)
 		<-waitFuncCh
 		return nil
 	}
-	noSuchURL, err := url.Parse("http://localhost:60002")
-	r.NoError(err)
+	noSuchURL := "http://localhost:60002"
+	routingTable := routing.NewTable()
+	routingTable.AddTarget(noSuchURL, routing.Target{
+		Service:    "nosuchsvc",
+		Port:       9092,
+		Deployment: "nosuchdepl",
+	})
 	hdl := newForwardingHandler(
-		noSuchURL,
+		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		timeouts.DeploymentReplicas,
@@ -184,11 +207,18 @@ func TestWaitHeaderTimeout(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func() error {
+	waitFunc := func(deplName string) error {
 		return nil
 	}
+	routingTable := routing.NewTable()
+	target := routing.Target{
+		Service:    "testsvc",
+		Port:       9094,
+		Deployment: "testdepl",
+	}
+	routingTable.AddTarget(originURL.String(), target)
 	hdl := newForwardingHandler(
-		originURL,
+		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		timeouts.DeploymentReplicas,
