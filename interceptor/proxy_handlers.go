@@ -44,7 +44,9 @@ func newForwardingHandler(
 		if err != nil {
 			w.WriteHeader(404)
 			w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host)))
+			return
 		}
+		fmt.Println("FOUND HOST", r.Host)
 		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
 		defer done()
 		grp, _ := errgroup.WithContext(ctx)
@@ -58,14 +60,7 @@ func newForwardingHandler(
 			w.Write([]byte(fmt.Sprintf("error on backend (%s)", waitErr)))
 			return
 		}
-		host := r.Host
-		target, err := routingTable.Lookup(host)
-		if err != nil {
-			w.WriteHeader(404)
-			w.Write([]byte(fmt.Sprintf("Host %s not routable", host)))
-			return
-		}
-		targetSvcURL, err := target.ServiceURL()
+		targetSvcURL, err := routingTarget.ServiceURL()
 		if err != nil {
 			w.WriteHeader(500)
 			w.Write([]byte("error getting backend service URL"))
