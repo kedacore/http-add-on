@@ -46,7 +46,6 @@ func newForwardingHandler(
 			w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host)))
 			return
 		}
-		fmt.Println("FOUND HOST", r.Host)
 		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
 		defer done()
 		grp, _ := errgroup.WithContext(ctx)
