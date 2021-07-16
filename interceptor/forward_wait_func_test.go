@@ -16,11 +16,12 @@ import (
 // Test to make sure the wait function returns a nil error if there is immediately
 // one replica on the target deployment
 func TestForwardWaitFuncOneReplica(t *testing.T) {
+	const waitFuncWait = 1 * time.Second
 	r := require.New(t)
 	const ns = "testNS"
 	const deployName = "TestForwardingHandlerDeploy"
 	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
-		deployName: k8s.NewDeployment(
+		deployName: newDeployment(
 			ns,
 			deployName,
 			"myimage",
@@ -32,24 +33,26 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	})
 	waitFunc := newDeployReplicasForwardWaitFunc(
 		cache,
-		deployName,
-		1*time.Second,
+		waitFuncWait,
 	)
 
 	ctx, done := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer done()
 	group, _ := errgroup.WithContext(ctx)
-	group.Go(waitFunc)
+	group.Go(func() error {
+		return waitFunc(deployName)
+	})
 	r.NoError(group.Wait())
 }
 
 // Test to make sure the wait function returns an error if there are no replicas, and that doesn't change
 // within a timeout
 func TestForwardWaitFuncNoReplicas(t *testing.T) {
+	const waitFuncWait = 1 * time.Second
 	r := require.New(t)
 	const ns = "testNS"
 	const deployName = "TestForwardingHandlerHoldsDeployment"
-	deployment := k8s.NewDeployment(
+	deployment := newDeployment(
 		ns,
 		deployName,
 		"myimage",
@@ -65,11 +68,10 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 
 	waitFunc := newDeployReplicasForwardWaitFunc(
 		cache,
-		deployName,
-		1*time.Second,
+		waitFuncWait,
 	)
 
-	err := waitFunc()
+	err := waitFunc(deployName)
 	r.Error(err)
 }
 
@@ -79,7 +81,7 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 
 	const ns = "testNS"
 	const deployName = "TestForwardingHandlerHoldsDeployment"
-	deployment := k8s.NewDeployment(
+	deployment := newDeployment(
 		ns,
 		deployName,
 		"myimage",
@@ -92,7 +94,10 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
 		deployName: deployment,
 	})
-	waitFunc := newDeployReplicasForwardWaitFunc(cache, deployName, totalWaitDur)
+	waitFunc := newDeployReplicasForwardWaitFunc(
+		cache,
+		totalWaitDur,
+	)
 	// this channel will be closed immediately after the replicas were increased
 	replicasIncreasedCh := make(chan struct{})
 	go func() {
@@ -105,5 +110,5 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		watcher.Action(watch.Modified, modifiedDeployment)
 		close(replicasIncreasedCh)
 	}()
-	r.NoError(waitFunc())
+	r.NoError(waitFunc(deployName))
 }

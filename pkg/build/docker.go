@@ -27,7 +27,7 @@ func DockerBuild(image, dockerfileLocation, context string) error {
 		image,
 		"-f",
 		dockerfileLocation,
-		".",
+		context,
 	)
 }
 

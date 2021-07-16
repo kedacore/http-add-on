@@ -64,13 +64,16 @@ func (e *impl) GetMetricSpec(
 	_ context.Context,
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
+	allCounts := e.pinger.counts()
+	metricSpecs := []*externalscaler.MetricSpec{}
+	for host := range allCounts {
+		metricSpecs = append(metricSpecs, &externalscaler.MetricSpec{
+			MetricName: host,
+			TargetSize: 100,
+		})
+	}
 	return &externalscaler.GetMetricSpecResponse{
-		MetricSpecs: []*externalscaler.MetricSpec{
-			{
-				MetricName: "queueSize",
-				TargetSize: 100,
-			},
-		},
+		MetricSpecs: metricSpecs,
 	}, nil
 }
 
@@ -78,13 +81,15 @@ func (e *impl) GetMetrics(
 	_ context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
 ) (*externalscaler.GetMetricsResponse, error) {
-	size := int64(e.pinger.count())
+	allCounts := e.pinger.counts()
+	metricValues := []*externalscaler.MetricValue{}
+	for host, count := range allCounts {
+		metricValues = append(metricValues, &externalscaler.MetricValue{
+			MetricName:  host,
+			MetricValue: int64(count),
+		})
+	}
 	return &externalscaler.GetMetricsResponse{
-		MetricValues: []*externalscaler.MetricValue{
-			{
-				MetricName:  "queueSize",
-				MetricValue: size,
-			},
-		},
+		MetricValues: metricValues,
 	}, nil
 }

@@ -13,6 +13,18 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
+// Note for Mac M1 users building Docker images:
+// If you want to build images for Linux (like, for example, an
+// AKS/GKE/EKS, DOKS cluster), you need to use docker's buildx driver
+// to do so. This would be the command to build the interceptor for
+// 64 Bit Amd and ARM platforms on Linux, for example:
+//
+//	docker buildx build --platform linux/amd64,linux/arm64 --push -t testingkeda.azurecr.io/interceptor:testing -f interceptor/Dockerfile .
+//
+// See
+// https://blog.jaimyn.dev/how-to-build-multi-architecture-docker-images-on-an-m1-mac/
+// for more details.
+
 // Global consts
 const (
 	DEFAULT_NAMESPACE string = "kedahttp"

@@ -7,7 +7,7 @@ ARG GOOS=linux
 
 FROM golang:${GOLANG_VERSION}-alpine AS builder
 
-WORKDIR $GOPATH/src/github.com/kedahttp/http-add-on
+WORKDIR $GOPATH/src/github.com/kedacore/http-add-on
 
 COPY go.mod go.mod
 COPY go.sum go.sum

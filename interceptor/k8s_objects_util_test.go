@@ -1,6 +1,7 @@
-package k8s
+package main
 
 import (
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,8 +11,6 @@ import (
 // with the given name and the given image. This does not actually create
 // the deployment in the cluster, it just creates the deployment object
 // in memory
-//
-// this function is only used in tests
 func newDeployment(
 	namespace,
 	name,
@@ -40,7 +39,7 @@ func newDeployment(
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
-			Replicas: Int32P(1),
+			Replicas: k8s.Int32P(1),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,

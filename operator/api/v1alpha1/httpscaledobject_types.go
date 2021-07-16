@@ -109,6 +109,8 @@ type ReplicaStruct struct {
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
+	// The host that should be routed
+	Host string `json:"host"`
 	// The name of the deployment to route HTTP requests to (and to autoscale). Either this
 	// or Image must be set
 	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`

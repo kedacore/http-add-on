@@ -21,18 +21,6 @@ type AppInfo struct {
 	ExternalScalerConfig ExternalScaler
 }
 
-// ExternalScalerServiceName is a convenience method to get the name of the external scaler
-// service in Kubernetes
-func (a AppInfo) ExternalScalerServiceName() string {
-	return fmt.Sprintf("%s-external-scaler", a.Name)
-}
-
-// ExternalScalerDeploymentName is a convenience method to get the name of the external scaler
-// deployment in Kubernetes
-func (a AppInfo) ExternalScalerDeploymentName() string {
-	return fmt.Sprintf("%s-external-scaler", a.Name)
-}
-
 // InterceptorAdminServiceName is a convenience method to get the name of the interceptor
 // service for the admin endpoints in Kubernetes
 func (a AppInfo) InterceptorAdminServiceName() string {
