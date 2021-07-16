@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -91,6 +92,8 @@ func TestWaitFailedConnection(t *testing.T) {
 	r.Equal(502, res.Code, "response code was unexpected")
 }
 
+// the proxy handler should wait for the wait function until it hits
+// a timeout, then it should fail
 func TestTimesOutOnWaitFunc(t *testing.T) {
 	r := require.New(t)
 
@@ -98,16 +101,8 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	timeouts.DeploymentReplicas = 10 * time.Millisecond
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
-	// the wait func will close this channel immediately after it's called, but before it starts
-	// waiting for waitFuncCh
-	waitFuncCalledCh := make(chan struct{})
-	// the wait func will wait for waitFuncCh to receive or be closed before it proceeds
-	waitFuncCh := make(chan struct{})
-	waitFunc := func(deplName string) error {
-		close(waitFuncCalledCh)
-		<-waitFuncCh
-		return nil
-	}
+	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
+
 	noSuchHost := "TestTimesOutOnWaitFunc.testing"
 
 	routingTable := routing.NewTable()
@@ -126,42 +121,32 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
+	req.Host = noSuchHost
 
 	start := time.Now()
 	waitDur := timeouts.DeploymentReplicas * 2
 	go func() {
 		time.Sleep(waitDur)
-		close(waitFuncCh)
+		finishWaitFunc()
 	}()
 	hdl.ServeHTTP(res, req)
-	select {
-	case <-waitFuncCalledCh:
-	case <-time.After(1 * time.Second):
-		r.Fail("the wait function wasn't called")
-	}
+	r.NoError(waitForSignal(waitFuncCalledCh, 1*time.Second))
 	r.GreaterOrEqual(time.Since(start), waitDur)
 	r.Equal(502, res.Code, "response code was unexpected")
 }
 
+// Test to make sure the proxy handler will wait for the waitFunc to
+// complete
 func TestWaitsForWaitFunc(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
-	// the wait func will close this channel immediately after it's called, but before it starts
-	// waiting for waitFuncCh
-	waitFuncCalledCh := make(chan struct{})
-	// the wait func will wait for waitFuncCh to receive or be closed before it proceeds
-	waitFuncCh := make(chan struct{})
-	waitFunc := func(deplName string) error {
-		close(waitFuncCalledCh)
-		<-waitFuncCh
-		return nil
-	}
-	noSuchURL := "http://localhost:60002"
+	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
+	noSuchHost := "TestWaitsForWaitFunc.test"
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchURL, routing.Target{
+	routingTable.AddTarget(noSuchHost, routing.Target{
 		Service:    "nosuchsvc",
 		Port:       9092,
 		Deployment: "nosuchdepl",
@@ -176,19 +161,18 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
+	req.Host = noSuchHost
 
 	start := time.Now()
 	waitDur := 10 * time.Millisecond
+
+	// make the wait function finish after a short duration
 	go func() {
 		time.Sleep(waitDur)
-		close(waitFuncCh)
+		finishWaitFunc()
 	}()
 	hdl.ServeHTTP(res, req)
-	select {
-	case <-waitFuncCalledCh:
-	case <-time.After(1 * time.Second):
-		r.Fail("the wait function wasn't called")
-	}
+	r.NoError(waitForSignal(waitFuncCalledCh, 1*time.Second))
 	r.GreaterOrEqual(time.Since(start), waitDur)
 
 	r.Equal(502, res.Code, "response code was unexpected")
@@ -222,7 +206,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		Port:       9094,
 		Deployment: "testdepl",
 	}
-	routingTable.AddTarget(originURL.String(), target)
+	routingTable.AddTarget(originURL.Host, target)
 	hdl := newForwardingHandler(
 		routingTable,
 		dialCtxFunc,
@@ -233,6 +217,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
+	req.Host = originURL.Host
 
 	hdl.ServeHTTP(res, req)
 
@@ -251,4 +236,33 @@ func ensureSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) 
 	case <-signalCh:
 		return true
 	}
+}
+
+func waitForSignal(sig <-chan struct{}, waitDur time.Duration) error {
+	tmr := time.NewTimer(waitDur)
+	defer tmr.Stop()
+	select {
+	case <-sig:
+		return nil
+	case <-tmr.C:
+		return fmt.Errorf("signal didn't happen within %s", waitDur)
+	}
+}
+
+// notifyingFunc creates a new function to be used as a waitFunc in the
+// newForwardingHandler function. it also returns a channel that will
+// be closed immediately after the function is called (not necessarily
+// before it returns). the function won't return until the returned func()
+// is called
+func notifyingFunc() (func(string) error, <-chan struct{}, func()) {
+	calledCh := make(chan struct{})
+	finishCh := make(chan struct{})
+	finishFunc := func() {
+		close(finishCh)
+	}
+	return func(string) error {
+		close(calledCh)
+		<-finishCh
+		return nil
+	}, calledCh, finishFunc
 }
