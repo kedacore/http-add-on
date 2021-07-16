@@ -102,7 +102,12 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
-
+	start := time.Now()
+	waitDur := timeouts.DeploymentReplicas * 2
+	go func() {
+		time.Sleep(waitDur)
+		finishWaitFunc()
+	}()
 	noSuchHost := "TestTimesOutOnWaitFunc.testing"
 
 	routingTable := routing.NewTable()
@@ -123,12 +128,6 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	r.NoError(err)
 	req.Host = noSuchHost
 
-	start := time.Now()
-	waitDur := timeouts.DeploymentReplicas * 2
-	go func() {
-		time.Sleep(waitDur)
-		finishWaitFunc()
-	}()
 	hdl.ServeHTTP(res, req)
 	r.NoError(waitForSignal(waitFuncCalledCh, 1*time.Second))
 	r.GreaterOrEqual(time.Since(start), waitDur)
