@@ -2,12 +2,15 @@ package k8s
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // DeleteDeployment deletes the deployment given using the client given
@@ -35,6 +38,7 @@ func NewDeployment(
 	ports []int32,
 	env []corev1.EnvVar,
 	labels map[string]string,
+	pullPolicy corev1.PullPolicy,
 ) *appsv1.Deployment {
 	containerPorts := make([]corev1.ContainerPort, len(ports))
 	for i, port := range ports {
@@ -55,7 +59,7 @@ func NewDeployment(
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
-			Replicas: int32P(1),
+			Replicas: Int32P(1),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
@@ -65,7 +69,7 @@ func NewDeployment(
 						{
 							Image:           image,
 							Name:            name,
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: pullPolicy,
 							Ports:           containerPorts,
 							Env:             env,
 						},
@@ -76,4 +80,85 @@ func NewDeployment(
 	}
 
 	return deployment
+}
+
+// AddLivenessProbe adds a liveness probe to the first container on depl.
+// the probe will do an HTTP GET to path on port.
+//
+// returns a non-nil error if there is not at least one container on the given
+// deployment's container list (depl.Spec.Template.Spec.Containers)
+func AddLivenessProbe(
+	depl *appsv1.Deployment,
+	path string,
+	port int,
+) error {
+	if len(depl.Spec.Template.Spec.Containers) < 1 {
+		return errors.New("no conatiners to set liveness/readiness checks on")
+	}
+	depl.Spec.Template.Spec.Containers[0].LivenessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: path,
+				Port: intstr.FromInt(port),
+			},
+		},
+		PeriodSeconds: 1,
+	}
+	return nil
+}
+
+// AddReadinessProbe adds a readiness probe to the first container on depl.
+// the probe will do an HTTP GET to path on port.
+//
+// returns a non-nil error if there is not at least one container on the given
+// deployment's container list (depl.Spec.Template.Spec.Containers)
+func AddReadinessProbe(
+	depl *appsv1.Deployment,
+	path string,
+	port int,
+) error {
+	depl.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: path,
+				Port: intstr.FromInt(port),
+			},
+		},
+		PeriodSeconds: 1,
+	}
+	return nil
+}
+
+func ensureLeadingSlash(str string) string {
+	if len(str) == 0 {
+		return str
+	}
+	if str[0] != '/' {
+		str = fmt.Sprintf("/%s", str)
+	}
+	return str
+}
+
+func AddHTTPLivenessProbe(depl *appsv1.Deployment, httpPath string, port int) {
+	httpPath = ensureLeadingSlash(httpPath)
+	depl.Spec.Template.Spec.Containers[0].LivenessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: httpPath,
+				Port: intstr.FromInt(port),
+			},
+		},
+	}
+}
+
+func AddHTTPReadinessProbe(depl *appsv1.Deployment, httpPath string, port int) {
+	httpPath = ensureLeadingSlash(httpPath)
+	depl.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: httpPath,
+				Port: intstr.FromInt(port),
+			},
+		},
+	}
 }

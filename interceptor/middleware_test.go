@@ -2,24 +2,34 @@ package main
 
 import (
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"sync"
+	"testing"
 	"time"
 
-	echo "github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/require"
 )
 
-func (i *InterceptorSuite) TestCountMiddleware() {
+func TestCountMiddleware(t *testing.T) {
+	r := require.New(t)
 	queueCounter := &fakeQueueCounter{}
-	middleware := countMiddleware(queueCounter)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	handler := middleware(func(c echo.Context) error {
-		wg.Done()
-		return c.String(200, "OK")
-	})
-	_, echoCtx, _ := newTestCtx("GET", "/something")
+	middleware := countMiddleware(
+		queueCounter,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			wg.Done()
+			w.WriteHeader(200)
+			w.Write([]byte("OK"))
+		}),
+	)
+	req, err := http.NewRequest("GET", "/something", nil)
+	r.NoError(err)
+	rec := httptest.NewRecorder()
+
 	go func() {
-		i.NoError(handler(echoCtx))
+		middleware.ServeHTTP(rec, req)
 	}()
 
 	// after the handler was called, first wait for it to complete.
@@ -40,14 +50,16 @@ func (i *InterceptorSuite) TestCountMiddleware() {
 		case i := <-queueCounter.resizedCh:
 			resizes = append(resizes, i)
 		case <-timer.C:
+			// effectively breaks out of the outer loop.
+			// putting a 'break' here will only break out
+			// of the select block
 			done = true
-			break
 		}
 	}
 	agg := 0
 	for _, delta := range resizes {
-		i.Equal(1, math.Abs(float64(delta)))
+		r.Equal(1, math.Abs(float64(delta)))
 		agg += delta
 	}
-	i.Equal(0, agg, "sum of all the resize operations")
+	r.Equal(0, agg, "sum of all the resize operations")
 }
