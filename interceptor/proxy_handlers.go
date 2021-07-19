@@ -28,9 +28,19 @@ func newForwardingHandler(
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
 	waitTimeout time.Duration,
-	respTimeout time.Duration,
+	respHeaderTimeout time.Duration,
 ) http.Handler {
 	logger = logger.WithName("newForwardingHandler")
+	roundTripper := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialCtxFunc,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ResponseHeaderTimeout: respHeaderTimeout,
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
 		defer done()
@@ -44,6 +54,6 @@ func newForwardingHandler(
 			return
 		}
 
-		forwardRequest(w, r, dialCtxFunc, respTimeout, fwdSvcURL)
+		forwardRequest(w, r, roundTripper, fwdSvcURL)
 	})
 }

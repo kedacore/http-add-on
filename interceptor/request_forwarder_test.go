@@ -15,6 +15,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
+func newRoundTripper(
+	dialCtxFunc kedanet.DialContextFunc,
+	httpRespHeaderTimeout time.Duration,
+) http.RoundTripper {
+	return &http.Transport{
+		DialContext:           dialCtxFunc,
+		ResponseHeaderTimeout: httpRespHeaderTimeout,
+	}
+}
+
 func defaultTimeouts() config.Timeouts {
 	return config.Timeouts{
 		Connect:            100 * time.Millisecond,
@@ -74,8 +84,7 @@ func TestForwarderSuccess(t *testing.T) {
 	forwardRequest(
 		res,
 		req,
-		dialCtxFunc,
-		timeouts.ResponseHeader,
+		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
 		forwardURL,
 	)
 
@@ -130,8 +139,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	forwardRequest(
 		res,
 		req,
-		dialCtxFunc,
-		timeouts.ResponseHeader,
+		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
 		originURL,
 	)
 
@@ -179,8 +187,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	forwardRequest(
 		res,
 		req,
-		dialCtxFunc,
-		timeouts.ResponseHeader,
+		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
 		originURL,
 	)
 	// wait for the goroutine above to finish, with a little cusion
@@ -208,8 +215,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	forwardRequest(
 		res,
 		req,
-		dialCtxFunc,
-		timeouts.ResponseHeader,
+		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
 		noSuchURL,
 	)
 	elapsed := time.Since(start)
