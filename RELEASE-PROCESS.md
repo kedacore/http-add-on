@@ -14,7 +14,7 @@ To determine the new version, follow [SemVer guidelines](https://semver.org). Mo
 
 The scope of the changes you'll need to make to the Helm chart vary from just changing the `appVersion` field in the [Chart.yaml file](https://github.com/kedacore/charts/blob/master/http-add-on/Chart.yaml) to changing the `HTTPScaledObject` CRD, adding new configuration, or even adding/changing components.
 
-You must, at a minimum, change that `appVersion` field to the new version number, however. If you have chosen `1.2.3`, for example, the `appVersion` field should read: 
+You must, at a minimum, change that `appVersion` field to the new version number, however. If you have chosen `1.2.3`, for example, the `appVersion` field should read:
 
 ```yaml
 appVersion: 1.2.3
@@ -34,7 +34,7 @@ See the below steps for updating the Helm chart:
 
 The title of the release should be "Version 1.2.3", substituting `1.2.3` with the new version number, and the Git tag should be `v1.2.3`, again substituting `1.2.3` with your new version number.
 
-The release description should be a short to medium length summary of what has changed since the last release. The following link will give you a list of commits made since the `v0.1.0` tag: [github.com/kedacore/http-add-on/athens/compare/main...v0.1.0](github.com/kedacore/http-add-on/athens/compare/main...v0.1.0). Replace `v0.1.0` for your appropriate most recent last tag to get the commit list and base your release summary on that list.
+The release description should be a short to medium length summary of what has changed since the last release. The following link will give you a list of commits made since the `v0.1.0` tag: [github.com/kedacore/http-add-on/compare/v0.1.0...main](https://github.com/kedacore/http-add-on/compare/v0.1.0...main). Replace `v0.1.0` for your appropriate most recent last tag to get the commit list and base your release summary on that list.
 
 After you create the new release, automation in a GitHub action will build and deploy new container images.
 
