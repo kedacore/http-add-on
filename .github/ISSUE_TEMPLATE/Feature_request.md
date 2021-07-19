@@ -12,4 +12,4 @@ Tell us more what you'd like to achieve
 
 ### Specification
 
-- [ ] Demand #1
+Tell us in detail how this feature should work

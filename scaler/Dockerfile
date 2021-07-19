@@ -1,7 +1,9 @@
 # taken from Athens
 # https://github.com/gomods/athens/blob/main/cmd/proxy/Dockerfile
-ARG GOLANG_VERSION=1.14
-ARG ALPINE_VERSION=3.11.5
+ARG GOLANG_VERSION=1.16
+ARG GOARCH=amd64
+ARG GOOS=linux
+
 
 FROM golang:${GOLANG_VERSION}-alpine AS builder
 
@@ -15,6 +17,8 @@ COPY . .
 
 ENV GO111MODULE=on
 ENV CGO_ENABLED=0
+ENV GOOS=${GOOS}
+ENV GOARCH=${GOARCH}
 ENV GOPROXY="https://proxy.golang.org"
 RUN go build -o /bin/scaler ./scaler
 

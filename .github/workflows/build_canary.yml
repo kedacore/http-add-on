@@ -5,6 +5,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  IMAGE_OPERATOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-operator
+  IMAGE_INTERCEPTOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-interceptor
+  IMAGE_SCALER_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-scaler
+
 jobs:
   build_operator:
 
@@ -28,7 +33,7 @@ jobs:
           # Username used to log in to a Docker registry. If not set then no login will occur
           username: ${{ github.repository_owner }}
           # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
-          password: ${{ secrets.GHCR_AUTH_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
 
@@ -36,14 +41,15 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          repository: ${{ github.repository_owner }}/http-add-on-operator
-          tags: canary,sha-${{steps.prep.outputs.sha}}
+          tags: |
+            ${{ env.IMAGE_OPERATOR_NAME }}:canary,${{ env.IMAGE_OPERATOR_NAME }}:sha-${{ steps.prep.outputs.sha }}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: operator/Dockerfile
           context: .
+          push: true
 
   build_interceptor:
 
@@ -66,8 +72,8 @@ jobs:
         with:
           # Username used to log in to a Docker registry. If not set then no login will occur
           username: ${{ github.repository_owner }}
-          # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
-          password: ${{ secrets.GHCR_AUTH_PAT }}
+          # https://github.blog/changelog/2021-03-24-packages-container-registry-now-supports-github_token/
+          password: ${{ secrets.GITHUB_TOKEN }}
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
 
@@ -75,14 +81,14 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          repository: ${{ github.repository_owner }}/http-add-on-interceptor
-          tags: canary,sha-${{steps.prep.outputs.sha}}
+          tags: ${{ env.IMAGE_INTERCEPTOR_NAME }}:canary,${{ env.IMAGE_INTERCEPTOR_NAME }}:sha-${{steps.prep.outputs.sha}}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: interceptor/Dockerfile
           context: .
+          push: true
 
   build_scaler:
     runs-on: ubuntu-20.04
@@ -105,7 +111,7 @@ jobs:
           # Username used to log in to a Docker registry. If not set then no login will occur
           username: ${{ github.repository_owner }}
           # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
-          password: ${{ secrets.GHCR_AUTH_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
 
@@ -113,11 +119,11 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # Docker repository to tag the image with
-          repository: ${{ github.repository_owner }}/http-add-on-scaler
-          tags: canary,sha-${{steps.prep.outputs.sha}}
+          tags: ${{ env.IMAGE_SCALER_NAME }}:canary,${{ env.IMAGE_SCALER_NAME }}:sha-${{steps.prep.outputs.sha}}
           labels: |
             sh.keda.http.image.source=${{github.event.repository.html_url}}
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
           file: scaler/Dockerfile
           context: .
+          push: true
