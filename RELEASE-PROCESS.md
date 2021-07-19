@@ -12,7 +12,15 @@ To determine the new version, follow [SemVer guidelines](https://semver.org). Mo
 
 ## 1: Submit a PR to the [Helm Charts Repository](https://github.com/kedacore/charts)
 
-This step is not strictly necessary, since not every change to the HTTP Addon requires a Helm chart. In some cases, though, a Helm chart change will be necessary, like a change to the `HTTPScaledObject` or new configuration to one of the components (i.e. operator, interceptor, or scaler). If your release is one of those situations, do the following:
+The scope of the changes you'll need to make to the Helm chart vary from just changing the `appVersion` field in the [Chart.yaml file](https://github.com/kedacore/charts/blob/master/http-add-on/Chart.yaml) to changing the `HTTPScaledObject` CRD, adding new configuration, or even adding/changing components.
+
+You must, at a minimum, change that `appVersion` field to the new version number, however. If you have chosen `1.2.3`, for example, the `appVersion` field should read: 
+
+```yaml
+appVersion: 1.2.3
+```
+
+See the below steps for updating the Helm chart:
 
 1. Submit a Pull Request (PR) to the [github.com/kedacore/charts](https://github.com/kedacore/charts) repository with your changes. Also ensure that you follow the [Shipping a new version](https://github.com/kedacore/charts/blob/master/CONTRIBUTING.md#shipping-a-new-version) guidelines in the charts documentation to complete the chart release.
    - Your chart changes must go into the [http-add-on](https://github.com/kedacore/charts/tree/master/http-add-on) directory. The release artifact will go into the [docs](https://github.com/kedacore/charts/tree/master/docs) directory.
@@ -26,4 +34,10 @@ This step is not strictly necessary, since not every change to the HTTP Addon re
 
 The title of the release should be "Version 1.2.3", substituting `1.2.3` with the new version number, and the Git tag should be `v1.2.3`, again substituting `1.2.3` with your new version number.
 
-The release description should be a short to medium length summary of what has changed since the last release. The following link will give you a list of commits made since the `v0.1.0` tag: https://github.com/kedacore/http-add-on/athens/compare/main...v0.1.0. Replace `v0.1.0` for your appropriate most recent last tag to get the commit list and base your release summary on that list.
+The release description should be a short to medium length summary of what has changed since the last release. The following link will give you a list of commits made since the `v0.1.0` tag: [github.com/kedacore/http-add-on/athens/compare/main...v0.1.0](github.com/kedacore/http-add-on/athens/compare/main...v0.1.0). Replace `v0.1.0` for your appropriate most recent last tag to get the commit list and base your release summary on that list.
+
+After you create the new release, automation in a GitHub action will build and deploy new container images.
+
+## 3: Write a blog post on the documentation site (_optional_)
+
+If you believe that your release is large enough to warrant a blog post on the [keda.sh/blog](https://keda.sh/blog/) site, please go to [github.com/kedacore/keda-docs](https://github.com/kedacore/keda-docs) and submit a new PR with a blog article about the release. Include in the article a longer summary of changes and any important information about the new functionality, bugfixes, or anything else appropriate. The post should go into the [content/blog](https://github.com/kedacore/keda-docs/tree/master/content/blog) directory.
