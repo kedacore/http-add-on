@@ -10,14 +10,13 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/go-logr/zapr"
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	echo "github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -28,16 +27,10 @@ func init() {
 }
 
 func main() {
-	zapCfg := zap.NewProductionConfig()
-	zapCfg.Sampling = &zap.SamplingConfig{
-		Initial:    1,
-		Thereafter: 5,
-	}
-	zapLggr, err := zapCfg.Build()
+	lggr, err := pkglog.NewZapr()
 	if err != nil {
 		log.Fatalf("Error building logger (%v)", err)
 	}
-	lggr := zapr.NewLogger(zapLggr)
 	timeoutCfg := config.MustParseTimeouts()
 	operatorCfg := config.MustParseOperator()
 	servingCfg := config.MustParseServing()
