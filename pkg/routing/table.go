@@ -28,6 +28,7 @@ func (t *Target) ServiceURL() (*url.URL, error) {
 }
 
 type Table struct {
+	fmt.Stringer
 	m map[string]Target
 	l *sync.RWMutex
 }
@@ -37,6 +38,12 @@ func NewTable() *Table {
 		m: make(map[string]Target),
 		l: new(sync.RWMutex),
 	}
+}
+
+func (t *Table) String() string {
+	t.l.RLock()
+	defer t.l.RUnlock()
+	return fmt.Sprintf("%v", t.m)
 }
 
 func (t *Table) MarshalJSON() ([]byte, error) {
