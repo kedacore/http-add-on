@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -20,6 +22,10 @@ import (
 )
 
 func main() {
+	lggr, err := pkglog.NewZapr()
+	if err != nil {
+		log.Fatalf("error creating new logger (%v)", err)
+	}
 	ctx := context.Background()
 	cfg := mustParseConfig()
 	grpcPort := cfg.GRPCPort
@@ -33,6 +39,7 @@ func main() {
 	}
 	pinger := newQueuePinger(
 		context.Background(),
+		lggr,
 		k8sCl,
 		namespace,
 		svcName,
@@ -41,12 +48,17 @@ func main() {
 	)
 
 	grp, ctx := errgroup.WithContext(ctx)
-	grp.Go(startGrpcServer(ctx, grpcPort, pinger))
+	grp.Go(startGrpcServer(ctx, lggr, grpcPort, pinger))
 	grp.Go(startHealthcheckServer(ctx, healthPort))
 	log.Fatalf("One or more of the servers failed: %s", grp.Wait())
 }
 
-func startGrpcServer(ctx context.Context, port int, pinger *queuePinger) func() error {
+func startGrpcServer(
+	ctx context.Context,
+	lggr logr.Logger,
+	port int,
+	pinger *queuePinger,
+) func() error {
 	return func() error {
 		addr := fmt.Sprintf("0.0.0.0:%d", port)
 		log.Printf("Serving external scaler on %s", addr)

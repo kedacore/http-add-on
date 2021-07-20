@@ -5,12 +5,12 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	pkghttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,10 +25,12 @@ type queuePinger struct {
 	pingMut      *sync.RWMutex
 	lastPingTime time.Time
 	allCounts    map[string]int
+	lggr         logr.Logger
 }
 
 func newQueuePinger(
 	ctx context.Context,
+	lggr logr.Logger,
 	k8sCl *kubernetes.Clientset,
 	ns,
 	svcName,
@@ -42,13 +44,14 @@ func newQueuePinger(
 		svcName:   svcName,
 		adminPort: adminPort,
 		pingMut:   pingMut,
+		lggr:      lggr,
 	}
 
 	go func() {
 		defer pingTicker.Stop()
 		for range pingTicker.C {
 			if err := pinger.requestCounts(ctx); err != nil {
-				log.Printf("Error getting request counts (%s)", err)
+				lggr.Error(err, "getting request counts")
 			}
 		}
 	}()
@@ -63,10 +66,11 @@ func (q *queuePinger) counts() map[string]int {
 }
 
 func (q *queuePinger) requestCounts(ctx context.Context) error {
-	log.Printf("queuePinger.requestCounts")
+	lggr := q.lggr.WithName("queuePinger.requestCounts")
 	endpointsCl := q.k8sCl.CoreV1().Endpoints(q.ns)
 	endpoints, err := endpointsCl.Get(ctx, q.svcName, metav1.GetOptions{})
 	if err != nil {
+		lggr.Error(err, "getting endpoints for service", "serviceName", q.svcName)
 		return err
 	}
 
@@ -90,18 +94,21 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 			completeAddr := u.String()
 			resp, err := http.Get(completeAddr)
 			if err != nil {
-				log.Printf("Error in pinger with GET %s (%s)", completeAddr, err)
+				lggr.Error(err, "GET request failed", "address", completeAddr)
 				return
 			}
 			defer resp.Body.Close()
 			counts := pkghttp.NewQueueCounts()
 			if err := json.NewDecoder(resp.Body).Decode(counts); err != nil {
-				log.Printf("Error decoding request to %s (%s)", completeAddr, err)
+				lggr.Error(
+					err,
+					"decoding response from interceptor",
+					"interceptorAddress",
+					completeAddr,
+				)
 				return
 			}
-			log.Printf("\n--\ncurSize for address %s: %v\n--\n", completeAddr, counts)
 			countsCh <- counts
-			log.Printf("Sent curSize %v for address %s", counts, completeAddr)
 		}(endpoint)
 	}
 
@@ -121,7 +128,6 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 	defer q.pingMut.Unlock()
 	q.allCounts = totalCounts
 	q.lastPingTime = time.Now()
-	log.Printf("Finished getting aggregate current sizes %v", q.allCounts)
 
 	return nil
 
