@@ -1,18 +1,18 @@
-package http
+package queue
 
 import (
 	"sync"
 )
 
-// QueueCountReader represents the size of a virtual HTTP queue, possibly
+// CountReader represents the size of a virtual HTTP queue, possibly
 // distributed across multiple HTTP server processes. It only can access
 // the current size of the queue, not any other information about requests.
 //
 // It is concurrency safe.
-type QueueCountReader interface {
+type CountReader interface {
 	// Current returns the current count of pending requests
 	// for the given hostname
-	Current() (*QueueCounts, error)
+	Current() (*Counts, error)
 }
 
 // QueueCounter represents a virtual HTTP queue, possibly distributed across
@@ -22,8 +22,8 @@ type QueueCountReader interface {
 //
 // Both the mutation and read functionality is concurrency safe, but
 // the read functionality is point-in-time only
-type QueueCounter interface {
-	QueueCountReader
+type Counter interface {
+	CountReader
 	// Resize resizes the queue size by delta for the given host
 	Resize(host string, delta int) error
 }
@@ -31,15 +31,15 @@ type QueueCounter interface {
 // MemoryQueue is a reference QueueCounter implementation that holds the
 // HTTP queue in memory only. Always use NewMemoryQueue to create one
 // of these.
-type MemoryQueue struct {
+type Memory struct {
 	countMap map[string]int
 	mut      *sync.RWMutex
 }
 
 // NewMemoryQueue creates a new empty memory queue
-func NewMemoryQueue() *MemoryQueue {
+func NewMemory() *Memory {
 	lock := new(sync.RWMutex)
-	return &MemoryQueue{
+	return &Memory{
 		countMap: make(map[string]int),
 		mut:      lock,
 	}
@@ -48,7 +48,7 @@ func NewMemoryQueue() *MemoryQueue {
 // Resize changes the size of the queue. Further calls to Current() return
 // the newly calculated size if no other Resize() calls were made in the
 // interim.
-func (r *MemoryQueue) Resize(host string, delta int) error {
+func (r *Memory) Resize(host string, delta int) error {
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	r.countMap[host] += delta
@@ -56,10 +56,10 @@ func (r *MemoryQueue) Resize(host string, delta int) error {
 }
 
 // Current returns the current size of the queue.
-func (r *MemoryQueue) Current() (*QueueCounts, error) {
+func (r *Memory) Current() (*Counts, error) {
 	r.mut.RLock()
 	defer r.mut.RUnlock()
-	cts := NewQueueCounts()
+	cts := NewCounts()
 	cts.Counts = r.countMap
 	return cts, nil
 }

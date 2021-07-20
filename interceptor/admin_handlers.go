@@ -8,44 +8,35 @@ import (
 	"net/url"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/routing"
-	echo "github.com/labstack/echo/v4"
 )
-
-// newForwardingHandler takes in the service URL for the app backend
-// and forwards incoming requests to it. Note that it isn't multitenant.
-// It's intended to be deployed and scaled alongside the application itself
-func newQueueSizeHandler(q http.QueueCountReader) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		cur, err := q.Current()
-		if err != nil {
-			log.Printf("Error getting queue size (%s)", err)
-			c.Error(err)
-			return err
-		}
-		return c.JSON(200, cur)
-	}
-}
 
 func newRoutingPingHandler(
 	lggr logr.Logger,
 	operatorAdminURL *url.URL,
 	table *routing.Table,
-) echo.HandlerFunc {
-	return func(c echo.Context) error {
+) nethttp.Handler {
+	return nethttp.HandlerFunc(func(
+		w nethttp.ResponseWriter,
+		r *nethttp.Request,
+	) {
 		newTable, err := fetchRoutingTable(
-			c.Request().Context(),
+			r.Context(),
 			lggr,
 			operatorAdminURL,
 		)
 		if err != nil {
 			log.Printf("error fetching new routing table (%s)", err)
-			return c.String(500, "error fetching routing table")
+			w.WriteHeader(500)
+			w.Write([]byte(
+				"error fetching routing table",
+			))
+			return
 		}
 		table.Replace(newTable)
-		return c.String(200, "OK")
-	}
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	})
 }
 
 func fetchRoutingTable(

@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -35,7 +36,8 @@ func main() {
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
 	k8sCl, _, err := k8s.NewClientset()
 	if err != nil {
-		log.Fatalf("Couldn't get a Kubernetes client (%s)", err)
+		lggr.Error(err, "getting a Kubernetes client")
+		os.Exit(1)
 	}
 	pinger := newQueuePinger(
 		context.Background(),
@@ -49,8 +51,8 @@ func main() {
 
 	grp, ctx := errgroup.WithContext(ctx)
 	grp.Go(startGrpcServer(ctx, lggr, grpcPort, pinger))
-	grp.Go(startHealthcheckServer(ctx, healthPort))
-	log.Fatalf("One or more of the servers failed: %s", grp.Wait())
+	grp.Go(startHealthcheckServer(ctx, lggr, healthPort))
+	lggr.Error(grp.Wait(), "one or more of the servers failed")
 }
 
 func startGrpcServer(
@@ -61,10 +63,10 @@ func startGrpcServer(
 ) func() error {
 	return func() error {
 		addr := fmt.Sprintf("0.0.0.0:%d", port)
-		log.Printf("Serving external scaler on %s", addr)
+		lggr.Info("starting grpc server", "address", addr)
 		lis, err := net.Listen("tcp", addr)
 		if err != nil {
-			log.Fatalf("failed to listen: %v", err)
+			return err
 		}
 
 		grpcServer := grpc.NewServer()
@@ -78,7 +80,11 @@ func startGrpcServer(
 	}
 }
 
-func startHealthcheckServer(ctx context.Context, port int) func() error {
+func startHealthcheckServer(
+	ctx context.Context,
+	lggr logr.Logger,
+	port int,
+) func() error {
 	return func() error {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +97,7 @@ func startHealthcheckServer(ctx context.Context, port int) func() error {
 			Addr:    fmt.Sprintf(":%d", port),
 			Handler: mux,
 		}
-		log.Printf("Serving health check server on port %d", port)
+		lggr.Info("starting health check server", "port", port)
 
 		go func() {
 			<-ctx.Done()

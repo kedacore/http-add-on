@@ -11,12 +11,11 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
-	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
+	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
-	echo "github.com/labstack/echo/v4"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -39,7 +38,7 @@ func main() {
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
 
-	q := http.NewMemoryQueue()
+	q := queue.NewMemory()
 
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
@@ -114,27 +113,27 @@ func main() {
 func runAdminServer(
 	lggr logr.Logger,
 	routingFetchURL *url.URL,
-	q http.QueueCountReader,
+	q queue.CountReader,
 	routingTable *routing.Table,
 	port int,
 ) error {
-	adminServer := echo.New()
-	adminServer.GET(
-		"/queue",
-		newQueueSizeHandler(q),
+	adminServer := nethttp.NewServeMux()
+	adminServer.Handle(
+		queue.CountsPath,
+		queue.NewSizeHandler(lggr, q),
 	)
-	adminServer.GET(
+	adminServer.Handle(
 		"/routing_ping",
 		newRoutingPingHandler(lggr, routingFetchURL, routingTable),
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	log.Printf("admin server running on %s", addr)
-	return adminServer.Start(addr)
+	return nethttp.ListenAndServe(addr, adminServer)
 }
 
 func runProxyServer(
-	q http.QueueCounter,
+	q queue.Counter,
 	waitFunc forwardWaitFunc,
 	routingTable *routing.Table,
 	timeouts *config.Timeouts,

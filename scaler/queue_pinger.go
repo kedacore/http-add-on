@@ -4,15 +4,15 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
-	pkghttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -84,27 +84,30 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		return err
 	}
 
-	countsCh := make(chan *pkghttp.QueueCounts)
+	countsCh := make(chan *queue.Counts)
 	var wg sync.WaitGroup
 
 	for _, endpoint := range endpointURLs {
 		wg.Add(1)
 		go func(u *url.URL) {
 			defer wg.Done()
-			completeAddr := u.String()
-			resp, err := http.Get(completeAddr)
+			addr := fmt.Sprintf(
+				"%s%s",
+				u.String(),
+				queue.CountsPath,
+			)
+			counts, err := queue.GetCounts(
+				ctx,
+				lggr,
+				http.DefaultClient,
+				addr,
+			)
 			if err != nil {
-				lggr.Error(err, "GET request failed", "address", completeAddr)
-				return
-			}
-			defer resp.Body.Close()
-			counts := pkghttp.NewQueueCounts()
-			if err := json.NewDecoder(resp.Body).Decode(counts); err != nil {
 				lggr.Error(
 					err,
-					"decoding response from interceptor",
+					"getting queue counts from interceptor",
 					"interceptorAddress",
-					completeAddr,
+					addr,
 				)
 				return
 			}

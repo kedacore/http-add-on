@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCountMiddleware(t *testing.T) {
 	r := require.New(t)
-	queueCounter := newFakeQueueCounter()
+	queueCounter := queue.NewFakeCounter()
 	middleware := countMiddleware(
 		queueCounter,
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +40,7 @@ func TestCountMiddleware(t *testing.T) {
 	agg := 0
 	for i := 0; i < 2; i++ {
 		select {
-		case delta := <-queueCounter.resizedCh:
+		case delta := <-queueCounter.ResizedCh:
 			r.Equal(float64(1), math.Abs(float64(delta)))
 			agg += delta
 		case <-timer.C:
