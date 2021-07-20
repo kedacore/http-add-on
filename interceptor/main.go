@@ -67,7 +67,12 @@ func main() {
 
 	log.Printf("Interceptor starting")
 	log.Printf("Fetching initial routing table")
-	routingTable, err := fetchRoutingTable(ctx, lggr, operatorRoutingFetchURL)
+	routingTable, err := routing.GetTable(
+		ctx,
+		nethttp.DefaultClient,
+		lggr,
+		operatorRoutingFetchURL,
+	)
 	if err != nil {
 		log.Fatal("error fetching routing table ", err)
 	}
@@ -92,7 +97,12 @@ func main() {
 			operatorCfg.RoutingTableUpdateDuration(),
 			routingTable,
 			func(ctx context.Context) (*routing.Table, error) {
-				return fetchRoutingTable(ctx, lggr, operatorRoutingFetchURL)
+				return routing.GetTable(
+					ctx,
+					nethttp.DefaultClient,
+					lggr,
+					operatorRoutingFetchURL,
+				)
 			},
 		)
 	})

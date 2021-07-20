@@ -1,9 +1,8 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"log"
+	"net/http"
 	nethttp "net/http"
 	"net/url"
 
@@ -20,8 +19,9 @@ func newRoutingPingHandler(
 		w nethttp.ResponseWriter,
 		r *nethttp.Request,
 	) {
-		newTable, err := fetchRoutingTable(
+		newTable, err := routing.GetTable(
 			r.Context(),
+			http.DefaultClient,
 			lggr,
 			operatorAdminURL,
 		)
@@ -37,24 +37,4 @@ func newRoutingPingHandler(
 		w.WriteHeader(200)
 		w.Write([]byte("ok"))
 	})
-}
-
-func fetchRoutingTable(
-	ctx context.Context,
-	lggr logr.Logger,
-	operatorAdminURL *url.URL,
-) (*routing.Table, error) {
-	res, err := nethttp.Get(operatorAdminURL.String())
-	if err != nil {
-		lggr.Error(err, "fetching the routing table URL")
-		return nil, err
-	}
-	defer res.Body.Close()
-	newTable := routing.NewTable()
-	if err := json.NewDecoder(res.Body).Decode(newTable); err != nil {
-		lggr.Error(err, "decoding routing table URL response")
-		return nil, err
-	}
-	lggr.Info("fetched new routing table", "table", newTable.String())
-	return newTable, nil
 }
