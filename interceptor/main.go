@@ -9,12 +9,15 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	echo "github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -25,6 +28,16 @@ func init() {
 }
 
 func main() {
+	zapCfg := zap.NewProductionConfig()
+	zapCfg.Sampling = &zap.SamplingConfig{
+		Initial:    1,
+		Thereafter: 5,
+	}
+	zapLggr, err := zapCfg.Build()
+	if err != nil {
+		log.Fatalf("Error building logger (%v)", err)
+	}
+	lggr := zapr.NewLogger(zapLggr)
 	timeoutCfg := config.MustParseTimeouts()
 	operatorCfg := config.MustParseOperator()
 	servingCfg := config.MustParseServing()
@@ -62,7 +75,7 @@ func main() {
 
 	log.Printf("Interceptor starting")
 	log.Printf("Fetching initial routing table")
-	routingTable, err := fetchRoutingTable(ctx, operatorRoutingFetchURL)
+	routingTable, err := fetchRoutingTable(ctx, lggr, operatorRoutingFetchURL)
 	if err != nil {
 		log.Fatal("error fetching routing table ", err)
 	}
@@ -70,6 +83,7 @@ func main() {
 	errGrp, ctx := errgroup.WithContext(ctx)
 	errGrp.Go(func() error {
 		return runAdminServer(
+			lggr,
 			operatorRoutingFetchURL,
 			q,
 			routingTable,
@@ -86,7 +100,7 @@ func main() {
 			operatorCfg.RoutingTableUpdateDuration(),
 			routingTable,
 			func(ctx context.Context) (*routing.Table, error) {
-				return fetchRoutingTable(ctx, operatorRoutingFetchURL)
+				return fetchRoutingTable(ctx, lggr, operatorRoutingFetchURL)
 			},
 		)
 	})
@@ -105,6 +119,7 @@ func main() {
 }
 
 func runAdminServer(
+	lggr logr.Logger,
 	routingFetchURL *url.URL,
 	q http.QueueCountReader,
 	routingTable *routing.Table,
@@ -117,7 +132,7 @@ func runAdminServer(
 	)
 	adminServer.GET(
 		"/routing_ping",
-		newRoutingPingHandler(routingFetchURL, routingTable),
+		newRoutingPingHandler(lggr, routingFetchURL, routingTable),
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)

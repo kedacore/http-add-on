@@ -7,6 +7,7 @@ import (
 	nethttp "net/http"
 	"net/url"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	echo "github.com/labstack/echo/v4"
@@ -28,12 +29,14 @@ func newQueueSizeHandler(q http.QueueCountReader) echo.HandlerFunc {
 }
 
 func newRoutingPingHandler(
+	lggr logr.Logger,
 	operatorAdminURL *url.URL,
 	table *routing.Table,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		newTable, err := fetchRoutingTable(
 			c.Request().Context(),
+			lggr,
 			operatorAdminURL,
 		)
 		if err != nil {
@@ -47,16 +50,20 @@ func newRoutingPingHandler(
 
 func fetchRoutingTable(
 	ctx context.Context,
+	lggr logr.Logger,
 	operatorAdminURL *url.URL,
 ) (*routing.Table, error) {
 	res, err := nethttp.Get(operatorAdminURL.String())
 	if err != nil {
+		lggr.Error(err, "fetching the routing table URL")
 		return nil, err
 	}
 	defer res.Body.Close()
 	newTable := routing.NewTable()
 	if err := json.NewDecoder(res.Body).Decode(newTable); err != nil {
+		lggr.Error(err, "decoding routing table URL response")
 		return nil, err
 	}
+	lggr.Info("fetched new routing table", "table", newTable.String())
 	return newTable, nil
 }
