@@ -21,24 +21,6 @@ type AppInfo struct {
 	ExternalScalerConfig ExternalScaler
 }
 
-// InterceptorAdminServiceName is a convenience method to get the name of the interceptor
-// service for the admin endpoints in Kubernetes
-func (a AppInfo) InterceptorAdminServiceName() string {
-	return fmt.Sprintf("%s-interceptor-admin", a.Name)
-}
-
-// InterceptorProxyServiceName is a convenience method to get the name of the interceptor
-// service for the proxy in Kubernetes
-func (a AppInfo) InterceptorProxyServiceName() string {
-	return fmt.Sprintf("%s-interceptor-proxy", a.Name)
-}
-
-// InterceptorDeploymentName is a convenience method to get the name of the interceptor
-// deployment in Kubernetes
-func (a AppInfo) InterceptorDeploymentName() string {
-	return fmt.Sprintf("%s-interceptor", a.Name)
-}
-
 func AppScaledObjectName(httpso *v1alpha1.HTTPScaledObject) string {
 	return fmt.Sprintf("%s-app", httpso.Spec.ScaleTargetRef.Deployment)
 }
