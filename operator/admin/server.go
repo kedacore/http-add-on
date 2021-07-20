@@ -18,7 +18,7 @@ func StartServer(
 ) error {
 	mux := http.NewServeMux()
 	routingTablePath = fmt.Sprintf("/%s", routingTablePath)
-	mux.Handle(routingTablePath, newRoutingTableHandler(logger, table))
+	mux.Handle(routingTablePath, routing.NewTableHandler(logger, table))
 	addrStr := fmt.Sprintf(":%d", port)
 	return http.ListenAndServe(
 		addrStr,
