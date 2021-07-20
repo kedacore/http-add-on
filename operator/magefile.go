@@ -101,7 +101,7 @@ func Manifests() error {
 		fmt.Sprintf("rbac:roleName=%q", RBAC_ROLENAME),
 		"webhook",
 		fmt.Sprintf("paths=%q", "./..."),
-		"output:crd:object:artifacts:config=config/crd/bases",
+		"output:crd:artifacts:config=config/crd/bases",
 	)
 }
 
