@@ -26,7 +26,7 @@ You interact with the operator via a CRD called `HTTPScaledObject`. This CRD obj
 kubectl create -f -n $NAMESPACE examples/v0.0.2/httpscaledobject.yaml
 ```
 
->If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/http_scaled_object.md).
+>If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.2.0/http_scaled_object.md).
 
 ## Testing Your Installation
 
