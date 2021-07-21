@@ -10,7 +10,7 @@ import (
 // FakeEndpointsForURL creates and returns a new *v1.Endpoints with a
 // single v1.EndpointSubset in it, which has num v1.EndpointAddresses
 // in it. Each of those EndpointAddresses has a Hostname and IP both
-// equal to u.String()
+// equal to u.Hostname()
 func FakeEndpointsForURL(
 	u *url.URL,
 	namespace,
@@ -20,8 +20,8 @@ func FakeEndpointsForURL(
 	addrs := make([]v1.EndpointAddress, num)
 	for i := 0; i < num; i++ {
 		addrs[i] = v1.EndpointAddress{
-			Hostname: u.String(),
-			IP:       u.String(),
+			Hostname: u.Hostname(),
+			IP:       u.Hostname(),
 		}
 	}
 	return &v1.Endpoints{
