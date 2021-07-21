@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/go-logr/logr"
 	pkghttp "github.com/kedacore/http-add-on/pkg/http"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,14 +61,18 @@ func TestQueueSizeHandlerIntegration(t *testing.T) {
 		err:     nil,
 	}
 
-	handler := NewSizeHandler(lggr, reader)
-	srv := httptest.NewServer(handler)
+	hdl := kedanet.NewTestHTTPHandlerWrapper(NewSizeHandler(lggr, reader))
+	srv, url, err := kedanet.StartTestServer(hdl)
+	r.NoError(err)
 	defer srv.Close()
 	httpCl := srv.Client()
-	counts, err := GetCounts(ctx, lggr, httpCl, srv.URL)
+	counts, err := GetCounts(ctx, lggr, httpCl, url.String())
 	r.NoError(err)
 	r.Equal(1, len(counts.Counts))
 	for _, val := range counts.Counts {
 		r.Equal(reader.current, val)
 	}
+	reqs := hdl.IncomingRequests()
+	r.Equal(1, len(reqs))
+
 }
