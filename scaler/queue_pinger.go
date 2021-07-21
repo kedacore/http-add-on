@@ -13,24 +13,23 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
-	"k8s.io/client-go/kubernetes"
 )
 
 type queuePinger struct {
-	k8sCl        *kubernetes.Clientset
-	ns           string
-	svcName      string
-	adminPort    string
-	pingMut      *sync.RWMutex
-	lastPingTime time.Time
-	allCounts    map[string]int
-	lggr         logr.Logger
+	getEndpointsFn k8s.GetEndpointsFunc
+	ns             string
+	svcName        string
+	adminPort      string
+	pingMut        *sync.RWMutex
+	lastPingTime   time.Time
+	allCounts      map[string]int
+	lggr           logr.Logger
 }
 
 func newQueuePinger(
 	ctx context.Context,
 	lggr logr.Logger,
-	k8sCl *kubernetes.Clientset,
+	getEndpointsFn k8s.GetEndpointsFunc,
 	ns,
 	svcName,
 	adminPort string,
@@ -38,12 +37,12 @@ func newQueuePinger(
 ) *queuePinger {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
-		k8sCl:     k8sCl,
-		ns:        ns,
-		svcName:   svcName,
-		adminPort: adminPort,
-		pingMut:   pingMut,
-		lggr:      lggr,
+		getEndpointsFn: getEndpointsFn,
+		ns:             ns,
+		svcName:        svcName,
+		adminPort:      adminPort,
+		pingMut:        pingMut,
+		lggr:           lggr,
 	}
 
 	go func() {
@@ -72,7 +71,7 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		q.ns,
 		q.svcName,
 		q.adminPort,
-		k8s.EndpointsFuncForK8sClientset(q.k8sCl),
+		q.getEndpointsFn,
 	)
 	if err != nil {
 		return err
@@ -80,7 +79,6 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 
 	countsCh := make(chan *queue.Counts)
 	var wg sync.WaitGroup
-
 	for _, endpoint := range endpointURLs {
 		wg.Add(1)
 		go func(u *url.URL) {

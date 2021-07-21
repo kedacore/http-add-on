@@ -42,7 +42,7 @@ func main() {
 	pinger := newQueuePinger(
 		context.Background(),
 		lggr,
-		k8sCl,
+		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,
 		svcName,
 		targetPortStr,
