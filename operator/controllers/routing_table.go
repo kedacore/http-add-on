@@ -3,12 +3,14 @@ package controllers
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func removeAndUpdateRoutingTable(
 	ctx context.Context,
+	lggr logr.Logger,
 	cl client.Client,
 	table *routing.Table,
 	host,
@@ -16,8 +18,14 @@ func removeAndUpdateRoutingTable(
 	interceptorSvcName,
 	interceptorSvcPort string,
 ) error {
+	lggr = lggr.WithName("removeAndUpdateRoutingTable")
 	if err := table.RemoveTarget(host); err != nil {
-		return err
+		lggr.Error(
+			err,
+			"could not remove host from routing table, progressing anyway",
+			"host",
+			host,
+		)
 	}
 	return pingInterceptors(
 		ctx,
@@ -30,6 +38,7 @@ func removeAndUpdateRoutingTable(
 
 func addAndUpdateRoutingTable(
 	ctx context.Context,
+	lggr logr.Logger,
 	cl client.Client,
 	table *routing.Table,
 	host string,
@@ -38,8 +47,14 @@ func addAndUpdateRoutingTable(
 	interceptorSvcName,
 	interceptorSvcPort string,
 ) error {
+	lggr = lggr.WithName("addAndUpdateRoutingTable")
 	if err := table.AddTarget(host, target); err != nil {
-		return err
+		lggr.Error(
+			err,
+			"could not add host to routing table, progressing anyway",
+			"host",
+			host,
+		)
 	}
 	return pingInterceptors(
 		ctx,

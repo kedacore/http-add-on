@@ -24,7 +24,3 @@ type AppInfo struct {
 func AppScaledObjectName(httpso *v1alpha1.HTTPScaledObject) string {
 	return fmt.Sprintf("%s-app", httpso.Spec.ScaleTargetRef.Deployment)
 }
-
-func InterceptorScaledObjectName(httpso *v1alpha1.HTTPScaledObject) string {
-	return fmt.Sprintf("%s-interceptor", httpso.Spec.ScaleTargetRef.Deployment)
-}
