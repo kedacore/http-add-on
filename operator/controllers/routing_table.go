@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/routing"
@@ -30,6 +31,7 @@ func removeAndUpdateRoutingTable(
 	return pingInterceptors(
 		ctx,
 		cl,
+		http.DefaultClient,
 		namespace,
 		interceptorSvcName,
 		interceptorSvcPort,
@@ -59,6 +61,7 @@ func addAndUpdateRoutingTable(
 	return pingInterceptors(
 		ctx,
 		cl,
+		http.DefaultClient,
 		namespace,
 		interceptorSvcName,
 		interceptorSvcPort,
