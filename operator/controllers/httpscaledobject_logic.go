@@ -65,34 +65,14 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		v1alpha1.AppScaledObjectTerminated,
 	))
 
-	// delete interceptor ScaledObject
-	scaledObject.SetName(config.InterceptorScaledObjectName(httpso))
-	if err := rec.Client.Delete(ctx, scaledObject); err != nil {
-		if apierrs.IsNotFound(err) {
-			logger.Info("Interceptor ScaledObject not found, moving on")
-		} else {
-			logger.Error(err, "Deleting interceptor scaledobject")
-			httpso.AddCondition(*v1alpha1.CreateCondition(
-				v1alpha1.Error,
-				v1.ConditionFalse,
-				v1alpha1.InterceptorScaledObjectTerminationError,
-			).SetMessage(err.Error()))
-			return err
-		}
-	}
-	httpso.AddCondition(*v1alpha1.CreateCondition(
-		v1alpha1.Terminated,
-		v1.ConditionTrue,
-		v1alpha1.InterceptorScaledObjectTerminated,
-	))
-
 	if err := removeAndUpdateRoutingTable(
 		ctx,
+		logger,
 		rec.Client,
 		rec.RoutingTable,
 		httpso.Spec.Host,
 		httpso.ObjectMeta.Namespace,
-		appInfo.InterceptorAdminServiceName(),
+		appInfo.InterceptorConfig.ServiceName,
 		appInfo.InterceptorConfig.AdminPortString(),
 	); err != nil {
 		return err
@@ -141,6 +121,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 
 	if err := addAndUpdateRoutingTable(
 		ctx,
+		logger,
 		rec.Client,
 		rec.RoutingTable,
 		httpso.Spec.Host,
@@ -149,8 +130,8 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 			Port:    int(httpso.Spec.ScaleTargetRef.Port),
 		},
 		httpso.ObjectMeta.Namespace,
-		appInfo.InterceptorAdminServiceName(),
-		rec.InterceptorConfig.AdminPortString(),
+		appInfo.InterceptorConfig.ServiceName,
+		appInfo.InterceptorConfig.AdminPortString(),
 	); err != nil {
 		return err
 	}

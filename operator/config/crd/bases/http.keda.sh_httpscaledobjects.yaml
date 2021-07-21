@@ -117,32 +117,11 @@ spec:
                     reason:
                       description: The reason for the condition's last transition.
                       enum:
-                      - ErrorCreatingExternalScaler
-                      - ErrorCreatingExternalScalerService
-                      - CreatedExternalScaler
-                      - ErrorCreatingInterceptorScaledObject
                       - ErrorCreatingAppScaledObject
                       - AppScaledObjectCreated
-                      - InterceptorScaledObjectCreated
-                      - ErrorCreatingInterceptor
-                      - ErrorCreatingInterceptorAdminService
-                      - ErrorCreatingInterceptorProxyService
-                      - InterceptorCreated
                       - TerminatingResources
-                      - InterceptorDeploymentTerminated
-                      - InterceptorDeploymentTerminationError
-                      - InterceptorAdminServiceTerminationError
-                      - InterceptorAdminServiceTerminated
-                      - InterceptorProxyServiceTerminationError
-                      - InterceptorProxyServiceTerminated
-                      - ExternalScalerDeploymentTerminationError
-                      - ExternalScalerDeploymentTerminated
-                      - ExternalScalerServiceTerminationError
-                      - ExternalScalerServiceTerminated
-                      - InterceptorScaledObjectTerminated
                       - AppScaledObjectTerminated
                       - AppScaledObjectTerminationError
-                      - InterceptorScaledObjectTerminationError
                       - PendingCreation
                       - HTTPScaledObjectIsReady
                       type: string
