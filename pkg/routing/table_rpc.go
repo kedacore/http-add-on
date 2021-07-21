@@ -33,15 +33,24 @@ func GetTable(
 	lggr logr.Logger,
 	operatorAdminURL *url.URL,
 ) (*Table, error) {
+	lggr = lggr.WithName("pkg.routing.GetTable")
 	res, err := httpCl.Get(operatorAdminURL.String())
 	if err != nil {
-		lggr.Error(err, "fetching the routing table URL")
+		lggr.Error(
+			err,
+			"fetching the routing table URL",
+			"url",
+			operatorAdminURL.String(),
+		)
 		return nil, err
 	}
 	defer res.Body.Close()
 	newTable := NewTable()
 	if err := json.NewDecoder(res.Body).Decode(newTable); err != nil {
-		lggr.Error(err, "decoding routing table URL response")
+		lggr.Error(
+			err,
+			"decoding routing table URL response",
+		)
 		return nil, err
 	}
 	lggr.Info("fetched new routing table", "table", newTable.String())
