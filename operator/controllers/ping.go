@@ -21,10 +21,10 @@ func pingInterceptors(
 ) error {
 	endpointURLs, err := k8s.EndpointsForService(
 		ctx,
-		cl,
 		ns,
 		interceptorSvcName,
 		interceptorPort,
+		k8s.EndpointsFuncForControllerClient(cl),
 	)
 	if err != nil {
 		return errors.Wrap(err, "pingInterceptors")

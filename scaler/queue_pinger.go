@@ -13,7 +13,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -67,18 +66,13 @@ func (q *queuePinger) counts() map[string]int {
 
 func (q *queuePinger) requestCounts(ctx context.Context) error {
 	lggr := q.lggr.WithName("queuePinger.requestCounts")
-	endpointsCl := q.k8sCl.CoreV1().Endpoints(q.ns)
-	endpoints, err := endpointsCl.Get(ctx, q.svcName, metav1.GetOptions{})
-	if err != nil {
-		lggr.Error(err, "getting endpoints for service", "serviceName", q.svcName)
-		return err
-	}
 
 	endpointURLs, err := k8s.EndpointsForService(
 		ctx,
-		endpoints,
+		q.ns,
 		q.svcName,
 		q.adminPort,
+		k8s.EndpointsFuncForK8sClientset(q.k8sCl),
 	)
 	if err != nil {
 		return err

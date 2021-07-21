@@ -7,17 +7,27 @@ import (
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// GetEndpointsFunc is a type that represents a function that can
+// fetch endpoints
+type GetEndpointsFunc func(
+	ctx context.Context,
+	namespace,
+	serviceName string,
+) (*v1.Endpoints, error)
+
 func EndpointsForService(
 	ctx context.Context,
-	cl client.Client,
 	ns,
 	serviceName,
 	servicePort string,
+	endpointsFn GetEndpointsFunc,
 ) ([]*url.URL, error) {
-	endpoints, err := getEndpoints(ctx, cl, ns, serviceName)
+	endpoints, err := endpointsFn(ctx, ns, serviceName)
 	if err != nil {
 		return nil, errors.Wrap(err, "pkg.k8s.EndpointsForService")
 	}
@@ -37,18 +47,36 @@ func EndpointsForService(
 	return ret, nil
 }
 
-func getEndpoints(
-	ctx context.Context,
+// EndpointsFuncForControllerClient returns a new GetEndpointsFunc
+// that uses the controller-runtime client.Client to fetch endpoints
+func EndpointsFuncForControllerClient(
 	cl client.Client,
-	ns,
-	interceptorSvcName string,
-) (*v1.Endpoints, error) {
-	endpts := &v1.Endpoints{}
-	if err := cl.Get(ctx, client.ObjectKey{
-		Namespace: ns,
-		Name:      interceptorSvcName,
-	}, endpts); err != nil {
-		return nil, err
+) GetEndpointsFunc {
+	return func(
+		ctx context.Context,
+		namespace,
+		serviceName string,
+	) (*v1.Endpoints, error) {
+		endpts := &v1.Endpoints{}
+		if err := cl.Get(ctx, client.ObjectKey{
+			Namespace: namespace,
+			Name:      serviceName,
+		}, endpts); err != nil {
+			return nil, err
+		}
+		return endpts, nil
 	}
-	return endpts, nil
+}
+
+func EndpointsFuncForK8sClientset(
+	cl *kubernetes.Clientset,
+) GetEndpointsFunc {
+	return func(
+		ctx context.Context,
+		namespace,
+		serviceName string,
+	) (*v1.Endpoints, error) {
+		endpointsCl := cl.CoreV1().Endpoints(namespace)
+		return endpointsCl.Get(ctx, serviceName, metav1.GetOptions{})
+	}
 }
