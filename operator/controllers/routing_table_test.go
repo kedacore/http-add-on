@@ -27,9 +27,11 @@ func TestRoutingTable(t *testing.T) {
 	// create a new server (that we can introspect later on) to act
 	// like a fake interceptor. we expect that pingInterceptors()
 	// will make requests to this server
-	hdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-	})
+	hdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(200)
+		}),
+	)
 	srv, url, err := kedanet.StartTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()

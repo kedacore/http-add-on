@@ -61,11 +61,13 @@ func TestForwarderSuccess(t *testing.T) {
 	reqRecvCh := make(chan struct{})
 	const respCode = 302
 	const respBody = "TestForwardingHandler"
-	originHdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
-		close(reqRecvCh)
-		w.WriteHeader(respCode)
-		w.Write([]byte(respBody))
-	})
+	originHdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			close(reqRecvCh)
+			w.WriteHeader(respCode)
+			w.Write([]byte(respBody))
+		}),
+	)
 	testServer := httptest.NewServer(originHdl)
 	defer testServer.Close()
 	forwardURL, err := url.Parse(testServer.URL)
@@ -106,10 +108,12 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	r := require.New(t)
 	// the origin will wait until this channel receives or is closed
 	originWaitCh := make(chan struct{})
-	hdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
-		<-originWaitCh
-		w.WriteHeader(200)
-	})
+	hdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			<-originWaitCh
+			w.WriteHeader(200)
+		}),
+	)
 	srv, originURL, err := kedanet.StartTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()
@@ -143,11 +147,13 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	originWaitCh := make(chan struct{})
 	const originRespCode = 200
 	const originRespBodyStr = "Hello World!"
-	hdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
-		<-originWaitCh
-		w.WriteHeader(originRespCode)
-		w.Write([]byte(originRespBodyStr))
-	})
+	hdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			<-originWaitCh
+			w.WriteHeader(originRespCode)
+			w.Write([]byte(originRespBodyStr))
+		}),
+	)
 	srv, originURL, err := kedanet.StartTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()

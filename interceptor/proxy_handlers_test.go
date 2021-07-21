@@ -18,10 +18,12 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	const host = "TestImmediatelySuccessfulProxy.testing"
 	r := require.New(t)
 
-	originHdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte("test response"))
-	})
+	originHdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(200)
+			w.Write([]byte("test response"))
+		}),
+	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
 	r.NoError(err)
 	defer srv.Close()
@@ -185,11 +187,13 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	// the origin will wait for this channel to receive or close before it sends any data back to the
 	// proxy
 	originHdlCh := make(chan struct{})
-	originHdl := kedanet.NewTestHTTPHandlerWrapper(func(w http.ResponseWriter, r *http.Request) {
-		<-originHdlCh
-		w.WriteHeader(200)
-		w.Write([]byte("test response"))
-	})
+	originHdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			<-originHdlCh
+			w.WriteHeader(200)
+			w.Write([]byte("test response"))
+		}),
+	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
 	r.NoError(err)
 	defer srv.Close()
