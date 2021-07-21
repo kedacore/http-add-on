@@ -7,11 +7,10 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -38,24 +37,7 @@ func TestRoutingTable(t *testing.T) {
 	portInt, err := strconv.Atoi(url.Port())
 	r.NoError(err)
 	ctx := context.Background()
-	endpoints := &v1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      svcName,
-			Namespace: ns,
-		},
-		Subsets: []v1.EndpointSubset{
-			{
-				Addresses: []v1.EndpointAddress{
-					{
-						Hostname: url.String(),
-					},
-					{
-						Hostname: url.String(),
-					},
-				},
-			},
-		},
-	}
+	endpoints := k8s.FakeEndpointsForURL(url, ns, svcName, 2)
 	cl := fake.NewClientBuilder().WithObjects(endpoints).Build()
 	target := routing.Target{
 		Service:    svcName,

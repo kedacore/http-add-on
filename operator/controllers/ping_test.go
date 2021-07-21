@@ -5,10 +5,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -30,24 +29,7 @@ func TestPingInterceptors(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 	ctx := context.Background()
-	endpoints := &v1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      svcName,
-			Namespace: ns,
-		},
-		Subsets: []v1.EndpointSubset{
-			{
-				Addresses: []v1.EndpointAddress{
-					{
-						Hostname: url.String(),
-					},
-					{
-						Hostname: url.String(),
-					},
-				},
-			},
-		},
-	}
+	endpoints := k8s.FakeEndpointsForURL(url, ns, svcName, 2)
 	cl := fake.NewClientBuilder().WithObjects(endpoints).Build()
 	r.NoError(pingInterceptors(
 		ctx,
