@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	nethttp "net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -28,7 +28,8 @@ func init() {
 func main() {
 	lggr, err := pkglog.NewZapr()
 	if err != nil {
-		log.Fatalf("Error building logger (%v)", err)
+		fmt.Println("Error building logger", err)
+		os.Exit(1)
 	}
 	timeoutCfg := config.MustParseTimeouts()
 	operatorCfg := config.MustParseOperator()
@@ -42,11 +43,13 @@ func main() {
 
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		log.Fatalf("Kubernetes client config not found (%s)", err)
+		lggr.Error(err, "Kubernetes client config not found")
+		os.Exit(1)
 	}
 	cl, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error creating new Kubernetes ClientSet (%s)", err)
+		lggr.Error(err, "creating new Kubernetes ClientSet")
+		os.Exit(1)
 	}
 	deployInterface := cl.AppsV1().Deployments(
 		servingCfg.CurrentNamespace,
@@ -56,17 +59,23 @@ func main() {
 		deployInterface,
 	)
 	if err != nil {
-		log.Fatalf("Error creating new deployment cache (%s)", err)
+		lggr.Error(err, "creating new deployment cache")
+		os.Exit(1)
 	}
 	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, 1*time.Second)
 
 	operatorRoutingFetchURL, err := operatorCfg.RoutingFetchURL()
 	if err != nil {
-		log.Fatal("error getting the operator URL ", err)
+		lggr.Error(err, "getting the operator URL ")
+		os.Exit(1)
 	}
 
-	log.Printf("Interceptor starting")
-	log.Printf("Fetching initial routing table")
+	lggr.Info("Interceptor starting")
+	lggr.Info(
+		"Fetching initial routing table",
+		"operatorRoutingURL",
+		operatorRoutingFetchURL.String(),
+	)
 	routingTable, err := routing.GetTable(
 		ctx,
 		nethttp.DefaultClient,
@@ -74,7 +83,8 @@ func main() {
 		operatorRoutingFetchURL,
 	)
 	if err != nil {
-		log.Fatal("error fetching routing table ", err)
+		lggr.Error(err, "fetching routing table")
+		os.Exit(1)
 	}
 
 	errGrp, ctx := errgroup.WithContext(ctx)
@@ -88,8 +98,9 @@ func main() {
 		)
 	})
 	errGrp.Go(func() error {
-		log.Printf(
-			"routing table update loop starting for operator URL %v",
+		lggr.Info(
+			"routing table update loop starting",
+			"operatorRoutingURL",
 			operatorRoutingFetchURL.String(),
 		)
 		return routing.StartUpdateLoop(
@@ -109,6 +120,7 @@ func main() {
 
 	errGrp.Go(func() error {
 		return runProxyServer(
+			lggr,
 			q,
 			waitFunc,
 			routingTable,
@@ -117,7 +129,11 @@ func main() {
 		)
 	})
 
-	log.Fatal(errGrp.Wait())
+	// errGrp.Wait() should hang forever for healthy admin and proxy servers.
+	// if it returns an error, log and exit immediately.
+	waitErr := errGrp.Wait()
+	lggr.Error(waitErr, "error with interceptor")
+	os.Exit(1)
 }
 
 func runAdminServer(
@@ -127,6 +143,7 @@ func runAdminServer(
 	routingTable *routing.Table,
 	port int,
 ) error {
+	lggr = lggr.WithName("runAdminServer")
 	adminServer := nethttp.NewServeMux()
 	adminServer.Handle(
 		queue.CountsPath,
@@ -138,17 +155,19 @@ func runAdminServer(
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	log.Printf("admin server running on %s", addr)
+	lggr.Info("admin server starting", "address", addr)
 	return nethttp.ListenAndServe(addr, adminServer)
 }
 
 func runProxyServer(
+	lggr logr.Logger,
 	q queue.Counter,
 	waitFunc forwardWaitFunc,
 	routingTable *routing.Table,
 	timeouts *config.Timeouts,
 	port int,
 ) error {
+	lggr = lggr.WithName("runProxyServer")
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
 	proxyHdl := newForwardingHandler(
@@ -160,6 +179,6 @@ func runProxyServer(
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	log.Printf("proxy server starting on %s", addr)
+	lggr.Info("proxy server starting", "address", addr)
 	return nethttp.ListenAndServe(addr, countMiddleware(q, proxyHdl))
 }
