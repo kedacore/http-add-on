@@ -12,9 +12,9 @@ import (
 var ErrTargetNotFound = errors.New("Target not found")
 
 type Target struct {
-	Service    string
-	Port       int
-	Deployment string
+	Service    string `json:"service"`
+	Port       int    `json:"port"`
+	Deployment string `json:"deployment"`
 }
 
 func (t *Target) ServiceURL() (*url.URL, error) {
