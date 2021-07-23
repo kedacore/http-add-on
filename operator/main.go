@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
 
 	"golang.org/x/sync/errgroup"
@@ -28,7 +30,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/kedacore/http-add-on/operator/admin"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
@@ -114,20 +115,15 @@ func main() {
 	// start the admin server to serve routing table information
 	// to the interceptors
 	errGrp.Go(func() error {
+		mux := http.NewServeMux()
+		routing.AddPingRoute(setupLog, mux, routingTable)
+		addr := fmt.Sprintf(":%d", adminPort)
 		setupLog.Info(
 			"starting admin RPC server",
 			"port",
 			adminPort,
-			"routingTablePath",
-			routing.GetTablePath,
 		)
-		return admin.StartServer(
-			ctx,
-			ctrl.Log.WithName("admin"),
-			routing.GetTablePath,
-			adminPort,
-			routingTable,
-		)
+		return http.ListenAndServe(addr, mux)
 	})
 
 	setupLog.Error(errGrp.Wait(), "running the operator")

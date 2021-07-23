@@ -27,7 +27,7 @@ func TestRPCIntegration(t *testing.T) {
 		},
 	}
 
-	hdl := kedanet.NewTestHTTPHandlerWrapper(NewTableHandler(
+	hdl := kedanet.NewTestHTTPHandlerWrapper(newTableHandler(
 		logr.Discard(),
 		table,
 	))
@@ -37,7 +37,7 @@ func TestRPCIntegration(t *testing.T) {
 
 	// iterate the targets and successively add each target each iteration.
 	// before we start iterating, there should be no targets
-	retTable, err := GetTable(ctx, srv.Client(), logr.Discard(), url)
+	retTable, err := GetTable(ctx, srv.Client(), logr.Discard(), *url)
 	r.NoError(err)
 	r.Equal(0, len(retTable.m))
 	for i, target := range targets {
@@ -45,7 +45,7 @@ func TestRPCIntegration(t *testing.T) {
 		table.AddTarget(host, target)
 
 		// for this iteration, we should have i+1 table entries
-		retTable, err := GetTable(ctx, srv.Client(), logr.Discard(), url)
+		retTable, err := GetTable(ctx, srv.Client(), logr.Discard(), *url)
 		r.NoError(err)
 		r.Equal(i+1, len(retTable.m))
 

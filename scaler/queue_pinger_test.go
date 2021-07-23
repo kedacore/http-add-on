@@ -2,6 +2,7 @@ package main
 
 import (
 	context "context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -35,10 +36,8 @@ func TestRequestCounts(t *testing.T) {
 		q.Resize(host, count)
 	}
 
-	hdl := kedanet.NewTestHTTPHandlerWrapper(queue.NewSizeHandler(
-		logr.Discard(),
-		q,
-	))
+	hdl := http.NewServeMux()
+	queue.AddCountsRoute(logr.Discard(), hdl, q)
 	srv, url, err := kedanet.StartTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()

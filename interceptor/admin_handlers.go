@@ -23,7 +23,7 @@ func newRoutingPingHandler(
 			r.Context(),
 			http.DefaultClient,
 			lggr,
-			operatorAdminURL,
+			*operatorAdminURL,
 		)
 		if err != nil {
 			log.Printf("error fetching new routing table (%s)", err)

@@ -9,13 +9,25 @@ import (
 	"github.com/go-logr/logr"
 )
 
-const GetTablePath = "/routing_ping"
+const getTablePath = "/routing_ping"
 
-func NewTableHandler(
+func AddPingRoute(
+	lggr logr.Logger,
+	mux *http.ServeMux,
+	table *Table,
+) {
+	lggr = lggr.WithName("pkg.routing.AddPingRoute")
+	lggr.Info("adding routing ping route", "path", getTablePath)
+	mux.Handle(getTablePath, newTableHandler(lggr, table))
+}
+
+func newTableHandler(
 	lggr logr.Logger,
 	table *Table,
 ) http.Handler {
+	lggr = lggr.WithName("pkg.routing.TableHandler")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lggr.V(5).Info("Handling request for routing table")
 		err := json.NewEncoder(w).Encode(table)
 		if err != nil {
 			w.WriteHeader(500)
@@ -31,9 +43,13 @@ func GetTable(
 	ctx context.Context,
 	httpCl *http.Client,
 	lggr logr.Logger,
-	operatorAdminURL *url.URL,
+	operatorAdminURL url.URL,
 ) (*Table, error) {
 	lggr = lggr.WithName("pkg.routing.GetTable")
+
+	operatorAdminURL.Path = getTablePath
+	lggr.V(5).Info("requesting routing table", "address", operatorAdminURL.String())
+
 	res, err := httpCl.Get(operatorAdminURL.String())
 	if err != nil {
 		lggr.Error(

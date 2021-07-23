@@ -20,7 +20,7 @@ func TestQueueSizeHandlerSuccess(t *testing.T) {
 		err:     nil,
 	}
 
-	handler := NewSizeHandler(lggr, reader)
+	handler := newSizeHandler(lggr, reader)
 	req, rec := pkghttp.NewTestCtx("GET", "/queue")
 	handler.ServeHTTP(rec, req)
 	r.Equal(200, rec.Code, "response code")
@@ -46,7 +46,7 @@ func TestQueueSizeHandlerFail(t *testing.T) {
 		err:     errors.New("test error"),
 	}
 
-	handler := NewSizeHandler(lggr, reader)
+	handler := newSizeHandler(lggr, reader)
 	req, rec := pkghttp.NewTestCtx("GET", "/queue")
 	handler.ServeHTTP(rec, req)
 	r.Equal(500, rec.Code, "response code")
@@ -61,12 +61,12 @@ func TestQueueSizeHandlerIntegration(t *testing.T) {
 		err:     nil,
 	}
 
-	hdl := kedanet.NewTestHTTPHandlerWrapper(NewSizeHandler(lggr, reader))
+	hdl := kedanet.NewTestHTTPHandlerWrapper(newSizeHandler(lggr, reader))
 	srv, url, err := kedanet.StartTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()
 	httpCl := srv.Client()
-	counts, err := GetCounts(ctx, lggr, httpCl, url.String())
+	counts, err := GetCounts(ctx, lggr, httpCl, *url)
 	r.NoError(err)
 	r.Equal(1, len(counts.Counts))
 	for _, val := range counts.Counts {

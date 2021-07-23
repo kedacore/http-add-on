@@ -13,7 +13,6 @@ import (
 type Operator struct {
 	OperatorServiceName          string `envconfig:"KEDA_HTTP_OPERATOR_SERVICE_NAME" required:"true"`
 	OperatorServicePort          string `envconfig:"KEDA_HTTP_OPERATOR_SERVICE_PORT" required:"true"`
-	OperatorRoutingTablePath     string `envconfig:"KEDA_HTTP_OPERATOR_ROUTING_TABLE_PATH" default:"routing"`
 	RoutingTableUpdateDurationMS int    `envconfig:"KEDA_HTTP_OPERATOR_ROUTING_TABLE_UPDATE_DURATION_MS" default:"500"`
 }
 
@@ -24,10 +23,9 @@ func (o *Operator) RoutingTableUpdateDuration() time.Duration {
 // ServiceURL formats the app service name and port into a URL
 func (o *Operator) RoutingFetchURL() (*url.URL, error) {
 	urlStr := fmt.Sprintf(
-		"http://%s:%s/%s",
+		"http://%s:%s",
 		o.OperatorServiceName,
 		o.OperatorServicePort,
-		o.OperatorRoutingTablePath,
 	)
 	u, err := url.Parse(urlStr)
 	if err != nil {

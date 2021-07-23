@@ -66,7 +66,7 @@ func main() {
 
 	operatorRoutingFetchURL, err := operatorCfg.RoutingFetchURL()
 	if err != nil {
-		lggr.Error(err, "getting the operator URL ")
+		lggr.Error(err, "getting the operator URL")
 		os.Exit(1)
 	}
 
@@ -80,7 +80,7 @@ func main() {
 		ctx,
 		nethttp.DefaultClient,
 		lggr,
-		operatorRoutingFetchURL,
+		*operatorRoutingFetchURL,
 	)
 	if err != nil {
 		lggr.Error(err, "fetching routing table")
@@ -112,7 +112,7 @@ func main() {
 					ctx,
 					nethttp.DefaultClient,
 					lggr,
-					operatorRoutingFetchURL,
+					*operatorRoutingFetchURL,
 				)
 			},
 		)
@@ -145,14 +145,24 @@ func runAdminServer(
 ) error {
 	lggr = lggr.WithName("runAdminServer")
 	adminServer := nethttp.NewServeMux()
-	adminServer.Handle(
-		queue.CountsPath,
-		queue.NewSizeHandler(lggr, q),
+	queue.AddCountsRoute(
+		lggr,
+		adminServer,
+		q,
 	)
-	adminServer.Handle(
-		"/routing_ping",
-		newRoutingPingHandler(lggr, routingFetchURL, routingTable),
+	// adminServer.Handle(
+	// 	queue.CountsPath,
+	// 	queue.NewSizeHandler(lggr, q),
+	// )
+	routing.AddPingRoute(
+		lggr,
+		adminServer,
+		routingTable,
 	)
+	// adminServer.Handle(
+	// 	routing.GetTablePath,
+	// 	newRoutingPingHandler(lggr, routingFetchURL, routingTable),
+	// )
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)

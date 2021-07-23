@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -83,23 +82,19 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		wg.Add(1)
 		go func(u *url.URL) {
 			defer wg.Done()
-			addr := fmt.Sprintf(
-				"%s%s",
-				u.String(),
-				queue.CountsPath,
-			)
+
 			counts, err := queue.GetCounts(
 				ctx,
 				lggr,
 				http.DefaultClient,
-				addr,
+				*u,
 			)
 			if err != nil {
 				lggr.Error(
 					err,
 					"getting queue counts from interceptor",
 					"interceptorAddress",
-					addr,
+					u.String(),
 				)
 				return
 			}
