@@ -191,5 +191,5 @@ func runProxyServer(
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("proxy server starting", "address", addr)
-	return nethttp.ListenAndServe(addr, countMiddleware(q, proxyHdl))
+	return nethttp.ListenAndServe(addr, countMiddleware(lggr, q, proxyHdl))
 }

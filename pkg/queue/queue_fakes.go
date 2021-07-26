@@ -2,18 +2,22 @@ package queue
 
 var _ Counter = &FakeCounter{}
 
+type HostAndCount struct {
+	Host  string
+	Count int
+}
 type FakeCounter struct {
-	ResizedCh chan int
+	ResizedCh chan HostAndCount
 }
 
 func NewFakeCounter() *FakeCounter {
 	return &FakeCounter{
-		ResizedCh: make(chan int),
+		ResizedCh: make(chan HostAndCount),
 	}
 }
 
 func (f *FakeCounter) Resize(host string, i int) error {
-	f.ResizedCh <- i
+	f.ResizedCh <- HostAndCount{Host: host, Count: i}
 	return nil
 }
 
