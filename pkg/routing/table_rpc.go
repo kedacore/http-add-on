@@ -11,7 +11,7 @@ import (
 
 const (
 	routingPingPath  = "/routing_ping"
-	routingFetchPath = "/routing_fetch"
+	routingFetchPath = "/routing_table"
 )
 
 // AddFetchRoute adds a route to mux that fetches the current state of table,
