@@ -1,5 +1,5 @@
 replicaCount: 1
-
+host: myhost.com
 image:
   repository: arschles/xkcd
   pullPolicy: Always
