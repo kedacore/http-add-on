@@ -21,7 +21,7 @@ func AddFetchRoute(
 	mux *http.ServeMux,
 	table *Table,
 ) {
-	lggr = lggr.WithName("pkg.routing.AddOperatorPingRoute")
+	lggr = lggr.WithName("pkg.routing.AddFetchRoute")
 	lggr.Info("adding routing ping route", "path", routingPingPath)
 	mux.Handle(routingFetchPath, newTableHandler(lggr, table))
 }
@@ -36,7 +36,7 @@ func AddPingRoute(
 	fetchURL *url.URL,
 	table *Table,
 ) {
-	lggr = lggr.WithName("pkg.routing.AddInterceptorPingRoute")
+	lggr = lggr.WithName("pkg.routing.AddPingRoute")
 	lggr.Info("adding interceptor routing ping route", "path", routingPingPath)
 	mux.HandleFunc(routingPingPath, func(w http.ResponseWriter, r *http.Request) {
 		newTable, err := GetTable(
