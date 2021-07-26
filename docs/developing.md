@@ -145,3 +145,10 @@ Then, fetch counts from the scaler:
 ```shell
 curl localhost:9092/counts
 ```
+
+Or, you can prompt the scaler to fetch counts from all interceptors, aggregate, store, and return counts:
+
+```shell
+curl localhost:9092/counts_ping
+```
+
