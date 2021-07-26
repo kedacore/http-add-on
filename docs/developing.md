@@ -76,6 +76,8 @@ Some of the above commands require several environment variables to be set. You 
 
 ## Helpful Tips
 
+### Routing Table - Interceptor
+
 Any interceptor pod has both a _proxy_ and _admin_ server running inside it. The proxy server is where users send HTTP requests to, and the admin server is for internal use. You can use this server to
 
 1. Prompt the interceptor to re-fetch the routing table from the interceptor, or
@@ -97,4 +99,20 @@ Or to print out the current routing table (also in a separate terminal shell):
 
 ```shell
 curl localhost:9090/routing_table
+```
+
+### Routing Table - Operator
+
+The operator pod (whose name looks like `keda-add-ons-http-controller-manager-5d87c5f74b-2q8nb`) has a similar `/routing_table` endpoint as the interceptor. That data returned from this endpoint, however, is the source of truth. Interceptors fetch their copies of the routing table from this endpoint. Accessing data from this endpoint is similar.
+
+First, establish a port-forward (again, substitute your namespace in for `${NAMESPACE}`):
+
+```shell
+kubectl port-forward -n ${NAMESPACE} svc/keda-add-ons-http-operator-admin 9091:9090
+```
+
+Then, fetch the routing table from the operator:
+
+```shell
+curl localhost:9091/routing_table
 ```
