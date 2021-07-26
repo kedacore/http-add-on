@@ -116,3 +116,19 @@ Then, fetch the routing table from the operator:
 ```shell
 curl localhost:9091/routing_table
 ```
+
+### Queue Counts - Scaler
+
+The external scaler fetches pending queue counts from each interceptor in the system, aggregates and stores them, and then returns them to KEDA when requested. KEDA fetches these data via the [standard gRPC external scaler interface](https://keda.sh/docs/2.3/concepts/external-scalers/#external-scaler-grpc-interface). 
+
+For convenience, the scaler also provides a plain HTTP server from which you can also fetch these metrics. To do so, you first need to port-forward the external scaler service (substitute your namespace for `${NAMESPACE}` as above):
+
+```shell
+kubectl port-forward -n ${NAMESPACE} svc/keda-add-ons-http-external-scaler 9092:9091
+```
+
+Then, fetch counts from the scaler:
+
+```shell
+curl localhost:9092/counts
+```

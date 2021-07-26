@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -51,7 +52,7 @@ func main() {
 
 	grp, ctx := errgroup.WithContext(ctx)
 	grp.Go(startGrpcServer(ctx, lggr, grpcPort, pinger))
-	grp.Go(startHealthcheckServer(ctx, lggr, healthPort))
+	grp.Go(startHealthcheckServer(ctx, lggr, healthPort, pinger))
 	lggr.Error(grp.Wait(), "one or more of the servers failed")
 }
 
@@ -84,7 +85,9 @@ func startHealthcheckServer(
 	ctx context.Context,
 	lggr logr.Logger,
 	port int,
+	pinger *queuePinger,
 ) func() error {
+	lggr = lggr.WithName("startHealthcheckServer")
 	return func() error {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -92,6 +95,14 @@ func startHealthcheckServer(
 		})
 		mux.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
+		})
+		mux.HandleFunc("/counts", func(w http.ResponseWriter, r *http.Request) {
+			cts := pinger.counts()
+			lggr.Info("counts endpoint", "counts", cts)
+			if err := json.NewEncoder(w).Encode(&cts); err != nil {
+				lggr.Error(err, "writing counts information to client")
+				w.WriteHeader(500)
+			}
 		})
 		srv := &http.Server{
 			Addr:    fmt.Sprintf(":%d", port),
