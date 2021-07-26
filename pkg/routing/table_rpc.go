@@ -27,7 +27,6 @@ func newTableHandler(
 ) http.Handler {
 	lggr = lggr.WithName("pkg.routing.TableHandler")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lggr.V(5).Info("Handling request for routing table")
 		err := json.NewEncoder(w).Encode(table)
 		if err != nil {
 			w.WriteHeader(500)
@@ -48,7 +47,6 @@ func GetTable(
 	lggr = lggr.WithName("pkg.routing.GetTable")
 
 	operatorAdminURL.Path = getTablePath
-	lggr.V(5).Info("requesting routing table", "address", operatorAdminURL.String())
 
 	res, err := httpCl.Get(operatorAdminURL.String())
 	if err != nil {
@@ -69,6 +67,5 @@ func GetTable(
 		)
 		return nil, err
 	}
-	lggr.Info("fetched new routing table", "table", newTable.String())
 	return newTable, nil
 }
