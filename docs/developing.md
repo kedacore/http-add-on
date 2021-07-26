@@ -101,6 +101,19 @@ Or to print out the current routing table (also in a separate terminal shell):
 curl localhost:9090/routing_table
 ```
 
+### Queue Counts - Interceptor
+
+You can use the same interceptor port forward that you established in the previous section to fetch the HTTP pending queue counts table. This is the same table that the external scaler requests. See the "Queue Counts - Scaler" section below for more details on that. To fetch the queue counts from an interceptor, establish the same port forward as the previous section (again, substitute your namespace in for `${NAMESPACE}`):
+
+```shell
+kubectl port-forward -n ${NAMESPACE} svc/keda-add-ons-http-interceptor-admin 9090
+```
+
+Then, print the queue counts:
+
+```shell
+curl localhost:9090/queue
+```
 ### Routing Table - Operator
 
 The operator pod (whose name looks like `keda-add-ons-http-controller-manager-5d87c5f74b-2q8nb`) has a similar `/routing_table` endpoint as the interceptor. That data returned from this endpoint, however, is the source of truth. Interceptors fetch their copies of the routing table from this endpoint. Accessing data from this endpoint is similar.
