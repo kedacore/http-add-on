@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	nethttp "net/http"
@@ -150,19 +151,21 @@ func runAdminServer(
 		adminServer,
 		q,
 	)
-	// adminServer.Handle(
-	// 	queue.CountsPath,
-	// 	queue.NewSizeHandler(lggr, q),
-	// )
 	routing.AddPingRoute(
 		lggr,
 		adminServer,
 		routingTable,
 	)
-	// adminServer.Handle(
-	// 	routing.GetTablePath,
-	// 	newRoutingPingHandler(lggr, routingFetchURL, routingTable),
-	// )
+
+	adminServer.HandleFunc(
+		"/routing_table",
+		func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			if err := json.NewEncoder(w).Encode(routingTable); err != nil {
+				w.WriteHeader(500)
+				lggr.Error(err, "encoding routing table")
+			}
+		},
+	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
