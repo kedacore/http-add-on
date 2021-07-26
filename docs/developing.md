@@ -72,4 +72,29 @@ Some of the above commands require several environment variables to be set. You 
 - `KEDAHTTP_OPERATOR_IMAGE`: the fully qualified name of the [operator](../operator) image. This is used to build, push, and install the operator into a Kubernetes cluster (required)
 - `KEDAHTTP_NAMESPACE`: the Kubernetes namespace to which to install the add on and other required components (optional, defaults to `kedahttp`)
 
->Suffic any `*_IMAGE` variable with `<keda-git-sha>` and the build system will automatically replace it with `sha-$(git rev-parse --short HEAD)`
+>Suffix any `*_IMAGE` variable with `<keda-git-sha>` and the build system will automatically replace it with `sha-$(git rev-parse --short HEAD)`
+
+## Helpful Tips
+
+Any interceptor pod has both a _proxy_ and _admin_ server running inside it. The proxy server is where users send HTTP requests to, and the admin server is for internal use. You can use this server to
+
+1. Prompt the interceptor to re-fetch the routing table from the interceptor, or
+2. Print out the interceptor's current routing table (useful for debugging)
+
+To access the admin server, first run a port forwarder (substitute `${NAMESPACE}` for your appropriate namespace):
+
+```shell
+kubectl port-forward -n ${NAMESPACE} svc/keda-add-ons-http-interceptor-admin 9090
+```
+
+Then, to prompt for a re-fetch (in a separate terminal shell):
+
+```shell
+curl localhost:9090/routing_ping
+```
+
+Or to print out the current routing table (also in a separate terminal shell):
+
+```shell
+curl localhost:9090/routing_table
+```
