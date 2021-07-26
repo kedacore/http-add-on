@@ -97,6 +97,7 @@ func startHealthcheckServer(
 			w.WriteHeader(200)
 		})
 		mux.HandleFunc("/counts", func(w http.ResponseWriter, r *http.Request) {
+			lggr = lggr.WithName("route.counts")
 			cts := pinger.counts()
 			lggr.Info("counts endpoint", "counts", cts)
 			if err := json.NewEncoder(w).Encode(&cts); err != nil {
@@ -104,6 +105,24 @@ func startHealthcheckServer(
 				w.WriteHeader(500)
 			}
 		})
+		mux.HandleFunc("/counts_ping", func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			lggr := lggr.WithName("route.counts_ping")
+			if err := pinger.requestCounts(ctx); err != nil {
+				lggr.Error(err, "requesting counts failed")
+				w.WriteHeader(500)
+				w.Write([]byte("error requesting counts from interceptors"))
+				return
+			}
+			cts := pinger.counts()
+			lggr.Info("counts ping endpoint", "counts", cts)
+			if err := json.NewEncoder(w).Encode(&cts); err != nil {
+				lggr.Error(err, "writing counts data to caller")
+				w.WriteHeader(500)
+				w.Write([]byte("error writing counts data to caller"))
+			}
+		})
+
 		srv := &http.Server{
 			Addr:    fmt.Sprintf(":%d", port),
 			Handler: mux,

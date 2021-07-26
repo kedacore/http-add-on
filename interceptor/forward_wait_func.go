@@ -1,21 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 )
 
-type forwardWaitFunc func(string) error
+type forwardWaitFunc func(context.Context, string) error
 
 func newDeployReplicasForwardWaitFunc(
 	deployCache k8s.DeploymentCache,
-	totalWait time.Duration,
 ) forwardWaitFunc {
-	return func(deployName string) error {
+	return func(ctx context.Context, deployName string) error {
 		deployment, err := deployCache.Get(deployName)
 		if err != nil {
 			// if we didn't get the initial deployment state, bail out
@@ -32,8 +31,6 @@ func newDeployReplicasForwardWaitFunc(
 		}
 		defer watcher.Stop()
 		eventCh := watcher.ResultChan()
-		timer := time.NewTimer(totalWait)
-		defer timer.Stop()
 		for {
 			select {
 			case event := <-eventCh:
@@ -44,9 +41,12 @@ func newDeployReplicasForwardWaitFunc(
 				if moreThanPtr(deployment.Spec.Replicas, 0) {
 					return nil
 				}
-			case <-timer.C:
+			case <-ctx.Done():
 				// otherwise, if we hit the end of the timeout, fail
-				return fmt.Errorf("Timeout expired waiting for deployment %s to reach > 0 replicas", deployName)
+				return fmt.Errorf(
+					"Timeout expired waiting for deployment %s to reach > 0 replicas",
+					deployName,
+				)
 			}
 		}
 	}

@@ -49,9 +49,9 @@ func newForwardingHandler(
 		}
 		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
 		defer done()
-		grp, _ := errgroup.WithContext(ctx)
+		grp, ctx := errgroup.WithContext(ctx)
 		grp.Go(func() error {
-			return waitFunc(routingTarget.Deployment)
+			return waitFunc(ctx, routingTarget.Deployment)
 		})
 		waitErr := grp.Wait()
 		if waitErr != nil {

@@ -63,7 +63,7 @@ func main() {
 		lggr.Error(err, "creating new deployment cache")
 		os.Exit(1)
 	}
-	waitFunc := newDeployReplicasForwardWaitFunc(deployCache, 1*time.Second)
+	waitFunc := newDeployReplicasForwardWaitFunc(deployCache)
 
 	operatorRoutingFetchURL, err := operatorCfg.RoutingFetchURL()
 	if err != nil {

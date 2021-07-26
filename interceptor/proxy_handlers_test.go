@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -40,7 +41,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(deployName string) error {
+	waitFunc := func(context.Context, string) error {
 		return nil
 	}
 	hdl := newForwardingHandler(
@@ -70,7 +71,7 @@ func TestWaitFailedConnection(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(deplName string) error {
+	waitFunc := func(context.Context, string) error {
 		return nil
 	}
 	routingTable := routing.NewTable()
@@ -205,7 +206,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(deplName string) error {
+	waitFunc := func(context.Context, string) error {
 		return nil
 	}
 	routingTable := routing.NewTable()
@@ -263,13 +264,13 @@ func waitForSignal(sig <-chan struct{}, waitDur time.Duration) error {
 // be closed immediately after the function is called (not necessarily
 // before it returns). the function won't return until the returned func()
 // is called
-func notifyingFunc() (func(string) error, <-chan struct{}, func()) {
+func notifyingFunc() (func(context.Context, string) error, <-chan struct{}, func()) {
 	calledCh := make(chan struct{})
 	finishCh := make(chan struct{})
 	finishFunc := func() {
 		close(finishCh)
 	}
-	return func(string) error {
+	return func(context.Context, string) error {
 		close(calledCh)
 		<-finishCh
 		return nil
