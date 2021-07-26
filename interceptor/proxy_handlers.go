@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
+	"github.com/go-logr/logr"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"golang.org/x/sync/errgroup"
@@ -23,6 +23,7 @@ func moreThanPtr(i *int32, target int32) bool {
 // fwdSvcURL must have a valid scheme in it. The best way to do this is
 // create a URL with url.Parse("https://...")
 func newForwardingHandler(
+	lggr logr.Logger,
 	routingTable *routing.Table,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
@@ -54,13 +55,14 @@ func newForwardingHandler(
 		})
 		waitErr := grp.Wait()
 		if waitErr != nil {
-			log.Printf("Error, not forwarding request")
+			lggr.Error(waitErr, "wait function failed, not forwarding request")
 			w.WriteHeader(502)
 			w.Write([]byte(fmt.Sprintf("error on backend (%s)", waitErr)))
 			return
 		}
 		targetSvcURL, err := routingTarget.ServiceURL()
 		if err != nil {
+			lggr.Error(err, "forwarding failed")
 			w.WriteHeader(500)
 			w.Write([]byte("error getting backend service URL"))
 			return

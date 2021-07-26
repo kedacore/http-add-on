@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		return nil
 	}
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
@@ -78,6 +80,7 @@ func TestWaitFailedConnection(t *testing.T) {
 		Deployment: "nosuchdepl",
 	})
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
@@ -119,6 +122,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 		Deployment: "nosuchdepl",
 	})
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
@@ -153,6 +157,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 		Deployment: "nosuchdepl",
 	})
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
@@ -211,6 +216,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	}
 	routingTable.AddTarget(originURL.Host, target)
 	hdl := newForwardingHandler(
+		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
