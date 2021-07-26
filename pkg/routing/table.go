@@ -17,6 +17,14 @@ type Target struct {
 	Deployment string `json:"deployment"`
 }
 
+func NewTarget(svc string, port int, depl string) Target {
+	return Target{
+		Service:    svc,
+		Port:       port,
+		Deployment: depl,
+	}
+}
+
 func (t *Target) ServiceURL() (*url.URL, error) {
 	urlStr := fmt.Sprintf("http://%s:%d", t.Service, t.Port)
 	u, err := url.Parse(urlStr)

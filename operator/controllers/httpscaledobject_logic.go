@@ -125,10 +125,11 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		rec.Client,
 		rec.RoutingTable,
 		httpso.Spec.Host,
-		routing.Target{
-			Service: httpso.Spec.ScaleTargetRef.Service,
-			Port:    int(httpso.Spec.ScaleTargetRef.Port),
-		},
+		routing.NewTarget(
+			httpso.Spec.ScaleTargetRef.Service,
+			int(httpso.Spec.ScaleTargetRef.Port),
+			httpso.Spec.ScaleTargetRef.Deployment,
+		),
 		httpso.ObjectMeta.Namespace,
 		appInfo.InterceptorConfig.ServiceName,
 		appInfo.InterceptorConfig.AdminPortString(),
