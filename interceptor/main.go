@@ -40,8 +40,6 @@ func main() {
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
 
-	q := queue.NewMemory()
-
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		lggr.Error(err, "Kubernetes client config not found")
@@ -77,13 +75,18 @@ func main() {
 		"operatorRoutingURL",
 		operatorRoutingFetchURL.String(),
 	)
-	routingTable, err := routing.GetTable(
+
+	q := queue.NewMemory()
+	routingTable := routing.NewTable()
+
+	if err := routing.GetTable(
 		ctx,
 		nethttp.DefaultClient,
 		lggr,
 		*operatorRoutingFetchURL,
-	)
-	if err != nil {
+		routingTable,
+		q,
+	); err != nil {
 		lggr.Error(err, "fetching routing table")
 		os.Exit(1)
 	}
@@ -104,18 +107,15 @@ func main() {
 			"operatorRoutingURL",
 			operatorRoutingFetchURL.String(),
 		)
+
 		return routing.StartUpdateLoop(
 			ctx,
+			lggr,
+			http.DefaultClient,
+			*operatorRoutingFetchURL,
 			operatorCfg.RoutingTableUpdateDuration(),
 			routingTable,
-			func(ctx context.Context) (*routing.Table, error) {
-				return routing.GetTable(
-					ctx,
-					nethttp.DefaultClient,
-					lggr,
-					*operatorRoutingFetchURL,
-				)
-			},
+			q,
 		)
 	})
 
@@ -140,7 +140,7 @@ func main() {
 func runAdminServer(
 	lggr logr.Logger,
 	routingFetchURL *url.URL,
-	q queue.CountReader,
+	q queue.Counter,
 	routingTable *routing.Table,
 	port int,
 ) error {
@@ -162,6 +162,7 @@ func runAdminServer(
 		http.DefaultClient,
 		routingFetchURL,
 		routingTable,
+		q,
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)

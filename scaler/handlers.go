@@ -6,9 +6,12 @@ package main
 
 import (
 	context "context"
+	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 
+	"github.com/go-logr/logr"
 	empty "github.com/golang/protobuf/ptypes/empty"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 )
@@ -18,12 +21,13 @@ func init() {
 }
 
 type impl struct {
+	lggr   logr.Logger
 	pinger *queuePinger
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(pinger *queuePinger) *impl {
-	return &impl{pinger: pinger}
+func newImpl(lggr logr.Logger, pinger *queuePinger) *impl {
+	return &impl{lggr: lggr, pinger: pinger}
 }
 
 func (e *impl) Ping(context.Context, *empty.Empty) (*empty.Empty, error) {
@@ -64,14 +68,29 @@ func (e *impl) GetMetricSpec(
 	_ context.Context,
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
-	allCounts := e.pinger.counts()
-	metricSpecs := []*externalscaler.MetricSpec{}
-	for host := range allCounts {
-		metricSpecs = append(metricSpecs, &externalscaler.MetricSpec{
-			MetricName: host,
-			TargetSize: 100,
-		})
+	lggr := e.lggr.WithName("GetMetricSpec")
+	host, ok := sor.ScalerMetadata["host"]
+	if !ok {
+		err := fmt.Errorf("'host' not found in ScaledObject metadata")
+		lggr.Error(err, "no 'host' found in ScaledObject metadata")
+		return nil, err
 	}
+	target, ok := sor.ScalerMetadata["target"]
+	if !ok {
+		target = "100"
+	}
+	targetInt, err := strconv.Atoi(target)
+	if err != nil {
+		lggr.Error(err, "invalid 'target' value", "targetStrVal", target)
+	}
+
+	metricSpecs := []*externalscaler.MetricSpec{
+		{
+			MetricName: host,
+			TargetSize: int64(targetInt),
+		},
+	}
+
 	return &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: metricSpecs,
 	}, nil
@@ -81,13 +100,29 @@ func (e *impl) GetMetrics(
 	_ context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
 ) (*externalscaler.GetMetricsResponse, error) {
+	lggr := e.lggr.WithName("GetMetrics")
+	host, ok := metricRequest.ScaledObjectRef.ScalerMetadata["host"]
+	if !ok {
+		err := fmt.Errorf("no 'host' field found in ScaledObject metadata")
+		lggr.Error(err, "ScaledObjectRef", metricRequest.ScaledObjectRef)
+		return nil, err
+	}
 	allCounts := e.pinger.counts()
-	metricValues := []*externalscaler.MetricValue{}
-	for host, count := range allCounts {
-		metricValues = append(metricValues, &externalscaler.MetricValue{
+	hostCount, ok := allCounts[host]
+	if !ok {
+		if host == "interceptor" {
+			hostCount = e.pinger.aggregate()
+		} else {
+			err := fmt.Errorf("host '%s' found in counts", host)
+			lggr.Error(err, "allCounts", allCounts)
+			return nil, err
+		}
+	}
+	metricValues := []*externalscaler.MetricValue{
+		{
 			MetricName:  host,
-			MetricValue: int64(count),
-		})
+			MetricValue: int64(hostCount),
+		},
 	}
 	return &externalscaler.GetMetricsResponse{
 		MetricValues: metricValues,

@@ -2,8 +2,12 @@ package routing
 
 import (
 	"context"
+	"net/http"
+	"net/url"
 	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/pkg/errors"
 )
 
@@ -18,20 +22,21 @@ import (
 // cancellable context and cancel it when you're ready
 func StartUpdateLoop(
 	ctx context.Context,
+	lggr logr.Logger,
+	httpCl *http.Client,
+	fetchURL url.URL,
 	updateInterval time.Duration,
 	t *Table,
-	fetcher func(ctx context.Context) (*Table, error),
+	q queue.Counter,
 ) error {
 	ticker := time.NewTicker(updateInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			newTable, err := fetcher(ctx)
-			if err != nil {
+			if err := GetTable(ctx, httpCl, lggr, fetchURL, t, q); err != nil {
 				return errors.Wrap(err, "trying to fetch routing table")
 			}
-			t.Replace(newTable)
 		case <-ctx.Done():
 			return errors.New("context timeout")
 		}

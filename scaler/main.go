@@ -71,7 +71,10 @@ func startGrpcServer(
 		}
 
 		grpcServer := grpc.NewServer()
-		externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger))
+		externalscaler.RegisterExternalScalerServer(
+			grpcServer,
+			newImpl(lggr, pinger),
+		)
 		reflection.Register(grpcServer)
 		go func() {
 			<-ctx.Done()

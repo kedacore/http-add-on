@@ -26,6 +26,10 @@ type Counter interface {
 	CountReader
 	// Resize resizes the queue size by delta for the given host
 	Resize(host string, delta int) error
+	// Ensure ensures that host is represented in this counter.
+	// If host already has a nonzero value, then it is unchanged. If
+	// it is missing, it is set to 0
+	Ensure(host string)
 }
 
 // MemoryQueue is a reference QueueCounter implementation that holds the
@@ -53,6 +57,15 @@ func (r *Memory) Resize(host string, delta int) error {
 	defer r.mut.Unlock()
 	r.countMap[host] += delta
 	return nil
+}
+
+func (r *Memory) Ensure(host string) {
+	r.mut.Lock()
+	defer r.mut.Unlock()
+	_, ok := r.countMap[host]
+	if !ok {
+		r.countMap[host] = 0
+	}
 }
 
 // Current returns the current size of the queue.

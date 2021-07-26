@@ -19,7 +19,7 @@ func TestHealthChecks(t *testing.T) {
 	ctx, done := context.WithCancel(context.Background())
 	defer done()
 	errgrp, ctx := errgroup.WithContext(ctx)
-	srvFunc := startHealthcheckServer(ctx, lggr, port)
+	srvFunc := startHealthcheckServer(ctx, lggr, port, newFakePinger())
 	errgrp.Go(srvFunc)
 	time.Sleep(500 * time.Millisecond)
 

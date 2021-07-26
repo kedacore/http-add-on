@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 const (
@@ -35,15 +36,18 @@ func AddPingRoute(
 	httpCl *http.Client,
 	fetchURL *url.URL,
 	table *Table,
+	q queue.Counter,
 ) {
 	lggr = lggr.WithName("pkg.routing.AddPingRoute")
 	lggr.Info("adding interceptor routing ping route", "path", routingPingPath)
 	mux.HandleFunc(routingPingPath, func(w http.ResponseWriter, r *http.Request) {
-		newTable, err := GetTable(
+		err := GetTable(
 			r.Context(),
 			httpCl,
 			lggr,
 			*fetchURL,
+			table,
+			q,
 		)
 		if err != nil {
 			lggr.Error(err, "fetching new routing table")
@@ -53,7 +57,6 @@ func AddPingRoute(
 			))
 			return
 		}
-		table.Replace(newTable)
 		w.WriteHeader(200)
 		if err := json.NewEncoder(w).Encode(table); err != nil {
 			w.WriteHeader(500)
@@ -80,12 +83,18 @@ func newTableHandler(
 	})
 }
 
+// GetTable fetches a table via an RPC call to operatorAdminURL, replaces the
+// current value of table with the newly fetched table using table.Replace(), and
+// ensures that all hosts are present in q using q.Ensure() for each host in
+// the newly fetched table
 func GetTable(
 	ctx context.Context,
 	httpCl *http.Client,
 	lggr logr.Logger,
 	operatorAdminURL url.URL,
-) (*Table, error) {
+	table *Table,
+	q queue.Counter,
+) error {
 	lggr = lggr.WithName("pkg.routing.GetTable")
 
 	operatorAdminURL.Path = routingFetchPath
@@ -98,7 +107,7 @@ func GetTable(
 			"url",
 			operatorAdminURL.String(),
 		)
-		return nil, err
+		return err
 	}
 	defer res.Body.Close()
 	newTable := NewTable()
@@ -107,7 +116,11 @@ func GetTable(
 			err,
 			"decoding routing table URL response",
 		)
-		return nil, err
+		return err
 	}
-	return newTable, nil
+	table.Replace(newTable, q)
+	for host := range newTable.m {
+		q.Ensure(host)
+	}
+	return nil
 }

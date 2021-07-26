@@ -22,6 +22,7 @@ type queuePinger struct {
 	pingMut        *sync.RWMutex
 	lastPingTime   time.Time
 	allCounts      map[string]int
+	aggregateCount int
 	lggr           logr.Logger
 }
 
@@ -60,6 +61,12 @@ func (q *queuePinger) counts() map[string]int {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return q.allCounts
+}
+
+func (q *queuePinger) aggregate() int {
+	q.pingMut.RLock()
+	defer q.pingMut.RUnlock()
+	return q.aggregateCount
 }
 
 func (q *queuePinger) requestCounts(ctx context.Context) error {
@@ -107,9 +114,11 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		close(countsCh)
 	}()
 
+	agg := 0
 	totalCounts := make(map[string]int)
 	for count := range countsCh {
 		for host, val := range count.Counts {
+			agg += val
 			totalCounts[host] += val
 		}
 	}
@@ -117,6 +126,7 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 	q.pingMut.Lock()
 	defer q.pingMut.Unlock()
 	q.allCounts = totalCounts
+	q.aggregateCount = agg
 	q.lastPingTime = time.Now()
 
 	return nil
