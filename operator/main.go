@@ -104,7 +104,7 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	ctx := context.Background()
-	errGrp, ctx := errgroup.WithContext(ctx)
+	errGrp, _ := errgroup.WithContext(ctx)
 
 	// start the control loop
 	errGrp.Go(func() error {
@@ -116,7 +116,7 @@ func main() {
 	// to the interceptors
 	errGrp.Go(func() error {
 		mux := http.NewServeMux()
-		routing.AddPingRoute(setupLog, mux, routingTable)
+		routing.AddFetchRoute(setupLog, mux, routingTable)
 		addr := fmt.Sprintf(":%d", adminPort)
 		setupLog.Info(
 			"starting admin RPC server",
