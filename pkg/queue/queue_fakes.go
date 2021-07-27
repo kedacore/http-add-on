@@ -21,6 +21,9 @@ func (f *FakeCounter) Resize(host string, i int) error {
 	return nil
 }
 
+func (f *FakeCounter) Ensure(host string) {
+}
+
 func (f *FakeCounter) Current() (*Counts, error) {
 	ret := NewCounts()
 	ret.Counts = map[string]int{
