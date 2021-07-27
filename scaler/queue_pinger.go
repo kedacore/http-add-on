@@ -134,7 +134,7 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 	// fetch goroutines can make progress. wait for them
 	// to finish and check for errors.
 	if err := fetchGrp.Wait(); err != nil {
-		lggr.Error(err, "fetcthing all counts failed")
+		lggr.Error(err, "fetching all counts failed")
 		return err
 	}
 
