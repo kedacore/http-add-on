@@ -119,7 +119,7 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 		for count := range countsCh {
 			for host, val := range count.Counts {
 				agg += val
-				totalCounts[host] += val
+				totalCounts[host] = val
 			}
 		}
 
