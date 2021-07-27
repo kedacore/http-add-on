@@ -54,3 +54,7 @@ func TestGetMetricSpec(t *testing.T) {
 	r.Equal(host, spec.MetricName)
 	r.Equal(target, spec.TargetSize)
 }
+
+func TestGetMetrics(t *testing.T) {
+	t.Fatal("TODO")
+}
