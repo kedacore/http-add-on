@@ -63,14 +63,19 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	r.Equal("test response", res.Body.String())
 }
 
-// the proxy should wait for a timeout and fail if there is no origin to connect
-// to
+// the proxy should wait for a timeout and fail if there is no
+// origin to which to connect
 func TestWaitFailedConnection(t *testing.T) {
 	const host = "TestWaitFailedConnection.testing"
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	backoff := timeouts.DefaultBackoff()
+	backoff.Steps = 2
+	dialCtxFunc := retryDialContextFunc(
+		timeouts,
+		backoff,
+	)
 	waitFunc := func(context.Context, string) error {
 		return nil
 	}
@@ -80,6 +85,7 @@ func TestWaitFailedConnection(t *testing.T) {
 		Port:       8081,
 		Deployment: "nosuchdepl",
 	})
+
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
