@@ -71,13 +71,14 @@ func TestRequestCounts(t *testing.T) {
 	ticker.Reset(1 * time.Nanosecond)
 	time.Sleep(50 * time.Millisecond)
 
-	// now that the tick has happened, there should be as many key/value
-	// pairs in the returned counts map as addresses
+	// now that the tick has happened, there should be as many
+	// key/value pairs in the returned counts map as addresses
 	retCounts = pinger.counts()
 	r.Equal(len(counts), len(retCounts))
 
 	// each interceptor returns the same counts, so for each host in
-	// the counts map, the integer count should be (val * # interceptors)
+	// the counts map, the integer count should be
+	// (val * # interceptors)
 	for retHost, retCount := range retCounts {
 		expectedCount, ok := counts[retHost]
 		r.True(ok, "unexpected host %s returned", retHost)

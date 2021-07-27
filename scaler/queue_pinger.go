@@ -116,10 +116,13 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 	go func() {
 		agg := 0
 		totalCounts := make(map[string]int)
+		// range through the result of each endpoint
 		for count := range countsCh {
+			// each endpoint returns a map of counts, one count
+			// per host. add up the counts for each host
 			for host, val := range count.Counts {
 				agg += val
-				totalCounts[host] = val
+				totalCounts[host] += val
 			}
 		}
 
