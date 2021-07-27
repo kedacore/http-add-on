@@ -5,13 +5,13 @@ package main
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
+	"golang.org/x/sync/errgroup"
 )
 
 type queuePinger struct {
@@ -84,12 +84,11 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 	}
 
 	countsCh := make(chan *queue.Counts)
-	var wg sync.WaitGroup
+	defer close(countsCh)
+	fetchGrp, _ := errgroup.WithContext(ctx)
 	for _, endpoint := range endpointURLs {
-		wg.Add(1)
-		go func(u *url.URL) {
-			defer wg.Done()
-
+		u := endpoint
+		fetchGrp.Go(func() error {
 			counts, err := queue.GetCounts(
 				ctx,
 				lggr,
@@ -103,31 +102,41 @@ func (q *queuePinger) requestCounts(ctx context.Context) error {
 					"interceptorAddress",
 					u.String(),
 				)
-				return
+				return err
 			}
 			countsCh <- counts
-		}(endpoint)
+			return nil
+		})
 	}
 
+	// consume the results of the counts channel in a goroutine.
+	// we'll must for all the fetcher goroutines to finish after we
+	// start up this goroutine so that all goroutines can make
+	// progress
 	go func() {
-		wg.Wait()
-		close(countsCh)
+		agg := 0
+		totalCounts := make(map[string]int)
+		for count := range countsCh {
+			for host, val := range count.Counts {
+				agg += val
+				totalCounts[host] += val
+			}
+		}
+
+		q.pingMut.Lock()
+		defer q.pingMut.Unlock()
+		q.allCounts = totalCounts
+		q.aggregateCount = agg
+		q.lastPingTime = time.Now()
 	}()
 
-	agg := 0
-	totalCounts := make(map[string]int)
-	for count := range countsCh {
-		for host, val := range count.Counts {
-			agg += val
-			totalCounts[host] += val
-		}
+	// now that the counts channel is being consumed, all the
+	// fetch goroutines can make progress. wait for them
+	// to finish and check for errors.
+	if err := fetchGrp.Wait(); err != nil {
+		lggr.Error(err, "fetcthing all counts failed")
+		return err
 	}
-
-	q.pingMut.Lock()
-	defer q.pingMut.Unlock()
-	q.allCounts = totalCounts
-	q.aggregateCount = agg
-	q.lastPingTime = time.Now()
 
 	return nil
 
