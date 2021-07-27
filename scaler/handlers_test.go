@@ -3,7 +3,6 @@ package main
 import (
 	context "context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -116,17 +115,21 @@ func TestGetMetricsMissingHostInQueue(t *testing.T) {
 // ScaledObject and in the queue counter
 func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 	const (
-		host    = "TestGetMetricsHostFoundInQueueCounts.com"
-		ns      = "testns"
-		svcName = "testsrv"
+		host        = "TestGetMetricsHostFoundInQueueCounts.com"
+		ns          = "testns"
+		svcName     = "testsrv"
+		pendingQLen = 203
 	)
 
-	meta := map[string]string{
-		"host": host,
-	}
+	// create a request for the GetMetrics RPC call. it instructs
+	// GetMetrics to return the counts for one specific host.
+	// below, we do setup to ensure that we have a fake
+	// interceptor, and that interceptor knows about the given host
 	req := &externalscaler.GetMetricsRequest{
 		ScaledObjectRef: &externalscaler.ScaledObjectRef{
-			ScalerMetadata: meta,
+			ScalerMetadata: map[string]string{
+				"host": host,
+			},
 		},
 	}
 
@@ -139,7 +142,11 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 	// the internal queuePinger logic, there is a valid host from
 	// which to request those counts
 	q := queue.NewFakeCounter()
-	q.Ensure(host)
+	// NOTE: don't call .Resize here or you'll have to make sure
+	// to receive on q.ResizedCh
+	q.RetMap[host] = pendingQLen
+
+	// create a fake interceptor
 	fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
 		ns,
 		svcName,
@@ -147,15 +154,18 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 	)
 	r.NoError(err)
 	defer fakeSrv.Close()
-	_, err = http.Get(fakeSrv.URL)
-	r.NoError(err)
 
-	ticker, pinger := newFakeQueuePinger(ctx, lggr,
+	// create a fake queue pinger. this is the simulated
+	// scaler that pings the above fake interceptor
+	ticker, pinger := newFakeQueuePinger(
+		ctx,
+		lggr,
 		func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
 		func(opts *fakeQueuePingerOpts) { opts.tickDur = 1 * time.Millisecond },
 		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
 	)
 	defer ticker.Stop()
+
 	// sleep for more than enough time for the pinger to do its
 	// first tick
 	time.Sleep(5 * time.Millisecond)
@@ -164,5 +174,8 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 	res, err := hdl.GetMetrics(ctx, req)
 	r.NoError(err)
 	r.NotNil(res)
-	// TODO: check the return val
+	r.Equal(1, len(res.MetricValues))
+	metricVal := res.MetricValues[0]
+	r.Equal(host, metricVal.MetricName)
+	r.Equal(int64(pendingQLen), metricVal.MetricValue)
 }
