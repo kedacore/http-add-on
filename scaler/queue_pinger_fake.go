@@ -27,6 +27,7 @@ func startFakeQueueEndpointServer(
 	ns,
 	svcName string,
 	q queue.CountReader,
+	numEndpoints int,
 ) (*httptest.Server, *url.URL, *v1.Endpoints, error) {
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
@@ -35,7 +36,7 @@ func startFakeQueueEndpointServer(
 		return nil, nil, nil, err
 	}
 
-	endpoints := k8s.FakeEndpointsForURL(url, ns, svcName, 3)
+	endpoints := k8s.FakeEndpointsForURL(url, ns, svcName, numEndpoints)
 	return srv, url, endpoints, nil
 }
 
