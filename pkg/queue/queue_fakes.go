@@ -1,7 +1,5 @@
 package queue
 
-import "fmt"
-
 var _ Counter = &FakeCounter{}
 
 type HostAndCount struct {
@@ -37,7 +35,6 @@ func (f *FakeCounter) Current() (*Counts, error) {
 		retMap["sample.com"] = 0
 	}
 	ret.Counts = retMap
-	fmt.Println("FAKE QUEUE COUNTS RETURN", retMap)
 	return ret, nil
 }
 

@@ -145,7 +145,6 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 		svcName,
 		q,
 	)
-	fmt.Println("FAKE ENDPOINTS", *endpoints)
 	r.NoError(err)
 	defer fakeSrv.Close()
 	_, err = http.Get(fakeSrv.URL)
