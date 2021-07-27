@@ -118,7 +118,7 @@ func GetTable(
 		)
 		return err
 	}
-	table.Replace(newTable, q)
+	table.Replace(newTable)
 	for host := range newTable.m {
 		q.Ensure(host)
 	}

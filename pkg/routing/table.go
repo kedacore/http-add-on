@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
-
-	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 var ErrTargetNotFound = errors.New("Target not found")
@@ -119,13 +117,12 @@ func (t *Table) RemoveTarget(host string) error {
 	return nil
 }
 
-// Replace replaces t's routing table with newTable's and updates q such that
-// for each host in newTable, there is an entry in q of at least 0.
+// Replace replaces t's routing table with newTable's.
 //
 // This function is concurrency safe for t, but not for newTable.
 // The caller must ensure that no other goroutine is writing to
 // newTable at the time at which they call this function.
-func (t *Table) Replace(newTable *Table, q queue.Counter) {
+func (t *Table) Replace(newTable *Table) {
 	t.l.Lock()
 	defer t.l.Unlock()
 	t.m = newTable.m

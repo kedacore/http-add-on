@@ -111,11 +111,14 @@ func main() {
 		return routing.StartUpdateLoop(
 			ctx,
 			lggr,
-			http.DefaultClient,
-			*operatorRoutingFetchURL,
 			operatorCfg.RoutingTableUpdateDuration(),
-			routingTable,
-			q,
+			routing.NewGetTableUpdateLoopFunc(
+				lggr,
+				http.DefaultClient,
+				*operatorRoutingFetchURL,
+				routingTable,
+				q,
+			),
 		)
 	})
 

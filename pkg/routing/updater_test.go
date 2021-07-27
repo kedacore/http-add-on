@@ -5,28 +5,42 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStartUpdateLoop(t *testing.T) {
 	r := require.New(t)
+	lggr := logr.Discard()
 	ctx := context.Background()
 	ctx, done := context.WithCancel(ctx)
-	defer done()
 	const interval = 10 * time.Millisecond
 
-	tbl := NewTable()
-	newTbl := NewTable()
-	newTbl.AddTarget("foo", Target{
-		Service:    "fnsvc",
-		Port:       8086,
-		Deployment: "fndpl",
-	})
-	fn := func(ctx context.Context) (*Table, error) {
-		return newTbl, nil
+	ch := make(chan struct{})
+	go StartUpdateLoop(
+		ctx,
+		lggr,
+		interval,
+		func(ctx context.Context, cur time.Time) error {
+			select {
+			case ch <- struct{}{}:
+			case <-ctx.Done():
+			}
+			return nil
+		},
+	)
+	go func() {
+		time.Sleep(interval * 2)
+		done()
+		close(ch)
+	}()
+	numRecvs := 0
+	for range ch {
+		numRecvs++
 	}
-
-	go StartUpdateLoop(ctx, interval, tbl, fn)
-	time.Sleep(interval * 2)
-	r.Equal(newTbl, tbl)
+	r.Greater(
+		numRecvs,
+		0,
+		"expected the update loop to execute at least once",
+	)
 }
