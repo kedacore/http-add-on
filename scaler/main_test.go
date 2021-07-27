@@ -13,13 +13,18 @@ import (
 )
 
 func TestHealthChecks(t *testing.T) {
+	ctx := context.Background()
+	ctx, done := context.WithCancel(ctx)
+	defer done()
 	lggr := logr.Discard()
 	r := require.New(t)
 	const port = 8080
-	ctx, done := context.WithCancel(context.Background())
-	defer done()
+
 	errgrp, ctx := errgroup.WithContext(ctx)
-	srvFunc := startHealthcheckServer(ctx, lggr, port, newFakePinger())
+
+	ticker, pinger := newFakeQueuePinger(ctx, lggr)
+	defer ticker.Stop()
+	srvFunc := startHealthcheckServer(ctx, lggr, port, pinger)
 	errgrp.Go(srvFunc)
 	time.Sleep(500 * time.Millisecond)
 
