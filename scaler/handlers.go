@@ -113,7 +113,7 @@ func (e *impl) GetMetrics(
 		if host == "interceptor" {
 			hostCount = e.pinger.aggregate()
 		} else {
-			err := fmt.Errorf("host '%s' found in counts", host)
+			err := fmt.Errorf("host '%s' not found in counts", host)
 			lggr.Error(err, "allCounts", allCounts)
 			return nil, err
 		}
