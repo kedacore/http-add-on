@@ -29,6 +29,7 @@ func createScaledObjects(
 		config.AppScaledObjectName(httpso),
 		appInfo.Name,
 		externalScalerHostName,
+		httpso.Spec.Host,
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,
 	)

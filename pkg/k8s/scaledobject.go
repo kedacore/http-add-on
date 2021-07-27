@@ -45,7 +45,8 @@ func NewScaledObject(
 	namespace,
 	name,
 	deploymentName,
-	scalerAddress string,
+	scalerAddress,
+	host string,
 	minReplicas int32,
 	maxReplicas int32,
 ) (*unstructured.Unstructured, error) {
@@ -68,13 +69,14 @@ func NewScaledObject(
 
 	var scaledObjectTemplateBuffer bytes.Buffer
 	if tplErr := tpl.Execute(&scaledObjectTemplateBuffer, map[string]interface{}{
-		"Name": name,
-		"Namespace": namespace,
-		"Labels": labels,
-		"MinReplicas": minReplicas,
-		"MaxReplicas": maxReplicas,
+		"Name":           name,
+		"Namespace":      namespace,
+		"Labels":         labels,
+		"MinReplicas":    minReplicas,
+		"MaxReplicas":    maxReplicas,
 		"DeploymentName": deploymentName,
-		"ScalerAddress": scalerAddress,
+		"ScalerAddress":  scalerAddress,
+		"Host":           host,
 	}); tplErr != nil {
 		return nil, tplErr
 	}

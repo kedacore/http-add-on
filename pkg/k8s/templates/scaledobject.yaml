@@ -18,3 +18,4 @@ spec:
     - type: external
       metadata:
         scalerAddress: {{ .ScalerAddress }}
+        host: {{ .Host }}
