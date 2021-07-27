@@ -41,7 +41,10 @@ func retryDialContextFunc(
 	timeouts config.Timeouts,
 	backoff wait.Backoff,
 ) kedanet.DialContextFunc {
-	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
+	dialer := kedanet.NewNetDialer(
+		timeouts.Connect,
+		timeouts.KeepAlive,
+	)
 	return kedanet.DialContextWithRetry(dialer, backoff)
 }
 
