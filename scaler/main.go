@@ -99,7 +99,7 @@ func startHealthcheckServer(
 		mux.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
 		})
-		mux.HandleFunc("/counts", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/queue", func(w http.ResponseWriter, r *http.Request) {
 			lggr = lggr.WithName("route.counts")
 			cts := pinger.counts()
 			lggr.Info("counts endpoint", "counts", cts)
@@ -108,7 +108,7 @@ func startHealthcheckServer(
 				w.WriteHeader(500)
 			}
 		})
-		mux.HandleFunc("/counts_ping", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/queue_ping", func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			lggr := lggr.WithName("route.counts_ping")
 			if err := pinger.requestCounts(ctx); err != nil {

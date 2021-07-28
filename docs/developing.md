@@ -76,6 +76,15 @@ Some of the above commands require several environment variables to be set. You 
 
 ## Helpful Tips
 
+The below tips assist with debugging, introspecting, or observing the current state of a running HTTP addon installation. They involve making network requests to cluster-internal (i.e. `ClusterIP` `Service`s). There are generally two ways to communicate with these services:
+
+- Use `kubectl port-forward` as indicated below
+- Launch a container with an interactive shell in Kubernetes (with the below command), and execute `curl` commands against the in-cluster `Service`s from there.
+
+```shell
+kubectl run -it alpine --image=alpine -n kedahttp
+```
+
 ### Routing Table - Interceptor
 
 Any interceptor pod has both a _proxy_ and _admin_ server running inside it. The proxy server is where users send HTTP requests to, and the admin server is for internal use. You can use this server to
@@ -114,6 +123,7 @@ Then, print the queue counts:
 ```shell
 curl localhost:9090/queue
 ```
+
 ### Routing Table - Operator
 
 The operator pod (whose name looks like `keda-add-ons-http-controller-manager-5d87c5f74b-2q8nb`) has a similar `/routing_table` endpoint as the interceptor. That data returned from this endpoint, however, is the source of truth. Interceptors fetch their copies of the routing table from this endpoint. Accessing data from this endpoint is similar.
@@ -132,7 +142,7 @@ curl localhost:9091/routing_table
 
 ### Queue Counts - Scaler
 
-The external scaler fetches pending queue counts from each interceptor in the system, aggregates and stores them, and then returns them to KEDA when requested. KEDA fetches these data via the [standard gRPC external scaler interface](https://keda.sh/docs/2.3/concepts/external-scalers/#external-scaler-grpc-interface). 
+The external scaler fetches pending queue counts from each interceptor in the system, aggregates and stores them, and then returns them to KEDA when requested. KEDA fetches these data via the [standard gRPC external scaler interface](https://keda.sh/docs/2.3/concepts/external-scalers/#external-scaler-grpc-interface).
 
 For convenience, the scaler also provides a plain HTTP server from which you can also fetch these metrics. To do so, you first need to port-forward the external scaler service (substitute your namespace for `${NAMESPACE}` as above):
 
@@ -143,12 +153,11 @@ kubectl port-forward -n ${NAMESPACE} svc/keda-add-ons-http-external-scaler 9092:
 Then, fetch counts from the scaler:
 
 ```shell
-curl localhost:9092/counts
+curl localhost:9092/queue
 ```
 
 Or, you can prompt the scaler to fetch counts from all interceptors, aggregate, store, and return counts:
 
 ```shell
-curl localhost:9092/counts_ping
+curl localhost:9092/queue_ping
 ```
-
