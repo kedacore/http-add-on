@@ -119,8 +119,26 @@ func GetTable(
 		return err
 	}
 	table.Replace(newTable)
+
+	// ensure that the queue has all hosts that exist in the table
 	for host := range newTable.m {
 		q.Ensure(host)
 	}
+
+	// ensure that the queue doesn't have any extra hosts that don't exist in the table
+	qCur, err := q.Current()
+	if err != nil {
+		lggr.Error(
+			err,
+			"failed to get current queue counts (in order to prune it of missing routing table hosts)",
+		)
+		return err
+	}
+	for host := range qCur.Counts {
+		if _, err := table.Lookup(host); err != nil {
+			q.Remove(host)
+		}
+	}
+
 	return nil
 }

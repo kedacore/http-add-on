@@ -24,12 +24,16 @@ type CountReader interface {
 // the read functionality is point-in-time only
 type Counter interface {
 	CountReader
-	// Resize resizes the queue size by delta for the given host
+	// Resize resizes the queue size by delta for the given host.
 	Resize(host string, delta int) error
 	// Ensure ensures that host is represented in this counter.
 	// If host already has a nonzero value, then it is unchanged. If
-	// it is missing, it is set to 0
+	// it is missing, it is set to 0.
 	Ensure(host string)
+	// Remove tries to remove the given host and its
+	// associated counts from the queue. returns true if it existed,
+	// false otherwise.
+	Remove(host string) bool
 }
 
 // MemoryQueue is a reference QueueCounter implementation that holds the
@@ -66,6 +70,14 @@ func (r *Memory) Ensure(host string) {
 	if !ok {
 		r.countMap[host] = 0
 	}
+}
+
+func (r *Memory) Remove(host string) bool {
+	r.mut.Lock()
+	defer r.mut.Unlock()
+	_, ok := r.countMap[host]
+	delete(r.countMap, host)
+	return ok
 }
 
 // Current returns the current size of the queue.

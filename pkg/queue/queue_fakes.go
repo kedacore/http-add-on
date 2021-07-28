@@ -28,6 +28,12 @@ func (f *FakeCounter) Ensure(host string) {
 	f.RetMap[host] = 0
 }
 
+func (f *FakeCounter) Remove(host string) bool {
+	_, ok := f.RetMap[host]
+	delete(f.RetMap, host)
+	return ok
+}
+
 func (f *FakeCounter) Current() (*Counts, error) {
 	ret := NewCounts()
 	retMap := f.RetMap
