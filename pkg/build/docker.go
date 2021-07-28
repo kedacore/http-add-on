@@ -31,6 +31,21 @@ func DockerBuild(image, dockerfileLocation, context string) error {
 	)
 }
 
+func DockerBuildACR(registry, image, dockerfileLocation, context string) error {
+	return sh.RunV(
+		"az",
+		"acr",
+		"build",
+		"--image",
+		image,
+		"--registry",
+		registry,
+		"--file",
+		dockerfileLocation,
+		context,
+	)
+}
+
 // DockerPush calls the following and returns the resulting error, if any:
 //
 //	docker push <image>
