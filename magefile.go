@@ -375,6 +375,27 @@ func DeleteKeda(ctx context.Context) error {
 	return nil
 }
 
+func InstallXKCD(ctx context.Context) error {
+	namespace, err := env.Get(NAMESPACE_ENV_VAR)
+	if err != nil {
+		namespace = DEFAULT_NAMESPACE
+	}
+	if err := sh.RunV(
+		"helm",
+		"upgrade",
+		"xkcd",
+		"./examples/xkcd",
+		"--install",
+		"--namespace",
+		namespace,
+		"--create-namespace",
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // --- Operator tasks --- //
 
 // Generates the operator
