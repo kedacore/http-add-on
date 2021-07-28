@@ -38,7 +38,7 @@ service:
 
 autoscaling:
   http:
-    minReplicas: 5
+    minReplicas: 0
     maxReplicas: 10
 
 ingress:
