@@ -15,14 +15,6 @@ import (
 //go:embed templates
 var scaledObjectTemplateFS embed.FS
 
-func kedaGVR() schema.GroupVersionResource {
-	return schema.GroupVersionResource{
-		Group:    "keda.sh",
-		Version:  "v1alpha1",
-		Resource: "scaledobjects",
-	}
-}
-
 // DeleteScaledObject deletes a scaled object with the given name
 func DeleteScaledObject(ctx context.Context, name string, namespace string, cl client.Client) error {
 	scaledObj := &unstructured.Unstructured{}

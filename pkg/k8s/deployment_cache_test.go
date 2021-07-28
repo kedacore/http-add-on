@@ -9,7 +9,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -101,14 +100,5 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 		r.Equal(name, depl.ObjectMeta.Name)
 	case <-time.After(500 * time.Millisecond):
 		r.Fail("didn't get a watch event after 500 ms")
-	}
-}
-
-func gvrForDeployment(depl *appsv1.Deployment) schema.GroupVersionResource {
-	gvk := depl.GroupVersionKind()
-	return schema.GroupVersionResource{
-		Group:    gvk.Group,
-		Version:  gvk.Version,
-		Resource: "Deployment",
 	}
 }
