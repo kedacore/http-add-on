@@ -459,3 +459,7 @@ func DeleteHTTPSO(ctx context.Context, namespace string) error {
 		"kubectl", "delete", "httpscaledobject", "xkcd", "-n", namespace,
 	)
 }
+
+func TestE2E(ctx context.Context) error {
+	return sh.RunV("go", "test", "-test.v", "./e2e...")
+}
