@@ -30,8 +30,8 @@ func TestE2E(t *testing.T) {
 
 	t.Cleanup(func() {
 		t.Logf("Cleaning up")
-		r.NoError(helmDelete(ns, "keda"))
 		r.NoError(helmDelete(ns, "http-add-on"))
+		r.NoError(helmDelete(ns, "keda"))
 		r.NoError(deleteNS(ns))
 	})
 
