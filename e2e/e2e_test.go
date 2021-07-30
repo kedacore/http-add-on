@@ -1,15 +1,18 @@
-package main
+package e2e
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 func TestE2E(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
 	r := require.New(t)
 
 	ns := fmt.Sprintf("keda-http-add-on-e2e-%s", uuid.NewUUID())
@@ -23,16 +26,23 @@ func TestE2E(t *testing.T) {
 	t.Logf("E2E Tests Starting")
 	t.Logf("Using namespace: %s", ns)
 
-	r.NoError(helmRepoAdd("kedacore", "https://kedacore.github.io/charts"))
-	r.NoError(helmRepoUpdate())
-	r.NoError(helmInstall(ns, "keda", "kedacore/keda"))
-	r.NoError(helmInstall(ns, "http-add-on", cfg.AddonChartLocation))
-
+	// setup and register teardown functionality
+	setup(t, ns, cfg)
 	t.Cleanup(func() {
-		t.Logf("Cleaning up")
-		r.NoError(helmDelete(ns, "http-add-on"))
-		r.NoError(helmDelete(ns, "keda"))
-		r.NoError(deleteNS(ns))
+		cancel()
+		teardown(t, ns)
 	})
+
+	// get the address of the interceptor proxy service and ping it.
+	// it should make a request all the way back to the example app
+	cl, restCfg, err := getClient()
+	r.NoError(err)
+	proxySvcName := "keda-add-ons-http-interceptor-proxy"
+	proxySvc := &corev1.Service{}
+	r.NoError(cl.Get(ctx, objKey(ns, proxySvcName), proxySvc))
+	pf, err := tunnelSvc(t, ctx, restCfg, proxySvc)
+	r.NoError(err)
+	defer pf.Close()
+	r.NoError(pf.ForwardPorts())
 
 }
