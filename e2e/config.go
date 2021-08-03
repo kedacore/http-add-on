@@ -1,7 +1,10 @@
 package e2e
 
+import "strings"
+
 type config struct {
 	Namespace               string `envconfig:"NAMESPACE"`
+	RunSetupTeardown        bool   `envconfig:"RUN_SETUP_TEARDOWN" default:"false"`
 	AddonChartLocation      string `envconfig:"ADD_ON_CHART_LOCATION" required:"true"`
 	ExampleAppChartLocation string `envconfig:"EXAMPLE_APP_CHART_LOCATION" required:"true"`
 	OperatorImg             string `envconfig:"KEDAHTTP_OPERATOR_IMAGE"`
@@ -13,13 +16,22 @@ type config struct {
 func (c *config) httpAddOnHelmVars() map[string]string {
 	ret := map[string]string{}
 	if c.OperatorImg != "" {
-		ret["images.operator"] = c.OperatorImg
+		ret["images.operator"] = strings.Split(
+			c.OperatorImg,
+			":",
+		)[0]
 	}
 	if c.InterceptorImg != "" {
-		ret["images.interceptor"] = c.InterceptorImg
+		ret["images.interceptor"] = strings.Split(
+			c.InterceptorImg,
+			":",
+		)[0]
 	}
 	if c.ScalerImg != "" {
-		ret["images.scaler"] = c.ScalerImg
+		ret["images.scaler"] = strings.Split(
+			c.ScalerImg,
+			":",
+		)[0]
 	}
 	if c.HTTPAddOnImageTag != "" {
 		ret["images.tag"] = c.HTTPAddOnImageTag

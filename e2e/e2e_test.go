@@ -32,9 +32,14 @@ func TestE2E(t *testing.T) {
 	// if setup times out, we'll still clean up
 	t.Cleanup(func() {
 		cancel()
-		teardown(t, ns)
+		if cfg.RunSetupTeardown {
+			teardown(t, ns)
+		}
 	})
-	setup(t, ns, cfg)
+	if cfg.RunSetupTeardown {
+		t.Logf("Running setup and teardown scripts")
+		setup(t, ns, cfg)
+	}
 
 	cl, restCfg, err := getClient()
 	r.NoError(err)
@@ -51,7 +56,7 @@ func TestE2E(t *testing.T) {
 			"keda-add-ons-http-external-scaler",
 			"keda-add-ons-http-interceptor",
 			"keda-operator-metrics-apiserver",
-			// "xkcd",
+			"xkcd",
 		},
 	))
 

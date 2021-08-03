@@ -27,14 +27,14 @@ func setup(t *testing.T, ns string, cfg *config) {
 		ns,
 		"http-add-on",
 		cfg.AddonChartLocation,
-		empty,
+		cfg.httpAddOnHelmVars(),
 	))
 	t.Logf("Installing XKCD")
 	a.NoError(helmInstall(
 		ns,
 		"xkcd",
 		cfg.ExampleAppChartLocation,
-		cfg.httpAddOnHelmVars(),
+		empty,
 	))
 }
 
