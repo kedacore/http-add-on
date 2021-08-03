@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -27,22 +27,40 @@ func TestE2E(t *testing.T) {
 	t.Logf("E2E Tests Starting")
 	t.Logf("Using namespace: %s", ns)
 
-	// setup and register teardown functionality
-	setup(t, ns, cfg)
+	// setup and register teardown functionality.
+	// register cleanup before executing setup, so that
+	// if setup times out, we'll still clean up
 	t.Cleanup(func() {
 		cancel()
 		teardown(t, ns)
 	})
+	setup(t, ns, cfg)
 
 	cl, restCfg, err := getClient()
 	r.NoError(err)
 
-	// ensure that the HTTPScaledObject has a proper status,
-	// and that a ScaledObject was created for the example app
-	scaledObjectName := fmt.Sprintf("%s-app", "xkcd")
-	scaledObject, err := k8s.NewScaledObject(ns, scaledObjectName, "", "", "", 1, 2)
+	// wait until all expected deployments are available
+	r.NoError(waitUntilDeplomentsAvailable(
+		ctx,
+		cl,
+		remainingDurInTest(t, 20*time.Second),
+		ns,
+		[]string{
+			"keda-operator",
+			"keda-add-ons-http-controller-manager",
+			"keda-add-ons-http-external-scaler",
+			"keda-add-ons-http-interceptor",
+			"keda-operator-metrics-apiserver",
+			// "xkcd",
+		},
+	))
+
+	// ensure that the interceptor and XKCD scaledobjects
+	// exist
+	_, err = getScaledObject(ctx, cl, ns, "keda-add-ons-http-interceptor")
 	r.NoError(err)
-	r.NoError(cl.Get(ctx, objKey(ns, scaledObjectName), scaledObject))
+	_, err = getScaledObject(ctx, cl, ns, "xkcd-app")
+	r.NoError(err)
 
 	// get the address of the interceptor proxy service and ping it.
 	// it should make a request all the way back to the example app
