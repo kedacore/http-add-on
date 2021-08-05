@@ -38,8 +38,27 @@ func (e *impl) IsActive(
 	ctx context.Context,
 	scaledObject *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
+	lggr := e.lggr.WithName("IsActive")
+	host, ok := scaledObject.ScalerMetadata["host"]
+	if !ok {
+		err := fmt.Errorf("no 'host' field found in ScaledObject metadata")
+		lggr.Error(err, "ScaledObjectRef", scaledObject)
+		return nil, err
+	}
+	allCounts := e.pinger.counts()
+	hostCount, ok := allCounts[host]
+	if !ok {
+		if host == "interceptor" {
+			hostCount = e.pinger.aggregate()
+		} else {
+			err := fmt.Errorf("host '%s' not found in counts", host)
+			lggr.Error(err, "allCounts", allCounts)
+			return nil, err
+		}
+	}
+	var active bool = hostCount > 0
 	return &externalscaler.IsActiveResponse{
-		Result: true,
+		Result: active,
 	}, nil
 }
 
