@@ -76,4 +76,15 @@ func TestE2E(t *testing.T) {
 		8080,
 		cfg.NumReqsAgainstProxy,
 	))
+
+	// issue requests to the proxy service to make sure
+	// it's forwarding properly
+	r.NoError(makeRequestsToSvc(
+		ctx,
+		restCfg,
+		ns,
+		"keda-add-ons-http-interceptor-proxy",
+		8080,
+		cfg.NumReqsAgainstProxy,
+	))
 }
