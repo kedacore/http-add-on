@@ -96,10 +96,10 @@ kubectl proxy -p 9898
 
 The second way to communicate with these services is almost the opposite as the previous. Instead of bringing the API server to you with `kubectl proxy`, you'll be creating an execution environment closer to the API server.
 
-First, launch a container with an interactive shell in Kubernetes with the following command:
+First, launch a container with an interactive shell in Kubernetes with the following command (substituting your namespace in for `$NAMESPACE`):
 
 ```shell
-kubectl run -it alpine --image=alpine -n kedahttp
+kubectl run -it alpine --image=alpine -n $NAMESPACE
 ```
 
 Then, when you see a `curl` command below, replace the entire path up to and including the `/proxy/` segment with just the name of the service and its port. For example, `curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/routing_ping` would just become `curl -L keda-add-ons-http-interceptor-admin:9090/routing_ping`
