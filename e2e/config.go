@@ -11,6 +11,7 @@ type config struct {
 	InterceptorImg          string `envconfig:"KEDAHTTP_INTERCEPTOR_IMAGE"`
 	ScalerImg               string `envconfig:"KEDAHTTP_SCALER_IMAGE"`
 	HTTPAddOnImageTag       string `envconfig:"KEDAHTTP_IMAGE_TAG"`
+	NumReqsAgainstProxy     int    `envconfig:"NUM_REQUESTS_TO_EXECUTE" default:"10000"`
 }
 
 func (c *config) httpAddOnHelmVars() map[string]string {

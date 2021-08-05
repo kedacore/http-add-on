@@ -14,7 +14,11 @@ import (
 	clientconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-func getClient() (client.Client, *rest.Config, error) {
+func getClient() (
+	client.Client,
+	*rest.Config,
+	error,
+) {
 	cfg, err := clientconfig.GetConfig()
 	if err != nil {
 		return nil, nil, err
