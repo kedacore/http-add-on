@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,7 +22,7 @@ func waitUntilDeployment(
 	depl := &appsv1.Deployment{}
 	if err := cl.Get(
 		ctx,
-		objKey(ns, name),
+		k8s.ObjKey(ns, name),
 		depl,
 	); err != nil {
 		return err

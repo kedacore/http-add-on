@@ -1,12 +1,11 @@
 package routing
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
@@ -28,13 +27,13 @@ func AddFetchRoute(
 }
 
 // AddPingRoute adds a route to mux that will accept an empty GET request,
-// fetch the current state of the routing table by calling GetTable using fetchURL,
-// then returning the new contents of the routing table to the client
+// fetch the current state of the routing table from the standard routing
+// table ConfigMap (ConfigMapRoutingTableName), save it to local memory, and
+// return the contents of the routing table to the client.
 func AddPingRoute(
 	lggr logr.Logger,
 	mux *http.ServeMux,
-	httpCl *http.Client,
-	fetchURL *url.URL,
+	getter k8s.ConfigMapGetter,
 	table *Table,
 	q queue.Counter,
 ) {
@@ -43,9 +42,8 @@ func AddPingRoute(
 	mux.HandleFunc(routingPingPath, func(w http.ResponseWriter, r *http.Request) {
 		err := GetTable(
 			r.Context(),
-			httpCl,
 			lggr,
-			*fetchURL,
+			getter,
 			table,
 			q,
 		)
@@ -81,64 +79,4 @@ func newTableHandler(
 			))
 		}
 	})
-}
-
-// GetTable fetches a table via an RPC call to operatorAdminURL, replaces the
-// current value of table with the newly fetched table using table.Replace(), and
-// ensures that all hosts are present in q using q.Ensure() for each host in
-// the newly fetched table
-func GetTable(
-	ctx context.Context,
-	httpCl *http.Client,
-	lggr logr.Logger,
-	operatorAdminURL url.URL,
-	table *Table,
-	q queue.Counter,
-) error {
-	lggr = lggr.WithName("pkg.routing.GetTable")
-
-	operatorAdminURL.Path = routingFetchPath
-
-	res, err := httpCl.Get(operatorAdminURL.String())
-	if err != nil {
-		lggr.Error(
-			err,
-			"fetching the routing table URL",
-			"url",
-			operatorAdminURL.String(),
-		)
-		return err
-	}
-	defer res.Body.Close()
-	newTable := NewTable()
-	if err := json.NewDecoder(res.Body).Decode(newTable); err != nil {
-		lggr.Error(
-			err,
-			"decoding routing table URL response",
-		)
-		return err
-	}
-	table.Replace(newTable)
-
-	// ensure that the queue has all hosts that exist in the table
-	for host := range newTable.m {
-		q.Ensure(host)
-	}
-
-	// ensure that the queue doesn't have any extra hosts that don't exist in the table
-	qCur, err := q.Current()
-	if err != nil {
-		lggr.Error(
-			err,
-			"failed to get current queue counts (in order to prune it of missing routing table hosts)",
-		)
-		return err
-	}
-	for host := range qCur.Counts {
-		if _, err := table.Lookup(host); err != nil {
-			q.Remove(host)
-		}
-	}
-
-	return nil
 }

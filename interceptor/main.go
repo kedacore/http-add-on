@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net/http"
 	nethttp "net/http"
-	"net/url"
 	"os"
 	"time"
 
@@ -33,7 +31,6 @@ func main() {
 		os.Exit(1)
 	}
 	timeoutCfg := config.MustParseTimeouts()
-	operatorCfg := config.MustParseOperator()
 	servingCfg := config.MustParseServing()
 	ctx := context.Background()
 
@@ -61,29 +58,23 @@ func main() {
 		lggr.Error(err, "creating new deployment cache")
 		os.Exit(1)
 	}
+
+	configMapsInterface := cl.CoreV1().ConfigMaps(servingCfg.CurrentNamespace)
+
 	waitFunc := newDeployReplicasForwardWaitFunc(deployCache)
 
-	operatorRoutingFetchURL, err := operatorCfg.RoutingFetchURL()
-	if err != nil {
-		lggr.Error(err, "getting the operator URL")
-		os.Exit(1)
-	}
-
 	lggr.Info("Interceptor starting")
-	lggr.Info(
-		"Fetching initial routing table",
-		"operatorRoutingURL",
-		operatorRoutingFetchURL.String(),
-	)
 
 	q := queue.NewMemory()
 	routingTable := routing.NewTable()
 
+	lggr.Info(
+		"Fetching initial routing table",
+	)
 	if err := routing.GetTable(
 		ctx,
-		nethttp.DefaultClient,
 		lggr,
-		*operatorRoutingFetchURL,
+		configMapsInterface,
 		routingTable,
 		q,
 	); err != nil {
@@ -92,37 +83,44 @@ func main() {
 	}
 
 	errGrp, ctx := errgroup.WithContext(ctx)
+
+	// start the update loop that updates the routing table from
+	// the ConfigMap that the operator updates as HTTPScaledObjects
+	// enter and exit the system
 	errGrp.Go(func() error {
+		return routing.StartConfigMapRoutingTableUpdater(
+			ctx,
+			lggr,
+			time.Duration(servingCfg.RoutingTableUpdateDurationMS)*time.Millisecond,
+			configMapsInterface,
+			routingTable,
+			q,
+		)
+	})
+
+	// start the administrative server. this is the server
+	// that serves the queue size API
+	errGrp.Go(func() error {
+		lggr.Info(
+			"starting the admin server",
+			"port",
+			adminPort,
+		)
 		return runAdminServer(
 			lggr,
-			operatorRoutingFetchURL,
+			configMapsInterface,
 			q,
 			routingTable,
 			adminPort,
 		)
 	})
+
 	errGrp.Go(func() error {
 		lggr.Info(
-			"routing table update loop starting",
-			"operatorRoutingURL",
-			operatorRoutingFetchURL.String(),
+			"starting the proxy server",
+			"port",
+			proxyPort,
 		)
-
-		return routing.StartUpdateLoop(
-			ctx,
-			lggr,
-			operatorCfg.RoutingTableUpdateDuration(),
-			routing.NewGetTableUpdateLoopFunc(
-				lggr,
-				http.DefaultClient,
-				*operatorRoutingFetchURL,
-				routingTable,
-				q,
-			),
-		)
-	})
-
-	errGrp.Go(func() error {
 		return runProxyServer(
 			lggr,
 			q,
@@ -142,7 +140,7 @@ func main() {
 
 func runAdminServer(
 	lggr logr.Logger,
-	routingFetchURL *url.URL,
+	cmGetter k8s.ConfigMapGetter,
 	q queue.Counter,
 	routingTable *routing.Table,
 	port int,
@@ -162,8 +160,7 @@ func runAdminServer(
 	routing.AddPingRoute(
 		lggr,
 		adminServer,
-		http.DefaultClient,
-		routingFetchURL,
+		cmGetter,
 		routingTable,
 		q,
 	)

@@ -9,8 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const routingTableName = "keda-http-routing-table"
-
 func removeAndUpdateRoutingTable(
 	ctx context.Context,
 	lggr logr.Logger,
@@ -64,33 +62,43 @@ func updateRoutingMap(
 	table *routing.Table,
 	lggr logr.Logger,
 ) error {
-	tableAsJSON, marshalErr := table.MarshalJSON()
-	if marshalErr != nil { // should never happen
-		return marshalErr
+	routingConfigMap, err := k8s.GetConfigMap(ctx, cl, namespace, routing.ConfigMapRoutingTableName)
+	if err != nil {
+		return err
 	}
 
-	routingConfigMap, err := k8s.GetConfigMap(ctx, cl, namespace, routingTableName)
-	if err != nil { return err }
-
 	if routingConfigMap == nil { // if the routing table doesn't exist, we need to create it with the latest data
-		routingTableData := map[string]string{
-			"routing-table": string(tableAsJSON),
-		}
-
 		routingTableLabels := map[string]string{
 			"control-plane": "operator",
 			"keda.sh/addon": "http-add-on",
-			"app": "http-add-on",
-			"name": "http-add-on-routing-table",
+			"app":           "http-add-on",
+			"name":          "http-add-on-routing-table",
 		}
-
-		if err := k8s.CreateConfigMap(ctx, cl, k8s.NewConfigMap(namespace, routingTableName, routingTableLabels, routingTableData), lggr); err != nil {
+		cm := k8s.NewConfigMap(
+			namespace,
+			routing.ConfigMapRoutingTableName,
+			routingTableLabels,
+			map[string]string{},
+		)
+		if err := routing.SaveTableToConfigMap(table, cm); err != nil {
+			return err
+		}
+		if err := k8s.CreateConfigMap(
+			ctx,
+			cl,
+			cm,
+			lggr,
+		); err != nil {
 			return err
 		}
 	} else {
-		newRoutingTable := routingConfigMap.DeepCopy()
-		newRoutingTable.Data["routing-table"] = string(tableAsJSON)
-		if _, patchErr := k8s.PatchConfigMap(ctx, cl, lggr, routingConfigMap, newRoutingTable); patchErr != nil { return patchErr }
+		newCM := routingConfigMap.DeepCopy()
+		if err := routing.SaveTableToConfigMap(table, newCM); err != nil {
+			return err
+		}
+		if _, patchErr := k8s.PatchConfigMap(ctx, cl, lggr, routingConfigMap, newCM); patchErr != nil {
+			return patchErr
+		}
 	}
 
 	return nil

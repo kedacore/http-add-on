@@ -30,9 +30,6 @@ func getClient() (
 	return cl, cfg, nil
 }
 
-func objKey(ns, name string) client.ObjectKey {
-	return client.ObjectKey{Namespace: ns, Name: name}
-}
 func deleteNS(ns string) error {
 	return sh.RunV("kubectl", "delete", "namespace", ns)
 }
@@ -63,7 +60,7 @@ func getScaledObject(
 	if err != nil {
 		return nil, err
 	}
-	if err := cl.Get(ctx, objKey(ns, name), scaledObject); err != nil {
+	if err := cl.Get(ctx, k8s.ObjKey(ns, name), scaledObject); err != nil {
 		return nil, err
 	}
 	return scaledObject, nil
