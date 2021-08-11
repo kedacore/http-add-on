@@ -84,7 +84,9 @@ func updateRoutingMap(
 			"name": "http-add-on-routing-table",
 		}
 
-		k8s.CreateConfigMap(ctx, cl, k8s.NewConfigMap(namespace, routingTableName, routingTableLabels, routingTableData), lggr)
+		if err := k8s.CreateConfigMap(ctx, cl, k8s.NewConfigMap(namespace, routingTableName, routingTableLabels, routingTableData), lggr); err != nil {
+			return err
+		}
 	} else {
 		newRoutingTable := routingConfigMap.DeepCopy()
 		newRoutingTable.Data["routing-table"] = string(tableAsJSON)
