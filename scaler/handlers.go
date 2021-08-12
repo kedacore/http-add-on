@@ -46,17 +46,12 @@ func (e *impl) IsActive(
 		return nil, err
 	}
 	if host == "interceptor" {
-		fmt.Println("this is interceptor")
 		return &externalscaler.IsActiveResponse{
 			Result: true,
 		}, nil
 	}
-	fmt.Println("This is the app we want to scale ", host)
 	allCounts := e.pinger.counts()
 	hostCount, ok := allCounts[host]
-	fmt.Println(host)
-	fmt.Println(allCounts)
-	fmt.Println(hostCount)
 	if !ok {
 		err := fmt.Errorf("host '%s' not found in counts", host)
 		lggr.Error(err, "allCounts", allCounts)
