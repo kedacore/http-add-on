@@ -45,16 +45,22 @@ func (e *impl) IsActive(
 		lggr.Error(err, "ScaledObjectRef", scaledObject)
 		return nil, err
 	}
+	if host == "interceptor" {
+		fmt.Println("this is interceptor")
+		return &externalscaler.IsActiveResponse{
+			Result: true,
+		}, nil
+	}
+	fmt.Println("This is the app we want to scale ", host)
 	allCounts := e.pinger.counts()
 	hostCount, ok := allCounts[host]
+	fmt.Println(host)
+	fmt.Println(allCounts)
+	fmt.Println(hostCount)
 	if !ok {
-		if host == "interceptor" {
-			hostCount = e.pinger.aggregate()
-		} else {
-			err := fmt.Errorf("host '%s' not found in counts", host)
-			lggr.Error(err, "allCounts", allCounts)
-			return nil, err
-		}
+		err := fmt.Errorf("host '%s' not found in counts", host)
+		lggr.Error(err, "allCounts", allCounts)
+		return nil, err
 	}
 	var active bool = hostCount > 0
 	return &externalscaler.IsActiveResponse{
@@ -63,12 +69,13 @@ func (e *impl) IsActive(
 }
 
 func (e *impl) StreamIsActive(
-	in *externalscaler.ScaledObjectRef,
+	scaledObject *externalscaler.ScaledObjectRef,
 	server externalscaler.ExternalScaler_StreamIsActiveServer,
 ) error {
 	// this function communicates with KEDA via the 'server' parameter.
 	// we call server.Send (below) every 200ms, which tells it to immediately
 	// ping our IsActive RPC
+
 	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()
 	for {

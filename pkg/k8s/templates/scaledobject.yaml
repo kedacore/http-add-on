@@ -10,7 +10,7 @@ metadata:
 spec:
   minReplicaCount: {{ .MinReplicas }}
   maxReplicaCount: {{ .MaxReplicas }}
-  pollingInterval: 250
+  pollingInterval: 1
   scaleTargetRef:
     name: {{ .DeploymentName }}
     kind: Deployment
