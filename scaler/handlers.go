@@ -41,8 +41,8 @@ func (e *impl) IsActive(
 	lggr := e.lggr.WithName("IsActive")
 	host, ok := scaledObject.ScalerMetadata["host"]
 	if !ok {
-		err := fmt.Errorf("no 'host' field found in ScaledObject metadata")
-		lggr.Error(err, "ScaledObjectRef", scaledObject)
+              err := fmt.Errorf("no 'host' field found in ScaledObject metadata")
+		lggr.Error(err, "returning immediately from IsActive RPC call", "ScaledObject", *scaledObject)
 		return nil, err
 	}
 	if host == "interceptor" {
