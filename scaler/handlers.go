@@ -54,7 +54,7 @@ func (e *impl) IsActive(
 	hostCount, ok := allCounts[host]
 	if !ok {
 		err := fmt.Errorf("host '%s' not found in counts", host)
-		lggr.Error(err, "allCounts", allCounts)
+		lggr.Error(err, "Given host was not found in queue count map", "host", host, "allCounts", allCounts)
 		return nil, err
 	}
 	var active bool = hostCount > 0
@@ -70,7 +70,6 @@ func (e *impl) StreamIsActive(
 	// this function communicates with KEDA via the 'server' parameter.
 	// we call server.Send (below) every 200ms, which tells it to immediately
 	// ping our IsActive RPC
-
 	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()
 	for {
