@@ -57,7 +57,7 @@ func (e *impl) IsActive(
 		lggr.Error(err, "Given host was not found in queue count map", "host", host, "allCounts", allCounts)
 		return nil, err
 	}
-	var active bool = hostCount > 0
+	active := hostCount > 0
 	return &externalscaler.IsActiveResponse{
 		Result: active,
 	}, nil
