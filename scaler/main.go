@@ -20,6 +20,7 @@ import (
 )
 
 func main() {
+
 	ctx := context.Background()
 	cfg := mustParseConfig()
 	grpcPort := cfg.GRPCPort
@@ -27,6 +28,8 @@ func main() {
 	namespace := cfg.TargetNamespace
 	svcName := cfg.TargetService
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
+	targetPendingRequests := cfg.TargetPendingRequests
+
 	k8sCl, _, err := k8s.NewClientset()
 	if err != nil {
 		log.Fatalf("Couldn't get a Kubernetes client (%s)", err)
@@ -41,12 +44,17 @@ func main() {
 	)
 
 	grp, ctx := errgroup.WithContext(ctx)
-	grp.Go(startGrpcServer(ctx, grpcPort, pinger))
+	grp.Go(startGrpcServer(ctx, grpcPort, pinger, int64(targetPendingRequests)))
 	grp.Go(startHealthcheckServer(ctx, healthPort))
 	log.Fatalf("One or more of the servers failed: %s", grp.Wait())
 }
 
-func startGrpcServer(ctx context.Context, port int, pinger *queuePinger) func() error {
+func startGrpcServer(
+	ctx context.Context,
+	port int,
+	pinger *queuePinger,
+	targetPendingRequests int64,
+) func() error {
 	return func() error {
 		addr := fmt.Sprintf("0.0.0.0:%d", port)
 		log.Printf("Serving external scaler on %s", addr)
@@ -56,7 +64,7 @@ func startGrpcServer(ctx context.Context, port int, pinger *queuePinger) func() 
 		}
 
 		grpcServer := grpc.NewServer()
-		externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger))
+		externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger, targetPendingRequests))
 		reflection.Register(grpcServer)
 		go func() {
 			<-ctx.Done()
