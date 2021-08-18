@@ -6,7 +6,8 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-  - http:
+  - host: {{ .Values.host }}
+    http:
       paths:
       - path: /
         pathType: Prefix
@@ -14,4 +15,4 @@ spec:
           service:
             name: {{ include "xkcd.fullname" . }}
             port:
-              number: 80
+              number: {{ .Values.service.port }}
