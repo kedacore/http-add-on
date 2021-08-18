@@ -27,7 +27,11 @@ type impl struct {
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(lggr logr.Logger, pinger *queuePinger, targetMetric int64) *impl {
+func newImpl(
+	lggr logr.Logger,
+	pinger *queuePinger,
+	targetMetric int64,
+) *impl {
 	return &impl{
 		lggr:         lggr,
 		pinger:       pinger,

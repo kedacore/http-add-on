@@ -27,6 +27,7 @@ func TestIsActive(t *testing.T) {
 	hdl := newImpl(
 		lggr,
 		pinger,
+		123,
 	)
 	res, err := hdl.IsActive(
 		ctx,
@@ -70,10 +71,10 @@ func TestGetMetricSpec(t *testing.T) {
 	lggr := logr.Discard()
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger)
+	hdl := newImpl(lggr, pinger, 123)
 	meta := map[string]string{
-		"host":   host,
-		"target": strconv.Itoa(int(target)),
+		"host":                  host,
+		"targetPendingRequests": strconv.Itoa(int(target)),
 	}
 	ref := &externalscaler.ScaledObjectRef{
 		ScalerMetadata: meta,
@@ -98,7 +99,7 @@ func TestGetMetricsMissingHostInMetadata(t *testing.T) {
 	}
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger)
+	hdl := newImpl(lggr, pinger, 123)
 
 	// no 'host' in the ScalerObjectRef's metadata field
 	res, err := hdl.GetMetrics(ctx, req)
@@ -124,7 +125,7 @@ func TestGetMetricsMissingHostInQueue(t *testing.T) {
 
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger)
+	hdl := newImpl(lggr, pinger, 123)
 
 	req := &externalscaler.GetMetricsRequest{
 		ScaledObjectRef: &externalscaler.ScaledObjectRef{},
@@ -198,7 +199,7 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 	// first tick
 	time.Sleep(5 * time.Millisecond)
 
-	hdl := newImpl(lggr, pinger)
+	hdl := newImpl(lggr, pinger, 123)
 	res, err := hdl.GetMetrics(ctx, req)
 	r.NoError(err)
 	r.NotNil(res)
@@ -268,7 +269,7 @@ func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
 	// first tick
 	time.Sleep(5 * time.Millisecond)
 
-	hdl := newImpl(lggr, pinger)
+	hdl := newImpl(lggr, pinger, 123)
 	res, err := hdl.GetMetrics(ctx, req)
 	r.NoError(err)
 	r.NotNil(res)
