@@ -40,6 +40,20 @@ func GetInt32Or(envName string, otherwise int32) int32 {
 	return int32(val)
 }
 
+// GetInt64Or returns the int64 value of the environment variable called envName.
+// If the environment variable is missing or cannot be parsed to Int, returns otherwise
+func GetInt64Or(envName string, otherwise int64) int64 {
+	strVal, err := Get(envName)
+	if err != nil {
+		return otherwise
+	}
+	val, err := strconv.ParseInt(strVal, 10, 64)
+	if err != nil {
+		return otherwise
+	}
+	return val
+}
+
 func GetIntOr(envName string, otherwise int) int {
 	strVal, err := Get(envName)
 	if err != nil {

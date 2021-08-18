@@ -18,12 +18,13 @@ func init() {
 }
 
 type impl struct {
-	pinger *queuePinger
+	pinger       *queuePinger
+	targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(pinger *queuePinger) *impl {
-	return &impl{pinger: pinger}
+func newImpl(pinger *queuePinger, targetMetric int64) *impl {
+	return &impl{pinger: pinger, targetMetric: targetMetric}
 }
 
 func (e *impl) Ping(context.Context, *empty.Empty) (*empty.Empty, error) {
@@ -64,11 +65,12 @@ func (e *impl) GetMetricSpec(
 	_ context.Context,
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
+	targetMetricValue := e.targetMetric
 	return &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{
 				MetricName: "queueSize",
-				TargetSize: 100,
+				TargetSize: targetMetricValue,
 			},
 		},
 	}, nil

@@ -55,6 +55,10 @@ func createExternalScaler(
 				Name:  "KEDA_HTTP_SCALER_TARGET_ADMIN_PORT",
 				Value: fmt.Sprintf("%d", appInfo.InterceptorConfig.AdminPort),
 			},
+			{
+				Name:  "KEDA_HTTP_SCALER_TARGET_METRIC",
+				Value: fmt.Sprintf("%d", httpso.Spec.TargetMetric),
+			},
 		},
 		k8s.Labels(appInfo.ExternalScalerDeploymentName()),
 		appInfo.ExternalScalerConfig.PullPolicy,
