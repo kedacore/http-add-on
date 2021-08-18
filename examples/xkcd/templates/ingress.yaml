@@ -13,6 +13,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ include "xkcd.fullname" . }}
+            name: keda-add-ons-http-interceptor-proxy
             port:
-              number: {{ .Values.service.port }}
+              number: 8080
