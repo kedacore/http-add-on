@@ -39,8 +39,7 @@ This is the port to route to on the service that you specified in the `service` 
 
 >Default: 100
 
-The HTTP Addon works with the Kubernetes [Horizonal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details) (HPA) -- via KEDA itself -- to execute scale-up and scale-down operations (except for scaling between zero and non-zero replicas). This field specifies the total number of pending requests across the interceptor fleet to allow in the interceptors before a scaling operation is triggered.
+This is the number of _pending_ (or in-progress) requests that your application needs to have before the HTTP Addon will scale it. Conversely, if your application has below this number of pending requests, the HTTP addon will scale it down.
 
-For example, if you set this field to 100, then the HPA will scale up if it queries the HTTP Addon and finds that there are more than 100 pending requests across the entire interceptor fleet at that moment. Likewise, the HPA will scale down if it finds that there are fewer than 100 pending requests across the fleet.
+For example, if you set this field to 100, then the HTTP Addon will scale your app up if it sees that there are 200 in-progress requests. On the other hand, it will scale down if it sees that there are only 20 in-progress requests. Note that it will _never_ scale your app to zero replicas unless there are _no_ requests in-progress. Even if you set this value to a very high number and only have a single in-progress request, your app will still have one replica.
 
->Note: this field is used in the (simplified) HPA scaling formula, which is listed [on the Kubernetes documentation](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details). It is also pasted here for convenience: `desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]`. The value of `targetPendingRequests` will be passed in where `desiredMetricValue` is expected.
