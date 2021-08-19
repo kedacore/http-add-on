@@ -39,8 +39,9 @@ func NewScaledObject(
 	deploymentName,
 	scalerAddress,
 	host string,
-	minReplicas int32,
-	maxReplicas int32,
+	minReplicas,
+	maxReplicas,
+	targetPendingRequests int32,
 ) (*unstructured.Unstructured, error) {
 	// https://keda.sh/docs/1.5/faq/
 	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
@@ -61,14 +62,15 @@ func NewScaledObject(
 
 	var scaledObjectTemplateBuffer bytes.Buffer
 	if tplErr := tpl.Execute(&scaledObjectTemplateBuffer, map[string]interface{}{
-		"Name":           name,
-		"Namespace":      namespace,
-		"Labels":         labels,
-		"MinReplicas":    minReplicas,
-		"MaxReplicas":    maxReplicas,
-		"DeploymentName": deploymentName,
-		"ScalerAddress":  scalerAddress,
-		"Host":           host,
+		"Name":                  name,
+		"Namespace":             namespace,
+		"Labels":                labels,
+		"MinReplicas":           minReplicas,
+		"MaxReplicas":           maxReplicas,
+		"DeploymentName":        deploymentName,
+		"ScalerAddress":         scalerAddress,
+		"Host":                  host,
+		"TargetPendingRequests": targetPendingRequests,
 	}); tplErr != nil {
 		return nil, tplErr
 	}

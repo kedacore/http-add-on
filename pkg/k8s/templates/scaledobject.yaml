@@ -19,3 +19,4 @@ spec:
       metadata:
         scalerAddress: {{ .ScalerAddress }}
         host: {{ .Host }}
+        targetPendingRequests: {{ .TargetPendingRequests }}
