@@ -41,5 +41,4 @@ This is the port to route to on the service that you specified in the `service` 
 
 This is the number of _pending_ (or in-progress) requests that your application needs to have before the HTTP Addon will scale it. Conversely, if your application has below this number of pending requests, the HTTP addon will scale it down.
 
-For example, if you set this field to 100, then the HTTP Addon will scale your app up if it sees that there are 200 in-progress requests. On the other hand, it will scale down if it sees that there are only 20 in-progress requests. Note that it will _never_ scale your app to zero replicas unless there are _no_ requests in-progress. Even if you set this value to a very high number and only have a single in-progress request, your app will still have one replica.
-
+For example, if you set this field to 100, the HTTP Addon will scale your app up if it sees that there are 200 in-progress requests. On the other hand, it will scale down if it sees that there are only 20 in-progress requests. Note that it will _never_ scale your app to zero replicas unless there are _no_ requests in-progress. Even if you set this value to a very high number and only have a single in-progress request, your app will still have one replica.
