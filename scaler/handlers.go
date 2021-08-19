@@ -86,8 +86,16 @@ func (e *impl) StreamIsActive(
 		case <-server.Context().Done():
 			return nil
 		case <-ticker.C:
+			active, err := e.IsActive(server.Context(), scaledObject)
+			if err != nil {
+				e.lggr.Error(
+					err,
+					"error getting active status in stream, continuing",
+				)
+				continue
+			}
 			server.Send(&externalscaler.IsActiveResponse{
-				Result: true,
+				Result: active.Result,
 			})
 		}
 	}
