@@ -10,11 +10,14 @@ import (
 )
 
 func getHost(r *nethttp.Request) (string, error) {
-	if r.Host != "" {
-		return r.Host, nil
-	}
+	// check the host header first, then the request host
+	// field (which may contain the actual URL if there is no
+	// host header)
 	if r.Header.Get("Host") != "" {
 		return r.Header.Get("Host"), nil
+	}
+	if r.Host != "" {
+		return r.Host, nil
 	}
 	return "", fmt.Errorf("host not found")
 }
