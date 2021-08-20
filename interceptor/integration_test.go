@@ -134,6 +134,12 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	r.Greater(time.Since(start), 100*time.Millisecond)
 }
 
+// the request comes in while there are no replicas, and one is added
+// while it's pending
+func TestIntegrationWaitReplicas(t *testing.T) {
+	t.FailNow()
+}
+
 func doRequest(
 	cl *http.Client,
 	method,
