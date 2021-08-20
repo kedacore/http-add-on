@@ -110,16 +110,13 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	timeouts.DeploymentReplicas = 10 * time.Millisecond
+	timeouts.DeploymentReplicas = 1 * time.Millisecond
+	timeouts.ResponseHeader = 1 * time.Millisecond
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
+	defer finishWaitFunc()
 	start := time.Now()
-	waitDur := timeouts.DeploymentReplicas * 2
-	go func() {
-		time.Sleep(waitDur)
-		finishWaitFunc()
-	}()
 	noSuchHost := "TestTimesOutOnWaitFunc.testing"
 
 	routingTable := routing.NewTable()
@@ -142,8 +139,20 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	req.Host = noSuchHost
 
 	hdl.ServeHTTP(res, req)
-	r.NoError(waitForSignal(waitFuncCalledCh, 1*time.Second))
-	r.GreaterOrEqual(time.Since(start), waitDur)
+
+	// serving should take at least timeouts.DeploymentReplicas, but no more than
+	// timeouts.DeploymentReplicas*2
+	waitFuncCalled := false
+	select {
+	case <-waitFuncCalledCh:
+		waitFuncCalled = true
+	default:
+	}
+
+	r.True(waitFuncCalled)
+	elapsed := time.Since(start)
+	r.GreaterOrEqual(elapsed, timeouts.DeploymentReplicas)
+	r.LessOrEqual(elapsed, timeouts.DeploymentReplicas*2)
 	r.Equal(502, res.Code, "response code was unexpected")
 }
 
@@ -268,17 +277,23 @@ func waitForSignal(sig <-chan struct{}, waitDur time.Duration) error {
 // notifyingFunc creates a new function to be used as a waitFunc in the
 // newForwardingHandler function. it also returns a channel that will
 // be closed immediately after the function is called (not necessarily
-// before it returns). the function won't return until the returned func()
-// is called
+// before it returns).
+//
+// the _returned_ function won't itself return until the returned func()
+// is called, or the context that is passed to it is done (e.g. cancelled, timed out,
+// etc...)
 func notifyingFunc() (func(context.Context, string) error, <-chan struct{}, func()) {
 	calledCh := make(chan struct{})
 	finishCh := make(chan struct{})
 	finishFunc := func() {
 		close(finishCh)
 	}
-	return func(context.Context, string) error {
+	return func(ctx context.Context, _ string) error {
 		close(calledCh)
-		<-finishCh
+		select {
+		case <-finishCh:
+		case <-ctx.Done():
+		}
 		return nil
 	}, calledCh, finishFunc
 }
