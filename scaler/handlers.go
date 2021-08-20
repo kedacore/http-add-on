@@ -8,7 +8,6 @@ import (
 	context "context"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -112,24 +111,10 @@ func (e *impl) GetMetricSpec(
 		lggr.Error(err, "no 'host' found in ScaledObject metadata")
 		return nil, err
 	}
-	targetStr := sor.ScalerMetadata["targetPendingRequests"]
-	targetInt, err := strconv.Atoi(targetStr)
-	if err != nil {
-		targetInt = int(e.targetMetric)
-		lggr.Error(
-			err,
-			"invalid 'targetPendingRequests' value, using default",
-			"value",
-			targetStr,
-			"default",
-			targetInt,
-		)
-	}
-
 	metricSpecs := []*externalscaler.MetricSpec{
 		{
 			MetricName: host,
-			TargetSize: int64(targetInt),
+			TargetSize: int64(e.targetMetric),
 		},
 	}
 
