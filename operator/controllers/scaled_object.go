@@ -24,7 +24,6 @@ func createScaledObjects(
 
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
 
-	targetPendingRequests := httpso.Spec.TargetPendingRequests
 	appScaledObject, appErr := k8s.NewScaledObject(
 		appInfo.Namespace,
 		config.AppScaledObjectName(httpso),
@@ -33,7 +32,6 @@ func createScaledObjects(
 		httpso.Spec.Host,
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,
-		targetPendingRequests,
 	)
 	if appErr != nil {
 		return appErr
