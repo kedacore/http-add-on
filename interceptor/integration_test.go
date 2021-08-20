@@ -16,6 +16,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,12 +43,12 @@ func TestIntegrationHappyPath(t *testing.T) {
 		},
 	})
 
-	originPortInt, err := strconv.Atoi(h.originURL.Port())
+	originHost, originPort, err := splitHostPort(h.originURL.Host)
 	r.NoError(err)
 	h.routingTable.AddTarget(hostForTest(t), routing.Target{
-		// url.Host can contain the port, so ensure we only get the actual host
-		Service:    strings.Split(h.originURL.Host, ":")[0],
-		Port:       originPortInt,
+
+		Service:    originHost,
+		Port:       originPort,
 		Deployment: deplName,
 	})
 
@@ -102,9 +103,11 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	h, err := newHarness(100*time.Millisecond, time.Second)
 	r.NoError(err)
 
+	originHost, originPort, err := splitHostPort(h.originURL.Host)
+	r.NoError(err)
 	h.routingTable.AddTarget(hostForTest(t), routing.Target{
-		Service:    hostForTest(t),
-		Port:       80,
+		Service:    originHost,
+		Port:       originPort,
 		Deployment: deployName,
 	})
 
@@ -115,8 +118,8 @@ func TestIntegrationNoReplicas(t *testing.T) {
 			Replicas: i32Ptr(0),
 		},
 	})
-	h.deplCache.SetReplicas(hostForTest(t), 0)
 
+	start := time.Now()
 	res, err := doRequest(
 		http.DefaultClient,
 		"GET",
@@ -124,8 +127,11 @@ func TestIntegrationNoReplicas(t *testing.T) {
 		host,
 		nil,
 	)
+
 	r.NoError(err)
 	r.Equal(502, res.StatusCode)
+	// we should have slept more than the deployment replicas wait timeout
+	r.Greater(time.Since(start), 100*time.Millisecond)
 }
 
 func doRequest(
@@ -238,4 +244,21 @@ func i32Ptr(i int32) *int32 {
 func hostForTest(t *testing.T) string {
 	t.Helper()
 	return fmt.Sprintf("%s.integrationtest.interceptor.kedahttp.dev", t.Name())
+}
+
+// similar to net.SplitHostPort (https://pkg.go.dev/net#SplitHostPort)
+// but returns the port as a string, not an int.
+//
+// useful because url.Host can contain the port, so ensure we only get the actual host
+func splitHostPort(hostPortStr string) (string, int, error) {
+	spl := strings.Split(hostPortStr, ":")
+	if len(spl) != 2 {
+		return "", 0, fmt.Errorf("invalid host:port: %s", hostPortStr)
+	}
+	host := spl[0]
+	port, err := strconv.Atoi(spl[1])
+	if err != nil {
+		return "", 0, errors.Wrap(err, "port was invalid")
+	}
+	return host, port, nil
 }
