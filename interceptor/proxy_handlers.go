@@ -9,7 +9,6 @@ import (
 	"github.com/go-logr/logr"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
-	"golang.org/x/sync/errgroup"
 )
 
 func moreThanPtr(i *int32, target int32) bool {
@@ -55,15 +54,10 @@ func newForwardingHandler(
 		}
 		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
 		defer done()
-		grp, ctx := errgroup.WithContext(ctx)
-		grp.Go(func() error {
-			return waitFunc(ctx, routingTarget.Deployment)
-		})
-		waitErr := grp.Wait()
-		if waitErr != nil {
-			lggr.Error(waitErr, "wait function failed, not forwarding request")
+		if err := waitFunc(ctx, routingTarget.Deployment); err != nil {
+			lggr.Error(err, "wait function failed, not forwarding request")
 			w.WriteHeader(502)
-			w.Write([]byte(fmt.Sprintf("error on backend (%s)", waitErr)))
+			w.Write([]byte(fmt.Sprintf("error on backend (%s)", err)))
 			return
 		}
 		targetSvcURL, err := routingTarget.ServiceURL()

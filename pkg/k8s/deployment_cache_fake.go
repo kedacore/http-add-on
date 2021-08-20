@@ -42,6 +42,12 @@ func (f *FakeDeploymentCache) Watch(name string) watch.Interface {
 	return watcher
 }
 
+func (f *FakeDeploymentCache) Set(name string, deployment *appsv1.Deployment) {
+	f.Mut.Lock()
+	defer f.Mut.Unlock()
+	f.Current[name] = deployment
+}
+
 func (f *FakeDeploymentCache) SetReplicas(name string, num int32) error {
 	f.Mut.Lock()
 	defer f.Mut.Unlock()
