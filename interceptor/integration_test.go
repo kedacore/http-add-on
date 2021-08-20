@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -18,6 +19,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -97,10 +99,13 @@ func TestIntegrationNoRoutingTableEntry(t *testing.T) {
 
 // host in the routing table but deployment has no replicas
 func TestIntegrationNoReplicas(t *testing.T) {
+	const (
+		deployTimeout = 100 * time.Millisecond
+	)
 	host := hostForTest(t)
 	deployName := "testdeployment"
 	r := require.New(t)
-	h, err := newHarness(100*time.Millisecond, time.Second)
+	h, err := newHarness(deployTimeout, time.Second)
 	r.NoError(err)
 
 	originHost, originPort, err := splitHostPort(h.originURL.Host)
@@ -130,14 +135,84 @@ func TestIntegrationNoReplicas(t *testing.T) {
 
 	r.NoError(err)
 	r.Equal(502, res.StatusCode)
+	elapsed := time.Since(start)
 	// we should have slept more than the deployment replicas wait timeout
-	r.Greater(time.Since(start), 100*time.Millisecond)
+	r.GreaterOrEqual(elapsed, deployTimeout)
+	r.Less(elapsed, deployTimeout+50*time.Millisecond)
 }
 
 // the request comes in while there are no replicas, and one is added
 // while it's pending
 func TestIntegrationWaitReplicas(t *testing.T) {
-	t.FailNow()
+	const (
+		deployTimeout   = 2 * time.Second
+		responseTimeout = 1 * time.Second
+		deployName      = "testdeployment"
+	)
+	ctx := context.Background()
+	r := require.New(t)
+	h, err := newHarness(deployTimeout, responseTimeout)
+	r.NoError(err)
+
+	// add host to routing table
+	originHost, originPort, err := splitHostPort(h.originURL.Host)
+	r.NoError(err)
+	h.routingTable.AddTarget(hostForTest(t), routing.Target{
+		Service:    originHost,
+		Port:       originPort,
+		Deployment: deployName,
+	})
+
+	// set up a deployment with zero replicas and create
+	// a watcher we can use later to fake-send a deployment
+	// event
+	initialDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: deployName},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: i32Ptr(0),
+		},
+	}
+	h.deplCache.Set(deployName, initialDeployment)
+	watcher := h.deplCache.SetWatcher(deployName)
+
+	// make the request in one goroutine, and in the other, wait a bit
+	// and then add replicas to the deployment cache
+
+	var response *http.Response
+	grp, _ := errgroup.WithContext(ctx)
+	grp.Go(func() error {
+		resp, err := doRequest(
+			http.DefaultClient,
+			"GET",
+			h.proxyURL.String(),
+			hostForTest(t),
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+		response = resp
+
+		return nil
+	})
+	const sleepDur = deployTimeout / 4
+	grp.Go(func() error {
+		t.Logf("Sleeping for %s", deployTimeout/4)
+		time.Sleep(deployTimeout / 4)
+		t.Logf("Woke up, setting replicas to 10")
+		modifiedDeployment := initialDeployment.DeepCopy()
+		modifiedDeployment.Spec.Replicas = i32Ptr(10)
+		// send a watch event (instead of setting replicas) so that the watch
+		// func sees that it can forward the request now
+		watcher.Modify(modifiedDeployment)
+		return nil
+	})
+	start := time.Now()
+	r.NoError(grp.Wait())
+	elapsed := time.Since(start)
+	r.GreaterOrEqual(elapsed, sleepDur)
+	r.Less(elapsed, sleepDur+(50*time.Millisecond))
+	r.Equal(200, response.StatusCode)
 }
 
 func doRequest(
