@@ -162,9 +162,9 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	defer srv.Close()
 	// the origin is gonna wait this long, and we'll make the proxy
 	// have a much longer timeout than this to account for timing issues
-	const originDelay = 500 * time.Millisecond
+	const originDelay = 5 * time.Millisecond
 	timeouts := config.Timeouts{
-		Connect:   500 * time.Millisecond,
+		Connect:   originDelay,
 		KeepAlive: 2 * time.Second,
 		// the handler is going to take 500 milliseconds to respond, so make the
 		// forwarder wait much longer than that
@@ -173,7 +173,6 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	go func() {
-		// wait for 100ms less than
 		time.Sleep(originDelay)
 		close(originWaitCh)
 	}()

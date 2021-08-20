@@ -116,8 +116,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
 	defer finishWaitFunc()
-	start := time.Now()
-	noSuchHost := "TestTimesOutOnWaitFunc.testing"
+	noSuchHost := fmt.Sprintf("%s.testing", t.Name())
 
 	routingTable := routing.NewTable()
 	routingTable.AddTarget(noSuchHost, routing.Target{
@@ -138,10 +137,20 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	r.NoError(err)
 	req.Host = noSuchHost
 
+	start := time.Now()
 	hdl.ServeHTTP(res, req)
+	elapsed := time.Since(start)
 
+	t.Logf("elapsed time was %s", elapsed)
 	// serving should take at least timeouts.DeploymentReplicas, but no more than
 	// timeouts.DeploymentReplicas*2
+	// elapsed time should be more than the deployment replicas wait time
+	// but not an amount that is much greater than that
+	r.GreaterOrEqual(elapsed, timeouts.DeploymentReplicas)
+	r.LessOrEqual(elapsed, timeouts.DeploymentReplicas*4)
+	r.Equal(502, res.Code, "response code was unexpected")
+
+	// waitFunc should have been called, even though it timed out
 	waitFuncCalled := false
 	select {
 	case <-waitFuncCalledCh:
@@ -149,11 +158,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	default:
 	}
 
-	r.True(waitFuncCalled)
-	elapsed := time.Since(start)
-	r.GreaterOrEqual(elapsed, timeouts.DeploymentReplicas)
-	r.LessOrEqual(elapsed, timeouts.DeploymentReplicas*2)
-	r.Equal(502, res.Code, "response code was unexpected")
+	r.True(waitFuncCalled, "wait function was not called")
 }
 
 // Test to make sure the proxy handler will wait for the waitFunc to
@@ -281,7 +286,8 @@ func waitForSignal(sig <-chan struct{}, waitDur time.Duration) error {
 //
 // the _returned_ function won't itself return until the returned func()
 // is called, or the context that is passed to it is done (e.g. cancelled, timed out,
-// etc...)
+// etc...). in the former case, the returned func itself returns nil. in the latter,
+// it returns ctx.Err()
 func notifyingFunc() (func(context.Context, string) error, <-chan struct{}, func()) {
 	calledCh := make(chan struct{})
 	finishCh := make(chan struct{})
@@ -292,8 +298,9 @@ func notifyingFunc() (func(context.Context, string) error, <-chan struct{}, func
 		close(calledCh)
 		select {
 		case <-finishCh:
+			return nil
 		case <-ctx.Done():
+			return fmt.Errorf("TEST FUNCTION CONTEXT ERROR: %w", ctx.Err())
 		}
-		return nil
 	}, calledCh, finishFunc
 }
