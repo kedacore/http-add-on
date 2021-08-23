@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
@@ -12,9 +13,11 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
+// TODO: test the watcher, including the watch error case
 func TestK8DeploymentCacheGet(t *testing.T) {
 	r := require.New(t)
-	ctx := context.Background()
+	ctx, done := context.WithCancel(context.Background())
+	defer done()
 
 	const ns = "testns"
 	const name = "testdepl"
@@ -30,8 +33,14 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 	fakeClientset := k8sfake.NewSimpleClientset(expectedDepl)
 	fakeApps := fakeClientset.AppsV1()
 
-	cache, err := NewK8sDeploymentCache(ctx, fakeApps.Deployments(ns))
+	cache, err := NewK8sDeploymentCache(
+		ctx,
+		logr.Discard(),
+		fakeApps.Deployments(ns),
+		time.Millisecond,
+	)
 	r.NoError(err)
+	defer cache.Stop()
 
 	depl, err := cache.Get(name)
 	r.NoError(err)
@@ -44,7 +53,10 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 
 func TestK8sDeploymentCacheWatch(t *testing.T) {
 	r := require.New(t)
-	ctx := context.Background()
+	ctx, done := context.WithCancel(
+		context.Background(),
+	)
+	defer done()
 
 	const ns = "testns"
 	const name = "testdepl"
@@ -60,8 +72,15 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 	fakeClientset := k8sfake.NewSimpleClientset()
 	fakeDeployments := fakeClientset.AppsV1().Deployments(ns)
 
-	cache, err := NewK8sDeploymentCache(ctx, fakeDeployments)
+	cache, err := NewK8sDeploymentCache(
+		ctx,
+		logr.Discard(),
+		fakeDeployments,
+		time.Millisecond,
+	)
 	r.NoError(err)
+	defer cache.Stop()
+	go cache.StartWatcher(ctx, logr.Discard())
 
 	watcher := cache.Watch(name)
 	defer watcher.Stop()
@@ -82,7 +101,8 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 		}
 	}()
 
-	// first make sure that the send happened, and there was no error
+	// first make sure that the send happened, and there was
+	// no error
 	select {
 	case <-createSentCh:
 	case err := <-createErrCh:
@@ -91,7 +111,8 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 		r.Fail("the create operation didn't happen after 400 ms")
 	}
 
-	// then make sure that the deployment was actually received
+	// then make sure that the deployment was actually
+	// received
 	select {
 	case obj := <-watcher.ResultChan():
 		depl, ok := obj.Object.(*appsv1.Deployment)

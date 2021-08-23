@@ -25,6 +25,11 @@ type Serving struct {
 	// Since it does full updates alongside watch stream updates, it can
 	// only process one at a time. Therefore, this is a best effort timeout
 	RoutingTableUpdateDurationMS int `envconfig:"KEDA_HTTP_ROUTING_TABLE_UPDATE_DURATION_MS" default:"500"`
+	// The interceptor has an internal process that periodically fetches the state
+	// of deployment that is running the servers it forwards to.
+	//
+	// This is the interval (in milliseconds) representing how often to do a fetch
+	DeploymentCachePollIntervalMS int `envconfig:"KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS" default:"250"`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the

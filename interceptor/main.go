@@ -52,7 +52,9 @@ func main() {
 	)
 	deployCache, err := k8s.NewK8sDeploymentCache(
 		ctx,
+		lggr,
 		deployInterface,
+		time.Duration(servingCfg.DeploymentCachePollIntervalMS)*time.Millisecond,
 	)
 	if err != nil {
 		lggr.Error(err, "creating new deployment cache")
@@ -83,6 +85,11 @@ func main() {
 	}
 
 	errGrp, ctx := errgroup.WithContext(ctx)
+
+	// start the deployment cache updater
+	errGrp.Go(func() error {
+		return deployCache.StartWatcher(ctx, lggr)
+	})
 
 	// start the update loop that updates the routing table from
 	// the ConfigMap that the operator updates as HTTPScaledObjects

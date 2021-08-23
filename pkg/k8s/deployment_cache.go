@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -17,67 +20,151 @@ type DeploymentCache interface {
 }
 
 type K8sDeploymentCache struct {
-	latestEvts  map[string]watch.Event
-	rwm         *sync.RWMutex
-	broadcaster *watch.Broadcaster
+	latest       map[string]*appsv1.Deployment
+	rwm          *sync.RWMutex
+	cl           typedappsv1.DeploymentInterface
+	broadcaster  *watch.Broadcaster
+	watcher      watch.Interface
+	fetchTickDur time.Duration
 }
 
 func NewK8sDeploymentCache(
 	ctx context.Context,
+	lggr logr.Logger,
 	cl typedappsv1.DeploymentInterface,
+	periodFetchDuration time.Duration,
 ) (*K8sDeploymentCache, error) {
-	deployList, err := cl.List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	latestEvts := map[string]watch.Event{}
-	for _, depl := range deployList.Items {
-		latestEvts[depl.ObjectMeta.Name] = watch.Event{
-			Type:   watch.Added,
-			Object: &depl,
-		}
-	}
+	lggr = lggr.WithName("pkg.k8s.NewK8sDeploymentCache")
 	bcaster := watch.NewBroadcaster(5, watch.DropIfChannelFull)
 	watcher, err := cl.Watch(ctx, metav1.ListOptions{})
 	if err != nil {
+		lggr.Error(
+			err,
+			"couldn't create a new watcher",
+		)
 		return nil, err
 	}
 
 	ret := &K8sDeploymentCache{
-		latestEvts:  latestEvts,
-		rwm:         new(sync.RWMutex),
-		broadcaster: bcaster,
+		latest:       map[string]*appsv1.Deployment{},
+		rwm:          new(sync.RWMutex),
+		broadcaster:  bcaster,
+		watcher:      watcher,
+		fetchTickDur: periodFetchDuration,
+		cl:           cl,
 	}
-	go func() {
-		defer watcher.Stop()
-		ch := watcher.ResultChan()
-		for {
-			// TODO: add a timeout
-			evt := <-ch
-			ret.broadcaster.Action(evt.Type, evt.Object)
-			ret.rwm.Lock()
-			depl, ok := evt.Object.(*appsv1.Deployment)
-			// if we didn't get back a deployment in the event,
-			// something is wrong that we can't fix, so just continue
-			if !ok {
+	deployList, err := cl.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		lggr.Error(
+			err,
+			"failed to fetch initial deployment list",
+		)
+		return nil, err
+	}
+	ret.mergeAndBroadcastList(deployList)
+	return ret, nil
+}
+
+func (k *K8sDeploymentCache) Stop() {
+	k.watcher.Stop()
+}
+
+func (k *K8sDeploymentCache) StartWatcher(
+	ctx context.Context,
+	lggr logr.Logger,
+) error {
+	lggr = lggr.WithName(
+		"pkg.k8s.K8sDeploymentCache.StartWatcher",
+	)
+	ch := k.watcher.ResultChan()
+	fetchTicker := time.NewTicker(k.fetchTickDur)
+	defer fetchTicker.Stop()
+	for {
+		select {
+		case <-fetchTicker.C:
+			deplList, err := k.cl.List(ctx, metav1.ListOptions{})
+			if err != nil {
+				lggr.Error(
+					err,
+					"error with periodic deployment fetch",
+				)
+				return errors.Wrap(
+					err,
+					"error with periodic deployment fetch",
+				)
+			}
+			k.mergeAndBroadcastList(deplList)
+		case evt := <-ch:
+			if err := k.addEvt(evt); err != nil {
+				lggr.Error(
+					err,
+					"couldn't add event to the deployment cache",
+				)
 				continue
 			}
-			ret.latestEvts[depl.GetObjectMeta().GetName()] = evt
-			ret.rwm.Unlock()
+			k.broadcaster.Action(evt.Type, evt.Object)
+		case <-ctx.Done():
+			lggr.Error(
+				ctx.Err(),
+				"context is done",
+			)
+			return errors.Wrap(
+				ctx.Err(),
+				"context is marked done",
+			)
 		}
-	}()
-	return ret, nil
+	}
+}
+
+// mergeList adds each deployment in lst to the internal
+// list of events and broadcasts a new event for each
+// one.
+func (k *K8sDeploymentCache) mergeAndBroadcastList(
+	lst *appsv1.DeploymentList,
+) {
+	k.rwm.Lock()
+	defer k.rwm.Unlock()
+	for _, depl := range lst.Items {
+		k.latest[depl.ObjectMeta.Name] = &depl
+		// if the deployment isn't already in the cache,
+		// we need to broadcast an ADDED event, otherwise
+		// broadcast a MODIFIED event
+		_, ok := k.latest[depl.ObjectMeta.Name]
+		evtType := watch.Modified
+		if !ok {
+			evtType = watch.Added
+		}
+
+		k.broadcaster.Action(evtType, &depl)
+	}
+}
+
+// addEvt checks to make sure evt.Object is an actual
+// Deployment. if it isn't, returns a descriptive error.
+// otherwise, adds evt to the internal events list
+func (k *K8sDeploymentCache) addEvt(evt watch.Event) error {
+	k.rwm.Lock()
+	defer k.rwm.Unlock()
+	depl, ok := evt.Object.(*appsv1.Deployment)
+	// if we didn't get back a deployment in the event,
+	// something is wrong that we can't fix, so just continue
+	if !ok {
+		return fmt.Errorf(
+			"watch event did not contain a Deployment",
+		)
+	}
+	k.latest[depl.GetObjectMeta().GetName()] = depl
+	return nil
 }
 
 func (k *K8sDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
 	k.rwm.RLock()
 	defer k.rwm.RUnlock()
-	evt, ok := k.latestEvts[name]
+	depl, ok := k.latest[name]
 	if !ok {
 		return nil, fmt.Errorf("no deployment %s found", name)
 	}
-	return evt.Object.(*appsv1.Deployment), nil
+	return depl, nil
 }
 
 func (k *K8sDeploymentCache) Watch(name string) watch.Interface {
@@ -136,7 +223,10 @@ func (m *MemoryDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
 	defer m.RWM.RUnlock()
 	val, ok := m.Deployments[name]
 	if !ok {
-		return nil, fmt.Errorf("Deployment %s not found", name)
+		return nil, fmt.Errorf(
+			"deployment %s not found",
+			name,
+		)
 	}
 	return val, nil
 }

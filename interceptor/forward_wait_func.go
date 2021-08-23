@@ -41,10 +41,12 @@ func newDeployReplicasForwardWaitFunc(
 					return nil
 				}
 			case <-ctx.Done():
-				// otherwise, if we hit the end of the timeout, fail
+				// otherwise, if the context is marked done before
+				// we're done waiting, fail.
 				return fmt.Errorf(
-					"timeout expired waiting for deployment %s to reach > 0 replicas",
+					"context marked done while waiting for deployment %s to reach > 0 replicas (%w)",
 					deployName,
+					ctx.Err(),
 				)
 			}
 		}
