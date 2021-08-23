@@ -171,10 +171,20 @@ func TestWaitsForWaitFunc(t *testing.T) {
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
 	noSuchHost := "TestWaitsForWaitFunc.test"
+	const originRespCode = 201
+	testSrv, testSrvURL, err := kedanet.StartTestServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(originRespCode)
+		}),
+	)
+	r.NoError(err)
+	defer testSrv.Close()
+	originHost, originPort, err := splitHostPort(testSrvURL.Host)
+	r.NoError(err)
 	routingTable := routing.NewTable()
 	routingTable.AddTarget(noSuchHost, routing.Target{
-		Service:    "nosuchsvc",
-		Port:       9092,
+		Service:    originHost,
+		Port:       originPort,
 		Deployment: "nosuchdepl",
 	})
 	hdl := newForwardingHandler(
@@ -190,19 +200,27 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	r.NoError(err)
 	req.Host = noSuchHost
 
-	start := time.Now()
-	waitDur := 10 * time.Millisecond
-
 	// make the wait function finish after a short duration
+	const waitDur = 100 * time.Millisecond
 	go func() {
 		time.Sleep(waitDur)
 		finishWaitFunc()
 	}()
-	hdl.ServeHTTP(res, req)
-	r.NoError(waitForSignal(waitFuncCalledCh, 1*time.Second))
-	r.GreaterOrEqual(time.Since(start), waitDur)
 
-	r.Equal(502, res.Code, "response code was unexpected")
+	start := time.Now()
+	hdl.ServeHTTP(res, req)
+	elapsed := time.Since(start)
+	r.NoError(waitForSignal(waitFuncCalledCh, 1*time.Second))
+
+	// should take at least waitDur, but no more than waitDur*4
+	r.GreaterOrEqual(elapsed, waitDur)
+	r.Less(elapsed, waitDur*4)
+
+	r.Equal(
+		originRespCode,
+		res.Code,
+		"response code was unexpected",
+	)
 }
 
 // the proxy should connect to a server, and then time out if the server doesn't
