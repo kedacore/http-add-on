@@ -122,6 +122,8 @@ func main() {
 		)
 	})
 
+	// start the proxy server. this is the server that
+	// accepts, holds and forwards user requests
 	errGrp.Go(func() error {
 		lggr.Info(
 			"starting the proxy server",
