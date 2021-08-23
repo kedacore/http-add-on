@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
-// TODO: test the watcher, including the watch error case
 func TestK8DeploymentCacheGet(t *testing.T) {
 	r := require.New(t)
 	ctx, done := context.WithCancel(context.Background())
@@ -24,7 +24,7 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 	expectedDepl := newDeployment(
 		ns,
 		name,
-		"testimg",
+		"testing",
 		nil,
 		nil,
 		make(map[string]string),
@@ -37,10 +37,8 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 		ctx,
 		logr.Discard(),
 		fakeApps.Deployments(ns),
-		time.Millisecond,
 	)
 	r.NoError(err)
-	defer cache.Stop()
 
 	depl, err := cache.Get(name)
 	r.NoError(err)
@@ -51,7 +49,41 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 	r.Nil(none)
 }
 
-func TestK8sDeploymentCacheWatch(t *testing.T) {
+// test to make sure that, even when no events come through, the
+// update loop eventually fetches the latest state of deployments
+func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
+	t.FailNow()
+}
+
+// test to make sure that the update loop tries to re-establish watch
+// streams when they're broken
+func TestK8sDeploymentCacheRewatch(t *testing.T) {
+	t.FailNow()
+}
+
+// test to make sure that when the context is closed, the deployment
+// cache stops
+func TestK8sDeploymentCacheStopped(t *testing.T) {
+	r := require.New(t)
+	ctx, done := context.WithCancel(context.Background())
+
+	fakeClientset := k8sfake.NewSimpleClientset()
+	fakeApps := fakeClientset.AppsV1()
+
+	cache, err := NewK8sDeploymentCache(
+		ctx,
+		logr.Discard(),
+		fakeApps.Deployments("doesn't matter"),
+	)
+	r.NoError(err)
+
+	done()
+	err = cache.StartWatcher(ctx, logr.Discard(), time.Millisecond)
+	r.Error(err, "deployment cache watcher didn't return an error")
+	r.True(errors.Is(err, context.Canceled), "expected a context cancel error")
+}
+
+func TestK8sDeploymentCacheBasicWatch(t *testing.T) {
 	r := require.New(t)
 	ctx, done := context.WithCancel(
 		context.Background(),
@@ -63,7 +95,7 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 	expectedDepl := newDeployment(
 		ns,
 		name,
-		"testimg",
+		"testing",
 		nil,
 		nil,
 		make(map[string]string),
@@ -76,11 +108,9 @@ func TestK8sDeploymentCacheWatch(t *testing.T) {
 		ctx,
 		logr.Discard(),
 		fakeDeployments,
-		time.Millisecond,
 	)
 	r.NoError(err)
-	defer cache.Stop()
-	go cache.StartWatcher(ctx, logr.Discard())
+	go cache.StartWatcher(ctx, logr.Discard(), time.Millisecond)
 
 	watcher := cache.Watch(name)
 	defer watcher.Stop()

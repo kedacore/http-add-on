@@ -54,7 +54,6 @@ func main() {
 		ctx,
 		lggr,
 		deployInterface,
-		time.Duration(servingCfg.DeploymentCachePollIntervalMS)*time.Millisecond,
 	)
 	if err != nil {
 		lggr.Error(err, "creating new deployment cache")
@@ -88,7 +87,11 @@ func main() {
 
 	// start the deployment cache updater
 	errGrp.Go(func() error {
-		return deployCache.StartWatcher(ctx, lggr)
+		return deployCache.StartWatcher(
+			ctx,
+			lggr,
+			time.Duration(servingCfg.DeploymentCachePollIntervalMS)*time.Millisecond,
+		)
 	})
 
 	// start the update loop that updates the routing table from

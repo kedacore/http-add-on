@@ -20,38 +20,25 @@ type DeploymentCache interface {
 }
 
 type K8sDeploymentCache struct {
-	latest       map[string]*appsv1.Deployment
-	rwm          *sync.RWMutex
-	cl           typedappsv1.DeploymentInterface
-	broadcaster  *watch.Broadcaster
-	watcher      watch.Interface
-	fetchTickDur time.Duration
+	latest      map[string]*appsv1.Deployment
+	rwm         *sync.RWMutex
+	cl          typedappsv1.DeploymentInterface
+	broadcaster *watch.Broadcaster
 }
 
 func NewK8sDeploymentCache(
 	ctx context.Context,
 	lggr logr.Logger,
 	cl typedappsv1.DeploymentInterface,
-	periodFetchDuration time.Duration,
 ) (*K8sDeploymentCache, error) {
 	lggr = lggr.WithName("pkg.k8s.NewK8sDeploymentCache")
 	bcaster := watch.NewBroadcaster(5, watch.DropIfChannelFull)
-	watcher, err := cl.Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		lggr.Error(
-			err,
-			"couldn't create a new watcher",
-		)
-		return nil, err
-	}
 
 	ret := &K8sDeploymentCache{
-		latest:       map[string]*appsv1.Deployment{},
-		rwm:          new(sync.RWMutex),
-		broadcaster:  bcaster,
-		watcher:      watcher,
-		fetchTickDur: periodFetchDuration,
-		cl:           cl,
+		latest:      map[string]*appsv1.Deployment{},
+		rwm:         new(sync.RWMutex),
+		broadcaster: bcaster,
+		cl:          cl,
 	}
 	deployList, err := cl.List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -65,19 +52,28 @@ func NewK8sDeploymentCache(
 	return ret, nil
 }
 
-func (k *K8sDeploymentCache) Stop() {
-	k.watcher.Stop()
-}
-
 func (k *K8sDeploymentCache) StartWatcher(
 	ctx context.Context,
 	lggr logr.Logger,
+	fetchTickDur time.Duration,
 ) error {
 	lggr = lggr.WithName(
 		"pkg.k8s.K8sDeploymentCache.StartWatcher",
 	)
-	ch := k.watcher.ResultChan()
-	fetchTicker := time.NewTicker(k.fetchTickDur)
+	watcher, err := k.cl.Watch(ctx, metav1.ListOptions{})
+	if err != nil {
+		lggr.Error(
+			err,
+			"couldn't create new watch stream",
+		)
+		return errors.Wrap(
+			err,
+			"error creating new watch stream",
+		)
+	}
+
+	ch := watcher.ResultChan()
+	fetchTicker := time.NewTicker(fetchTickDur)
 	defer fetchTicker.Stop()
 	for {
 		select {
@@ -94,15 +90,31 @@ func (k *K8sDeploymentCache) StartWatcher(
 				)
 			}
 			k.mergeAndBroadcastList(deplList)
-		case evt := <-ch:
-			if err := k.addEvt(evt); err != nil {
-				lggr.Error(
-					err,
-					"couldn't add event to the deployment cache",
-				)
-				continue
+		case evt, closed := <-ch:
+			// handle closed watch stream
+			if closed {
+				newWatcher, err := k.cl.Watch(ctx, metav1.ListOptions{})
+				if err != nil {
+					lggr.Error(
+						err,
+						"watch stream was closed and couldn't re-open it",
+					)
+					return errors.Wrap(
+						err,
+						"failed to re-open watch stream",
+					)
+				}
+				ch = newWatcher.ResultChan()
+			} else {
+				if err := k.addEvt(evt); err != nil {
+					lggr.Error(
+						err,
+						"couldn't add event to the deployment cache",
+					)
+					continue
+				}
+				k.broadcaster.Action(evt.Type, evt.Object)
 			}
-			k.broadcaster.Action(evt.Type, evt.Object)
 		case <-ctx.Done():
 			lggr.Error(
 				ctx.Err(),
