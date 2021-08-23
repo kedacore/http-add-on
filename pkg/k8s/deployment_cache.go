@@ -89,9 +89,9 @@ func (k *K8sDeploymentCache) StartWatcher(
 				)
 			}
 			k.mergeAndBroadcastList(deplList)
-		case evt, closed := <-ch:
+		case evt, validRecv := <-ch:
 			// handle closed watch stream
-			if closed {
+			if !validRecv {
 				newWatcher, err := k.cl.Watch(ctx, metav1.ListOptions{})
 				if err != nil {
 					lggr.Error(
@@ -103,7 +103,6 @@ func (k *K8sDeploymentCache) StartWatcher(
 						"failed to re-open watch stream",
 					)
 				}
-				watcher = newWatcher
 				ch = newWatcher.ResultChan()
 			} else {
 				if err := k.addEvt(evt); err != nil {
@@ -111,7 +110,10 @@ func (k *K8sDeploymentCache) StartWatcher(
 						err,
 						"couldn't add event to the deployment cache",
 					)
-					continue
+					return errors.Wrap(
+						err,
+						"error adding event to the deployment cache",
+					)
 				}
 				k.broadcaster.Action(evt.Type, evt.Object)
 			}

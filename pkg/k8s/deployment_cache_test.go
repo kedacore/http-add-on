@@ -72,7 +72,7 @@ func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
 	r.NoError(err)
 	r.Equal(*depl, *fetched)
-	r.Equal(0, len(lw.getRecorder().Events()))
+	r.Equal(0, len(lw.getWatcher().getEvents()))
 }
 
 // test to make sure that the update loop tries to re-establish watch
@@ -86,37 +86,42 @@ func TestK8sDeploymentCacheRewatch(t *testing.T) {
 	lw := newFakeDeploymentListerWatcher()
 	cache, err := NewK8sDeploymentCache(ctx, logr.Discard(), lw)
 	r.NoError(err)
-	const tickDur = 10 * time.Millisecond
 
+	// start up the cache watcher with a very long tick duration,
+	// to ensure that the only way it will get updates is from the
+	// watch stream
+	const tickDur = 1000 * time.Second
 	watcherErrCh := make(chan error)
 	go func() {
 		watcherErrCh <- cache.StartWatcher(ctx, logr.Discard(), tickDur)
 	}()
 
-	// close all open watch channels, but allow them to be reopened. this should
-	// trigger the cache to reopen a stream
-	lw.getFakeWatcher().closeOpenChans(true)
-
-	// wait 1/2 second to make sure the watcher doesn't return any errors
+	// wait 1/2 second to make sure the watcher goroutine can start up
+	// and doesn't return any errors
 	select {
 	case err := <-watcherErrCh:
 		r.NoError(err)
 	case <-time.After(500 * time.Millisecond):
 	}
 
-	// now ensure that the watcher has re-established the watch and
-	// can receive events
+	// close all open watch channels after waiting a bit for the watcher to start.
+	// in this call we're allowing channels to be reopened
+	lw.getWatcher().closeOpenChans(true)
+	time.Sleep(500 * time.Millisecond)
 
+	// add the deployment and send an event.
 	depl := newDeployment("testns", "testdepl", "testing", nil, nil, nil, core.PullAlways)
-	// add the deployment without sending an event, to make sure that
-	// the internal loop won't receive any events and will rely on
-	// just the ticker
 	lw.addDeployment(*depl, true)
+	// sleep for a bit to make sure the watcher has had time to re-establish the watch
+	// and receive the event
+	time.Sleep(500 * time.Millisecond)
+	// make sure that an event came through
+	r.Equal(1, len(lw.getWatcher().getEvents()))
 	// make sure that the deployment was fetched
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
 	r.NoError(err)
 	r.Equal(*depl, *fetched)
-	r.Equal(1, len(lw.getRecorder().Events()))
+
 }
 
 // test to make sure that when the context is closed, the deployment
