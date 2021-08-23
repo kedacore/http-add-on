@@ -11,7 +11,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	typedappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 )
 
 type DeploymentCache interface {
@@ -22,14 +21,14 @@ type DeploymentCache interface {
 type K8sDeploymentCache struct {
 	latest      map[string]*appsv1.Deployment
 	rwm         *sync.RWMutex
-	cl          typedappsv1.DeploymentInterface
+	cl          DeploymentListerWatcher
 	broadcaster *watch.Broadcaster
 }
 
 func NewK8sDeploymentCache(
 	ctx context.Context,
 	lggr logr.Logger,
-	cl typedappsv1.DeploymentInterface,
+	cl DeploymentListerWatcher,
 ) (*K8sDeploymentCache, error) {
 	lggr = lggr.WithName("pkg.k8s.NewK8sDeploymentCache")
 	bcaster := watch.NewBroadcaster(5, watch.DropIfChannelFull)
@@ -104,6 +103,7 @@ func (k *K8sDeploymentCache) StartWatcher(
 						"failed to re-open watch stream",
 					)
 				}
+				watcher = newWatcher
 				ch = newWatcher.ResultChan()
 			} else {
 				if err := k.addEvt(evt); err != nil {

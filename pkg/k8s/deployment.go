@@ -1,10 +1,30 @@
 package k8s
 
 import (
+	"context"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
+
+type DeploymentLister interface {
+	List(ctx context.Context, options metav1.ListOptions) (*appsv1.DeploymentList, error)
+}
+
+// DeploymentLister knows how to watch deployments. This interface is
+// implemented by Kubernetes client-go
+type DeploymentWatcher interface {
+	Watch(ctx context.Context, options metav1.ListOptions) (watch.Interface, error)
+}
+
+// DeploymentListerWatcher knows how to list and watch deployments. This
+// interface is implemented by Kubernetes client-go
+type DeploymentListerWatcher interface {
+	DeploymentLister
+	DeploymentWatcher
+}
 
 // newDeployment creates a new deployment object
 // with the given name and the given image. This does not actually create
