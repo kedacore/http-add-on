@@ -202,7 +202,6 @@ func runAdminServer(
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
 	return kedahttp.ServeContext(ctx, addr, adminServer)
-	// return nethttp.ListenAndServe(addr, adminServer)
 }
 
 func runProxyServer(
@@ -229,5 +228,4 @@ func runProxyServer(
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("proxy server starting", "address", addr)
 	return kedahttp.ServeContext(ctx, addr, proxyHdl)
-	// return nethttp.ListenAndServe(addr, countMiddleware(lggr, q, proxyHdl))
 }
