@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -49,6 +50,12 @@ func NewK8sDeploymentCache(
 	}
 	ret.mergeAndBroadcastList(deployList)
 	return ret, nil
+}
+
+func (k *K8sDeploymentCache) MarshalJSON() ([]byte, error) {
+	k.rwm.RLock()
+	defer k.rwm.RUnlock()
+	return json.Marshal(k.latest)
 }
 
 func (k *K8sDeploymentCache) StartWatcher(
@@ -230,6 +237,12 @@ func NewMemoryDeploymentCache(
 		ret.Watchers[deployName] = watch.NewRaceFreeFake()
 	}
 	return ret
+}
+
+func (m *MemoryDeploymentCache) MarshalJSON() ([]byte, error) {
+	m.RWM.RLock()
+	defer m.RWM.RUnlock()
+	return json.Marshal(m.Deployments)
 }
 
 func (m *MemoryDeploymentCache) Get(name string) (*appsv1.Deployment, error) {

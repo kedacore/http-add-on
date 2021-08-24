@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
 	nethttp "net/http"
 	"os"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
@@ -32,7 +35,9 @@ func main() {
 	}
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
-	ctx := context.Background()
+	ctx, ctxDone := context.WithCancel(
+		context.Background(),
+	)
 
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
@@ -87,6 +92,7 @@ func main() {
 
 	// start the deployment cache updater
 	errGrp.Go(func() error {
+		defer ctxDone()
 		return deployCache.StartWatcher(
 			ctx,
 			lggr,
@@ -98,6 +104,7 @@ func main() {
 	// the ConfigMap that the operator updates as HTTPScaledObjects
 	// enter and exit the system
 	errGrp.Go(func() error {
+		defer ctxDone()
 		return routing.StartConfigMapRoutingTableUpdater(
 			ctx,
 			lggr,
@@ -111,16 +118,19 @@ func main() {
 	// start the administrative server. this is the server
 	// that serves the queue size API
 	errGrp.Go(func() error {
+		defer ctxDone()
 		lggr.Info(
 			"starting the admin server",
 			"port",
 			adminPort,
 		)
 		return runAdminServer(
+			ctx,
 			lggr,
 			configMapsInterface,
 			q,
 			routingTable,
+			deployCache,
 			adminPort,
 		)
 	})
@@ -128,12 +138,14 @@ func main() {
 	// start the proxy server. this is the server that
 	// accepts, holds and forwards user requests
 	errGrp.Go(func() error {
+		defer ctxDone()
 		lggr.Info(
 			"starting the proxy server",
 			"port",
 			proxyPort,
 		)
 		return runProxyServer(
+			ctx,
 			lggr,
 			q,
 			waitFunc,
@@ -151,10 +163,12 @@ func main() {
 }
 
 func runAdminServer(
+	ctx context.Context,
 	lggr logr.Logger,
 	cmGetter k8s.ConfigMapGetter,
 	q queue.Counter,
 	routingTable *routing.Table,
+	deployCache k8s.DeploymentCache,
 	port int,
 ) error {
 	lggr = lggr.WithName("runAdminServer")
@@ -176,13 +190,23 @@ func runAdminServer(
 		routingTable,
 		q,
 	)
+	adminServer.HandleFunc(
+		"/deployments",
+		func(w http.ResponseWriter, r *http.Request) {
+			if err := json.NewEncoder(w).Encode(deployCache); err != nil {
+				lggr.Error(err, "encoding deployment cache")
+			}
+		},
+	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
-	return nethttp.ListenAndServe(addr, adminServer)
+	return kedahttp.ServeContext(ctx, addr, adminServer)
+	// return nethttp.ListenAndServe(addr, adminServer)
 }
 
 func runProxyServer(
+	ctx context.Context,
 	lggr logr.Logger,
 	q queue.Counter,
 	waitFunc forwardWaitFunc,
@@ -204,5 +228,6 @@ func runProxyServer(
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("proxy server starting", "address", addr)
-	return nethttp.ListenAndServe(addr, countMiddleware(lggr, q, proxyHdl))
+	return kedahttp.ServeContext(ctx, addr, proxyHdl)
+	// return nethttp.ListenAndServe(addr, countMiddleware(lggr, q, proxyHdl))
 }
