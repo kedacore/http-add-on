@@ -10,26 +10,26 @@ import (
 
 type FakeDeploymentCache struct {
 	Mut      *sync.RWMutex
-	Current  map[string]*appsv1.Deployment
+	Current  map[string]appsv1.Deployment
 	Watchers map[string]*watch.RaceFreeFakeWatcher
 }
 
 func NewFakeDeploymentCache() *FakeDeploymentCache {
 	return &FakeDeploymentCache{
 		Mut:      &sync.RWMutex{},
-		Current:  make(map[string]*appsv1.Deployment),
+		Current:  make(map[string]appsv1.Deployment),
 		Watchers: make(map[string]*watch.RaceFreeFakeWatcher),
 	}
 }
 
-func (f *FakeDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
+func (f *FakeDeploymentCache) Get(name string) (appsv1.Deployment, error) {
 	f.Mut.RLock()
 	defer f.Mut.RUnlock()
 	ret, ok := f.Current[name]
 	if ok {
 		return ret, nil
 	}
-	return nil, fmt.Errorf("no deployment %s found", name)
+	return appsv1.Deployment{}, fmt.Errorf("no deployment %s found", name)
 }
 
 func (f *FakeDeploymentCache) Watch(name string) watch.Interface {
@@ -42,7 +42,7 @@ func (f *FakeDeploymentCache) Watch(name string) watch.Interface {
 	return watcher
 }
 
-func (f *FakeDeploymentCache) Set(name string, deployment *appsv1.Deployment) {
+func (f *FakeDeploymentCache) Set(name string, deployment appsv1.Deployment) {
 	f.Mut.Lock()
 	defer f.Mut.Unlock()
 	f.Current[name] = deployment

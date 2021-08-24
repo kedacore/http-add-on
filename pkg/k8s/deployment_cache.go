@@ -15,12 +15,12 @@ import (
 )
 
 type DeploymentCache interface {
-	Get(name string) (*appsv1.Deployment, error)
+	Get(name string) (appsv1.Deployment, error)
 	Watch(name string) watch.Interface
 }
 
 type K8sDeploymentCache struct {
-	latest      map[string]*appsv1.Deployment
+	latest      map[string]appsv1.Deployment
 	rwm         *sync.RWMutex
 	cl          DeploymentListerWatcher
 	broadcaster *watch.Broadcaster
@@ -35,7 +35,7 @@ func NewK8sDeploymentCache(
 	bcaster := watch.NewBroadcaster(5, watch.DropIfChannelFull)
 
 	ret := &K8sDeploymentCache{
-		latest:      map[string]*appsv1.Deployment{},
+		latest:      map[string]appsv1.Deployment{},
 		rwm:         new(sync.RWMutex),
 		broadcaster: bcaster,
 		cl:          cl,
@@ -150,7 +150,7 @@ func (k *K8sDeploymentCache) mergeAndBroadcastList(
 	k.rwm.Lock()
 	defer k.rwm.Unlock()
 	for _, depl := range lst.Items {
-		k.latest[depl.ObjectMeta.Name] = &depl
+		k.latest[depl.ObjectMeta.Name] = depl
 		// if the deployment isn't already in the cache,
 		// we need to broadcast an ADDED event, otherwise
 		// broadcast a MODIFIED event
@@ -178,16 +178,16 @@ func (k *K8sDeploymentCache) addEvt(evt watch.Event) error {
 			"watch event did not contain a Deployment",
 		)
 	}
-	k.latest[depl.GetObjectMeta().GetName()] = depl
+	k.latest[depl.GetObjectMeta().GetName()] = *depl
 	return nil
 }
 
-func (k *K8sDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
+func (k *K8sDeploymentCache) Get(name string) (appsv1.Deployment, error) {
 	k.rwm.RLock()
 	defer k.rwm.RUnlock()
 	depl, ok := k.latest[name]
 	if !ok {
-		return nil, fmt.Errorf("no deployment %s found", name)
+		return appsv1.Deployment{}, fmt.Errorf("no deployment %s found", name)
 	}
 	return depl, nil
 }
@@ -219,19 +219,19 @@ type MemoryDeploymentCache struct {
 	// Deployments holds the deployments to be returned in calls to Get. If Get is called
 	// with a name that exists as a key in this map, the corresponding value will be returned.
 	// Otherwise, an error will be returned
-	Deployments map[string]*appsv1.Deployment
+	Deployments map[string]appsv1.Deployment
 }
 
 // NewMemoryDeploymentCache creates a new MemoryDeploymentCache with the Deployments map set to
 // initialDeployments, and the Watchers map initialized with a newly created and otherwise
 // untouched FakeWatcher for each key in the initialDeployments map
 func NewMemoryDeploymentCache(
-	initialDeployments map[string]*appsv1.Deployment,
+	initialDeployments map[string]appsv1.Deployment,
 ) *MemoryDeploymentCache {
 	ret := &MemoryDeploymentCache{
 		RWM:         new(sync.RWMutex),
 		Watchers:    make(map[string]*watch.RaceFreeFakeWatcher),
-		Deployments: make(map[string]*appsv1.Deployment),
+		Deployments: make(map[string]appsv1.Deployment),
 	}
 	ret.Deployments = initialDeployments
 	for deployName := range initialDeployments {
@@ -250,12 +250,12 @@ func (m *MemoryDeploymentCache) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ret)
 }
 
-func (m *MemoryDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
+func (m *MemoryDeploymentCache) Get(name string) (appsv1.Deployment, error) {
 	m.RWM.RLock()
 	defer m.RWM.RUnlock()
 	val, ok := m.Deployments[name]
 	if !ok {
-		return nil, fmt.Errorf(
+		return appsv1.Deployment{}, fmt.Errorf(
 			"deployment %s not found",
 			name,
 		)

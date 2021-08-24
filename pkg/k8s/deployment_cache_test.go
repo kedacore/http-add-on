@@ -50,6 +50,20 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 }
 
 func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
+	r := require.New(t)
+	ctx, done := context.WithCancel(
+		context.Background(),
+	)
+	defer done()
+	cache, err := NewK8sDeploymentCache(ctx, logr.Discard(), newFakeDeploymentListerWatcher())
+	r.NoError(err)
+	depl := newDeployment("testns", "testdepl1", "testing", nil, nil, nil, core.PullAlways)
+	deplList := &appsv1.DeploymentList{
+		Items: []appsv1.Deployment{*depl},
+	}
+
+	cache.mergeAndBroadcastList(deplList)
+
 	t.Fail()
 }
 
@@ -79,7 +93,7 @@ func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
 	// make sure that the deployment was fetched
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
 	r.NoError(err)
-	r.Equal(*depl, *fetched)
+	r.Equal(*depl, fetched)
 	r.Equal(0, len(lw.getWatcher().getEvents()))
 }
 
@@ -128,7 +142,7 @@ func TestK8sDeploymentCacheRewatch(t *testing.T) {
 	// make sure that the deployment was fetched
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
 	r.NoError(err)
-	r.Equal(*depl, *fetched)
+	r.Equal(*depl, fetched)
 
 }
 

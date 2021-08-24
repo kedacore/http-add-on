@@ -38,7 +38,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 	defer h.close()
 	t.Logf("Harness: %s", h.String())
 
-	h.deplCache.Set(deplName, &appsv1.Deployment{
+	h.deplCache.Set(deplName, appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: deplName},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: i32Ptr(3),
@@ -78,7 +78,7 @@ func TestIntegrationNoRoutingTableEntry(t *testing.T) {
 	h, err := newHarness(time.Second, time.Second)
 	r.NoError(err)
 	defer h.close()
-	h.deplCache.Set(host, &appsv1.Deployment{
+	h.deplCache.Set(host, appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: host},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: i32Ptr(1),
@@ -117,7 +117,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	})
 
 	// 0 replicas
-	h.deplCache.Set(deployName, &appsv1.Deployment{
+	h.deplCache.Set(deployName, appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: deployName},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: i32Ptr(0),
@@ -166,7 +166,7 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	// set up a deployment with zero replicas and create
 	// a watcher we can use later to fake-send a deployment
 	// event
-	initialDeployment := &appsv1.Deployment{
+	initialDeployment := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: deployName},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: i32Ptr(0),

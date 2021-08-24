@@ -21,8 +21,8 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	r := require.New(t)
 	const ns = "testNS"
 	const deployName = "TestForwardingHandlerDeploy"
-	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
-		deployName: newDeployment(
+	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
+		deployName: *newDeployment(
 			ns,
 			deployName,
 			"myimage",
@@ -65,8 +65,8 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 		corev1.PullAlways,
 	)
 	deployment.Spec.Replicas = k8s.Int32P(0)
-	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
-		deployName: deployment,
+	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
+		deployName: *deployment,
 	})
 
 	ctx, done := context.WithTimeout(ctx, waitFuncWait)
@@ -96,8 +96,8 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		corev1.PullAlways,
 	)
 	deployment.Spec.Replicas = k8s.Int32P(0)
-	cache := k8s.NewMemoryDeploymentCache(map[string]*appsv1.Deployment{
-		deployName: deployment,
+	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
+		deployName: *deployment,
 	})
 	ctx, done := context.WithTimeout(ctx, totalWaitDur)
 	defer done()
