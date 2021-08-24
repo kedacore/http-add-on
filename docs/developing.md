@@ -131,6 +131,16 @@ To fetch the queue counts from an interceptor, ensure you've established a `kube
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/queue
 ```
 
+### Deployment Cache - Interceptor
+
+You can use the same interceptor port forward that you established in the previous section to fetch a short summary of the state of its deployment cache (the data that it uses to determine whether and how long to hold requests prior to forwarding them). To do so, ensure that you've established a `kubectl proxy` on port 9898 and use the below `curl` command (again, substituting your preferred namespace for `$NAMESPACE`):
+
+```shell
+curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/deployments
+```
+
+The output of this command is a JSON map where the keys are the deployment name and the values are the latest known number of replicas for that deployment.
+
 ### Routing Table - Operator
 
 The operator pod (whose name looks like `keda-add-ons-http-controller-manager-1234567`) has a similar `/routing_table` endpoint as the interceptor. That data returned from this endpoint, however, is the source of truth. Interceptors fetch their copies of the routing table from this endpoint. Accessing data from this endpoint is similar.
