@@ -49,6 +49,14 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 	r.Nil(none)
 }
 
+func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
+	t.Fail()
+}
+
+func TestK8sDeploymentCacheAddEvt(t *testing.T) {
+	t.Fail()
+}
+
 // test to make sure that, even when no events come through, the
 // update loop eventually fetches the latest state of deployments
 func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
