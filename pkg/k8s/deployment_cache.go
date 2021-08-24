@@ -55,7 +55,11 @@ func NewK8sDeploymentCache(
 func (k *K8sDeploymentCache) MarshalJSON() ([]byte, error) {
 	k.rwm.RLock()
 	defer k.rwm.RUnlock()
-	return json.Marshal(k.latest)
+	ret := map[string]int32{}
+	for name, depl := range k.latest {
+		ret[name] = *depl.Spec.Replicas
+	}
+	return json.Marshal(ret)
 }
 
 func (k *K8sDeploymentCache) StartWatcher(
@@ -195,10 +199,7 @@ func (k *K8sDeploymentCache) Watch(name string) watch.Interface {
 		if !ok {
 			return evt, false
 		}
-		if depl.ObjectMeta.Name != name {
-			return evt, false
-		}
-		return evt, true
+		return evt, depl.ObjectMeta.Name == name
 	})
 }
 
@@ -242,7 +243,11 @@ func NewMemoryDeploymentCache(
 func (m *MemoryDeploymentCache) MarshalJSON() ([]byte, error) {
 	m.RWM.RLock()
 	defer m.RWM.RUnlock()
-	return json.Marshal(m.Deployments)
+	ret := map[string]int32{}
+	for name, depl := range m.Deployments {
+		ret[name] = *depl.Spec.Replicas
+	}
+	return json.Marshal(ret)
 }
 
 func (m *MemoryDeploymentCache) Get(name string) (*appsv1.Deployment, error) {
