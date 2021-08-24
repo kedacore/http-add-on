@@ -93,11 +93,13 @@ func main() {
 	// start the deployment cache updater
 	errGrp.Go(func() error {
 		defer ctxDone()
-		return deployCache.StartWatcher(
+		err := deployCache.StartWatcher(
 			ctx,
 			lggr,
 			time.Duration(servingCfg.DeploymentCachePollIntervalMS)*time.Millisecond,
 		)
+		lggr.Error(err, "deployment cache watcher failed")
+		return err
 	})
 
 	// start the update loop that updates the routing table from
@@ -105,7 +107,7 @@ func main() {
 	// enter and exit the system
 	errGrp.Go(func() error {
 		defer ctxDone()
-		return routing.StartConfigMapRoutingTableUpdater(
+		err := routing.StartConfigMapRoutingTableUpdater(
 			ctx,
 			lggr,
 			time.Duration(servingCfg.RoutingTableUpdateDurationMS)*time.Millisecond,
@@ -113,6 +115,8 @@ func main() {
 			routingTable,
 			q,
 		)
+		lggr.Error(err, "config map routing table updater failed")
+		return err
 	})
 
 	// start the administrative server. this is the server
@@ -124,7 +128,7 @@ func main() {
 			"port",
 			adminPort,
 		)
-		return runAdminServer(
+		err := runAdminServer(
 			ctx,
 			lggr,
 			configMapsInterface,
@@ -133,6 +137,8 @@ func main() {
 			deployCache,
 			adminPort,
 		)
+		lggr.Error(err, "admin server failed")
+		return err
 	})
 
 	// start the proxy server. this is the server that
@@ -144,7 +150,7 @@ func main() {
 			"port",
 			proxyPort,
 		)
-		return runProxyServer(
+		err := runProxyServer(
 			ctx,
 			lggr,
 			q,
@@ -153,6 +159,8 @@ func main() {
 			timeoutCfg,
 			proxyPort,
 		)
+		lggr.Error(err, "proxy server failed")
+		return err
 	})
 
 	// errGrp.Wait() should hang forever for healthy admin and proxy servers.
@@ -216,13 +224,17 @@ func runProxyServer(
 	lggr = lggr.WithName("runProxyServer")
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
-	proxyHdl := newForwardingHandler(
+	proxyHdl := countMiddleware(
 		lggr,
-		routingTable,
-		dialContextFunc,
-		waitFunc,
-		timeouts.DeploymentReplicas,
-		timeouts.ResponseHeader,
+		q,
+		newForwardingHandler(
+			lggr,
+			routingTable,
+			dialContextFunc,
+			waitFunc,
+			timeouts.DeploymentReplicas,
+			timeouts.ResponseHeader,
+		),
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
