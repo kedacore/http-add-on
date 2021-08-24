@@ -57,6 +57,9 @@ func newDeployment(
 				},
 			},
 		},
+		Status: appsv1.DeploymentStatus{
+			ReadyReplicas: 1,
+		},
 	}
 
 	return deployment

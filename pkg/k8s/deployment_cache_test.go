@@ -44,9 +44,15 @@ func TestK8DeploymentCacheGet(t *testing.T) {
 	r.NoError(err)
 	r.Equal(name, depl.ObjectMeta.Name)
 
-	none, err := cache.Get(name + "noexist")
+	noneRet, err := cache.Get("noexist")
 	r.NotNil(err)
-	r.Nil(none)
+	// note: the returned deployment will be empty, not nil,
+	// because this function doesn't return a pointer. so,
+	// we have to check some of the fields inside the deployment
+	// to make sure they're empty
+	r.Nil(noneRet.Spec.Replicas)
+	r.Empty(noneRet.ObjectMeta.Name)
+
 }
 
 func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {

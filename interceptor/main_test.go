@@ -1,8 +1,16 @@
 package main
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestRunProxyServerCountMiddleware(t *testing.T) {
+	// r := require.New(t)
+	// ctx, done := context.WithCancel(
+	// 	context.Background(),
+	// )
+	// defer done()
+	// r.NoError(runProxyServer(ctx, logr.Discard(), q, waitFunc, routingTable, timeouts, port))
 	t.Fail()
 }
 

@@ -18,6 +18,7 @@ import (
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,14 +42,20 @@ func TestIntegrationHappyPath(t *testing.T) {
 	h.deplCache.Set(deplName, appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: deplName},
 		Spec: appsv1.DeploymentSpec{
+			// note that the forwarding wait function doesn't care about
+			// the replicas field, it only cares about ReadyReplicas in the status.
+			// regardless, we're setting this because in a running cluster,
+			// it's likely that most of the time, this is equal to ReadyReplicas
 			Replicas: i32Ptr(3),
+		},
+		Status: appsv1.DeploymentStatus{
+			ReadyReplicas: 3,
 		},
 	})
 
 	originHost, originPort, err := splitHostPort(h.originURL.Host)
 	r.NoError(err)
 	h.routingTable.AddTarget(hostForTest(t), routing.Target{
-
 		Service:    originHost,
 		Port:       originPort,
 		Deployment: deplName,
@@ -197,11 +204,15 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	})
 	const sleepDur = deployTimeout / 4
 	grp.Go(func() error {
-		t.Logf("Sleeping for %s", deployTimeout/4)
-		time.Sleep(deployTimeout / 4)
+		t.Logf("Sleeping for %s", sleepDur)
+		time.Sleep(sleepDur)
 		t.Logf("Woke up, setting replicas to 10")
 		modifiedDeployment := initialDeployment.DeepCopy()
+		// note that the wait function only cares about Status.ReadyReplicas
+		// but we're setting Spec.Replicas to 10 as well because the common
+		// case in the cluster is that they would be equal
 		modifiedDeployment.Spec.Replicas = i32Ptr(10)
+		modifiedDeployment.Status.ReadyReplicas = 10
 		// send a watch event (instead of setting replicas) so that the watch
 		// func sees that it can forward the request now
 		watcher.Modify(modifiedDeployment)
@@ -210,9 +221,16 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	start := time.Now()
 	r.NoError(grp.Wait())
 	elapsed := time.Since(start)
-	r.GreaterOrEqual(elapsed, sleepDur)
-	r.Less(elapsed, sleepDur+(50*time.Millisecond))
-	r.Equal(200, response.StatusCode)
+	// assert here so that we can check all of these cases
+	// rather than just failing at the first one
+	a := assert.New(t)
+	a.GreaterOrEqual(elapsed, sleepDur)
+	a.Less(
+		elapsed,
+		sleepDur*2,
+		"the handler took too long. this is usually because it timed out, not because it didn't find the watch event in time",
+	)
+	a.Equal(200, response.StatusCode)
 }
 
 func doRequest(
