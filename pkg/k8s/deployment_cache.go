@@ -57,7 +57,7 @@ func (k *K8sDeploymentCache) MarshalJSON() ([]byte, error) {
 	defer k.rwm.RUnlock()
 	ret := map[string]int32{}
 	for name, depl := range k.latest {
-		ret[name] = *depl.Spec.Replicas
+		ret[name] = depl.Status.ReadyReplicas
 	}
 	return json.Marshal(ret)
 }
@@ -245,7 +245,7 @@ func (m *MemoryDeploymentCache) MarshalJSON() ([]byte, error) {
 	defer m.RWM.RUnlock()
 	ret := map[string]int32{}
 	for name, depl := range m.Deployments {
-		ret[name] = *depl.Spec.Replicas
+		ret[name] = depl.Status.ReadyReplicas
 	}
 	return json.Marshal(ret)
 }

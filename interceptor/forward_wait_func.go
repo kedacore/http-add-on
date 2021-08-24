@@ -21,7 +21,7 @@ func newDeployReplicasForwardWaitFunc(
 			return fmt.Errorf("error getting state for deployment %s (%s)", deployName, err)
 		}
 		// if there is 1 or more replica, we're done waiting
-		if moreThanPtr(deployment.Spec.Replicas, 0) {
+		if deployment.Status.ReadyReplicas > 0 {
 			return nil
 		}
 		watcher := deployCache.Watch(deployName)
@@ -37,7 +37,7 @@ func newDeployReplicasForwardWaitFunc(
 				if !ok {
 					log.Println("Didn't get a deployment back in event")
 				}
-				if moreThanPtr(deployment.Spec.Replicas, 0) {
+				if deployment.Status.ReadyReplicas > 0 {
 					return nil
 				}
 			case <-ctx.Done():
