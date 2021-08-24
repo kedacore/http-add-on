@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"net/http"
 	nethttp "net/http"
 	"os"
 	"time"
@@ -200,7 +199,7 @@ func runAdminServer(
 	)
 	adminServer.HandleFunc(
 		"/deployments",
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			if err := json.NewEncoder(w).Encode(deployCache); err != nil {
 				lggr.Error(err, "encoding deployment cache")
 			}
