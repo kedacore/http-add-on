@@ -3,75 +3,64 @@ package config
 import (
 	"fmt"
 
-	"github.com/kedacore/http-add-on/pkg/env"
+	"github.com/kelseyhightower/envconfig"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // Interceptor holds static configuration info for the interceptor
 type Interceptor struct {
-	Image     string
-	ProxyPort int32
-	AdminPort int32
-	PullPolicy corev1.PullPolicy
+	Image      string            `envconfig:"IMAGE" required:"true"`
+	ProxyPort  int32             `envconfig:"PROXY_PORT" default:"8091"`
+	AdminPort  int32             `envconfig:"ADMIN_PORT" default:"8090"`
+	PullPolicy corev1.PullPolicy `envconfig:"PULL_POLICY" required:"true"`
 }
 
-func ensureValidPolicy (policy string) error {
+// ExternalScaler holds static configuration info for the external scaler
+type ExternalScaler struct {
+	Image      string            `envconfig:"IMAGE" required:"true"`
+	Port       int32             `envconfig:"PORT" default:"8091"`
+	PullPolicy corev1.PullPolicy `envconfig:"PULL_POLICY" default:"Always"`
+}
+
+func ensureValidPolicy(policy string) error {
 	converted := corev1.PullPolicy(policy)
-	switch (converted) {
+	switch converted {
 	case corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever:
 		return nil
 	}
-	return fmt.Errorf("Policy %q is not a valid Pull Policy. Accepted values are: %s, %s, %s", policy, corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever)
+	return fmt.Errorf(
+		"policy %q is not a valid Pull Policy. Accepted values are: %s, %s, %s",
+		policy,
+		corev1.PullAlways,
+		corev1.PullIfNotPresent,
+		corev1.PullNever,
+	)
 }
 
 // NewInterceptorFromEnv gets interceptor configuration values from environment variables and/or
 // sensible defaults if values were missing.
 // and returns the interceptor struct to match. Returns an error if required values were missing.
 func NewInterceptorFromEnv() (*Interceptor, error) {
-	image, err := env.Get("KEDAHTTP_OPERATOR_INTERCEPTOR_IMAGE")
-	if err != nil {
-		return nil, fmt.Errorf("missing KEDAHTTP_OPERATOR_INTERCEPTOR_IMAGE")
+	ret := new(Interceptor)
+	if err := envconfig.Process("KEDAHTTP_OPERATOR_INTERCEPTOR", ret); err != nil {
+		return nil, err
 	}
-	adminPort := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_ADMIN_PORT", 8090)
-	proxyPort := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_PROXY_PORT", 8091)
-	pullPolicy := env.GetOr("INTERCEPTOR_PULL_POLICY", "Always")
-	if policyErr := ensureValidPolicy(pullPolicy); policyErr != nil {
-		return nil, policyErr
+	if err := ensureValidPolicy(string(ret.PullPolicy)); err != nil {
+		return nil, err
 	}
-
-	return &Interceptor{
-		Image:     image,
-		AdminPort: adminPort,
-		ProxyPort: proxyPort,
-		PullPolicy: corev1.PullPolicy(pullPolicy),
-	}, nil
-}
-
-// ExternalScaler holds static configuration info for the external scaler
-type ExternalScaler struct {
-	Image string
-	Port  int32
-	PullPolicy corev1.PullPolicy
+	return ret, nil
 }
 
 // NewExternalScalerFromEnv gets external scaler configuration values from environment variables and/or
 // sensible defaults if values were missing.
 // and returns the interceptor struct to match. Returns an error if required values were missing.
 func NewExternalScalerFromEnv() (*ExternalScaler, error) {
-	image, err := env.Get("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_IMAGE")
-	port := env.GetInt32Or("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT", 8091)
-	if err != nil {
-		return nil, fmt.Errorf("Missing KEDAHTTP_EXTERNAL_SCALER_IMAGE")
+	ret := new(ExternalScaler)
+	if err := envconfig.Process("KEDAHTTP_OPERATOR_EXTERNAL_SCALER", ret); err != nil {
+		return nil, err
 	}
-
-	pullPolicy := env.GetOr("SCALER_PULL_POLICY", "Always")
-	if policyErr := ensureValidPolicy(pullPolicy); policyErr != nil {
-		return nil, policyErr
+	if err := ensureValidPolicy(string(ret.PullPolicy)); err != nil {
+		return nil, err
 	}
-
-	return &ExternalScaler{
-		Image: image,
-		Port:  port,
-		PullPolicy: corev1.PullPolicy(pullPolicy),
-	}, nil
+	return ret, nil
 }
