@@ -36,15 +36,15 @@ type Counter interface {
 	Remove(host string) bool
 }
 
-// MemoryQueue is a reference QueueCounter implementation that holds the
-// HTTP queue in memory only. Always use NewMemoryQueue to create one
-// of these.
+// Memory is a reference Counter implementation that
+// holds the HTTP queue in memory only. Always use
+// NewMemory to create one of these.
 type Memory struct {
 	countMap map[string]int
 	mut      *sync.RWMutex
 }
 
-// NewMemoryQueue creates a new empty memory queue
+// NewMemory creates a new empty in-memory queue
 func NewMemory() *Memory {
 	lock := new(sync.RWMutex)
 	return &Memory{

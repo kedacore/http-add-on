@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	empty "github.com/golang/protobuf/ptypes/empty"
+	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 )
 
@@ -22,6 +23,7 @@ func init() {
 type impl struct {
 	lggr         logr.Logger
 	pinger       *queuePinger
+	routingTable *routing.Table
 	targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
 }
@@ -29,12 +31,14 @@ type impl struct {
 func newImpl(
 	lggr logr.Logger,
 	pinger *queuePinger,
-	targetMetric int64,
+	routingTable *routing.Table,
+	defaultTargetMetric int64,
 ) *impl {
 	return &impl{
 		lggr:         lggr,
 		pinger:       pinger,
-		targetMetric: targetMetric,
+		routingTable: routingTable,
+		targetMetric: defaultTargetMetric,
 	}
 }
 
@@ -124,7 +128,7 @@ func (e *impl) GetMetricSpec(
 	metricSpecs := []*externalscaler.MetricSpec{
 		{
 			MetricName: host,
-			TargetSize: int64(target.Size),
+			TargetSize: int64(target.TargetPendingRequests),
 		},
 	}
 
