@@ -111,10 +111,20 @@ func (e *impl) GetMetricSpec(
 		lggr.Error(err, "no 'host' found in ScaledObject metadata")
 		return nil, err
 	}
+	target, err := e.routingTable.Lookup(host)
+	if err != nil {
+		lggr.Error(
+			err,
+			"error getting target for host",
+			"host",
+			host,
+		)
+		return nil, err
+	}
 	metricSpecs := []*externalscaler.MetricSpec{
 		{
 			MetricName: host,
-			TargetSize: int64(e.targetMetric),
+			TargetSize: int64(target.Size),
 		},
 	}
 
