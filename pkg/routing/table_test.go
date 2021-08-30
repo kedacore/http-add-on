@@ -76,7 +76,7 @@ func TestTableReplace(t *testing.T) {
 
 	// replace the second table with the first and ensure that the tables
 	// are now equal
-	tbl2.Replace(tbl1)
+	tbl2.Replace(tbl1, "newVsn")
 
 	r.Equal(tbl1, tbl2)
 }

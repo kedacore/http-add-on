@@ -197,6 +197,11 @@ func runAdminServer(
 		routingTable,
 		q,
 	)
+	routing.AddVersionRoute(
+		lggr,
+		adminServer,
+		routingTable,
+	)
 	adminServer.HandleFunc(
 		"/deployments",
 		func(w nethttp.ResponseWriter, r *nethttp.Request) {

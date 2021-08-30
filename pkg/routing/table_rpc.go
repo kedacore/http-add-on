@@ -10,9 +10,45 @@ import (
 )
 
 const (
-	routingPingPath  = "/routing_ping"
-	routingFetchPath = "/routing_table"
+	routingPingPath    = "/routing_ping"
+	routingFetchPath   = "/routing_table"
+	routingVersionPath = "/routing_version"
 )
+
+// AddVersionRoute adds a route to mux that will accept an empty GET request
+// and response with a JSON body containing the history of routing table versions
+// that this interceptor has received. This route is intended to be used by
+// tooling and administrators to determine which interceptors are up to date
+// and which are not. Note that you need to call StartConfigMapRoutingTableUpdater
+// so that the routing table and its version history is kept up to date
+func AddVersionRoute(
+	lggr logr.Logger,
+	mux *http.ServeMux,
+	table *Table,
+) {
+	lggr = lggr.WithName("pkg.routing.AddVersionRoute")
+	lggr.Info("adding routing version route", "path", routingVersionPath)
+	mux.Handle(
+		routingVersionPath,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			table.l.RLock()
+			hist, err := table.VersionHistory()
+			if err != nil {
+				w.WriteHeader(500)
+				lggr.Error(err, "fetching version history")
+				return
+			}
+			ret := map[string][]string{
+				"version-history": hist,
+			}
+			table.l.RUnlock()
+			if err := json.NewEncoder(w).Encode(&ret); err != nil {
+				w.WriteHeader(500)
+				lggr.Error(err, "error encoding JSON for version history")
+			}
+		}),
+	)
+}
 
 // AddFetchRoute adds a route to mux that fetches the current state of table,
 // encodes it as JSON, and returns it to the HTTP client

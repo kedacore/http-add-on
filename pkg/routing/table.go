@@ -37,8 +37,9 @@ func (t *Target) ServiceURL() (*url.URL, error) {
 
 type Table struct {
 	fmt.Stringer
-	m map[string]Target
-	l *sync.RWMutex
+	m           map[string]Target
+	l           *sync.RWMutex
+	versionHist []string
 }
 
 func NewTable() *Table {
@@ -86,7 +87,9 @@ func (t *Table) Lookup(host string) (Target, error) {
 // AddTarget registers target for host in the routing table t
 // if it didn't already exist.
 //
-// returns a non-nil error if it did already exist
+// returns a non-nil error if it did already exist.
+//
+// This function is generally only used in tests.
 func (t *Table) AddTarget(
 	host string,
 	target Target,
@@ -105,7 +108,9 @@ func (t *Table) AddTarget(
 }
 
 // RemoveTarget removes host, if it exists, and its corresponding Target entry in
-// the routing table. If it does not exist, returns a non-nil error
+// the routing table. If it does not exist, returns a non-nil error.
+//
+// This function is generally only used in tests.
 func (t *Table) RemoveTarget(host string) error {
 	t.l.Lock()
 	defer t.l.Unlock()
@@ -122,8 +127,15 @@ func (t *Table) RemoveTarget(host string) error {
 // This function is concurrency safe for t, but not for newTable.
 // The caller must ensure that no other goroutine is writing to
 // newTable at the time at which they call this function.
-func (t *Table) Replace(newTable *Table) {
+func (t *Table) Replace(newTable *Table, newVersion string) {
 	t.l.Lock()
 	defer t.l.Unlock()
 	t.m = newTable.m
+	t.versionHist = append(t.versionHist, newVersion)
+}
+
+func (t *Table) VersionHistory() ([]string, error) {
+	t.l.RLock()
+	defer t.l.RUnlock()
+	return t.versionHist, nil
 }

@@ -143,7 +143,7 @@ func GetTable(
 		)
 	}
 
-	table.Replace(newTable)
+	table.Replace(newTable, cm.ResourceVersion)
 	if err := updateQueueFromTable(lggr, table, q); err != nil {
 		lggr.Error(
 			err,

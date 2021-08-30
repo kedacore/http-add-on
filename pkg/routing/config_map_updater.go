@@ -70,7 +70,7 @@ func StartConfigMapRoutingTableUpdater(
 				if err != nil {
 					return err
 				}
-				table.Replace(newTable)
+				table.Replace(newTable, cm.ResourceVersion)
 				if err := updateQueueFromTable(lggr, table, q); err != nil {
 					// if we couldn't update the queue, just log but don't bail.
 					// we want to give the loop a chance to tick (or receive a new event)
@@ -84,5 +84,4 @@ func StartConfigMapRoutingTableUpdater(
 			}
 		}
 	}
-
 }
