@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/stretchr/testify/require"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestRoutingTable(t *testing.T) {
@@ -20,7 +20,7 @@ func TestRoutingTable(t *testing.T) {
 	)
 	r := require.New(t)
 	ctx := context.Background()
-	cl := fake.NewClientBuilder().Build()
+	cl := k8s.NewFakeRuntimeClient()
 	target := routing.Target{
 		Service:    svcName,
 		Port:       8080,
