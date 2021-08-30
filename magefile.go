@@ -244,7 +244,7 @@ func Build() {
 
 // Run tests on all the components in this project
 func Test() error {
-	return sh.RunV("go", "test", "./...")
+	return sh.RunV("go", "test", "-timeout=20s", "./...")
 }
 
 // --- Docker --- //
