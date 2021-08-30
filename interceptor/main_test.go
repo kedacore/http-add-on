@@ -11,9 +11,10 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	// )
 	// defer done()
 	// r.NoError(runProxyServer(ctx, logr.Discard(), q, waitFunc, routingTable, timeouts, port))
-	t.Fail()
+
+	// see https://github.com/kedacore/http-add-on/issues/245
 }
 
 func TestRunAdminServerDeploymentsEndpoint(t *testing.T) {
-	t.Fail()
+	// see https://github.com/kedacore/http-add-on/issues/245
 }

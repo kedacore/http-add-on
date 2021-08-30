@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -68,13 +70,46 @@ func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
 		Items: []appsv1.Deployment{*depl},
 	}
 
-	cache.mergeAndBroadcastList(deplList)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		cache.mergeAndBroadcastList(deplList)
+	}()
+	evts := []watch.Event{}
+	go func() {
+		defer wg.Done()
+		watcher := cache.Watch(depl.ObjectMeta.Name)
+		watchCh := watcher.ResultChan()
+		for i := 0; i < len(deplList.Items); i++ {
+			func() {
+				tmr := time.NewTimer(1 * time.Second)
+				defer tmr.Stop()
+				select {
+				case <-tmr.C:
+					t.Error("timeout waiting for event")
+				case evt := <-watchCh:
+					evts = append(evts, evt)
+				}
+			}()
+		}
+	}()
 
-	t.Fail()
+	wg.Wait()
+	r.Equal(len(deplList.Items), len(evts))
+	for i := 0; i < len(deplList.Items); i++ {
+		evt := evts[i]
+		depl, ok := evt.Object.(*appsv1.Deployment)
+		if !ok {
+			t.Fatal("event came through with no deployment")
+		}
+		r.Equal(deplList.Items[i].Name, depl.Name)
+	}
+
 }
 
 func TestK8sDeploymentCacheAddEvt(t *testing.T) {
-	t.Fail()
+	// see https://github.com/kedacore/http-add-on/issues/245
 }
 
 // test to make sure that, even when no events come through, the
