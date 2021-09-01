@@ -7,12 +7,31 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/interceptor/config"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
-func moreThanPtr(i *int32, target int32) bool {
-	return i != nil && *i > target
+type forwardingConfig struct {
+	waitTimeout           time.Duration
+	respHeaderTimeout     time.Duration
+	forceAttemptHTTP2     bool
+	maxIdleConns          int
+	idleConnTimeout       time.Duration
+	tlsHandshakeTimeout   time.Duration
+	expectContinueTimeout time.Duration
+}
+
+func newForwardingConfigFromTimeouts(t *config.Timeouts) forwardingConfig {
+	return forwardingConfig{
+		waitTimeout:           t.DeploymentReplicas,
+		respHeaderTimeout:     t.ResponseHeader,
+		forceAttemptHTTP2:     t.ForceHTTP2,
+		maxIdleConns:          t.MaxIdleConns,
+		idleConnTimeout:       t.IdleConnTimeout,
+		tlsHandshakeTimeout:   t.TLSHandshakeTimeout,
+		expectContinueTimeout: t.ExpectContinueTimeout,
+	}
 }
 
 // newForwardingHandler takes in the service URL for the app backend
@@ -26,18 +45,17 @@ func newForwardingHandler(
 	routingTable *routing.Table,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
-	waitTimeout time.Duration,
-	respHeaderTimeout time.Duration,
+	fwdCfg forwardingConfig,
 ) http.Handler {
 	roundTripper := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           dialCtxFunc,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		ResponseHeaderTimeout: respHeaderTimeout,
+		ForceAttemptHTTP2:     fwdCfg.forceAttemptHTTP2,
+		MaxIdleConns:          fwdCfg.maxIdleConns,
+		IdleConnTimeout:       fwdCfg.idleConnTimeout,
+		TLSHandshakeTimeout:   fwdCfg.tlsHandshakeTimeout,
+		ExpectContinueTimeout: fwdCfg.expectContinueTimeout,
+		ResponseHeaderTimeout: fwdCfg.respHeaderTimeout,
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, err := getHost(r)
@@ -52,7 +70,7 @@ func newForwardingHandler(
 			w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host)))
 			return
 		}
-		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
+		ctx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
 		defer done()
 		if err := waitFunc(ctx, routingTarget.Deployment); err != nil {
 			lggr.Error(err, "wait function failed, not forwarding request")
