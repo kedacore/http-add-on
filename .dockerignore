@@ -9,5 +9,8 @@
 /examples
 /docs
 /.envrc
+/.github
+/README.md
+/RELEASE_PROCESS.md
 CONTRIBUTING.md
 Makefile

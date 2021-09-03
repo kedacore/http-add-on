@@ -34,7 +34,7 @@ func (t *TestHTTPHandlerWrapper) IncomingRequests() []http.Request {
 	return retSlice
 }
 
-func NewTestHTTPHandlerWrapper(hdl http.HandlerFunc) *TestHTTPHandlerWrapper {
+func NewTestHTTPHandlerWrapper(hdl http.Handler) *TestHTTPHandlerWrapper {
 	return &TestHTTPHandlerWrapper{
 		rwm:              new(sync.RWMutex),
 		hdl:              hdl,
