@@ -6,12 +6,13 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-  - http:
+  - host: {{ .Values.host }}
+    http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: {{ include "xkcd.fullname" . }}
+            name: keda-add-ons-http-interceptor-proxy
             port:
-              number: 80
+              number: 8080

@@ -6,13 +6,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -20,7 +24,10 @@ import (
 )
 
 func main() {
-
+	lggr, err := pkglog.NewZapr()
+	if err != nil {
+		log.Fatalf("error creating new logger (%v)", err)
+	}
 	ctx := context.Background()
 	cfg := mustParseConfig()
 	grpcPort := cfg.GRPCPort
@@ -32,11 +39,13 @@ func main() {
 
 	k8sCl, _, err := k8s.NewClientset()
 	if err != nil {
-		log.Fatalf("Couldn't get a Kubernetes client (%s)", err)
+		lggr.Error(err, "getting a Kubernetes client")
+		os.Exit(1)
 	}
 	pinger := newQueuePinger(
 		context.Background(),
-		k8sCl,
+		lggr,
+		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,
 		svcName,
 		targetPortStr,
@@ -44,27 +53,39 @@ func main() {
 	)
 
 	grp, ctx := errgroup.WithContext(ctx)
-	grp.Go(startGrpcServer(ctx, grpcPort, pinger, int64(targetPendingRequests)))
-	grp.Go(startHealthcheckServer(ctx, healthPort))
-	log.Fatalf("One or more of the servers failed: %s", grp.Wait())
+	grp.Go(
+		startGrpcServer(
+			ctx,
+			lggr,
+			grpcPort,
+			pinger,
+			int64(targetPendingRequests),
+		),
+	)
+	grp.Go(startHealthcheckServer(ctx, lggr, healthPort, pinger))
+	lggr.Error(grp.Wait(), "one or more of the servers failed")
 }
 
 func startGrpcServer(
 	ctx context.Context,
+	lggr logr.Logger,
 	port int,
 	pinger *queuePinger,
 	targetPendingRequests int64,
 ) func() error {
 	return func() error {
 		addr := fmt.Sprintf("0.0.0.0:%d", port)
-		log.Printf("Serving external scaler on %s", addr)
+		lggr.Info("starting grpc server", "address", addr)
 		lis, err := net.Listen("tcp", addr)
 		if err != nil {
-			log.Fatalf("failed to listen: %v", err)
+			return err
 		}
 
 		grpcServer := grpc.NewServer()
-		externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(pinger, targetPendingRequests))
+		externalscaler.RegisterExternalScalerServer(
+			grpcServer,
+			newImpl(lggr, pinger, targetPendingRequests),
+		)
 		reflection.Register(grpcServer)
 		go func() {
 			<-ctx.Done()
@@ -74,7 +95,13 @@ func startGrpcServer(
 	}
 }
 
-func startHealthcheckServer(ctx context.Context, port int) func() error {
+func startHealthcheckServer(
+	ctx context.Context,
+	lggr logr.Logger,
+	port int,
+	pinger *queuePinger,
+) func() error {
+	lggr = lggr.WithName("startHealthcheckServer")
 	return func() error {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -83,11 +110,38 @@ func startHealthcheckServer(ctx context.Context, port int) func() error {
 		mux.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
 		})
+		mux.HandleFunc("/queue", func(w http.ResponseWriter, r *http.Request) {
+			lggr = lggr.WithName("route.counts")
+			cts := pinger.counts()
+			lggr.Info("counts endpoint", "counts", cts)
+			if err := json.NewEncoder(w).Encode(&cts); err != nil {
+				lggr.Error(err, "writing counts information to client")
+				w.WriteHeader(500)
+			}
+		})
+		mux.HandleFunc("/queue_ping", func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			lggr := lggr.WithName("route.counts_ping")
+			if err := pinger.requestCounts(ctx); err != nil {
+				lggr.Error(err, "requesting counts failed")
+				w.WriteHeader(500)
+				w.Write([]byte("error requesting counts from interceptors"))
+				return
+			}
+			cts := pinger.counts()
+			lggr.Info("counts ping endpoint", "counts", cts)
+			if err := json.NewEncoder(w).Encode(&cts); err != nil {
+				lggr.Error(err, "writing counts data to caller")
+				w.WriteHeader(500)
+				w.Write([]byte("error writing counts data to caller"))
+			}
+		})
+
 		srv := &http.Server{
 			Addr:    fmt.Sprintf(":%d", port),
 			Handler: mux,
 		}
-		log.Printf("Serving health check server on port %d", port)
+		lggr.Info("starting health check server", "port", port)
 
 		go func() {
 			<-ctx.Done()

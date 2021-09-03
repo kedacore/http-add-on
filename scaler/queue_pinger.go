@@ -4,30 +4,32 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"sync"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
+	"golang.org/x/sync/errgroup"
 )
 
 type queuePinger struct {
-	k8sCl        *kubernetes.Clientset
-	ns           string
-	svcName      string
-	adminPort    string
-	pingMut      *sync.RWMutex
-	lastPingTime time.Time
-	lastCount    int
+	getEndpointsFn k8s.GetEndpointsFunc
+	ns             string
+	svcName        string
+	adminPort      string
+	pingMut        *sync.RWMutex
+	lastPingTime   time.Time
+	allCounts      map[string]int
+	aggregateCount int
+	lggr           logr.Logger
 }
 
 func newQueuePinger(
 	ctx context.Context,
-	k8sCl *kubernetes.Clientset,
+	lggr logr.Logger,
+	getEndpointsFn k8s.GetEndpointsFunc,
 	ns,
 	svcName,
 	adminPort string,
@@ -35,86 +37,110 @@ func newQueuePinger(
 ) *queuePinger {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
-		k8sCl:     k8sCl,
-		ns:        ns,
-		svcName:   svcName,
-		adminPort: adminPort,
-		pingMut:   pingMut,
+		getEndpointsFn: getEndpointsFn,
+		ns:             ns,
+		svcName:        svcName,
+		adminPort:      adminPort,
+		pingMut:        pingMut,
+		lggr:           lggr,
+		allCounts:      map[string]int{},
 	}
 
 	go func() {
 		defer pingTicker.Stop()
-		for {
-			select {
-			case <-pingTicker.C:
-				if err := pinger.requestCounts(ctx); err != nil {
-					log.Printf("Error getting request counts (%s)", err)
-				}
+		for range pingTicker.C {
+			if err := pinger.requestCounts(ctx); err != nil {
+				lggr.Error(err, "getting request counts")
 			}
 		}
-
 	}()
 
 	return pinger
 }
 
-func (q *queuePinger) count() int {
+func (q *queuePinger) counts() map[string]int {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
-	return q.lastCount
+	return q.allCounts
+}
+
+func (q *queuePinger) aggregate() int {
+	q.pingMut.RLock()
+	defer q.pingMut.RUnlock()
+	return q.aggregateCount
 }
 
 func (q *queuePinger) requestCounts(ctx context.Context) error {
-	log.Printf("queuePinger.requestCounts")
-	endpointsCl := q.k8sCl.CoreV1().Endpoints(q.ns)
-	endpoints, err := endpointsCl.Get(ctx, q.svcName, metav1.GetOptions{})
+	lggr := q.lggr.WithName("queuePinger.requestCounts")
+
+	endpointURLs, err := k8s.EndpointsForService(
+		ctx,
+		q.ns,
+		q.svcName,
+		q.adminPort,
+		q.getEndpointsFn,
+	)
 	if err != nil {
 		return err
 	}
 
-	queueSizeCh := make(chan int)
-	var wg sync.WaitGroup
-
-	for _, subset := range endpoints.Subsets {
-		for _, addr := range subset.Addresses {
-			wg.Add(1)
-			go func(addr string) {
-				defer wg.Done()
-				completeAddr := fmt.Sprintf("http://%s:%s/queue", addr, q.adminPort)
-				resp, err := http.Get(completeAddr)
-				if err != nil {
-					log.Printf("Error in pinger with GET %s (%s)", completeAddr, err)
-					return
-				}
-				defer resp.Body.Close()
-				respData := map[string]int{}
-				if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-					log.Printf("Error decoding request to %s (%s)", completeAddr, err)
-					return
-				}
-				curSize := respData["current_size"]
-				log.Printf("\n--\ncurSize for address %s: %d\n--\n", addr, curSize)
-				queueSizeCh <- curSize
-				log.Printf("Sent curSize %d for address %s", curSize, addr)
-			}(addr.IP)
-		}
+	countsCh := make(chan *queue.Counts)
+	defer close(countsCh)
+	fetchGrp, _ := errgroup.WithContext(ctx)
+	for _, endpoint := range endpointURLs {
+		u := endpoint
+		fetchGrp.Go(func() error {
+			counts, err := queue.GetCounts(
+				ctx,
+				lggr,
+				http.DefaultClient,
+				*u,
+			)
+			if err != nil {
+				lggr.Error(
+					err,
+					"getting queue counts from interceptor",
+					"interceptorAddress",
+					u.String(),
+				)
+				return err
+			}
+			countsCh <- counts
+			return nil
+		})
 	}
 
+	// consume the results of the counts channel in a goroutine.
+	// we'll must for all the fetcher goroutines to finish after we
+	// start up this goroutine so that all goroutines can make
+	// progress
 	go func() {
-		wg.Wait()
-		close(queueSizeCh)
+		agg := 0
+		totalCounts := make(map[string]int)
+		// range through the result of each endpoint
+		for count := range countsCh {
+			// each endpoint returns a map of counts, one count
+			// per host. add up the counts for each host
+			for host, val := range count.Counts {
+				agg += val
+				totalCounts[host] += val
+			}
+		}
+
+		q.pingMut.Lock()
+		defer q.pingMut.Unlock()
+		q.allCounts = totalCounts
+		q.aggregateCount = agg
+		q.lastPingTime = time.Now()
 	}()
 
-	total := 0
-	for count := range queueSizeCh {
-		total += count
+	// now that the counts channel is being consumed, all the
+	// fetch goroutines can make progress. wait for them
+	// to finish and check for errors.
+	if err := fetchGrp.Wait(); err != nil {
+		lggr.Error(err, "fetching all counts failed")
+		return err
 	}
-
-	q.pingMut.Lock()
-	defer q.pingMut.Unlock()
-	q.lastCount = total
-	q.lastPingTime = time.Now()
-	log.Printf("Finished getting aggregate current size %d", q.lastCount)
 
 	return nil
 
