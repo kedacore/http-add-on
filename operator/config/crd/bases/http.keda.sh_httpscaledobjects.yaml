@@ -59,6 +59,11 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
+              host:
+                description: The host to route. All requests with this host in the
+                  "Host" header will be routed to the Service and Port specified in
+                  the scaleTargetRef
+                type: string
               replicas:
                 description: (optional) Replica information
                 properties:
@@ -98,6 +103,7 @@ spec:
                 format: int32
                 type: integer
             required:
+            - host
             - scaleTargetRef
             type: object
           status:
@@ -115,32 +121,11 @@ spec:
                     reason:
                       description: The reason for the condition's last transition.
                       enum:
-                      - ErrorCreatingExternalScaler
-                      - ErrorCreatingExternalScalerService
-                      - CreatedExternalScaler
-                      - ErrorCreatingInterceptorScaledObject
                       - ErrorCreatingAppScaledObject
                       - AppScaledObjectCreated
-                      - InterceptorScaledObjectCreated
-                      - ErrorCreatingInterceptor
-                      - ErrorCreatingInterceptorAdminService
-                      - ErrorCreatingInterceptorProxyService
-                      - InterceptorCreated
                       - TerminatingResources
-                      - InterceptorDeploymentTerminated
-                      - InterceptorDeploymentTerminationError
-                      - InterceptorAdminServiceTerminationError
-                      - InterceptorAdminServiceTerminated
-                      - InterceptorProxyServiceTerminationError
-                      - InterceptorProxyServiceTerminated
-                      - ExternalScalerDeploymentTerminationError
-                      - ExternalScalerDeploymentTerminated
-                      - ExternalScalerServiceTerminationError
-                      - ExternalScalerServiceTerminated
-                      - InterceptorScaledObjectTerminated
                       - AppScaledObjectTerminated
                       - AppScaledObjectTerminationError
-                      - InterceptorScaledObjectTerminationError
                       - PendingCreation
                       - HTTPScaledObjectIsReady
                       type: string

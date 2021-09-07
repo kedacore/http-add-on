@@ -8,7 +8,7 @@ If you haven't installed KEDA and the HTTP Add On (this project), please do so f
 
 ## Creating An Application
 
-You'll need to install a `Deployment` and `Service` first. You'll tell the add on to begin scaling it up and down after this step. Use the below [Helm](https://helm.sh) command to create the resources you need.
+You'll need to install a `Deployment` and `Service` first. You'll tell the add on to begin scaling it up and down after this step. We've provided a [Helm](https://helm.sh) chart in this repository that you can use to try it out. Use this command to create the resources you need.
 
 ```shell
 helm install xkcd ./examples/xkcd -n ${NAMESPACE}
@@ -26,14 +26,14 @@ You interact with the operator via a CRD called `HTTPScaledObject`. This CRD obj
 kubectl create -f -n $NAMESPACE examples/v0.0.2/httpscaledobject.yaml
 ```
 
->If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/http_scaled_object.md).
+>If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.2.0/http_scaled_object.md).
 
 ## Testing Your Installation
 
 You've now installed a web application and activated autoscaling by creating an `HTTPScaledObject` for it. For autoscaling to work properly, HTTP traffic needs to route through the `Service` that the add on has set up. You can use `kubectl port-forward` to quickly test things out:
 
 ```shell
-kubectl port-forward svc/xkcd-interceptor-proxy -n ${NAMESPACE} 8080:80
+kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8080:80
 ```
 
 ### Routing to the Right `Service`
@@ -41,10 +41,10 @@ kubectl port-forward svc/xkcd-interceptor-proxy -n ${NAMESPACE} 8080:80
 As said above, you need to route your HTTP traffic to the `Service` that the add on has created. If you have existing systems - like an ingress controller - you'll need to anticipate the name of these created `Service`s. Each one will be named consistently like so, in the same namespace as the `HTTPScaledObject` and your application (i.e. `$NAMESPACE`):
 
 ```shell
-<deployment name>-interceptor-proxy
+keda-add-ons-http-interceptor-proxy
 ```
 
->The service will always be a `ClusterIP` type and will be created in the same namespace as the `HTTPScaledObject` you created.
+>This is installed by the [Helm chart](https://github.com/kedacore/charts/tree/master/http-add-on) as a `ClusterIP` `Service` by default.
 
 #### Installing and Using the [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/#using-helm) Ingress Controller
 

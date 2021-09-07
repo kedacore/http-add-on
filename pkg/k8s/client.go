@@ -5,6 +5,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NewClientset gets a new Kubernetes clientset, or calls log.Fatal
@@ -26,4 +27,10 @@ func NewClientset() (*kubernetes.Clientset, dynamic.Interface, error) {
 		return nil, nil, err
 	}
 	return clientset, dynamic, nil
+}
+
+// ObjKey creates a new client.ObjectKey with the given
+// name and namespace
+func ObjKey(ns, name string) client.ObjectKey {
+	return client.ObjectKey{Namespace: ns, Name: name}
 }

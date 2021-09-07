@@ -1,6 +1,6 @@
 # The `HTTPScaledObject`
 
->This document reflects the specification of the `HTTPScaledObject` resource for the latest version
+>This document reflects the specification of the `HTTPScaledObject` resource for the `v0.1.0` version.
 
 Each `HTTPScaledObject` looks approximately like the below:
 
