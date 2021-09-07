@@ -62,13 +62,13 @@ func FetchTableFromConfigMap(configMap *corev1.ConfigMap, q queue.Counter) (*Tab
 // to do those things, respectively.
 func updateQueueFromTable(
 	lggr logr.Logger,
-	table *Table,
+	table TableReader,
 	q queue.Counter,
 ) error {
 	// ensure that every host is in the queue, even if it has
 	// zero pending requests. This is important so that the
 	// scaler can report on all applications.
-	for host := range table.m {
+	for _, host := range table.Hosts() {
 		q.Ensure(host)
 	}
 
@@ -101,10 +101,11 @@ func GetTable(
 	ctx context.Context,
 	lggr logr.Logger,
 	getter k8s.ConfigMapGetter,
-	table *Table,
+	table TableAndVersionHistory,
 	q queue.Counter,
 ) error {
-	lggr = lggr.WithName("pkg.routing.GetTable")
+	const op = "pkg.routing.GetTable"
+	lggr = lggr.WithName(op)
 
 	cm, err := getter.Get(
 		ctx,
@@ -143,13 +144,23 @@ func GetTable(
 		)
 	}
 
-	table.Replace(newTable, cm.ResourceVersion)
+	if err := ReplaceTable(
+		table,
+		newTable,
+		cm.ResourceVersion,
+	); err != nil {
+		lggr.Error(
+			err,
+			"unable to replace table",
+		)
+		return errors.Wrap(err, op)
+	}
 	if err := updateQueueFromTable(lggr, table, q); err != nil {
 		lggr.Error(
 			err,
 			"unable to update the queue from the new routing table",
 		)
-		return errors.Wrap(err, "pkg.routing.GetTable")
+		return errors.Wrap(err, op)
 	}
 
 	return nil

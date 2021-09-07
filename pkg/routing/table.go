@@ -3,39 +3,32 @@ package routing
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/url"
 	"sync"
 )
 
-var ErrTargetNotFound = errors.New("Target not found")
-
-type Target struct {
-	Service    string `json:"service"`
-	Port       int    `json:"port"`
-	Deployment string `json:"deployment"`
+type TableReader interface {
+	json.Marshaler
+	Lookup(host string) (Target, error)
+	Hosts() []string
 }
 
-func NewTarget(svc string, port int, depl string) Target {
-	return Target{
-		Service:    svc,
-		Port:       port,
-		Deployment: depl,
-	}
+type TableWriter interface {
+	json.Unmarshaler
+	AddTarget(host string, target Target) error
+	RemoveTarget(host string) error
 }
 
-func (t *Target) ServiceURL() (*url.URL, error) {
-	urlStr := fmt.Sprintf("http://%s:%d", t.Service, t.Port)
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, err
-	}
-	return u, nil
-
+type TableReaderWriter interface {
+	TableReader
+	TableWriter
 }
 
+// Table is an in-memory routing table that implements
+// TableReaderWriter.
 type Table struct {
+	json.Marshaler
+	json.Unmarshaler
 	fmt.Stringer
 	m           map[string]Target
 	l           *sync.RWMutex
@@ -121,20 +114,12 @@ func (t *Table) RemoveTarget(host string) error {
 	return nil
 }
 
-// Replace replaces t's routing table with newTable's.
-//
-// This function is concurrency safe for t, but not for newTable.
-// The caller must ensure that no other goroutine is writing to
-// newTable at the time at which they call this function.
-func (t *Table) Replace(newTable *Table, newVersion string) {
-	t.l.Lock()
-	defer t.l.Unlock()
-	t.m = newTable.m
-	t.versionHist = append(t.versionHist, newVersion)
-}
-
-func (t *Table) VersionHistory() ([]string, error) {
+func (t *Table) Hosts() []string {
 	t.l.RLock()
 	defer t.l.RUnlock()
-	return t.versionHist, nil
+	ret := make([]string, 0, len(t.m))
+	for host := range t.m {
+		ret = append(ret, host)
+	}
+	return ret
 }

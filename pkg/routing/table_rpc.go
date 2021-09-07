@@ -24,15 +24,14 @@ const (
 func AddVersionRoute(
 	lggr logr.Logger,
 	mux *http.ServeMux,
-	table *Table,
+	tableVsn TableVersionReader,
 ) {
 	lggr = lggr.WithName("pkg.routing.AddVersionRoute")
 	lggr.Info("adding routing version route", "path", routingVersionPath)
 	mux.Handle(
 		routingVersionPath,
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			table.l.RLock()
-			hist, err := table.VersionHistory()
+			hist, err := tableVsn.VersionHistory()
 			if err != nil {
 				w.WriteHeader(500)
 				lggr.Error(err, "fetching version history")
@@ -41,7 +40,6 @@ func AddVersionRoute(
 			ret := map[string][]string{
 				"version-history": hist,
 			}
-			table.l.RUnlock()
 			if err := json.NewEncoder(w).Encode(&ret); err != nil {
 				w.WriteHeader(500)
 				lggr.Error(err, "error encoding JSON for version history")
@@ -55,7 +53,7 @@ func AddVersionRoute(
 func AddFetchRoute(
 	lggr logr.Logger,
 	mux *http.ServeMux,
-	table *Table,
+	table TableReaderWriter,
 ) {
 	lggr = lggr.WithName("pkg.routing.AddFetchRoute")
 	lggr.Info("adding routing ping route", "path", routingPingPath)
@@ -70,7 +68,7 @@ func AddPingRoute(
 	lggr logr.Logger,
 	mux *http.ServeMux,
 	getter k8s.ConfigMapGetter,
-	table *Table,
+	table TableAndVersionHistory,
 	q queue.Counter,
 ) {
 	lggr = lggr.WithName("pkg.routing.AddPingRoute")
@@ -102,7 +100,7 @@ func AddPingRoute(
 
 func newTableHandler(
 	lggr logr.Logger,
-	table *Table,
+	table TableReader,
 ) http.Handler {
 	lggr = lggr.WithName("pkg.routing.TableHandler")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -23,7 +23,7 @@ func moreThanPtr(i *int32, target int32) bool {
 // create a URL with url.Parse("https://...")
 func newForwardingHandler(
 	lggr logr.Logger,
-	routingTable *routing.Table,
+	routingTable routing.TableReader,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
 	waitTimeout time.Duration,

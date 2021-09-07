@@ -71,7 +71,7 @@ func main() {
 	lggr.Info("Interceptor starting")
 
 	q := queue.NewMemory()
-	routingTable := routing.NewTable()
+	routingTable := routing.NewEmptyTableAndVersionHistory()
 
 	lggr.Info(
 		"Fetching initial routing table",
@@ -174,7 +174,7 @@ func runAdminServer(
 	lggr logr.Logger,
 	cmGetter k8s.ConfigMapGetter,
 	q queue.Counter,
-	routingTable *routing.Table,
+	table routing.TableAndVersionHistory,
 	deployCache k8s.DeploymentCache,
 	port int,
 ) error {
@@ -188,19 +188,19 @@ func runAdminServer(
 	routing.AddFetchRoute(
 		lggr,
 		adminServer,
-		routingTable,
+		table,
 	)
 	routing.AddPingRoute(
 		lggr,
 		adminServer,
 		cmGetter,
-		routingTable,
+		table,
 		q,
 	)
 	routing.AddVersionRoute(
 		lggr,
 		adminServer,
-		routingTable,
+		table,
 	)
 	adminServer.HandleFunc(
 		"/deployments",
@@ -221,7 +221,7 @@ func runProxyServer(
 	lggr logr.Logger,
 	q queue.Counter,
 	waitFunc forwardWaitFunc,
-	routingTable *routing.Table,
+	routingTable routing.TableReader,
 	timeouts *config.Timeouts,
 	port int,
 ) error {

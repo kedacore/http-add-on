@@ -27,7 +27,7 @@ func StartConfigMapRoutingTableUpdater(
 	lggr logr.Logger,
 	updateEvery time.Duration,
 	getterWatcher k8s.ConfigMapGetterWatcher,
-	table *Table,
+	table TableAndVersionHistory,
 	q queue.Counter,
 ) error {
 	lggr = lggr.WithName("pkg.routing.StartConfigMapRoutingTableUpdater")
@@ -44,8 +44,17 @@ func StartConfigMapRoutingTableUpdater(
 		case <-ctx.Done():
 			return errors.Wrap(ctx.Err(), "context is done")
 		case <-ticker.C:
-			if err := GetTable(ctx, lggr, getterWatcher, table, q); err != nil {
-				return errors.Wrap(err, "failed to fetch routing table")
+			if err := GetTable(
+				ctx,
+				lggr,
+				getterWatcher,
+				table,
+				q,
+			); err != nil {
+				return errors.Wrap(
+					err,
+					"failed to fetch routing table",
+				)
 			}
 
 		case evt := <-watchIface.ResultChan():
@@ -70,7 +79,20 @@ func StartConfigMapRoutingTableUpdater(
 				if err != nil {
 					return err
 				}
-				table.Replace(newTable, cm.ResourceVersion)
+				if err := ReplaceTable(
+					table,
+					newTable,
+					cm.ResourceVersion,
+				); err != nil {
+					lggr.Error(
+						err,
+						"couldn't update table from watch event",
+					)
+					return errors.Wrap(
+						err,
+						"couldn't update table from watch event",
+					)
+				}
 				if err := updateQueueFromTable(lggr, table, q); err != nil {
 					// if we couldn't update the queue, just log but don't bail.
 					// we want to give the loop a chance to tick (or receive a new event)
