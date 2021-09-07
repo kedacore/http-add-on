@@ -27,7 +27,7 @@ func TestRPCIntegration(t *testing.T) {
 	r := require.New(t)
 
 	// fetch an empty table
-	retTable := NewTable()
+	retTable := NewEmptyTableAndVersionHistory()
 	k8sCl, err := fakeConfigMapClientForTable(
 		NewTable(),
 		ns,
@@ -57,7 +57,7 @@ func TestRPCIntegration(t *testing.T) {
 		},
 	}
 
-	retTable = NewTable()
+	retTable = NewEmptyTableAndVersionHistory()
 	k8sCl, err = fakeConfigMapClientForTable(
 		newTableFromMap(targetMap),
 		ns,

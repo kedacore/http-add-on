@@ -69,18 +69,23 @@ func TestTableReplace(t *testing.T) {
 		Deployment: "depl2",
 	}
 	// create two routing tables, each with different targets
-	tbl1 := NewTable()
+	tbl1 := NewEmptyTableAndVersionHistory()
 	tbl1.AddTarget(host1, tgt1)
-	tbl2 := NewTable()
+	tbl2 := NewEmptyTableAndVersionHistory()
 	tbl2.AddTarget(host2, tgt2)
 
 	// replace the second table with the first and ensure that the tables
 	// are now equal
-	tbl2.Replace(tbl1, "newVsn")
+	r.NoError(ReplaceTable(tbl2, tbl1.Table, "newVsn"))
+	r.Equal(tbl1.Table, tbl2.Table)
 
-	// need to set the version history manually so that
-	// the equality check doesn't fail.
-	tbl1.versionHist = []string{"newVsn"}
-	tbl2.versionHist = []string{"newVsn"}
-	r.Equal(tbl1, tbl2)
+	// table 2 should have "newVsn" in its history, while
+	// table 1 should have nothing
+	hist1, err := tbl1.VersionHistory()
+	r.NoError(err)
+	hist2, err := tbl2.VersionHistory()
+	r.NoError(err)
+	r.Equal([]string{}, hist1)
+	r.Equal([]string{"newVsn"}, hist2)
+
 }

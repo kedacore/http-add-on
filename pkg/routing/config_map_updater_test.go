@@ -71,7 +71,7 @@ func TestStartUpdateLoop(t *testing.T) {
 	)
 
 	q := queue.NewFakeCounter()
-	table := NewTable()
+	table := NewEmptyTableAndVersionHistory()
 	table.AddTarget("host1", NewTarget(
 		"svc1",
 		8080,
@@ -85,7 +85,7 @@ func TestStartUpdateLoop(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	r.NoError(SaveTableToConfigMap(table, cm))
+	r.NoError(SaveTableToConfigMap(table.Table, cm))
 
 	fakeWatcher := watch.NewFake()
 	fakeGetter := fake.NewSimpleClientset(cm)
