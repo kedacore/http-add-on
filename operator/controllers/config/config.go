@@ -2,39 +2,37 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/kelseyhightower/envconfig"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // Interceptor holds static configuration info for the interceptor
 type Interceptor struct {
-	Image      string            `envconfig:"IMAGE" required:"true"`
-	ProxyPort  int32             `envconfig:"PROXY_PORT" default:"8091"`
-	AdminPort  int32             `envconfig:"ADMIN_PORT" default:"8090"`
-	PullPolicy corev1.PullPolicy `envconfig:"PULL_POLICY" required:"true"`
+	ServiceName string `envconfig:"INTERCEPTOR_SERVICE_NAME" required:"true"`
+	ProxyPort   int32  `envconfig:"INTERCEPTOR_PROXY_PORT" required:"true"`
+	AdminPort   int32  `envconfig:"INTERCEPTOR_ADMIN_PORT" required:"true"`
 }
 
 // ExternalScaler holds static configuration info for the external scaler
 type ExternalScaler struct {
-	Image      string            `envconfig:"IMAGE" required:"true"`
-	Port       int32             `envconfig:"PORT" default:"8091"`
-	PullPolicy corev1.PullPolicy `envconfig:"PULL_POLICY" default:"Always"`
+	ServiceName string `envconfig:"EXTERNAL_SCALER_SERVICE_NAME" required:"true"`
+	Port        int32  `envconfig:"EXTERNAL_SCALER_PORT" required:"true"`
 }
 
-func ensureValidPolicy(policy string) error {
-	converted := corev1.PullPolicy(policy)
-	switch converted {
-	case corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever:
-		return nil
-	}
-	return fmt.Errorf(
-		"policy %q is not a valid Pull Policy. Accepted values are: %s, %s, %s",
-		policy,
-		corev1.PullAlways,
-		corev1.PullIfNotPresent,
-		corev1.PullNever,
+func (e ExternalScaler) HostName(namespace string) string {
+	return fmt.Sprintf(
+		"%s.%s.svc.cluster.local:%d",
+		e.ServiceName,
+		namespace,
+		e.Port,
 	)
+}
+
+// AdminPortString returns i.AdminPort in string format, rather than
+// as an int32.
+func (i Interceptor) AdminPortString() string {
+	return strconv.Itoa(int(i.AdminPort))
 }
 
 // NewInterceptorFromEnv gets interceptor configuration values from environment variables and/or
@@ -45,10 +43,8 @@ func NewInterceptorFromEnv() (*Interceptor, error) {
 	if err := envconfig.Process("KEDAHTTP_OPERATOR_INTERCEPTOR", ret); err != nil {
 		return nil, err
 	}
-	if err := ensureValidPolicy(string(ret.PullPolicy)); err != nil {
-		return nil, err
-	}
 	return ret, nil
+
 }
 
 // NewExternalScalerFromEnv gets external scaler configuration values from environment variables and/or
@@ -57,9 +53,6 @@ func NewInterceptorFromEnv() (*Interceptor, error) {
 func NewExternalScalerFromEnv() (*ExternalScaler, error) {
 	ret := new(ExternalScaler)
 	if err := envconfig.Process("KEDAHTTP_OPERATOR_EXTERNAL_SCALER", ret); err != nil {
-		return nil, err
-	}
-	if err := ensureValidPolicy(string(ret.PullPolicy)); err != nil {
 		return nil, err
 	}
 	return ret, nil
