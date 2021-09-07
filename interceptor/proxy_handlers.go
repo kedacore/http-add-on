@@ -70,6 +70,7 @@ func newForwardingHandler(
 			w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host)))
 			return
 		}
+
 		ctx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
 		defer done()
 		if err := waitFunc(ctx, routingTarget.Deployment); err != nil {
