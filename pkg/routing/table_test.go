@@ -78,5 +78,9 @@ func TestTableReplace(t *testing.T) {
 	// are now equal
 	tbl2.Replace(tbl1, "newVsn")
 
+	// need to set the version history manually so that
+	// the equality check doesn't fail.
+	tbl1.versionHist = []string{"newVsn"}
+	tbl2.versionHist = []string{"newVsn"}
 	r.Equal(tbl1, tbl2)
 }

@@ -44,8 +44,9 @@ type Table struct {
 
 func NewTable() *Table {
 	return &Table{
-		m: make(map[string]Target),
-		l: new(sync.RWMutex),
+		m:           make(map[string]Target),
+		l:           new(sync.RWMutex),
+		versionHist: []string{},
 	}
 }
 
@@ -84,12 +85,9 @@ func (t *Table) Lookup(host string) (Target, error) {
 	return ret, nil
 }
 
-// AddTarget registers target for host in the routing table t
-// if it didn't already exist.
-//
-// returns a non-nil error if it did already exist.
-//
-// This function is generally only used in tests.
+// AddTarget registers target for host in the routing table
+// and returns nil if that host didn't already exist.
+// Returns a non-nil error if it did already exist.
 func (t *Table) AddTarget(
 	host string,
 	target Target,
@@ -107,10 +105,11 @@ func (t *Table) AddTarget(
 	return nil
 }
 
-// RemoveTarget removes host, if it exists, and its corresponding Target entry in
-// the routing table. If it does not exist, returns a non-nil error.
+// RemoveTarget removes host and its corresponding target
+// if host already existed in the table, and returns nil.
 //
-// This function is generally only used in tests.
+// Returns a non-nil error if the host wasn't already in the
+// table.
 func (t *Table) RemoveTarget(host string) error {
 	t.l.Lock()
 	defer t.l.Unlock()
