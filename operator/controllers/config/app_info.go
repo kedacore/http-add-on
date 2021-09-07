@@ -11,7 +11,6 @@ import (
 type AppInfo struct {
 	Name                 string
 	Namespace            string
-	InterceptorConfig    Interceptor
 	ExternalScalerConfig ExternalScaler
 }
 

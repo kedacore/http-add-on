@@ -39,7 +39,6 @@ type HTTPScaledObjectReconciler struct {
 	client.Client
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
-	InterceptorConfig    config.Interceptor
 	ExternalScalerConfig config.ExternalScaler
 	RoutingTable         *routing.Table
 }
@@ -81,7 +80,6 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 	appInfo := config.AppInfo{
 		Name:                 httpso.Spec.ScaleTargetRef.Deployment,
 		Namespace:            req.Namespace,
-		InterceptorConfig:    rec.InterceptorConfig,
 		ExternalScalerConfig: rec.ExternalScalerConfig,
 	}
 

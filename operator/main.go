@@ -79,11 +79,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	interceptorCfg, err := config.NewInterceptorFromEnv()
-	if err != nil {
-		setupLog.Error(err, "unable to get interceptor configuration")
-		os.Exit(1)
-	}
 	externalScalerCfg, err := config.NewExternalScalerFromEnv()
 	if err != nil {
 		setupLog.Error(err, "unable to get external scaler configuration")
@@ -94,7 +89,6 @@ func main() {
 		Client:               mgr.GetClient(),
 		Log:                  ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
 		Scheme:               mgr.GetScheme(),
-		InterceptorConfig:    *interceptorCfg,
 		ExternalScalerConfig: *externalScalerCfg,
 		RoutingTable:         routingTable,
 	}).SetupWithManager(mgr); err != nil {
