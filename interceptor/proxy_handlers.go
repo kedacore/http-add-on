@@ -11,10 +11,6 @@ import (
 	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
-func moreThanPtr(i *int32, target int32) bool {
-	return i != nil && *i > target
-}
-
 // newForwardingHandler takes in the service URL for the app backend
 // and forwards incoming requests to it. Note that it isn't multitenant.
 // It's intended to be deployed and scaled alongside the application itself.

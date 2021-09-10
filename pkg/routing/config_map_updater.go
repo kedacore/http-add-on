@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +27,6 @@ func StartConfigMapRoutingTableUpdater(
 	updateEvery time.Duration,
 	getterWatcher k8s.ConfigMapGetterWatcher,
 	table *Table,
-	q queue.Counter,
 ) error {
 	lggr = lggr.WithName("pkg.routing.StartConfigMapRoutingTableUpdater")
 	watchIface, err := getterWatcher.Watch(ctx, metav1.ListOptions{})
@@ -44,7 +42,7 @@ func StartConfigMapRoutingTableUpdater(
 		case <-ctx.Done():
 			return errors.Wrap(ctx.Err(), "context is done")
 		case <-ticker.C:
-			if err := GetTable(ctx, lggr, getterWatcher, table, q); err != nil {
+			if err := GetTable(ctx, lggr, getterWatcher, table); err != nil {
 				return errors.Wrap(err, "failed to fetch routing table")
 			}
 
@@ -66,21 +64,11 @@ func StartConfigMapRoutingTableUpdater(
 				if cm.Name != ConfigMapRoutingTableName {
 					continue
 				}
-				newTable, err := FetchTableFromConfigMap(cm, q)
+				newTable, err := FetchTableFromConfigMap(cm)
 				if err != nil {
 					return err
 				}
 				table.Replace(newTable)
-				if err := updateQueueFromTable(lggr, table, q); err != nil {
-					// if we couldn't update the queue, just log but don't bail.
-					// we want to give the loop a chance to tick (or receive a new event)
-					// and update the table & queue again
-					lggr.Error(
-						err,
-						"failed to update queue from table on ConfigMap change event",
-					)
-					continue
-				}
 			}
 		}
 	}

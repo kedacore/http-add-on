@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 const (
@@ -35,7 +34,6 @@ func AddPingRoute(
 	mux *http.ServeMux,
 	getter k8s.ConfigMapGetter,
 	table *Table,
-	q queue.Counter,
 ) {
 	lggr = lggr.WithName("pkg.routing.AddPingRoute")
 	lggr.Info("adding interceptor routing ping route", "path", routingPingPath)
@@ -45,7 +43,6 @@ func AddPingRoute(
 			lggr,
 			getter,
 			table,
-			q,
 		)
 		if err != nil {
 			lggr.Error(err, "fetching new routing table")

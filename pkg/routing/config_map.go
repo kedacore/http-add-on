@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +31,9 @@ func SaveTableToConfigMap(table *Table, configMap *corev1.ConfigMap) error {
 
 // FetchTableFromConfigMap fetches the Data field from configMap, converts it
 // to a routing table, and returns it
-func FetchTableFromConfigMap(configMap *corev1.ConfigMap, q queue.Counter) (*Table, error) {
+func FetchTableFromConfigMap(
+	configMap *corev1.ConfigMap,
+) (*Table, error) {
 	data, found := configMap.Data[configMapRoutingTableKey]
 	if !found {
 		return nil, fmt.Errorf(
@@ -56,39 +57,6 @@ func FetchTableFromConfigMap(configMap *corev1.ConfigMap, q queue.Counter) (*Tab
 	return ret, nil
 }
 
-// updateQueueFromTable ensures that every host in the routing table
-// exists in the given queue, and no hosts exist in the queue that
-// don't exist in the routing table. It uses q.Ensure() and q.Remove()
-// to do those things, respectively.
-func updateQueueFromTable(
-	lggr logr.Logger,
-	table *Table,
-	q queue.Counter,
-) error {
-	// ensure that every host is in the queue, even if it has
-	// zero pending requests. This is important so that the
-	// scaler can report on all applications.
-	for host := range table.m {
-		q.Ensure(host)
-	}
-
-	// ensure that the queue doesn't have any extra hosts that don't exist in the table
-	qCur, err := q.Current()
-	if err != nil {
-		lggr.Error(
-			err,
-			"failed to get current queue counts (in order to prune it of missing routing table hosts)",
-		)
-		return errors.Wrap(err, "pkg.routing.updateQueueFromTable")
-	}
-	for host := range qCur.Counts {
-		if _, err := table.Lookup(host); err != nil {
-			q.Remove(host)
-		}
-	}
-	return nil
-}
-
 // GetTable fetches the contents of the appropriate ConfigMap that stores
 // the routing table, then tries to decode it into a temporary routing table
 // data structure.
@@ -102,7 +70,7 @@ func GetTable(
 	lggr logr.Logger,
 	getter k8s.ConfigMapGetter,
 	table *Table,
-	q queue.Counter,
+	// q queue.Counter,
 ) error {
 	lggr = lggr.WithName("pkg.routing.GetTable")
 
@@ -126,7 +94,7 @@ func GetTable(
 			),
 		)
 	}
-	newTable, err := FetchTableFromConfigMap(cm, q)
+	newTable, err := FetchTableFromConfigMap(cm)
 	if err != nil {
 		lggr.Error(
 			err,
@@ -144,13 +112,5 @@ func GetTable(
 	}
 
 	table.Replace(newTable)
-	if err := updateQueueFromTable(lggr, table, q); err != nil {
-		lggr.Error(
-			err,
-			"unable to update the queue from the new routing table",
-		)
-		return errors.Wrap(err, "pkg.routing.GetTable")
-	}
-
 	return nil
 }

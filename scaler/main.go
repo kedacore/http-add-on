@@ -17,7 +17,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 	"golang.org/x/sync/errgroup"
@@ -80,11 +79,6 @@ func main() {
 			cfg.UpdateRoutingTableDur,
 			k8sCl.CoreV1().ConfigMaps(cfg.TargetNamespace),
 			table,
-			// we don't care about the queue here.
-			// we just want to update the routing table
-			// so that the scaler can use it to determine
-			// the target metrics for given hosts.
-			queue.NewMemory(),
 		)
 	})
 	grp.Go(func() error {

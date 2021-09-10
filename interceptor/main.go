@@ -81,7 +81,6 @@ func main() {
 		lggr,
 		configMapsInterface,
 		routingTable,
-		q,
 	); err != nil {
 		lggr.Error(err, "fetching routing table")
 		os.Exit(1)
@@ -112,7 +111,6 @@ func main() {
 			time.Duration(servingCfg.RoutingTableUpdateDurationMS)*time.Millisecond,
 			configMapsInterface,
 			routingTable,
-			q,
 		)
 		lggr.Error(err, "config map routing table updater failed")
 		return err
@@ -195,7 +193,6 @@ func runAdminServer(
 		adminServer,
 		cmGetter,
 		routingTable,
-		q,
 	)
 	adminServer.HandleFunc(
 		"/deployments",

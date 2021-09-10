@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -70,7 +69,6 @@ func TestStartUpdateLoop(t *testing.T) {
 		ns       = "testns"
 	)
 
-	q := queue.NewFakeCounter()
 	table := NewTable()
 	table.AddTarget("host1", NewTarget(
 		"svc1",
@@ -107,7 +105,6 @@ func TestStartUpdateLoop(t *testing.T) {
 			interval,
 			getterWatcher,
 			table,
-			q,
 		)
 		// we purposefully cancel the context below,
 		// so we need to ignore that error.
@@ -165,30 +162,4 @@ func TestStartUpdateLoop(t *testing.T) {
 	// or otherwise fails, the update loop was not properly
 	// listening for these events.
 	r.NoError(grp.Wait())
-
-	// ensure that the queue and table host lists matches
-	// exactly
-	table.l.RLock()
-	curTable := table.m
-	curQCounts, err := q.Current()
-	r.NoError(err)
-	// check that the queue has every host in the table
-	for tableHost := range curTable {
-		_, ok := curQCounts.Counts[tableHost]
-		r.True(
-			ok,
-			"host %s not found in queue",
-			tableHost,
-		)
-	}
-	// check that the table has every host in the queue
-	for qHost := range curQCounts.Counts {
-		_, ok := curTable[qHost]
-		r.True(
-			ok,
-			"host %s not found in table",
-			qHost,
-		)
-	}
-
 }

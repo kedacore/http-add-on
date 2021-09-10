@@ -169,3 +169,31 @@ func (e *impl) GetMetrics(
 		MetricValues: metricValues,
 	}, nil
 }
+
+func countForHost(
+	host string,
+	allCounts map[string]int,
+	table routing.TableReader,
+) (int, error) {
+	_, err := table.Lookup(host)
+	if err != nil {
+		return 0, fmt.Errorf(
+			"host '%s' not found in counts",
+			host,
+		)
+	}
+	// at this point, we know that the host is in the routing
+	// table, so it's a valid count.
+	// the interceptors may not return counts for hosts that
+	// don't have any pending requests. in that case,
+	// we want to return 0. otherwise, return the actual count
+	//
+	// NOTE: we could simply return allCounts[host] here, but
+	// choosing to write more code to be be explicit about
+	// our intention.
+	count, ok := allCounts[host]
+	if !ok {
+		return 0, nil
+	}
+	return count, nil
+}

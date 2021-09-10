@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +38,6 @@ func TestRPCIntegration(t *testing.T) {
 		lggr,
 		k8sCl.CoreV1().ConfigMaps("testns"),
 		retTable,
-		queue.NewFakeCounter(),
 	))
 	r.Equal(0, len(retTable.m))
 
@@ -69,7 +67,6 @@ func TestRPCIntegration(t *testing.T) {
 		lggr,
 		k8sCl.CoreV1().ConfigMaps("testns"),
 		retTable,
-		queue.NewFakeCounter(),
 	))
 	r.Equal(len(targetMap), len(retTable.m))
 	r.Equal(targetMap, retTable.m)
