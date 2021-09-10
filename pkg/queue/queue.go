@@ -36,7 +36,7 @@ type Counter interface {
 	Remove(host string) bool
 }
 
-// Memory is a reference Counter implementation that
+// Memory is a Counter implementation that
 // holds the HTTP queue in memory only. Always use
 // NewMemory to create one of these.
 type Memory struct {
@@ -44,7 +44,7 @@ type Memory struct {
 	mut      *sync.RWMutex
 }
 
-// NewMemory creates a new empty in-memory queue
+// NewMemoryQueue creates a new empty in-memory queue
 func NewMemory() *Memory {
 	lock := new(sync.RWMutex)
 	return &Memory{

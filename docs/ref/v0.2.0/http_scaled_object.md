@@ -15,6 +15,10 @@ spec:
         deployment: xkcd
         service: xkcd
         port: 8080
+<<<<<<< HEAD
+=======
+        targetPendingRequests: 100
+>>>>>>> 27612dabeef8bd3d9a15a0895475de1597544a94
 ```
 
 This document is a narrated reference guide for the `HTTPScaledObject`, and we'll focus on the `spec` field.
@@ -42,3 +46,11 @@ This is the name of the service to route traffic to. The add on will create auto
 ### `port`
 
 This is the port to route to on the service that you specified in the `service` field. It should be exposed on the service and should route to a valid `containerPort` on the `Deployment` you gave in the `deployment` field.
+
+### `targetPendingRequests`
+
+>Default: 100
+
+This is the number of _pending_ (or in-progress) requests that your application needs to have before the HTTP Addon will scale it. Conversely, if your application has below this number of pending requests, the HTTP addon will scale it down.
+
+For example, if you set this field to 100, the HTTP Addon will scale your app up if it sees that there are 200 in-progress requests. On the other hand, it will scale down if it sees that there are only 20 in-progress requests. Note that it will _never_ scale your app to zero replicas unless there are _no_ requests in-progress. Even if you set this value to a very high number and only have a single in-progress request, your app will still have one replica.

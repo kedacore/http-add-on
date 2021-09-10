@@ -1,11 +1,11 @@
-//+build mage
+//go:build mage
+// +build mage
 
 package main
 
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/kedacore/http-add-on/pkg/build"
 	"github.com/kedacore/http-add-on/pkg/env"
@@ -244,12 +244,7 @@ func Build() {
 
 // Run tests on all the components in this project
 func Test() error {
-	out, err := sh.Output("go", "test", "./...")
-	if err != nil {
-		return err
-	}
-	log.Print(out)
-	return nil
+	return sh.RunV("go", "test", "-timeout=20s", "./...")
 }
 
 // --- Docker --- //

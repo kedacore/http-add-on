@@ -71,6 +71,7 @@ func main() {
 			int64(targetPendingRequests),
 		)
 	})
+
 	grp.Go(func() error {
 		defer done()
 		return routing.StartConfigMapRoutingTableUpdater(
