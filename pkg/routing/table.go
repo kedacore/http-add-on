@@ -43,6 +43,9 @@ func (t *Target) ServiceURL() (*url.URL, error) {
 
 }
 
+type TableReader interface {
+	Lookup(string) (Target, error)
+}
 type Table struct {
 	fmt.Stringer
 	m map[string]Target

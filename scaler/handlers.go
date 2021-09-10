@@ -23,7 +23,7 @@ func init() {
 type impl struct {
 	lggr         logr.Logger
 	pinger       *queuePinger
-	routingTable *routing.Table
+	routingTable routing.TableReader
 	targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
 }
@@ -31,7 +31,7 @@ type impl struct {
 func newImpl(
 	lggr logr.Logger,
 	pinger *queuePinger,
-	routingTable *routing.Table,
+	routingTable routing.TableReader,
 	defaultTargetMetric int64,
 ) *impl {
 	return &impl{
