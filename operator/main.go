@@ -89,6 +89,14 @@ func main() {
 		setupLog.Error(err, "unable to get external scaler configuration")
 		os.Exit(1)
 	}
+	baseConfig, err := config.NewBaseFromEnv()
+	if err != nil {
+		setupLog.Error(
+			err,
+			"unable to get base configuration",
+		)
+		os.Exit(1)
+	}
 	routingTable := routing.NewTable()
 	if err := (&controllers.HTTPScaledObjectReconciler{
 		Client:               mgr.GetClient(),
@@ -96,6 +104,7 @@ func main() {
 		Scheme:               mgr.GetScheme(),
 		InterceptorConfig:    *interceptorCfg,
 		ExternalScalerConfig: *externalScalerCfg,
+		BaseConfig:           *baseConfig,
 		RoutingTable:         routingTable,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
