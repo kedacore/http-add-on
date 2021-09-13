@@ -24,7 +24,9 @@ func TestHealthChecks(t *testing.T) {
 
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	srvFunc := startHealthcheckServer(ctx, lggr, port, pinger)
+	srvFunc := func() error {
+		return startHealthcheckServer(ctx, lggr, port, pinger)
+	}
 	errgrp.Go(srvFunc)
 	time.Sleep(500 * time.Millisecond)
 
