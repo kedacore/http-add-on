@@ -17,6 +17,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
+	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -28,7 +30,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("error creating new logger (%v)", err)
 	}
-	ctx := context.Background()
+	ctx, done := context.WithCancel(
+		context.Background(),
+	)
+	defer done()
 	cfg := mustParseConfig()
 	grpcPort := cfg.GRPCPort
 	healthPort := cfg.HealthPort
@@ -52,17 +57,45 @@ func main() {
 		time.NewTicker(500*time.Millisecond),
 	)
 
+	table := routing.NewTable()
+
 	grp, ctx := errgroup.WithContext(ctx)
-	grp.Go(
-		startGrpcServer(
+	grp.Go(func() error {
+		defer done()
+		return startGrpcServer(
 			ctx,
 			lggr,
 			grpcPort,
 			pinger,
+			table,
 			int64(targetPendingRequests),
-		),
-	)
-	grp.Go(startHealthcheckServer(ctx, lggr, healthPort, pinger))
+		)
+	})
+
+	grp.Go(func() error {
+		defer done()
+		return routing.StartConfigMapRoutingTableUpdater(
+			ctx,
+			lggr,
+			cfg.UpdateRoutingTableDur,
+			k8sCl.CoreV1().ConfigMaps(cfg.TargetNamespace),
+			table,
+			// we don't care about the queue here.
+			// we just want to update the routing table
+			// so that the scaler can use it to determine
+			// the target metrics for given hosts.
+			queue.NewMemory(),
+		)
+	})
+	grp.Go(func() error {
+		defer done()
+		return startHealthcheckServer(
+			ctx,
+			lggr,
+			healthPort,
+			pinger,
+		)
+	})
 	lggr.Error(grp.Wait(), "one or more of the servers failed")
 }
 
@@ -71,28 +104,34 @@ func startGrpcServer(
 	lggr logr.Logger,
 	port int,
 	pinger *queuePinger,
+	routingTable *routing.Table,
 	targetPendingRequests int64,
-) func() error {
-	return func() error {
-		addr := fmt.Sprintf("0.0.0.0:%d", port)
-		lggr.Info("starting grpc server", "address", addr)
-		lis, err := net.Listen("tcp", addr)
-		if err != nil {
-			return err
-		}
+) error {
 
-		grpcServer := grpc.NewServer()
-		externalscaler.RegisterExternalScalerServer(
-			grpcServer,
-			newImpl(lggr, pinger, targetPendingRequests),
-		)
-		reflection.Register(grpcServer)
-		go func() {
-			<-ctx.Done()
-			lis.Close()
-		}()
-		return grpcServer.Serve(lis)
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	lggr.Info("starting grpc server", "address", addr)
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
 	}
+
+	grpcServer := grpc.NewServer()
+	externalscaler.RegisterExternalScalerServer(
+		grpcServer,
+		newImpl(
+			lggr,
+			pinger,
+			routingTable,
+			targetPendingRequests,
+		),
+	)
+	reflection.Register(grpcServer)
+	go func() {
+		<-ctx.Done()
+		lis.Close()
+	}()
+	return grpcServer.Serve(lis)
+
 }
 
 func startHealthcheckServer(
@@ -100,53 +139,52 @@ func startHealthcheckServer(
 	lggr logr.Logger,
 	port int,
 	pinger *queuePinger,
-) func() error {
+) error {
 	lggr = lggr.WithName("startHealthcheckServer")
-	return func() error {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(200)
-		})
-		mux.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(200)
-		})
-		mux.HandleFunc("/queue", func(w http.ResponseWriter, r *http.Request) {
-			lggr = lggr.WithName("route.counts")
-			cts := pinger.counts()
-			lggr.Info("counts endpoint", "counts", cts)
-			if err := json.NewEncoder(w).Encode(&cts); err != nil {
-				lggr.Error(err, "writing counts information to client")
-				w.WriteHeader(500)
-			}
-		})
-		mux.HandleFunc("/queue_ping", func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			lggr := lggr.WithName("route.counts_ping")
-			if err := pinger.requestCounts(ctx); err != nil {
-				lggr.Error(err, "requesting counts failed")
-				w.WriteHeader(500)
-				w.Write([]byte("error requesting counts from interceptors"))
-				return
-			}
-			cts := pinger.counts()
-			lggr.Info("counts ping endpoint", "counts", cts)
-			if err := json.NewEncoder(w).Encode(&cts); err != nil {
-				lggr.Error(err, "writing counts data to caller")
-				w.WriteHeader(500)
-				w.Write([]byte("error writing counts data to caller"))
-			}
-		})
 
-		srv := &http.Server{
-			Addr:    fmt.Sprintf(":%d", port),
-			Handler: mux,
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	})
+	mux.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	})
+	mux.HandleFunc("/queue", func(w http.ResponseWriter, r *http.Request) {
+		lggr = lggr.WithName("route.counts")
+		cts := pinger.counts()
+		lggr.Info("counts endpoint", "counts", cts)
+		if err := json.NewEncoder(w).Encode(&cts); err != nil {
+			lggr.Error(err, "writing counts information to client")
+			w.WriteHeader(500)
 		}
-		lggr.Info("starting health check server", "port", port)
+	})
+	mux.HandleFunc("/queue_ping", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		lggr := lggr.WithName("route.counts_ping")
+		if err := pinger.requestCounts(ctx); err != nil {
+			lggr.Error(err, "requesting counts failed")
+			w.WriteHeader(500)
+			w.Write([]byte("error requesting counts from interceptors"))
+			return
+		}
+		cts := pinger.counts()
+		lggr.Info("counts ping endpoint", "counts", cts)
+		if err := json.NewEncoder(w).Encode(&cts); err != nil {
+			lggr.Error(err, "writing counts data to caller")
+			w.WriteHeader(500)
+			w.Write([]byte("error writing counts data to caller"))
+		}
+	})
 
-		go func() {
-			<-ctx.Done()
-			srv.Shutdown(ctx)
-		}()
-		return srv.ListenAndServe()
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
 	}
+	lggr.Info("starting health check server", "port", port)
+
+	go func() {
+		<-ctx.Done()
+		srv.Shutdown(ctx)
+	}()
+	return srv.ListenAndServe()
 }
