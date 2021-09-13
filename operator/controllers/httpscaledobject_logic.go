@@ -117,6 +117,11 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		return err
 	}
 
+	targetPendingReqs := httpso.Spec.TargetPendingRequests
+	if targetPendingReqs == 0 {
+		targetPendingReqs = rec.BaseConfig.TargetPendingRequests
+	}
+
 	if err := addAndUpdateRoutingTable(
 		ctx,
 		logger,
@@ -127,6 +132,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 			httpso.Spec.ScaleTargetRef.Service,
 			int(httpso.Spec.ScaleTargetRef.Port),
 			httpso.Spec.ScaleTargetRef.Deployment,
+			targetPendingReqs,
 		),
 		httpso.ObjectMeta.Namespace,
 	); err != nil {
