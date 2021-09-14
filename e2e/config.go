@@ -1,41 +1,44 @@
 package e2e
 
-import "strings"
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/kelseyhightower/envconfig"
+)
 
 type config struct {
-	Namespace               string `envconfig:"NAMESPACE"`
-	RunSetupTeardown        bool   `envconfig:"RUN_SETUP_TEARDOWN" default:"false"`
-	AddonChartLocation      string `envconfig:"ADD_ON_CHART_LOCATION" required:"true"`
-	ExampleAppChartLocation string `envconfig:"EXAMPLE_APP_CHART_LOCATION" required:"true"`
-	OperatorImg             string `envconfig:"KEDAHTTP_OPERATOR_IMAGE"`
-	InterceptorImg          string `envconfig:"KEDAHTTP_INTERCEPTOR_IMAGE"`
-	ScalerImg               string `envconfig:"KEDAHTTP_SCALER_IMAGE"`
-	HTTPAddOnImageTag       string `envconfig:"KEDAHTTP_IMAGE_TAG"`
-	NumReqsAgainstProxy     int    `envconfig:"NUM_REQUESTS_TO_EXECUTE" default:"10000"`
+	Namespace           string        `envconfig:"NAMESPACE"`
+	NumReqsAgainstProxy int           `envconfig:"NUM_REQUESTS_TO_EXECUTE" default:"10000"`
+	IngAddress          string        `envconfig:"INGRESS_REQUEST" required:"true"`
+	ProxyAdminSvc       string        `envconfig:"PROXY_ADMIN_SERVICE_NAME" default:"keda-add-ons-http-interceptor-proxy"`
+	ProxyAdminPort      int           `envconfig:"PROXY_ADMIN_PORT" default:"8080"`
+	ScalerAdminSvc      string        `envconfig:"SCALER_ADMIN_SERVICE_NAME" default:"keda-add-ons-http-external-scaler"`
+	ScalerAdminPort     int           `envconfig:"SCALER_ADMIN_PORT" default:"9091"`
+	OperatorAdminSvc    string        `envconfig:"OPERATOR_ADMIN_SERVICE_NAME" default:"keda-add-ons-http-operator-admin"`
+	OperatorAdminPort   int           `envconfig:"OPERATOR_ADMIN_PORT" default:"9090"`
+	AdminServerCheckDur time.Duration `envconfig:"ADMIN_SERVER_CHECK_DUR" default:"500ms"`
 }
 
-func (c *config) httpAddOnHelmVars() map[string]string {
-	ret := map[string]string{}
-	if c.OperatorImg != "" {
-		ret["images.operator"] = strings.Split(
-			c.OperatorImg,
-			":",
-		)[0]
+func (c config) namespace() string {
+	if c.Namespace != "" {
+		return c.Namespace
 	}
-	if c.InterceptorImg != "" {
-		ret["images.interceptor"] = strings.Split(
-			c.InterceptorImg,
-			":",
-		)[0]
+	return fmt.Sprintf(
+		"keda-http-add-on-e2e-%s",
+		uuid.NewString(),
+	)
+}
+
+func parseConfig() (config, bool, error) {
+	const runE2EEnvVar = "KEDA_HTTP_E2E_SHOULD_RUN"
+	shouldRun := os.Getenv(runE2EEnvVar)
+	if shouldRun != "true" {
+		return config{}, false, nil
 	}
-	if c.ScalerImg != "" {
-		ret["images.scaler"] = strings.Split(
-			c.ScalerImg,
-			":",
-		)[0]
-	}
-	if c.HTTPAddOnImageTag != "" {
-		ret["images.tag"] = c.HTTPAddOnImageTag
-	}
-	return ret
+	cfg := config{}
+	envconfig.MustProcess("KEDA_HTTP_E2E", &cfg)
+	return cfg, true, nil
 }
