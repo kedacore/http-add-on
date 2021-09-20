@@ -2,76 +2,85 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/kedacore/http-add-on/pkg/env"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/kelseyhightower/envconfig"
 )
 
 // Interceptor holds static configuration info for the interceptor
 type Interceptor struct {
-	Image     string
-	ProxyPort int32
-	AdminPort int32
-	PullPolicy corev1.PullPolicy
+	ServiceName string `envconfig:"INTERCEPTOR_SERVICE_NAME" required:"true"`
+	ProxyPort   int32  `envconfig:"INTERCEPTOR_PROXY_PORT" required:"true"`
+	AdminPort   int32  `envconfig:"INTERCEPTOR_ADMIN_PORT" required:"true"`
 }
 
-func ensureValidPolicy (policy string) error {
-	converted := corev1.PullPolicy(policy)
-	switch (converted) {
-	case corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever:
-		return nil
+// ExternalScaler holds static configuration info for the external scaler
+type ExternalScaler struct {
+	ServiceName string `envconfig:"EXTERNAL_SCALER_SERVICE_NAME" required:"true"`
+	Port        int32  `envconfig:"EXTERNAL_SCALER_PORT" required:"true"`
+}
+
+type Base struct {
+	TargetPendingRequests int32 `envconfig:"TARGET_PENDING_REQUESTS" default:"100"`
+}
+
+func NewBaseFromEnv() (*Base, error) {
+	ret := new(Base)
+	if err := envconfig.Process(
+		"KEDA_HTTP_OPERATOR",
+		ret,
+	); err != nil {
+		return nil, err
 	}
-	return fmt.Errorf("Policy %q is not a valid Pull Policy. Accepted values are: %s, %s, %s", policy, corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever)
+	return ret, nil
+}
+
+func (e ExternalScaler) HostName(namespace string) string {
+	return fmt.Sprintf(
+		"%s.%s.svc.cluster.local:%d",
+		e.ServiceName,
+		namespace,
+		e.Port,
+	)
+}
+
+// AdminPortString returns i.AdminPort in string format, rather than
+// as an int32.
+func (i Interceptor) AdminPortString() string {
+	return strconv.Itoa(int(i.AdminPort))
 }
 
 // NewInterceptorFromEnv gets interceptor configuration values from environment variables and/or
 // sensible defaults if values were missing.
 // and returns the interceptor struct to match. Returns an error if required values were missing.
 func NewInterceptorFromEnv() (*Interceptor, error) {
-	image, err := env.Get("KEDAHTTP_OPERATOR_INTERCEPTOR_IMAGE")
+	serviceName, err := env.Get("KEDAHTTP_INTERCEPTOR_SERVICE")
 	if err != nil {
-		return nil, fmt.Errorf("missing KEDAHTTP_OPERATOR_INTERCEPTOR_IMAGE")
+		return nil, fmt.Errorf("missing 'KEDAHTTP_INTERCEPTOR_SERVICE'")
 	}
-	adminPort := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_ADMIN_PORT", 8090)
-	proxyPort := env.GetInt32Or("KEDAHTTP_OPERATOR_INTERCEPTOR_PROXY_PORT", 8091)
-	pullPolicy := env.GetOr("INTERCEPTOR_PULL_POLICY", "Always")
-	if policyErr := ensureValidPolicy(pullPolicy); policyErr != nil {
-		return nil, policyErr
-	}
+	adminPort := env.GetInt32Or("KEDAHTTP_INTERCEPTOR_ADMIN_PORT", 8090)
+	proxyPort := env.GetInt32Or("KEDAHTTP_INTERCEPTOR_PROXY_PORT", 8091)
 
 	return &Interceptor{
-		Image:     image,
-		AdminPort: adminPort,
-		ProxyPort: proxyPort,
-		PullPolicy: corev1.PullPolicy(pullPolicy),
+		ServiceName: serviceName,
+		AdminPort:   adminPort,
+		ProxyPort:   proxyPort,
 	}, nil
-}
-
-// ExternalScaler holds static configuration info for the external scaler
-type ExternalScaler struct {
-	Image string
-	Port  int32
-	PullPolicy corev1.PullPolicy
 }
 
 // NewExternalScalerFromEnv gets external scaler configuration values from environment variables and/or
 // sensible defaults if values were missing.
 // and returns the interceptor struct to match. Returns an error if required values were missing.
 func NewExternalScalerFromEnv() (*ExternalScaler, error) {
-	image, err := env.Get("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_IMAGE")
-	port := env.GetInt32Or("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT", 8091)
+	// image, err := env.Get("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_IMAGE")
+	serviceName, err := env.Get("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE")
 	if err != nil {
-		return nil, fmt.Errorf("Missing KEDAHTTP_EXTERNAL_SCALER_IMAGE")
+		return nil, fmt.Errorf("missing KEDAHTTP_EXTERNAL_SCALER_SERVICE")
 	}
-
-	pullPolicy := env.GetOr("SCALER_PULL_POLICY", "Always")
-	if policyErr := ensureValidPolicy(pullPolicy); policyErr != nil {
-		return nil, policyErr
-	}
-
+	port := env.GetInt32Or("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT", 8091)
 	return &ExternalScaler{
-		Image: image,
-		Port:  port,
-		PullPolicy: corev1.PullPolicy(pullPolicy),
+		ServiceName: serviceName,
+		Port:        port,
 	}, nil
 }

@@ -31,6 +31,7 @@ import (
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
+	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
@@ -40,6 +41,8 @@ type HTTPScaledObjectReconciler struct {
 	Scheme               *runtime.Scheme
 	InterceptorConfig    config.Interceptor
 	ExternalScalerConfig config.ExternalScaler
+	BaseConfig           config.Base
+	RoutingTable         *routing.Table
 }
 
 // +kubebuilder:rbac:groups=keda.sh,resources=scaledobjects,verbs=get;list;watch;create;update;patch;delete

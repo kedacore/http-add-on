@@ -19,15 +19,27 @@ We've split this project into a few different major areas of functionality, whic
 
 We've introduced a new [Custom Resource (CRD)](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) called `HTTPScaledObject.http.keda.sh` - `HTTPScaledObject` for short. Fundamentally, this resource allows an application developer to submit their HTTP-based application name and container image to the system, and have the system deploy all the necessary internal machinery required to deploy their HTTP application and expose it to the public internet.
 
-The [operator](../operator) runs inside the Kubernetes namespace to which they're deploying their application and watches for these `HTTPScaledObject` resources. When one is created, it will create a `Deployment` and `Service` for the app, interceptor, and scaler, and a [`ScaledObject`](https://keda.sh/docs/2.1/concepts/scaling-deployments/) which KEDA then uses to scale the application.
+The [operator](../operator) runs inside the Kubernetes namespace to which they're deploying their application and watches for these `HTTPScaledObject` resources. When one is created, it does the following:
 
-When the `HTTPScaledObject` is deleted, the operator then removes all of the aforementioned resources.
+- Update an internal routing table that maps incoming HTTP hostnames to internal applications.
+- Furnish this routing table information to interceptors so that they can properly route requests.
+- Create a [`ScaledObject`](https://keda.sh/docs/2.3/concepts/scaling-deployments/#scaledobject-spec) for the `Deployment` specified in the `HTTPScaledObject` resource.
+
+When the `HTTPScaledObject` is deleted, the operator reverses all of the aforementioned actions.
 
 ### Autoscaling for HTTP Apps
 
-After an `HTTPScaledObject` is created and the operator creates the appropriate resources, there is a public IP address (and DNS entry, if configured) and the interceptor takes over. When HTTP traffic enters the system from the public internet, the interceptor accepts it and forwards it to the app's `Service` IP (it is most commonly configured as a `ClusterIP` service).
+After an `HTTPScaledObject` is created and the operator creates the appropriate resources, you must send HTTP requests through the interceptor so that the application is scaled. A Kubernetes `Service` called `keda-add-ons-http-interceptor-proxy` was created when you `helm install`ed the addon. Send requests to that service.
 
-At the same time, the interceptor keeps track of the size of the pending HTTP requests - HTTP requests that it has forwarded but the app hasn't returned. The scaler periodically makes HTTP requests to the interceptor via an internal HTTP endpoint - on a separate port from the public server - to get the size of the pending queue. Based on this queue size, it reports scaling metrics as appropriate to KEDA. As the queue size increases, the scaler instructs KEDA to scale up as appropriate. Similarly, as the queue size decreases, the scaler instructs KEDA to scale down.
+The interceptor keeps track of the number of pending HTTP requests - HTTP requests that it has forwarded but the app hasn't returned. The scaler periodically makes HTTP requests to the interceptor via an internal RPC endpoint - on a separate port from the public server - to get the size of the pending queue. Based on this queue size, it reports scaling metrics as appropriate to KEDA. As the queue size increases, the scaler instructs KEDA to scale up as appropriate. Similarly, as the queue size decreases, the scaler instructs KEDA to scale down.
+
+#### The Horizontal Pod Autoscaler
+
+The HTTP Addon works with the Kubernetes [Horizonal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details) (HPA) -- via KEDA itself -- to execute scale-up and scale-down operations (except for scaling between zero and non-zero replicas). The addon furnishes KEDA with two metrics - the current number of pending requests for a host, and the desired number (called `targetPendingRequests` in the [HTTPScaledObject](./ref/v0.2.0/http_scaled_object.md)). KEDA then sends these metrics to the HPA, which uses them as the `currentMetricValue` and `desiredMetricValue`, respectively, in the [HPA Algorithm](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details).
+
+The net effect is that the Addon scales up when your app grows to more pending requests than the `targetPendingRequests` value, and scales down when it has fewer than that value.
+
+>The aforementioned HPA algorithm is pasted here for convenience: `desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]`. The value of `targetPendingRequests` will be passed in where `desiredMetricValue` is expected, and the point-in-time metric for number of pending requests will be passed in where `currentMetricValue` is expected.
 
 ## Architecture Overview
 

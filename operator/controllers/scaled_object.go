@@ -29,23 +29,12 @@ func createScaledObjects(
 		config.AppScaledObjectName(httpso),
 		appInfo.Name,
 		externalScalerHostName,
+		httpso.Spec.Host,
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,
 	)
 	if appErr != nil {
 		return appErr
-	}
-
-	interceptorScaledObject, interceptorErr := k8s.NewScaledObject(
-		appInfo.Namespace,
-		config.InterceptorScaledObjectName(httpso),
-		appInfo.InterceptorDeploymentName(),
-		externalScalerHostName,
-		httpso.Spec.Replicas.Min,
-		httpso.Spec.Replicas.Max,
-	)
-	if interceptorErr != nil {
-		return interceptorErr
 	}
 
 	logger.Info("Creating App ScaledObject", "ScaledObject", *appScaledObject)
@@ -68,28 +57,6 @@ func createScaledObjects(
 		v1.ConditionTrue,
 		v1alpha1.AppScaledObjectCreated,
 	).SetMessage("App ScaledObject created"))
-
-	// Interceptor ScaledObject
-	logger.Info("Creating Interceptor ScaledObject", "ScaledObject", *interceptorScaledObject)
-	if err := cl.Create(ctx, interceptorScaledObject); err != nil {
-		if errors.IsAlreadyExists(err) {
-			logger.Info("Interceptor ScaledObject already exists, moving on")
-		} else {
-			logger.Error(err, "Creating Interceptor ScaledObject")
-			httpso.AddCondition(*v1alpha1.CreateCondition(
-				v1alpha1.Error,
-				v1.ConditionFalse,
-				v1alpha1.ErrorCreatingInterceptorScaledObject,
-			).SetMessage(err.Error()))
-			return err
-		}
-	}
-
-	httpso.AddCondition(*v1alpha1.CreateCondition(
-		v1alpha1.Created,
-		v1.ConditionTrue,
-		v1alpha1.InterceptorScaledObjectCreated,
-	).SetMessage("Interceptor Scaled object created"))
 
 	return nil
 }

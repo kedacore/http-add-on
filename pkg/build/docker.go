@@ -27,7 +27,22 @@ func DockerBuild(image, dockerfileLocation, context string) error {
 		image,
 		"-f",
 		dockerfileLocation,
-		".",
+		context,
+	)
+}
+
+func DockerBuildACR(registry, image, dockerfileLocation, context string) error {
+	return sh.RunV(
+		"az",
+		"acr",
+		"build",
+		"--image",
+		image,
+		"--registry",
+		registry,
+		"--file",
+		dockerfileLocation,
+		context,
 	)
 }
 

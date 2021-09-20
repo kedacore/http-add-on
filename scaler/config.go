@@ -1,6 +1,10 @@
 package main
 
-import "github.com/kelseyhightower/envconfig"
+import (
+	"time"
+
+	"github.com/kelseyhightower/envconfig"
+)
 
 type config struct {
 	// GRPCPort is what port to serve the KEDA-compatible gRPC external scaler interface
@@ -17,6 +21,14 @@ type config struct {
 	// TargetPort is the port on TargetService to which to issue metrics RPC requests to
 	// interceptors
 	TargetPort int `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_PORT" required:"true"`
+	// TargetPendingRequests is the default value for the
+	// pending requests value that the scaler will return to
+	// KEDA, if that value is not set on an incoming
+	// `HTTPScaledObject`
+	TargetPendingRequests int `envconfig:"KEDA_HTTP_SCALER_TARGET_PENDING_REQUESTS" default:"100"`
+	// UpdateRoutingTableDur is the duration between manual
+	// updates to the routing table.
+	UpdateRoutingTableDur time.Duration `envconfig:"KEDA_HTTP_SCALER_ROUTING_TABLE_UPDATE_DUR" default:"100ms"`
 }
 
 func mustParseConfig() *config {
