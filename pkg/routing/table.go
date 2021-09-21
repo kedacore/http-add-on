@@ -32,6 +32,7 @@ func NewTarget(
 		Port:                  port,
 		Deployment:            depl,
 		TargetPendingRequests: target,
+		Namespace:             namespace,
 	}
 }
 
