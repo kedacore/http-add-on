@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,12 +29,14 @@ func TestE2EHTTPScaledObjectInstall(t *testing.T) {
 	// install an HTTPScaledObject
 	cl, restCfg, err := getClient()
 	r.NoError(err)
+	// need to use the lowercase so that it's a RFC 1123 compliant subdomain
+	universalName := strings.ToLower(t.Name())
 	scaledObject, err := k8s.NewScaledObject(
 		ns,
-		t.Name(),
-		t.Name(),
-		t.Name(),
-		fmt.Sprintf("%s.com", t.Name()),
+		universalName,
+		universalName,
+		universalName,
+		fmt.Sprintf("%s.com", universalName),
 		0,
 		100,
 	)
