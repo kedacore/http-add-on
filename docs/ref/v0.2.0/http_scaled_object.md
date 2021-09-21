@@ -15,10 +15,7 @@ spec:
         deployment: xkcd
         service: xkcd
         port: 8080
-<<<<<<< HEAD
-=======
         targetPendingRequests: 100
->>>>>>> 27612dabeef8bd3d9a15a0895475de1597544a94
 ```
 
 This document is a narrated reference guide for the `HTTPScaledObject`, and we'll focus on the `spec` field.
