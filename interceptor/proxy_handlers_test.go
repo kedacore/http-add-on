@@ -170,8 +170,11 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
-	noSuchHost := "TestWaitsForWaitFunc.test"
-	const originRespCode = 201
+	const (
+		noSuchHost     = "TestWaitsForWaitFunc.test"
+		originRespCode = 201
+		namespace      = "testns"
+	)
 	testSrv, testSrvURL, err := kedanet.StartTestServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(originRespCode)
@@ -182,11 +185,13 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	originHost, originPort, err := splitHostPort(testSrvURL.Host)
 	r.NoError(err)
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchHost, routing.Target{
-		Service:    originHost,
-		Port:       originPort,
-		Deployment: "nosuchdepl",
-	})
+	routingTable.AddTarget(noSuchHost, routing.NewTarget(
+		namespace,
+		originHost,
+		originPort,
+		"nosuchdepl",
+		1234,
+	))
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,

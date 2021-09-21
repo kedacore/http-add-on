@@ -32,6 +32,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 		deploymentReplicasTimeout = 200 * time.Millisecond
 		responseHeaderTimeout     = 1 * time.Second
 		deplName                  = "testdeployment"
+		namespace                 = "testns"
 	)
 	r := require.New(t)
 	h, err := newHarness(deploymentReplicasTimeout, responseHeaderTimeout)
@@ -55,11 +56,13 @@ func TestIntegrationHappyPath(t *testing.T) {
 
 	originHost, originPort, err := splitHostPort(h.originURL.Host)
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), routing.Target{
-		Service:    originHost,
-		Port:       originPort,
-		Deployment: deplName,
-	})
+	h.routingTable.AddTarget(hostForTest(t), routing.NewTarget(
+		namespace,
+		originHost,
+		originPort,
+		deplName,
+		123,
+	))
 
 	// happy path
 	res, err := doRequest(
