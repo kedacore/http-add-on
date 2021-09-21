@@ -2,10 +2,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	"github.com/kedacore/http-add-on/operator/controllers/config"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +15,6 @@ import (
 // create ScaledObjects for the app and interceptor
 func createScaledObjects(
 	ctx context.Context,
-	appInfo config.AppInfo,
 	cl client.Client,
 	logger logr.Logger,
 	externalScalerHostName string,
@@ -25,9 +24,9 @@ func createScaledObjects(
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
 
 	appScaledObject, appErr := k8s.NewScaledObject(
-		appInfo.Namespace,
-		config.AppScaledObjectName(httpso),
-		appInfo.Name,
+		httpso.GetNamespace(),
+		fmt.Sprintf("%s-app", httpso.GetName()), // HTTPScaledObject name is the same as the ScaledObject name
+		httpso.Spec.ScaleTargetRef.Deployment,
 		externalScalerHostName,
 		httpso.Spec.Host,
 		httpso.Spec.Replicas.Min,

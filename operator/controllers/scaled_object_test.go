@@ -25,7 +25,6 @@ var _ = Describe("UserApp", func() {
 		It("Should properly create the ScaledObject for the user app", func() {
 			err := createScaledObjects(
 				testInfra.ctx,
-				testInfra.cfg,
 				testInfra.cl,
 				testInfra.logger,
 				externalScalerHostName,

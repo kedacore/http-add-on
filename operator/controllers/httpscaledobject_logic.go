@@ -108,7 +108,6 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	// interceptor
 	if err := createScaledObjects(
 		ctx,
-		appInfo,
 		rec.Client,
 		logger,
 		appInfo.ExternalScalerConfig.HostName(appInfo.Namespace),
