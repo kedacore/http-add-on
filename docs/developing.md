@@ -52,6 +52,9 @@ The most useful and common commands from the root directory are listed below. Pl
 
 - `mage build`: Builds all the binaries for local testing.
 - `mage test`: Tests the entire codebase
+
+> Set the `KEDA_HTTP_E2E_SHOULD_RUN` environment variable to `true` if you'd like to run both unit/integration _and_ e2e tests at the same time.
+
 - `mage dockerbuild`: Builds all docker images
   - Please see the below "Environment Variables" section for more information on this command
 - `mage dockerpush`: Pushes all docker images, without building them first
@@ -63,7 +66,7 @@ The most useful and common commands from the root directory are listed below. Pl
   to a Kustomize annotation.
 - `mage All`: Generates the operator.
 
-### Required Environment Variables
+### Environment Variables
 
 Some of the above commands require several environment variables to be set. You should set them once in your environment to ensure that you can run these targets. We recommend using [direnv](https://direnv.net) to set these environment variables once, so that you don't need to remember to do it.
 
