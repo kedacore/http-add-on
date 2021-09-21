@@ -7,18 +7,23 @@ import (
 	"sync"
 )
 
-type TableReader interface {
-	json.Marshaler
-	Lookup(host string) (Target, error)
-	Hosts() []string
-}
-
 type TableWriter interface {
 	json.Unmarshaler
 	AddTarget(host string, target Target) error
 	RemoveTarget(host string) error
 }
 
+// TableReader is a table that can only be read from. This interface
+// is useful to accept as a parameter in functions that only need to read
+// from a table
+
+type TableReader interface {
+	json.Marshaler
+	Lookup(host string) (Target, error)
+	Hosts() []string
+}
+
+// TableReaderWriter is a table reader and writer
 type TableReaderWriter interface {
 	TableReader
 	TableWriter
@@ -26,6 +31,7 @@ type TableReaderWriter interface {
 
 // Table is an in-memory routing table that implements
 // TableReaderWriter.
+
 type Table struct {
 	json.Marshaler
 	json.Unmarshaler
