@@ -41,6 +41,7 @@ type HTTPScaledObjectReconciler struct {
 	Scheme               *runtime.Scheme
 	InterceptorConfig    config.Interceptor
 	ExternalScalerConfig config.ExternalScaler
+	BaseConfig           config.Base
 	RoutingTable         *routing.Table
 }
 

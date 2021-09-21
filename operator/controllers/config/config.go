@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/kedacore/http-add-on/pkg/env"
+	"github.com/kelseyhightower/envconfig"
 )
 
 // Interceptor holds static configuration info for the interceptor
@@ -18,6 +19,21 @@ type Interceptor struct {
 type ExternalScaler struct {
 	ServiceName string `envconfig:"EXTERNAL_SCALER_SERVICE_NAME" required:"true"`
 	Port        int32  `envconfig:"EXTERNAL_SCALER_PORT" required:"true"`
+}
+
+type Base struct {
+	TargetPendingRequests int32 `envconfig:"TARGET_PENDING_REQUESTS" default:"100"`
+}
+
+func NewBaseFromEnv() (*Base, error) {
+	ret := new(Base)
+	if err := envconfig.Process(
+		"KEDA_HTTP_OPERATOR",
+		ret,
+	); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
 
 func (e ExternalScaler) HostName(namespace string) string {

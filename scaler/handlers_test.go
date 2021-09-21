@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 	"github.com/stretchr/testify/require"
 )
@@ -18,6 +19,7 @@ func TestIsActive(t *testing.T) {
 	r := require.New(t)
 	ctx := context.Background()
 	lggr := logr.Discard()
+	table := routing.NewTable()
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
 	pinger.pingMut.Lock()
@@ -27,6 +29,7 @@ func TestIsActive(t *testing.T) {
 	hdl := newImpl(
 		lggr,
 		pinger,
+		table,
 		123,
 	)
 	res, err := hdl.IsActive(
@@ -69,9 +72,16 @@ func TestGetMetricSpec(t *testing.T) {
 	r := require.New(t)
 	ctx := context.Background()
 	lggr := logr.Discard()
+	table := routing.NewTable()
+	table.AddTarget(host, routing.NewTarget(
+		"testsrv",
+		8080,
+		"testdepl",
+		int32(target),
+	))
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, 123)
+	hdl := newImpl(lggr, pinger, table, 123)
 	meta := map[string]string{
 		"host":                  host,
 		"targetPendingRequests": strconv.Itoa(int(target)),
@@ -85,10 +95,7 @@ func TestGetMetricSpec(t *testing.T) {
 	r.Equal(1, len(ret.MetricSpecs))
 	spec := ret.MetricSpecs[0]
 	r.Equal(host, spec.MetricName)
-	// NOTE: spec.TargetSize needs to be equal to the 'target' const.
-	// this is a TODO in https://github.com/kedacore/http-add-on/issues/234
-	// to fix this
-	r.Equal(int64(123), spec.TargetSize)
+	r.Equal(target, spec.TargetSize)
 }
 
 // GetMetrics with a ScaledObjectRef in the RPC request that has
@@ -100,9 +107,10 @@ func TestGetMetricsMissingHostInMetadata(t *testing.T) {
 	req := &externalscaler.GetMetricsRequest{
 		ScaledObjectRef: &externalscaler.ScaledObjectRef{},
 	}
+	table := routing.NewTable()
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, 123)
+	hdl := newImpl(lggr, pinger, table, 123)
 
 	// no 'host' in the ScalerObjectRef's metadata field
 	res, err := hdl.GetMetrics(ctx, req)
@@ -126,9 +134,10 @@ func TestGetMetricsMissingHostInQueue(t *testing.T) {
 		"host": host,
 	}
 
+	table := routing.NewTable()
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, 123)
+	hdl := newImpl(lggr, pinger, table, 123)
 
 	req := &externalscaler.GetMetricsRequest{
 		ScaledObjectRef: &externalscaler.ScaledObjectRef{},
@@ -188,6 +197,7 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 	r.NoError(err)
 	defer fakeSrv.Close()
 
+	table := routing.NewTable()
 	// create a fake queue pinger. this is the simulated
 	// scaler that pings the above fake interceptor
 	ticker, pinger := newFakeQueuePinger(
@@ -204,7 +214,7 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 	// first tick
 	time.Sleep(5 * time.Millisecond)
 
-	hdl := newImpl(lggr, pinger, 123)
+	hdl := newImpl(lggr, pinger, table, 123)
 	res, err := hdl.GetMetrics(ctx, req)
 	r.NoError(err)
 	r.NotNil(res)
@@ -259,6 +269,7 @@ func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
 	r.NoError(err)
 	defer fakeSrv.Close()
 
+	table := routing.NewTable()
 	// create a fake queue pinger. this is the simulated
 	// scaler that pings the above fake interceptor
 	const tickDur = 5 * time.Millisecond
@@ -275,7 +286,7 @@ func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
 	// first tick
 	time.Sleep(tickDur * 5)
 
-	hdl := newImpl(lggr, pinger, 123)
+	hdl := newImpl(lggr, pinger, table, 123)
 	res, err := hdl.GetMetrics(ctx, req)
 	r.NoError(err)
 	r.NotNil(res)
