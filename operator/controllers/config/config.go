@@ -12,6 +12,21 @@ type ExternalScaler struct {
 	Port        int32  `envconfig:"EXTERNAL_SCALER_PORT" required:"true"`
 }
 
+type Base struct {
+	TargetPendingRequests int32 `envconfig:"TARGET_PENDING_REQUESTS" default:"100"`
+}
+
+func NewBaseFromEnv() (*Base, error) {
+	ret := new(Base)
+	if err := envconfig.Process(
+		"KEDA_HTTP_OPERATOR",
+		ret,
+	); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
 func (e ExternalScaler) HostName(namespace string) string {
 	return fmt.Sprintf(
 		"%s.%s.svc.cluster.local:%d",

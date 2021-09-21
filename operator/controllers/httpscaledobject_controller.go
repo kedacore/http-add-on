@@ -40,6 +40,7 @@ type HTTPScaledObjectReconciler struct {
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	ExternalScalerConfig config.ExternalScaler
+	BaseConfig           config.Base
 	RoutingTable         *routing.Table
 }
 

@@ -46,12 +46,15 @@ func newForwardingHandler(
 			w.Write([]byte("Host not found in request"))
 			return
 		}
+		fmt.Println("GOT HOST", host)
+		fmt.Println("ABOUT TO LOOK UP HOST IN ROUTING TABLE", routingTable)
 		routingTarget, err := routingTable.Lookup(host)
 		if err != nil {
 			w.WriteHeader(404)
 			w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host)))
 			return
 		}
+		fmt.Println("GOT ROUTING TARGET", routingTarget)
 		ctx, done := context.WithTimeout(r.Context(), waitTimeout)
 		defer done()
 		if err := waitFunc(ctx, routingTarget.Deployment); err != nil {
@@ -60,6 +63,7 @@ func newForwardingHandler(
 			w.Write([]byte(fmt.Sprintf("error on backend (%s)", err)))
 			return
 		}
+		fmt.Println("DONE WAITING")
 		targetSvcURL, err := routingTarget.ServiceURL()
 		if err != nil {
 			lggr.Error(err, "forwarding failed")
@@ -67,6 +71,8 @@ func newForwardingHandler(
 			w.Write([]byte("error getting backend service URL"))
 			return
 		}
+		fmt.Println("ABOUT TO REQUEST TO SERVICE", *targetSvcURL)
 		forwardRequest(w, r, roundTripper, targetSvcURL)
+		fmt.Println("DONE")
 	})
 }
