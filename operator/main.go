@@ -67,18 +67,6 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "f8508ff1.keda.sh",
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
-
 	interceptorCfg, err := config.NewInterceptorFromEnv()
 	if err != nil {
 		setupLog.Error(err, "unable to get interceptor configuration")
@@ -97,6 +85,22 @@ func main() {
 		)
 		os.Exit(1)
 	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: metricsAddr,
+		Port:               9443,
+		LeaderElection:     enableLeaderElection,
+		LeaderElectionID:   "f8508ff1.keda.sh",
+		// if no namespace set, this defaults to "", which indicates all
+		// namespaces
+		Namespace: baseConfig.TargetNamespace,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
 	routingTable := routing.NewTable()
 	if err := (&controllers.HTTPScaledObjectReconciler{
 		Client:               mgr.GetClient(),

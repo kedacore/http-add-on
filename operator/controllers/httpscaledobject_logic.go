@@ -129,6 +129,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		rec.RoutingTable,
 		httpso.Spec.Host,
 		routing.NewTarget(
+			httpso.GetNamespace(),
 			httpso.Spec.ScaleTargetRef.Service,
 			int(httpso.Spec.ScaleTargetRef.Port),
 			httpso.Spec.ScaleTargetRef.Deployment,

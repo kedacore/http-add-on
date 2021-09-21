@@ -15,11 +15,13 @@ type Target struct {
 	Service               string `json:"service"`
 	Port                  int    `json:"port"`
 	Deployment            string `json:"deployment"`
+	Namespace             string `json:"namespace"`
 	TargetPendingRequests int32  `json:"target"`
 }
 
 // NewTarget creates a new Target from the given parameters.
 func NewTarget(
+	namespace,
 	svc string,
 	port int,
 	depl string,
@@ -34,13 +36,12 @@ func NewTarget(
 }
 
 func (t *Target) ServiceURL() (*url.URL, error) {
-	urlStr := fmt.Sprintf("http://%s:%d", t.Service, t.Port)
+	urlStr := fmt.Sprintf("http://%s.%s:%d", t.Service, t.Namespace, t.Port)
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
 	}
 	return u, nil
-
 }
 
 type TableReader interface {

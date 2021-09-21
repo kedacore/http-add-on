@@ -74,6 +74,7 @@ func TestGetMetricSpec(t *testing.T) {
 	lggr := logr.Discard()
 	table := routing.NewTable()
 	table.AddTarget(host, routing.NewTarget(
+		"testns",
 		"testsrv",
 		8080,
 		"testdepl",
