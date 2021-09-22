@@ -49,8 +49,10 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.DeploymentReplicas,
-		timeouts.ResponseHeader,
+		forwardingConfig{
+			waitTimeout:       timeouts.DeploymentReplicas,
+			respHeaderTimeout: timeouts.ResponseHeader,
+		},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -91,8 +93,10 @@ func TestWaitFailedConnection(t *testing.T) {
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.DeploymentReplicas,
-		timeouts.ResponseHeader,
+		forwardingConfig{
+			waitTimeout:       timeouts.DeploymentReplicas,
+			respHeaderTimeout: timeouts.ResponseHeader,
+		},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -129,8 +133,10 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.DeploymentReplicas,
-		timeouts.ResponseHeader,
+		forwardingConfig{
+			waitTimeout:       timeouts.DeploymentReplicas,
+			respHeaderTimeout: timeouts.ResponseHeader,
+		},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -192,8 +198,10 @@ func TestWaitsForWaitFunc(t *testing.T) {
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.DeploymentReplicas,
-		timeouts.ResponseHeader,
+		forwardingConfig{
+			waitTimeout:       timeouts.DeploymentReplicas,
+			respHeaderTimeout: timeouts.ResponseHeader,
+		},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -259,8 +267,10 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		timeouts.DeploymentReplicas,
-		timeouts.ResponseHeader,
+		forwardingConfig{
+			waitTimeout:       timeouts.DeploymentReplicas,
+			respHeaderTimeout: timeouts.ResponseHeader,
+		},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
