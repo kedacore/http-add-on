@@ -9,14 +9,25 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
+// DeploymentLister list deployments in a given namespace
 type DeploymentLister interface {
-	List(ctx context.Context, options metav1.ListOptions) (*appsv1.DeploymentList, error)
+	// List lists all the deployments in the given namespace
+	List(
+		ctx context.Context,
+		namespace string,
+		options metav1.ListOptions,
+	) (*appsv1.DeploymentList, error)
 }
 
-// DeploymentLister knows how to watch deployments. This interface is
-// implemented by Kubernetes client-go
+// DeploymentLister knows how to watch deployments.
 type DeploymentWatcher interface {
-	Watch(ctx context.Context, options metav1.ListOptions) (watch.Interface, error)
+	// Watch watches the deployment with name in namespace
+	Watch(
+		ctx context.Context,
+		namespace,
+		name string,
+		options metav1.ListOptions,
+	) (watch.Interface, error)
 }
 
 // DeploymentListerWatcher knows how to list and watch deployments. This

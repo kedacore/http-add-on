@@ -14,11 +14,26 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
+// DeploymentCache is a simple cache of deployments.
 type DeploymentCache interface {
-	Get(name string) (appsv1.Deployment, error)
-	Watch(name string) watch.Interface
+	// Get gets the a deployment with the given name
+	// in the given namespace from the cache.
+	//
+	// If the deployment doesn't exist in the cache, it
+	// will be requested from the backing store (most commonly
+	// the Kubernetes API server)
+	Get(namespace, name string) (appsv1.Deployment, error)
+	// Watch opens a watch stream for the deployment with
+	// the given name in the given namespace from the cache.
+	//
+	// If the deployment doesn't exist in the cache, it
+	// will be requested from the backing store (most commonly
+	// the Kubernetes API server)
+	Watch(namespace, name string) watch.Interface
 }
 
+// K8sDeploymentCache is a DeploymentCache implementation
+// that uses the Kubernetes API server as the backing store.
 type K8sDeploymentCache struct {
 	latest      map[string]appsv1.Deployment
 	rwm         *sync.RWMutex
@@ -26,6 +41,8 @@ type K8sDeploymentCache struct {
 	broadcaster *watch.Broadcaster
 }
 
+// NewK8sDeploymentCache creates a new K8sDeploymentCache
+// backed by the given DeploymentListerWatcher.
 func NewK8sDeploymentCache(
 	ctx context.Context,
 	lggr logr.Logger,
