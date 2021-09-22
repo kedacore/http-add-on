@@ -57,7 +57,7 @@ func main() {
 		time.NewTicker(500*time.Millisecond),
 	)
 
-	table := routing.NewTable()
+	tableAndVersion := routing.NewEmptyTableAndVersionHistory()
 
 	grp, ctx := errgroup.WithContext(ctx)
 	grp.Go(func() error {
@@ -67,7 +67,7 @@ func main() {
 			lggr,
 			grpcPort,
 			pinger,
-			table,
+			tableAndVersion.Table,
 			int64(targetPendingRequests),
 		)
 	})
@@ -79,7 +79,7 @@ func main() {
 			lggr,
 			cfg.UpdateRoutingTableDur,
 			k8sCl.CoreV1().ConfigMaps(cfg.TargetNamespace),
-			table,
+			tableAndVersion,
 			// we don't care about the queue here.
 			// we just want to update the routing table
 			// so that the scaler can use it to determine
