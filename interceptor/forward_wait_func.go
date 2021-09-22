@@ -9,13 +9,15 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 )
 
-type forwardWaitFunc func(context.Context, string) error
+// forwardWaitFunc is a function that waits for a condition
+// before proceeding to serve the request.
+type forwardWaitFunc func(context.Context, string, string) error
 
 func newDeployReplicasForwardWaitFunc(
 	deployCache k8s.DeploymentCache,
 ) forwardWaitFunc {
-	return func(ctx context.Context, deployName string) error {
-		deployment, err := deployCache.Get(deployName)
+	return func(ctx context.Context, deployNS, deployName string) error {
+		deployment, err := deployCache.Get(deployNS, deployName)
 		if err != nil {
 			// if we didn't get the initial deployment state, bail out
 			return fmt.Errorf("error getting state for deployment %s (%s)", deployName, err)
@@ -24,7 +26,7 @@ func newDeployReplicasForwardWaitFunc(
 		if deployment.Status.ReadyReplicas > 0 {
 			return nil
 		}
-		watcher := deployCache.Watch(deployName)
+		watcher := deployCache.Watch(deployNS, deployName)
 		if err != nil {
 			return fmt.Errorf("error getting the stream of deployment changes")
 		}

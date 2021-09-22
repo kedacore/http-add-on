@@ -73,7 +73,7 @@ func newForwardingHandler(
 
 		ctx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
 		defer done()
-		if err := waitFunc(ctx, routingTarget.Deployment); err != nil {
+		if err := waitFunc(ctx, routingTarget.Namespace, routingTarget.Deployment); err != nil {
 			lggr.Error(err, "wait function failed, not forwarding request")
 			w.WriteHeader(502)
 			w.Write([]byte(fmt.Sprintf("error on backend (%s)", err)))

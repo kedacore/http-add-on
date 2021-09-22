@@ -51,13 +51,10 @@ func main() {
 		lggr.Error(err, "creating new Kubernetes ClientSet")
 		os.Exit(1)
 	}
-	deployInterface := cl.AppsV1().Deployments(
-		servingCfg.CurrentNamespace,
-	)
-	deployCache, err := k8s.NewK8sDeploymentCache(
-		ctx,
+	deployCache := k8s.NewInformerBackedDeploymentCache(
 		lggr,
-		deployInterface,
+		cl,
+		time.Millisecond*time.Duration(servingCfg.DeploymentCachePollIntervalMS),
 	)
 	if err != nil {
 		lggr.Error(err, "creating new deployment cache")
@@ -92,11 +89,7 @@ func main() {
 	// start the deployment cache updater
 	errGrp.Go(func() error {
 		defer ctxDone()
-		err := deployCache.StartWatcher(
-			ctx,
-			lggr,
-			time.Duration(servingCfg.DeploymentCachePollIntervalMS)*time.Millisecond,
-		)
+		err := deployCache.Start(ctx)
 		lggr.Error(err, "deployment cache watcher failed")
 		return err
 	})

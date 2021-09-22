@@ -2,9 +2,10 @@ package k8s
 
 import (
 	"context"
-	"sync"
+	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -12,14 +13,12 @@ import (
 	infappsv1 "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type InformerBackedDeploymentCache struct {
-	sei         infappsv1.DeploymentInformer
-	bcastersMut *sync.RWMutex
-	// bcasters is a map of broadcasters for each deployment
-	bcasters map[client.ObjectKey]*watch.Broadcaster
+	lggr    logr.Logger
+	sei     infappsv1.DeploymentInformer
+	bcaster *watch.Broadcaster
 }
 
 func (i *InformerBackedDeploymentCache) Start(ctx context.Context) error {
@@ -44,36 +43,53 @@ func (i *InformerBackedDeploymentCache) Watch(
 	ns,
 	name string,
 ) watch.Interface {
-	i.bcastersMut.Lock()
-	defer i.bcastersMut.Unlock()
-	key := client.ObjectKey{Namespace: ns, Name: name}
-	bcaster, ok := i.bcasters[key]
-	if !ok {
-		bcaster = watch.NewBroadcaster(
-			0,
-			watch.WaitIfChannelFull,
-		)
-		i.bcasters[key] = bcaster
-	}
-	return bcaster.Watch()
+	return watch.Filter(i.bcaster.Watch(), func(e watch.Event) (watch.Event, bool) {
+		depl := e.Object.(*appsv1.Deployment)
+		if depl.Namespace == ns && depl.Name == name {
+			return e, true
+		}
+		return e, false
+	})
 }
 
 func (i *InformerBackedDeploymentCache) addEvtHandler(obj interface{}) {
-	i.bcastersMut.Lock()
-	defer i.bcastersMut.Unlock()
+	depl, ok := obj.(*appsv1.Deployment)
+	if !ok {
+		i.lggr.Error(
+			fmt.Errorf("informer expected deployment, got %v", obj),
+			"not forwarding event",
+		)
+		return
+	}
+	i.bcaster.Action(watch.Added, depl)
 }
 
-func (i *InformerBackedDeploymentCache) updateEvtHandler(obj interface{}) {
-	i.bcastersMut.Lock()
-	defer i.bcastersMut.Unlock()
+func (i *InformerBackedDeploymentCache) updateEvtHandler(oldObj, newObj interface{}) {
+	depl, ok := newObj.(*appsv1.Deployment)
+	if !ok {
+		i.lggr.Error(
+			fmt.Errorf("informer expected deployment, got %v", newObj),
+			"not forwarding event",
+		)
+		return
+	}
+	i.bcaster.Action(watch.Modified, depl)
 }
 
 func (i *InformerBackedDeploymentCache) deleteEvtHandler(obj interface{}) {
-	i.bcastersMut.Lock()
-	defer i.bcastersMut.Unlock()
+	depl, ok := obj.(*appsv1.Deployment)
+	if !ok {
+		i.lggr.Error(
+			fmt.Errorf("informer expected deployment, got %v", obj),
+			"not forwarding event",
+		)
+		return
+	}
+	i.bcaster.Action(watch.Deleted, depl)
 }
 
 func NewInformerBackedDeploymentCache(
+	lggr logr.Logger,
 	cl kubernetes.Interface,
 	defaultResync time.Duration,
 ) *InformerBackedDeploymentCache {
@@ -83,13 +99,14 @@ func NewInformerBackedDeploymentCache(
 	)
 	deplInformer := factory.Apps().V1().Deployments()
 	ret := &InformerBackedDeploymentCache{
-		bcastersMut: new(sync.RWMutex),
-		bcasters:    map[client.ObjectKey]*watch.Broadcaster{},
-		sei:         deplInformer,
+		lggr:    lggr,
+		bcaster: watch.NewBroadcaster(0, watch.WaitIfChannelFull),
+		sei:     deplInformer,
 	}
 	ret.sei.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		OnAdd:    ret.addEvtHandler,
-		OnUpdate: ret.updateEvtHandler,
-		OnDelete: ret.deleteEvtHandler,
+		AddFunc:    ret.addEvtHandler,
+		UpdateFunc: ret.updateEvtHandler,
+		DeleteFunc: ret.deleteEvtHandler,
 	})
+	return ret
 }
