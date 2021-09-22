@@ -293,8 +293,10 @@ func newHarness(
 		routingTable,
 		dialContextFunc,
 		waitFunc,
-		deployReplicasTimeout,
-		responseHeaderTimeout,
+		forwardingConfig{
+			waitTimeout:       deployReplicasTimeout,
+			respHeaderTimeout: responseHeaderTimeout,
+		},
 	)
 
 	originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
