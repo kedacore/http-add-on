@@ -1,10 +1,15 @@
 package routing
 
+// TableAndVersionHistory holds both a routing table
+// and a history of its versions
 type TableAndVersionHistory struct {
 	*Table
 	*TableVersionHistory
 }
 
+// NewEmptyTableAndVersionHistory creates and returns
+// a new instance of a TableAndVersionHistory with an
+// empty routing table and an empty history in it.
 func NewEmptyTableAndVersionHistory() TableAndVersionHistory {
 	return TableAndVersionHistory{
 		Table:               NewTable(),
