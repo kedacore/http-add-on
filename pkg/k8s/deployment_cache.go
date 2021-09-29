@@ -25,6 +25,7 @@ type K8sDeploymentCache struct {
 	rwm         *sync.RWMutex
 	cl          DeploymentListerWatcher
 	broadcaster *watch.Broadcaster
+	lggr        logr.Logger
 }
 
 func NewK8sDeploymentCache(
@@ -40,6 +41,7 @@ func NewK8sDeploymentCache(
 		rwm:         new(sync.RWMutex),
 		broadcaster: bcaster,
 		cl:          cl,
+		lggr:        lggr,
 	}
 	deployList, err := cl.List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -51,7 +53,7 @@ func NewK8sDeploymentCache(
 	}
 	// this won't broadcast any events because nobody can be watching
 	// yet, but it will update the cache as needed.
-	ret.mergeAndBroadcastList(lggr, deployList)
+	ret.mergeAndBroadcastList(deployList)
 	return ret, nil
 }
 
@@ -102,7 +104,7 @@ func (k *K8sDeploymentCache) StartWatcher(
 					"error with periodic deployment fetch",
 				)
 			}
-			k.mergeAndBroadcastList(lggr, deplList)
+			k.mergeAndBroadcastList(deplList)
 		case evt, validRecv := <-ch:
 			// handle closed watch stream
 			if !validRecv {
@@ -148,9 +150,9 @@ func (k *K8sDeploymentCache) StartWatcher(
 // list of events and broadcasts a new event for each
 // one.
 func (k *K8sDeploymentCache) mergeAndBroadcastList(
-	lggr logr.Logger,
 	lst *appsv1.DeploymentList,
 ) {
+	lggr := k.lggr.WithName("pkg.k8s.K8sDeploymentCache.mergeAndBroadcastList")
 	k.rwm.Lock()
 	defer k.rwm.Unlock()
 	for _, depl := range lst.Items {

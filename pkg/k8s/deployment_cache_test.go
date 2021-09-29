@@ -70,35 +70,15 @@ func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
 		Items: []appsv1.Deployment{*depl},
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		cache.mergeAndBroadcastList(deplList)
-	}()
-	evts := []watch.Event{}
-	go func() {
-		defer wg.Done()
-		watcher := cache.Watch(depl.ObjectMeta.Name)
-		watchCh := watcher.ResultChan()
-		for i := 0; i < len(deplList.Items); i++ {
-			func() {
-				tmr := time.NewTimer(1 * time.Second)
-				defer tmr.Stop()
-				select {
-				case <-tmr.C:
-					t.Error("timeout waiting for event")
-				case evt := <-watchCh:
-					evts = append(evts, evt)
-				}
-			}()
-		}
-	}()
-
-	wg.Wait()
+	// first call merge with no deployments in the cache.
+	// all events should be ADDED
+	evts := callMergeAndBcast(t, cache, deplList)
 	r.Equal(len(deplList.Items), len(evts))
 	for i := 0; i < len(deplList.Items); i++ {
 		evt := evts[i]
+		// all events should be ADDED events because nothing
+		// was in the deployment cache before merge was called
+		r.Equal(watch.Added, evt.Type)
 		depl, ok := evt.Object.(*appsv1.Deployment)
 		if !ok {
 			t.Fatal("event came through with no deployment")
@@ -106,6 +86,51 @@ func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
 		r.Equal(deplList.Items[i].Name, depl.Name)
 	}
 
+	// now call merge with deployments in the cache.
+	evts = callMergeAndBcast(t, cache, deplList)
+	r.Equal(len(deplList.Items), len(evts))
+	for i := 0; i < len(deplList.Items); i++ {
+		evt := evts[i]
+		r.Equal(watch.Modified, evt.Type)
+		depl, ok := evt.Object.(*appsv1.Deployment)
+		if !ok {
+			t.Fatal("event came through with no deployment")
+		}
+		r.Equal(deplList.Items[i].Name, depl.Name)
+	}
+}
+
+func callMergeAndBcast(t *testing.T, cache *K8sDeploymentCache, deplList *appsv1.DeploymentList) []watch.Event {
+	t.Helper()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		cache.mergeAndBroadcastList(deplList)
+	}()
+	evtsLock := new(sync.Mutex)
+	evts := []watch.Event{}
+	for _, depl := range deplList.Items {
+		wg.Add(1)
+		go func(depl appsv1.Deployment) {
+			defer wg.Done()
+			watcher := cache.Watch(depl.GetName())
+			watchCh := watcher.ResultChan()
+			tmr := time.NewTimer(1 * time.Second)
+			defer tmr.Stop()
+			select {
+			case <-tmr.C:
+				t.Error("timeout waiting for event")
+			case evt := <-watchCh:
+				evtsLock.Lock()
+				evts = append(evts, evt)
+				evtsLock.Unlock()
+			}
+		}(depl)
+	}
+
+	wg.Wait()
+	return evts
 }
 
 func TestK8sDeploymentCacheAddEvt(t *testing.T) {
