@@ -167,7 +167,6 @@ func (k *K8sDeploymentCache) mergeAndBroadcastList(
 			// MODIFIED event
 			existingHash, err := hashstructure.Hash(existing, hashstructure.FormatV2, nil)
 			if err != nil {
-				// this should never happen
 				lggr.Error(
 					err,
 					"failed to hash existing deployment",
@@ -176,7 +175,6 @@ func (k *K8sDeploymentCache) mergeAndBroadcastList(
 			}
 			newHash, err := hashstructure.Hash(depl, hashstructure.FormatV2, nil)
 			if err != nil {
-				// this should never happen
 				lggr.Error(
 					err,
 					"failed to hash new deployment",
@@ -185,7 +183,6 @@ func (k *K8sDeploymentCache) mergeAndBroadcastList(
 			}
 			changed := existingHash != newHash
 			if changed {
-
 				k.broadcaster.Action(watch.Modified, &depl)
 			}
 		}
