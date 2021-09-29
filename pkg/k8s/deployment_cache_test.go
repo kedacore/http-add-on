@@ -67,7 +67,7 @@ func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
 	r.NoError(err)
 	deplList := &appsv1.DeploymentList{
 		Items: []appsv1.Deployment{
-			*newDeployment("testns", "testdepl1", "testing", nil, nil, nil, core.PullAlways),
+			*newDeployment("testns", "testadded", "testing", nil, nil, nil, core.PullAlways),
 		},
 	}
 	checkAllEvents := map[int]struct{}{}
@@ -106,7 +106,13 @@ func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
 	r.Equal(len(deplList.Items), len(evts))
 	for i := 0; i < len(deplList.Items); i++ {
 		evt := evts[i]
-		r.Equal(watch.Modified, evt.Type)
+		r.Equal(
+			watch.Modified,
+			evt.Type,
+			"wrong event type for deployment # %d (%v)",
+			i,
+			evt.Object,
+		)
 		depl, ok := evt.Object.(*appsv1.Deployment)
 		if !ok {
 			t.Fatal("event came through with no deployment")
@@ -134,9 +140,16 @@ func callMergeAndBcast(
 		_, checkEvent := shouldEvent[i]
 		if checkEvent {
 			wg.Add(1)
-			go func(idx int, deplName string) {
+			// make sure to register the watcher
+			// before starting the goroutine. this way
+			// we're guaranteed that we're registered
+			// with the internal broadcaster
+			// before we call mergeAndBroadcastList
+			// below
+			watcher := cache.Watch(depl.GetName())
+			go func(idx int, watcher watch.Interface) {
 				defer wg.Done()
-				watcher := cache.Watch(deplName)
+				defer watcher.Stop()
 				watchCh := watcher.ResultChan()
 				tmr := time.NewTimer(1 * time.Second)
 				defer tmr.Stop()
@@ -148,7 +161,7 @@ func callMergeAndBcast(
 					evts[idx] = evt
 					evtsLock.Unlock()
 				}
-			}(i, depl.GetName())
+			}(i, watcher)
 		}
 	}
 
