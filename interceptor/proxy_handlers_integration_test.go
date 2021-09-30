@@ -53,13 +53,14 @@ func TestIntegrationHappyPath(t *testing.T) {
 		},
 	})
 
-	originHost, originPort, err := splitHostPort(h.originURL.Host)
+	originPort, err := strconv.Atoi(h.originURL.Port())
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), routing.Target{
-		Service:    originHost,
-		Port:       originPort,
-		Deployment: deplName,
-	})
+	h.routingTable.AddTarget(hostForTest(t), targetFromURL(
+		h.originURL,
+		originPort,
+		deplName,
+		123,
+	))
 
 	// happy path
 	res, err := doRequest(
