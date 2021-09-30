@@ -33,6 +33,7 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	// +kubebuilder:scaffold:imports
 )
@@ -126,6 +127,13 @@ func main() {
 	errGrp.Go(func() error {
 		mux := http.NewServeMux()
 		routing.AddFetchRoute(setupLog, mux, routingTable)
+		kedahttp.AddConfigEndpoint(
+			ctrl.Log.WithName("operatorAdmin"),
+			mux,
+			baseConfig,
+			interceptorCfg,
+			externalScalerCfg,
+		)
 		addr := fmt.Sprintf(":%d", adminPort)
 		setupLog.Info(
 			"starting admin RPC server",

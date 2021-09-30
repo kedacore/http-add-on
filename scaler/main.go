@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	"github.com/kedacore/http-add-on/pkg/queue"
@@ -92,6 +93,7 @@ func main() {
 		return startHealthcheckServer(
 			ctx,
 			lggr,
+			cfg,
 			healthPort,
 			pinger,
 		)
@@ -137,6 +139,7 @@ func startGrpcServer(
 func startHealthcheckServer(
 	ctx context.Context,
 	lggr logr.Logger,
+	cfg *config,
 	port int,
 	pinger *queuePinger,
 ) error {
@@ -175,6 +178,8 @@ func startHealthcheckServer(
 			w.Write([]byte("error writing counts data to caller"))
 		}
 	})
+
+	kedahttp.AddConfigEndpoint(lggr, mux, cfg)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),

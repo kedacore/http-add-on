@@ -19,13 +19,20 @@ func TestHealthChecks(t *testing.T) {
 	lggr := logr.Discard()
 	r := require.New(t)
 	const port = 8080
+	cfg := &config{}
 
 	errgrp, ctx := errgroup.WithContext(ctx)
 
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
 	srvFunc := func() error {
-		return startHealthcheckServer(ctx, lggr, port, pinger)
+		return startHealthcheckServer(
+			ctx,
+			lggr,
+			cfg,
+			port,
+			pinger,
+		)
 	}
 	errgrp.Go(srvFunc)
 	time.Sleep(500 * time.Millisecond)
