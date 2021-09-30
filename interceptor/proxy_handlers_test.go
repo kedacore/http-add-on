@@ -26,7 +26,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 			w.Write([]byte("test response"))
 		}),
 	)
-	srv, originURL, err := kedanet.NewTestServer(originHdl)
+	srv, originURL, err := kedanet.StartTestServer(originHdl)
 	r.NoError(err)
 	defer srv.Close()
 	routingTable := routing.NewTable()
@@ -178,7 +178,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
 	noSuchHost := "TestWaitsForWaitFunc.test"
 	const originRespCode = 201
-	testSrv, testSrvURL, err := kedanet.NewTestServer(
+	testSrv, testSrvURL, err := kedanet.StartTestServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(originRespCode)
 		}),
@@ -246,7 +246,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 			w.Write([]byte("test response"))
 		}),
 	)
-	srv, originURL, err := kedanet.NewTestServer(originHdl)
+	srv, originURL, err := kedanet.StartTestServer(originHdl)
 	r.NoError(err)
 	defer srv.Close()
 
