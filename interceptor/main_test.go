@@ -17,6 +17,9 @@ import (
 	"github.com/kedacore/http-add-on/pkg/test"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 func TestRunProxyServerCountMiddleware(t *testing.T) {
@@ -31,7 +34,63 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 }
 
 func TestRunAdminServerDeploymentsEndpoint(t *testing.T) {
-	// see https://github.com/kedacore/http-add-on/issues/245
+	ctx := context.Background()
+	ctx, done := context.WithCancel(ctx)
+	defer done()
+	lggr := logr.Discard()
+	r := require.New(t)
+	port := rand.Intn(100) + 8000
+	const deplName = "testdeployment"
+	srvCfg := &config.Serving{}
+	timeoutCfg := &config.Timeouts{}
+
+	deplCache := k8s.NewFakeDeploymentCache()
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return runAdminServer(
+			ctx,
+			lggr,
+			k8s.FakeConfigMapGetter{},
+			queue.NewFakeCounter(),
+			routing.NewTable(),
+			deplCache,
+			port,
+			srvCfg,
+			timeoutCfg,
+		)
+	})
+	time.Sleep(500 * time.Millisecond)
+
+	deplCache.Set(
+		deplName,
+		appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: deplName,
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: k8s.Int32P(123),
+			},
+		},
+	)
+
+	res, err := http.Get(fmt.Sprintf("http://0.0.0.0:%d/deployments", port))
+	r.NoError(err)
+	defer res.Body.Close()
+	r.Equal(200, res.StatusCode)
+
+	actual := map[string]int32{}
+	r.NoError(json.NewDecoder(res.Body).Decode(&actual))
+
+	expected := map[string]int32{}
+	for name, depl := range deplCache.Current {
+		expected[name] = *depl.Spec.Replicas
+	}
+
+	r.Equal(expected, actual)
+
+	done()
+	r.Error(g.Wait())
 }
 
 func TestRunAdminServerConfig(t *testing.T) {
