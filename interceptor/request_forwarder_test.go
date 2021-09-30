@@ -117,7 +117,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 			w.WriteHeader(200)
 		}),
 	)
-	srv, originURL, err := kedanet.StartTestServer(hdl)
+	srv, originURL, err := kedanet.NewTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()
 
@@ -157,7 +157,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 			w.Write([]byte(originRespBodyStr))
 		}),
 	)
-	srv, originURL, err := kedanet.StartTestServer(hdl)
+	srv, originURL, err := kedanet.NewTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()
 	// the origin is gonna wait this long, and we'll make the proxy

@@ -300,12 +300,12 @@ func newHarness(
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("hello!"))
 	})
-	testOriginSrv, originSrvURL, err := kedanet.StartTestServer(originHdl)
+	testOriginSrv, originSrvURL, err := kedanet.NewTestServer(originHdl)
 	if err != nil {
 		return nil, err
 	}
 
-	proxySrv, proxySrvURL, err := kedanet.StartTestServer(proxyHdl)
+	proxySrv, proxySrvURL, err := kedanet.NewTestServer(proxyHdl)
 	if err != nil {
 		return nil, err
 	}

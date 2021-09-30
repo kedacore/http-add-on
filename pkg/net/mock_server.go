@@ -42,9 +42,9 @@ func NewTestHTTPHandlerWrapper(hdl http.Handler) *TestHTTPHandlerWrapper {
 	}
 }
 
-// StartTestServer starts an *httptest.Server, parses its URL, and returns both values.
+// NewTestServer starts an *httptest.Server, parses its URL, and returns both values.
 // The caller is responsible for closing the returned server
-func StartTestServer(hdl http.Handler) (*httptest.Server, *url.URL, error) {
+func NewTestServer(hdl http.Handler) (*httptest.Server, *url.URL, error) {
 	srv := httptest.NewServer(hdl)
 	u, err := url.Parse(srv.URL)
 	if err != nil {

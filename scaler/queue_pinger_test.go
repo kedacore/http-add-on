@@ -38,7 +38,7 @@ func TestRequestCounts(t *testing.T) {
 
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
-	srv, url, err := kedanet.StartTestServer(hdl)
+	srv, url, err := kedanet.NewTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()
 

@@ -31,7 +31,7 @@ func startFakeQueueEndpointServer(
 ) (*httptest.Server, *url.URL, *v1.Endpoints, error) {
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
-	srv, url, err := kedanet.StartTestServer(hdl)
+	srv, url, err := kedanet.NewTestServer(hdl)
 	if err != nil {
 		return nil, nil, nil, err
 	}
