@@ -181,15 +181,7 @@ func startHealthcheckServer(
 
 	kedahttp.AddConfigEndpoint(lggr, mux, cfg)
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
-	}
-	lggr.Info("starting health check server", "port", port)
-
-	go func() {
-		<-ctx.Done()
-		srv.Shutdown(ctx)
-	}()
-	return srv.ListenAndServe()
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	lggr.Info("starting health check server", "addr", addr)
+	return kedahttp.ServeContext(ctx, addr, mux)
 }

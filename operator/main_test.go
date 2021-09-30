@@ -10,29 +10,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/interceptor/config"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/kedacore/http-add-on/operator/controllers/config"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/test"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
-
-func TestRunProxyServerCountMiddleware(t *testing.T) {
-	// r := require.New(t)
-	// ctx, done := context.WithCancel(
-	// 	context.Background(),
-	// )
-	// defer done()
-	// r.NoError(runProxyServer(ctx, logr.Discard(), q, waitFunc, routingTable, timeouts, port))
-
-	// see https://github.com/kedacore/http-add-on/issues/245
-}
-
-func TestRunAdminServerDeploymentsEndpoint(t *testing.T) {
-	// see https://github.com/kedacore/http-add-on/issues/245
-}
 
 func TestRunAdminServerConfig(t *testing.T) {
 	ctx := context.Background()
@@ -41,8 +24,9 @@ func TestRunAdminServerConfig(t *testing.T) {
 	lggr := logr.Discard()
 	r := require.New(t)
 	const port = 8080
-	srvCfg := &config.Serving{}
-	timeoutCfg := &config.Timeouts{}
+	baseCfg := &config.Base{}
+	interceptorCfg := &config.Interceptor{}
+	externalScalerCfg := &config.ExternalScaler{}
 
 	errgrp, ctx := errgroup.WithContext(ctx)
 
@@ -50,13 +34,11 @@ func TestRunAdminServerConfig(t *testing.T) {
 		return runAdminServer(
 			ctx,
 			lggr,
-			k8s.FakeConfigMapGetter{},
-			queue.NewFakeCounter(),
 			routing.NewTable(),
-			k8s.NewFakeDeploymentCache(),
 			port,
-			srvCfg,
-			timeoutCfg,
+			baseCfg,
+			interceptorCfg,
+			externalScalerCfg,
 		)
 	})
 	time.Sleep(500 * time.Millisecond)
@@ -78,14 +60,17 @@ func TestRunAdminServerConfig(t *testing.T) {
 	_, hasKey := decodedIfaces["configs"]
 	r.True(hasKey, "config body doesn't have 'configs' key")
 	configs := decodedIfaces["configs"]
-	r.Equal(2, len(configs))
+	r.Equal(3, len(configs))
 
-	retSrvCfg := &config.Serving{}
-	r.NoError(test.JSONRoundTrip(configs[0], retSrvCfg))
-	retTimeoutsCfg := &config.Timeouts{}
-	r.NoError(test.JSONRoundTrip(configs[1], retTimeoutsCfg))
-	r.Equal(*srvCfg, *retSrvCfg)
-	r.Equal(*timeoutCfg, *retTimeoutsCfg)
+	retBaseCfg := &config.Base{}
+	r.NoError(test.JSONRoundTrip(configs[0], retBaseCfg))
+	retInterceptorCfg := &config.Interceptor{}
+	r.NoError(test.JSONRoundTrip(configs[1], retInterceptorCfg))
+	retExternalScalerCfg := &config.ExternalScaler{}
+	r.NoError(test.JSONRoundTrip(configs[2], retExternalScalerCfg))
+	r.Equal(*baseCfg, *retBaseCfg)
+	r.Equal(*interceptorCfg, *retInterceptorCfg)
+	r.Equal(*externalScalerCfg, *retExternalScalerCfg)
 
 	done()
 	r.Error(errgrp.Wait())
