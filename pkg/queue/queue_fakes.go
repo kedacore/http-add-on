@@ -2,6 +2,7 @@ package queue
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type HostAndCount struct {
 	Count int
 }
 type FakeCounter struct {
+	mapMut        *sync.RWMutex
 	RetMap        map[string]int
 	ResizedCh     chan HostAndCount
 	ResizeTimeout time.Duration
@@ -19,6 +21,7 @@ type FakeCounter struct {
 
 func NewFakeCounter() *FakeCounter {
 	return &FakeCounter{
+		mapMut:        new(sync.RWMutex),
 		RetMap:        map[string]int{},
 		ResizedCh:     make(chan HostAndCount),
 		ResizeTimeout: 1 * time.Second,
@@ -26,7 +29,9 @@ func NewFakeCounter() *FakeCounter {
 }
 
 func (f *FakeCounter) Resize(host string, i int) error {
-	f.RetMap[host] = i
+	f.mapMut.Lock()
+	f.RetMap[host] += i
+	f.mapMut.Unlock()
 	select {
 	case f.ResizedCh <- HostAndCount{Host: host, Count: i}:
 	case <-time.After(f.ResizeTimeout):
@@ -39,10 +44,14 @@ func (f *FakeCounter) Resize(host string, i int) error {
 }
 
 func (f *FakeCounter) Ensure(host string) {
+	f.mapMut.Lock()
 	f.RetMap[host] = 0
+	f.mapMut.Unlock()
 }
 
 func (f *FakeCounter) Remove(host string) bool {
+	f.mapMut.Lock()
+	defer f.mapMut.Unlock()
 	_, ok := f.RetMap[host]
 	delete(f.RetMap, host)
 	return ok
@@ -50,7 +59,9 @@ func (f *FakeCounter) Remove(host string) bool {
 
 func (f *FakeCounter) Current() (*Counts, error) {
 	ret := NewCounts()
+	f.mapMut.RLock()
 	retMap := f.RetMap
+	f.mapMut.RUnlock()
 	if len(retMap) == 0 {
 		retMap["sample.com"] = 0
 	}
