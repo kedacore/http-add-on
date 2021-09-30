@@ -25,7 +25,7 @@ func TestPingInterceptors(t *testing.T) {
 			w.WriteHeader(200)
 		}),
 	)
-	srv, url, err := kedanet.StartTestServer(hdl)
+	srv, url, err := kedanet.NewTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()
 	ctx := context.Background()
