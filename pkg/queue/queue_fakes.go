@@ -1,5 +1,10 @@
 package queue
 
+import (
+	"fmt"
+	"time"
+)
+
 var _ Counter = &FakeCounter{}
 
 type HostAndCount struct {
@@ -7,20 +12,29 @@ type HostAndCount struct {
 	Count int
 }
 type FakeCounter struct {
-	RetMap    map[string]int
-	ResizedCh chan HostAndCount
+	RetMap        map[string]int
+	ResizedCh     chan HostAndCount
+	ResizeTimeout time.Duration
 }
 
 func NewFakeCounter() *FakeCounter {
 	return &FakeCounter{
-		RetMap:    map[string]int{},
-		ResizedCh: make(chan HostAndCount),
+		RetMap:        map[string]int{},
+		ResizedCh:     make(chan HostAndCount),
+		ResizeTimeout: 1 * time.Second,
 	}
 }
 
 func (f *FakeCounter) Resize(host string, i int) error {
 	f.RetMap[host] = i
-	f.ResizedCh <- HostAndCount{Host: host, Count: i}
+	select {
+	case f.ResizedCh <- HostAndCount{Host: host, Count: i}:
+	case <-time.After(f.ResizeTimeout):
+		return fmt.Errorf(
+			"FakeCounter.Resize timeout after %s",
+			f.ResizeTimeout,
+		)
+	}
 	return nil
 }
 
