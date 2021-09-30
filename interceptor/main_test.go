@@ -127,4 +127,8 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 
 func TestRunAdminServerDeploymentsEndpoint(t *testing.T) {
 	// see https://github.com/kedacore/http-add-on/issues/245
+	// requires:
+	// https://github.com/kedacore/http-add-on/pull/280
+	// because that PR starts tests for the admin server.
+
 }
