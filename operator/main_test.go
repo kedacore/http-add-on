@@ -15,6 +15,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/test"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 func TestRunAdminServerConfig(t *testing.T) {
@@ -23,7 +24,7 @@ func TestRunAdminServerConfig(t *testing.T) {
 	defer done()
 	lggr := logr.Discard()
 	r := require.New(t)
-	const port = 8080
+	port := rand.Intn(100) + 8000
 	baseCfg := &config.Base{}
 	interceptorCfg := &config.Interceptor{}
 	externalScalerCfg := &config.ExternalScaler{}

@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 func TestHealthChecks(t *testing.T) {
@@ -20,7 +21,7 @@ func TestHealthChecks(t *testing.T) {
 	defer done()
 	lggr := logr.Discard()
 	r := require.New(t)
-	const port = 8080
+	port := rand.Intn(100) + 8000
 	cfg := &config{
 		GRPCPort:              port + 1,
 		HealthPort:            port,
