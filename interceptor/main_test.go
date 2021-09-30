@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/stretchr/testify/require"
@@ -25,15 +27,26 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 		context.Background(),
 	)
 	defer done()
+
+	originHdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}),
+	)
+	originSrv, originURL, err := kedanet.StartTestServer(originHdl)
+	r.NoError(err)
+	defer originSrv.Close()
+	originPort, err := strconv.Atoi(originURL.Port())
+	r.NoError(err)
 	g, ctx := errgroup.WithContext(ctx)
 	q := queue.NewFakeCounter()
 	routingTable := routing.NewTable()
 	routingTable.AddTarget(
 		host,
-		routing.NewTarget(
-			"samplesvc",
-			123,
-			"sampledepl",
+		targetFromURL(
+			originURL,
+			originPort,
+			"testdepl",
 			123,
 		),
 	)
@@ -59,9 +72,17 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 
 	// make an HTTP request in the background
 	g.Go(func() error {
-		resp, err := http.Get(fmt.Sprintf(
-			"http://0.0.0.0:%d", port,
-		))
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf(
+				"http://0.0.0.0:%d", port,
+			), nil,
+		)
+		if err != nil {
+			return err
+		}
+		req.Host = host
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return err
 		}
@@ -79,8 +100,26 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 		r.Equal(host, hostAndCount.Host)
 		r.Equal(1, hostAndCount.Count)
 	case <-time.After(500 * time.Millisecond):
-		r.Fail("timeout waiting for queue resize")
+		r.Fail("timeout waiting for +1 queue resize")
 	}
+
+	// tell the wait func to proceed
+	waiterCh <- struct{}{}
+
+	select {
+	case hostAndCount := <-q.ResizedCh:
+		r.Equal(host, hostAndCount.Host)
+		r.Equal(-1, hostAndCount.Count)
+	case <-time.After(500 * time.Millisecond):
+		r.Fail("timeout waiting for -1 queue resize")
+	}
+
+	// check the queue to make sure all counts are at 0
+	countsPtr, err := q.Current()
+	r.NoError(err)
+	counts := countsPtr.Counts
+	r.Equal(1, len(counts))
+	r.Equal(0, counts[host])
 
 	done()
 	r.Error(g.Wait())
