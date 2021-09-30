@@ -62,7 +62,7 @@ func TestQueueSizeHandlerIntegration(t *testing.T) {
 	}
 
 	hdl := kedanet.NewTestHTTPHandlerWrapper(newSizeHandler(lggr, reader))
-	srv, url, err := kedanet.NewTestServer(hdl)
+	srv, url, err := kedanet.StartTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()
 	httpCl := srv.Client()
