@@ -19,6 +19,21 @@ type Timeouts struct {
 	// DeploymentReplicas is how long to wait for the backing deployment
 	// to have 1 or more replicas before connecting and sending the HTTP request.
 	DeploymentReplicas time.Duration `envconfig:"KEDA_CONDITION_WAIT_TIMEOUT" default:"1500ms"`
+	// ForceHTTP2 toggles whether to try to force HTTP2 for all requests
+	ForceHTTP2 bool `envconfig:"KEDA_HTTP_FORCE_HTTP2" default:"false"`
+	// MaxIdleConns is the max number of connections that can be idle in the
+	// interceptor's internal connection pool
+	MaxIdleConns int `envconfig:"KEDA_HTTP_MAX_IDLE_CONNS" default:"100"`
+	// IdleConnTimeout is the timeout after which a connection in the interceptor's
+	// internal connection pool will be closed
+	IdleConnTimeout time.Duration `envconfig:"KEDA_HTTP_IDLE_CONN_TIMEOUT" default:"90s"`
+	// TLSHandshakeTimeout is the max amount of time the interceptor will
+	// wait to establish a TLS connection
+	TLSHandshakeTimeout time.Duration `envconfig:"KEDA_HTTP_TLS_HANDSHAKE_TIMEOUT" default:"10s"`
+	// ExpectContinueTimeout is the max amount of time the interceptor will wait
+	// after sending request headers if the server returned an Expect: 100-continue
+	// header
+	ExpectContinueTimeout time.Duration `envconfig:"KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT" default:"1s"`
 }
 
 // Backoff returns a wait.Backoff based on the timeouts in t
