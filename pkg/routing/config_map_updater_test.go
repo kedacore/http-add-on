@@ -76,6 +76,7 @@ func TestStartUpdateLoop(t *testing.T) {
 		"svc1",
 		8080,
 		"depl1",
+		100,
 	))
 
 	cm := &corev1.ConfigMap{
