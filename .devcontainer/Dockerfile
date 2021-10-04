@@ -1,5 +1,5 @@
 # [Choice] Go version: 1, 1.16, 1.15
-ARG VARIANT=1.16
+ARG VARIANT=1.17
 FROM mcr.microsoft.com/vscode/devcontainers/go:0-${VARIANT}
 
 # install mage
