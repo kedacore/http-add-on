@@ -32,7 +32,7 @@ func NewK8sDeploymentCache(
 	cl DeploymentListerWatcher,
 ) (*K8sDeploymentCache, error) {
 	lggr = lggr.WithName("pkg.k8s.NewK8sDeploymentCache")
-	bcaster := watch.NewBroadcaster(5, watch.DropIfChannelFull)
+	bcaster := watch.NewBroadcaster(5, watch.WaitIfChannelFull)
 
 	ret := &K8sDeploymentCache{
 		latest:      map[string]appsv1.Deployment{},
@@ -81,6 +81,7 @@ func (k *K8sDeploymentCache) StartWatcher(
 			"error creating new watch stream",
 		)
 	}
+	defer watcher.Stop()
 
 	ch := watcher.ResultChan()
 	fetchTicker := time.NewTicker(fetchTickDur)
@@ -115,6 +116,10 @@ func (k *K8sDeploymentCache) StartWatcher(
 					)
 				}
 				ch = newWatcher.ResultChan()
+				// stop the old watcher and store the new one.
+				// the new one will be closed in the defer
+				watcher.Stop()
+				watcher = newWatcher
 			} else {
 				if err := k.addEvt(evt); err != nil {
 					lggr.Error(
