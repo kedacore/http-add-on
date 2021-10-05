@@ -41,6 +41,11 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	g, ctx := errgroup.WithContext(ctx)
 	q := queue.NewFakeCounter()
 	routingTable := routing.NewTable()
+	// set up a fake host that we can spoof
+	// when we later send request to the proxy,
+	// so that the proxy calculates a URL for that
+	// host that points to the (above) fake origin
+	// server.
 	routingTable.AddTarget(
 		host,
 		targetFromURL(
@@ -98,7 +103,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	select {
 	case hostAndCount := <-q.ResizedCh:
 		r.Equal(host, hostAndCount.Host)
-		r.Equal(1, hostAndCount.Count)
+		r.Equal(+1, hostAndCount.Count)
 	case <-time.After(500 * time.Millisecond):
 		r.Fail("timeout waiting for +1 queue resize")
 	}
@@ -119,6 +124,12 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	r.NoError(err)
 	counts := countsPtr.Counts
 	r.Equal(1, len(counts))
+	_, foundHost := counts[host]
+	r.True(
+		foundHost,
+		"couldn't find host %s in the queue",
+		host,
+	)
 	r.Equal(0, counts[host])
 
 	done()

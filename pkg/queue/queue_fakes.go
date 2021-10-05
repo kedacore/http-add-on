@@ -45,8 +45,8 @@ func (f *FakeCounter) Resize(host string, i int) error {
 
 func (f *FakeCounter) Ensure(host string) {
 	f.mapMut.Lock()
+	defer f.mapMut.Unlock()
 	f.RetMap[host] = 0
-	f.mapMut.Unlock()
 }
 
 func (f *FakeCounter) Remove(host string) bool {
@@ -60,8 +60,8 @@ func (f *FakeCounter) Remove(host string) bool {
 func (f *FakeCounter) Current() (*Counts, error) {
 	ret := NewCounts()
 	f.mapMut.RLock()
+	defer f.mapMut.RUnlock()
 	retMap := f.RetMap
-	f.mapMut.RUnlock()
 	if len(retMap) == 0 {
 		retMap["sample.com"] = 0
 	}
