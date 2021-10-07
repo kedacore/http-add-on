@@ -33,6 +33,7 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	// +kubebuilder:scaffold:imports
 )
@@ -132,7 +133,7 @@ func main() {
 			"port",
 			adminPort,
 		)
-		return http.ListenAndServe(addr, mux)
+		return kedahttp.ServeContext(ctx, addr, mux)
 	})
 
 	setupLog.Error(errGrp.Wait(), "running the operator")
