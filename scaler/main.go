@@ -47,19 +47,31 @@ func main() {
 		lggr.Error(err, "getting a Kubernetes client")
 		os.Exit(1)
 	}
-	pinger := newQueuePinger(
+	pinger, err := newQueuePinger(
 		context.Background(),
 		lggr,
 		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,
 		svcName,
 		targetPortStr,
-		time.NewTicker(500*time.Millisecond),
 	)
+	if err != nil {
+		lggr.Error(err, "creating a queue pinger")
+		os.Exit(1)
+	}
 
 	table := routing.NewTable()
 
 	grp, ctx := errgroup.WithContext(ctx)
+
+	grp.Go(func() error {
+		defer done()
+		return pinger.start(
+			ctx,
+			time.NewTicker(cfg.QueueTickDuration),
+		)
+	})
+
 	grp.Go(func() error {
 		defer done()
 		return startGrpcServer(

@@ -20,7 +20,8 @@ func TestIsActive(t *testing.T) {
 	ctx := context.Background()
 	lggr := logr.Discard()
 	table := routing.NewTable()
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
+	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	r.NoError(err)
 	defer ticker.Stop()
 	pinger.pingMut.Lock()
 	pinger.allCounts[host] = 0
@@ -79,7 +80,8 @@ func TestGetMetricSpec(t *testing.T) {
 		"testdepl",
 		int32(target),
 	))
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
+	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	r.NoError(err)
 	defer ticker.Stop()
 	hdl := newImpl(lggr, pinger, table, 123)
 	meta := map[string]string{
@@ -108,7 +110,8 @@ func TestGetMetricsMissingHostInMetadata(t *testing.T) {
 		ScaledObjectRef: &externalscaler.ScaledObjectRef{},
 	}
 	table := routing.NewTable()
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
+	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	r.NoError(err)
 	defer ticker.Stop()
 	hdl := newImpl(lggr, pinger, table, 123)
 
@@ -135,7 +138,9 @@ func TestGetMetricsMissingHostInQueue(t *testing.T) {
 	}
 
 	table := routing.NewTable()
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
+	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	r.NoError(err)
+
 	defer ticker.Stop()
 	hdl := newImpl(lggr, pinger, table, 123)
 
@@ -200,13 +205,19 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 	table := routing.NewTable()
 	// create a fake queue pinger. this is the simulated
 	// scaler that pings the above fake interceptor
-	ticker, pinger := newFakeQueuePinger(
+	ticker, pinger, err := newFakeQueuePinger(
 		ctx,
 		lggr,
 		func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
 		func(opts *fakeQueuePingerOpts) { opts.tickDur = 1 * time.Millisecond },
 		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
 	)
+	r.NoError(err)
+	go func() {
+		// start the pinger watch loop
+		pinger.start(ctx, ticker)
+	}()
+
 	defer ticker.Stop()
 	time.Sleep(50 * time.Millisecond)
 
@@ -273,13 +284,14 @@ func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
 	// create a fake queue pinger. this is the simulated
 	// scaler that pings the above fake interceptor
 	const tickDur = 5 * time.Millisecond
-	ticker, pinger := newFakeQueuePinger(
+	ticker, pinger, err := newFakeQueuePinger(
 		ctx,
 		lggr,
 		func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
 		func(opts *fakeQueuePingerOpts) { opts.tickDur = tickDur },
 		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
 	)
+	r.NoError(err)
 	defer ticker.Stop()
 
 	// sleep for more than enough time for the pinger to do its

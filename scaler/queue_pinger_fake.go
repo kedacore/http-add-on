@@ -58,7 +58,7 @@ func newFakeQueuePinger(
 	ctx context.Context,
 	lggr logr.Logger,
 	optsFuncs ...optsFunc,
-) (*time.Ticker, *queuePinger) {
+) (*time.Ticker, *queuePinger, error) {
 	opts := &fakeQueuePingerOpts{
 		endpoints: &v1.Endpoints{},
 		tickDur:   time.Second,
@@ -68,7 +68,8 @@ func newFakeQueuePinger(
 		optsFunc(opts)
 	}
 	ticker := time.NewTicker(opts.tickDur)
-	pinger := newQueuePinger(
+
+	pinger, err := newQueuePinger(
 		ctx,
 		lggr,
 		func(
@@ -82,7 +83,9 @@ func newFakeQueuePinger(
 		"testns",
 		"testsvc",
 		opts.port,
-		ticker,
 	)
-	return ticker, pinger
+	if err != nil {
+		return nil, nil, err
+	}
+	return ticker, pinger, nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -33,8 +34,7 @@ func newQueuePinger(
 	ns,
 	svcName,
 	adminPort string,
-	pingTicker *time.Ticker,
-) *queuePinger {
+) (*queuePinger, error) {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
 		getEndpointsFn: getEndpointsFn,
@@ -46,18 +46,39 @@ func newQueuePinger(
 		allCounts:      map[string]int{},
 		aggregateCount: 0,
 	}
+	return pinger, pinger.fetchAndSaveCounts(ctx)
+}
 
-	go func() {
-		defer pingTicker.Stop()
-		for range pingTicker.C {
-			err := pinger.fetchAndSaveCounts(ctx)
+// start starts the queuePinger
+func (q *queuePinger) start(
+	ctx context.Context,
+	ticker *time.Ticker,
+) error {
+	lggr := q.lggr.WithName("scaler.queuePinger.start")
+	defer ticker.Stop()
+	for range ticker.C {
+		select {
+		case <-ctx.Done():
+			lggr.Error(
+				ctx.Err(),
+				"context marked done. stopping queuePinger loop",
+			)
+			return errors.Wrap(
+				ctx.Err(),
+				"context marked done. stopping queuePinger loop",
+			)
+		default:
+			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts")
+				return errors.Wrap(
+					err,
+					"error getting request counts",
+				)
 			}
 		}
-	}()
-
-	return pinger
+	}
+	return nil
 }
 
 func (q *queuePinger) counts() map[string]int {

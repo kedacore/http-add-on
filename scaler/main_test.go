@@ -22,7 +22,8 @@ func TestHealthChecks(t *testing.T) {
 
 	errgrp, ctx := errgroup.WithContext(ctx)
 
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
+	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	r.NoError(err)
 	defer ticker.Stop()
 	srvFunc := func() error {
 		return startHealthcheckServer(ctx, lggr, port, pinger)

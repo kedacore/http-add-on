@@ -29,6 +29,8 @@ type config struct {
 	// UpdateRoutingTableDur is the duration between manual
 	// updates to the routing table.
 	UpdateRoutingTableDur time.Duration `envconfig:"KEDA_HTTP_SCALER_ROUTING_TABLE_UPDATE_DUR" default:"100ms"`
+	// QueueTickDuration is the duration between queue requests
+	QueueTickDuration time.Duration `envconfig:"KEDA_HTTP_QUEUE_TICK_DURATION" default:"500ms"`
 }
 
 func mustParseConfig() *config {
