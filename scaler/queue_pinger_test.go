@@ -2,14 +2,10 @@ package main
 
 import (
 	context "context"
-	"encoding/json"
-	"net/http"
 	"testing"
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -39,14 +35,14 @@ func TestCounts(t *testing.T) {
 		q.Resize(host, count)
 	}
 
-	hdl := http.NewServeMux()
-	queue.AddCountsRoute(logr.Discard(), hdl, q)
-	srv, srvURL, err := kedanet.StartTestServer(hdl)
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
+		ns,
+		svcName,
+		q,
+		3,
+	)
 	r.NoError(err)
 	defer srv.Close()
-
-	endpoints, err := k8s.FakeEndpointsForURL(srvURL, ns, svcName, 3)
-	r.NoError(err)
 	pinger, err := newQueuePinger(
 		ctx,
 		logr.Discard(),
@@ -113,21 +109,12 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		"host2": 234,
 		"host3": 345,
 	}
-	hdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(
-			func(wr http.ResponseWriter, req *http.Request) {
-				err := json.NewEncoder(wr).Encode(counts)
-				r.NoError(err)
-			},
-		),
-	)
-	srv, srvURL, err := kedanet.StartTestServer(hdl)
-	r.NoError(err)
-	endpointsForURLs, err := k8s.FakeEndpointsForURL(
-		srvURL,
-		ns,
-		svcName,
-		numEndpoints,
+	q := queue.NewMemory()
+	for host, count := range counts.Counts {
+		q.Resize(host, count)
+	}
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
+		ns, svcName, q, numEndpoints,
 	)
 	r.NoError(err)
 	defer srv.Close()
@@ -136,7 +123,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		ns,
 		svcName string,
 	) (*v1.Endpoints, error) {
-		return endpointsForURLs, nil
+		return endpoints, nil
 	}
 
 	pinger, err := newQueuePinger(
@@ -182,30 +169,22 @@ func TestFetchCounts(t *testing.T) {
 		"host2": 234,
 		"host3": 345,
 	}
-	hdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(
-			func(wr http.ResponseWriter, req *http.Request) {
-				err := json.NewEncoder(wr).Encode(counts)
-				r.NoError(err)
-			},
-		),
-	)
-	srv, srvURL, err := kedanet.StartTestServer(hdl)
-	r.NoError(err)
-	endpointsForURLs, err := k8s.FakeEndpointsForURL(
-		srvURL,
-		ns,
-		svcName,
-		numEndpoints,
+	q := queue.NewMemory()
+	for host, count := range counts.Counts {
+		r.NoError(q.Resize(host, count))
+	}
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
+		ns, svcName, q, numEndpoints,
 	)
 	r.NoError(err)
+
 	defer srv.Close()
 	endpointsFn := func(
-		ctx context.Context,
-		ns,
-		svcName string,
+		context.Context,
+		string,
+		string,
 	) (*v1.Endpoints, error) {
-		return endpointsForURLs, nil
+		return endpoints, nil
 	}
 
 	cts, agg, err := fetchCounts(
