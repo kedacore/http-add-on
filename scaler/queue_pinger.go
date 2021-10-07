@@ -15,6 +15,24 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// queuePinger has functionality to ping all interceptors
+// behind a given `Service`, fetch their pending queue counts,
+// and aggregate all of those counts together.
+//
+// It's capable of doing that work in parallel when possible
+// as well.
+//
+// Sample usage:
+//
+//	pinger, err := newQueuePinger(ctx, lggr, getEndpointsFn, ns, svcName, adminPort)
+//	if err != nil {
+//		panic(err)
+//	}
+//	// make sure to start the background pinger loop.
+//	// you can shut this loop down by using a cancellable
+//	// context
+//	go pinger.start(ctx, ticker)
+//
 type queuePinger struct {
 	getEndpointsFn k8s.GetEndpointsFunc
 	ns             string
