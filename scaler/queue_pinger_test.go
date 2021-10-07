@@ -96,6 +96,74 @@ func TestCounts(t *testing.T) {
 
 }
 
+func TestFetchAndSaveCounts(t *testing.T) {
+	r := require.New(t)
+	ctx, done := context.WithCancel(context.Background())
+	defer done()
+	const (
+		ns           = "testns"
+		svcName      = "testsvc"
+		adminPort    = "8081"
+		numEndpoints = 3
+	)
+	counts := queue.NewCounts()
+	counts.Counts = map[string]int{
+		"host1": 123,
+		"host2": 234,
+		"host3": 345,
+	}
+	hdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(
+			func(wr http.ResponseWriter, req *http.Request) {
+				err := json.NewEncoder(wr).Encode(counts)
+				r.NoError(err)
+			},
+		),
+	)
+	srv, srvURL, err := kedanet.StartTestServer(hdl)
+	r.NoError(err)
+	endpointsForURLs, err := k8s.FakeEndpointsForURL(
+		srvURL,
+		ns,
+		svcName,
+		numEndpoints,
+	)
+	r.NoError(err)
+	defer srv.Close()
+	endpointsFn := func(
+		ctx context.Context,
+		ns,
+		svcName string,
+	) (*v1.Endpoints, error) {
+		return endpointsForURLs, nil
+	}
+
+	pinger := newQueuePinger(
+		ctx,
+		logr.Discard(),
+		endpointsFn,
+		ns,
+		svcName,
+		srvURL.Port(),
+		time.NewTicker(1*time.Millisecond),
+	)
+
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+
+	// since all endpoints serve the same counts,
+	// expected aggregate is individual count * # endpoints
+	expectedAgg := counts.Aggregate() * numEndpoints
+	r.Equal(expectedAgg, pinger.aggregateCount)
+	// again, since all endpoints serve the same counts,
+	// the hosts will be the same as the original counts,
+	// but the value is (individual count * # endpoints)
+	expectedCounts := counts.Counts
+	for host, val := range expectedCounts {
+		expectedCounts[host] = val * numEndpoints
+	}
+	r.Equal(expectedCounts, pinger.allCounts)
+}
+
 func TestFetchCounts(t *testing.T) {
 	r := require.New(t)
 	ctx, done := context.WithCancel(context.Background())
