@@ -161,7 +161,7 @@ func startHealthcheckServer(
 	mux.HandleFunc("/queue_ping", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		lggr := lggr.WithName("route.counts_ping")
-		if err := pinger.requestCounts(ctx); err != nil {
+		if err := pinger.fetchAndSaveCounts(ctx); err != nil {
 			lggr.Error(err, "requesting counts failed")
 			w.WriteHeader(500)
 			w.Write([]byte("error requesting counts from interceptors"))

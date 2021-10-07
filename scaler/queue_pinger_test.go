@@ -2,6 +2,7 @@ package main
 
 import (
 	context "context"
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func TestRequestCounts(t *testing.T) {
+func TestCounts(t *testing.T) {
 	r := require.New(t)
 	ctx := context.Background()
 	const (
@@ -38,11 +39,12 @@ func TestRequestCounts(t *testing.T) {
 
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
-	srv, url, err := kedanet.StartTestServer(hdl)
+	srv, srvURL, err := kedanet.StartTestServer(hdl)
 	r.NoError(err)
 	defer srv.Close()
 
-	endpoints := k8s.FakeEndpointsForURL(url, ns, svcName, 3)
+	endpoints, err := k8s.FakeEndpointsForURL(srvURL, ns, svcName, 3)
+	r.NoError(err)
 	// set the initial ticker to effectively never tick so that we
 	// can check the behavior of the pinger before the first
 	// tick
@@ -55,7 +57,7 @@ func TestRequestCounts(t *testing.T) {
 		},
 		ns,
 		svcName,
-		url.Port(),
+		srvURL.Port(),
 		ticker,
 	)
 	// the pinger starts a background watch loop but won't request the counts
@@ -92,4 +94,69 @@ func TestRequestCounts(t *testing.T) {
 		)
 	}
 
+}
+
+func TestFetchCounts(t *testing.T) {
+	r := require.New(t)
+	ctx, done := context.WithCancel(context.Background())
+	defer done()
+	const (
+		ns           = "testns"
+		svcName      = "testsvc"
+		adminPort    = "8081"
+		numEndpoints = 3
+	)
+	counts := queue.NewCounts()
+	counts.Counts = map[string]int{
+		"host1": 123,
+		"host2": 234,
+		"host3": 345,
+	}
+	hdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(
+			func(wr http.ResponseWriter, req *http.Request) {
+				err := json.NewEncoder(wr).Encode(counts)
+				r.NoError(err)
+			},
+		),
+	)
+	srv, srvURL, err := kedanet.StartTestServer(hdl)
+	r.NoError(err)
+	endpointsForURLs, err := k8s.FakeEndpointsForURL(
+		srvURL,
+		ns,
+		svcName,
+		numEndpoints,
+	)
+	r.NoError(err)
+	defer srv.Close()
+	endpointsFn := func(
+		ctx context.Context,
+		ns,
+		svcName string,
+	) (*v1.Endpoints, error) {
+		return endpointsForURLs, nil
+	}
+
+	cts, agg, err := fetchCounts(
+		ctx,
+		logr.Discard(),
+		endpointsFn,
+		ns,
+		svcName,
+		srvURL.Port(),
+	)
+	r.NoError(err)
+	// since all endpoints serve the same counts,
+	// expected aggregate is individual count * # endpoints
+	expectedAgg := counts.Aggregate() * numEndpoints
+	r.Equal(expectedAgg, agg)
+	// again, since all endpoints serve the same counts,
+	// the hosts will be the same as the original counts,
+	// but the value is (individual count * # endpoints)
+	expectedCounts := counts.Counts
+	for host, val := range expectedCounts {
+		expectedCounts[host] = val * numEndpoints
+	}
+	r.Equal(expectedCounts, cts)
 }

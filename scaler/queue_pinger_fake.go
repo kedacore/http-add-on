@@ -31,13 +31,15 @@ func startFakeQueueEndpointServer(
 ) (*httptest.Server, *url.URL, *v1.Endpoints, error) {
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
-	srv, url, err := kedanet.StartTestServer(hdl)
+	srv, srvURL, err := kedanet.StartTestServer(hdl)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
-	endpoints := k8s.FakeEndpointsForURL(url, ns, svcName, numEndpoints)
-	return srv, url, endpoints, nil
+	endpoints, err := k8s.FakeEndpointsForURL(srvURL, ns, svcName, numEndpoints)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return srv, srvURL, endpoints, nil
 }
 
 type fakeQueuePingerOpts struct {
