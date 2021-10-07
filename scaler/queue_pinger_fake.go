@@ -72,13 +72,8 @@ func newFakeQueuePinger(
 	pinger, err := newQueuePinger(
 		ctx,
 		lggr,
-		func(
-			ctx context.Context,
-			namespace,
-			serviceName string,
-		) (*v1.Endpoints, error) {
+		func(context.Context, string, string) (*v1.Endpoints, error) {
 			return opts.endpoints, nil
-
 		},
 		"testns",
 		"testsvc",
