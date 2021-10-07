@@ -65,7 +65,7 @@ func TestRequestCounts(t *testing.T) {
 	retCounts := pinger.counts()
 	r.Equal(0, len(retCounts))
 
-	// reset the ticker to tick practically immediatly. sleep for a little
+	// reset the ticker to tick practically immediately. sleep for a little
 	// bit to ensure that the tick occurred and the counts were successfully
 	// computed, then check them.
 	ticker.Reset(1 * time.Nanosecond)
