@@ -218,7 +218,6 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 		pinger.start(ctx, ticker)
 	}()
 
-	defer ticker.Stop()
 	time.Sleep(50 * time.Millisecond)
 
 	// sleep for more than enough time for the pinger to do its
@@ -307,5 +306,4 @@ func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
 	r.Equal("interceptor", metricVal.MetricName)
 	aggregate := pinger.aggregate()
 	r.Equal(int64(aggregate), metricVal.MetricValue)
-
 }
