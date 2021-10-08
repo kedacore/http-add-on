@@ -11,7 +11,8 @@ _Provide a description of what has been changed_
 - [ ] Commits are signed with Developer Certificate of Origin (DCO)
 - [ ] Any necessary documentation is added, such as:
   - [`README.md`](/README.md)
-  - [The `docs/` directory](./docs)
+  - [The wiki](https://github.com/kedacore/http-add-on/wiki)
+  - [The reference documentat](./docs/ref)
   - [The docs repo](https://github.com/kedacore/keda-docs)
 
 Fixes #
