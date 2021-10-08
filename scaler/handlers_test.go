@@ -141,11 +141,13 @@ func TestGetMetricSpec(t *testing.T) {
 		},
 	}
 
-	for idx, testCase := range cases {
-		// run this in its own anonymous function so that we can
-		// use defer ticker.Stop()
-		func() {
-			t.Logf("test case #%d: %s", idx, testCase.name)
+	for i, c := range cases {
+		testName := fmt.Sprintf("test case #%d: %s", i, c.name)
+		// capture tc in scope so that we can run the below test
+		// in parallel
+		testCase := c
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
 			lggr := logr.Discard()
 			table := testCase.newRoutingTableFn()
 			ticker, pinger := newFakeQueuePinger(ctx, lggr)
@@ -162,7 +164,7 @@ func TestGetMetricSpec(t *testing.T) {
 			}
 			ret, err := hdl.GetMetricSpec(ctx, &scaledObjectRef)
 			testCase.checker(t, ret, err)
-		}()
+		})
 	}
 }
 
