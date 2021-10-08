@@ -31,6 +31,7 @@ func TestIsActive(t *testing.T) {
 		pinger,
 		table,
 		123,
+		200,
 	)
 	res, err := hdl.IsActive(
 		ctx,
@@ -81,7 +82,7 @@ func TestGetMetricSpec(t *testing.T) {
 	))
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, table, 123)
+	hdl := newImpl(lggr, pinger, table, 123, 200)
 	meta := map[string]string{
 		"host":                  host,
 		"targetPendingRequests": strconv.Itoa(int(target)),
@@ -110,7 +111,7 @@ func TestGetMetricsMissingHostInMetadata(t *testing.T) {
 	table := routing.NewTable()
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, table, 123)
+	hdl := newImpl(lggr, pinger, table, 123, 200)
 
 	// no 'host' in the ScalerObjectRef's metadata field
 	res, err := hdl.GetMetrics(ctx, req)
@@ -137,7 +138,7 @@ func TestGetMetricsMissingHostInQueue(t *testing.T) {
 	table := routing.NewTable()
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, table, 123)
+	hdl := newImpl(lggr, pinger, table, 123, 200)
 
 	req := &externalscaler.GetMetricsRequest{
 		ScaledObjectRef: &externalscaler.ScaledObjectRef{},
@@ -208,13 +209,11 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
 	)
 	defer ticker.Stop()
-	time.Sleep(50 * time.Millisecond)
-
 	// sleep for more than enough time for the pinger to do its
 	// first tick
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
-	hdl := newImpl(lggr, pinger, table, 123)
+	hdl := newImpl(lggr, pinger, table, 123, 200)
 	res, err := hdl.GetMetrics(ctx, req)
 	r.NoError(err)
 	r.NotNil(res)
@@ -286,7 +285,7 @@ func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
 	// first tick
 	time.Sleep(tickDur * 5)
 
-	hdl := newImpl(lggr, pinger, table, 123)
+	hdl := newImpl(lggr, pinger, table, 123, 200)
 	res, err := hdl.GetMetrics(ctx, req)
 	r.NoError(err)
 	r.NotNil(res)
@@ -295,5 +294,4 @@ func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
 	r.Equal("interceptor", metricVal.MetricName)
 	aggregate := pinger.aggregate()
 	r.Equal(int64(aggregate), metricVal.MetricValue)
-
 }
