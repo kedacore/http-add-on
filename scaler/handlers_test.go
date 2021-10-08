@@ -112,6 +112,49 @@ func TestGetMetrics(t *testing.T) {
 		defaultTargetMetricInterceptor int64
 	}
 
+	startFakeInterceptorServer := func(
+		ctx context.Context,
+		lggr logr.Logger,
+		hostMap map[string]int,
+		queuePingerTickDur time.Duration,
+	) (*queuePinger, func(), error) {
+		// create a new fake queue with the host map in it
+		q := queue.NewFakeCounter()
+		for host, val := range hostMap {
+			// NOTE: don't call .Resize here or you'll have to make sure
+			// to receive on q.ResizedCh
+			q.RetMap[host] = val
+		}
+		// create the HTTP server to encode and serve
+		// the host map
+		fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
+			"testns",
+			"testSvc",
+			q,
+			1,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// create a fake queue pinger. this is the simulated
+		// scaler that pings the above fake interceptor
+		ticker, pinger := newFakeQueuePinger(
+			ctx,
+			lggr,
+			func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
+			func(opts *fakeQueuePingerOpts) { opts.tickDur = queuePingerTickDur },
+			func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
+		)
+
+		// sleep for a bit to ensure the pinger has time to do its first tick
+		time.Sleep(10 * queuePingerTickDur)
+		return pinger, func() {
+			ticker.Stop()
+			fakeSrv.Close()
+		}, nil
+	}
+
 	testCases := []testCase{
 		{
 			name:           "no 'host' field in the scaler metadata field",
@@ -171,45 +214,14 @@ func TestGetMetrics(t *testing.T) {
 				lggr logr.Logger,
 			) (*routing.Table, *queuePinger, func(), error) {
 				table := routing.NewTable()
-
-				// we need to create a new queuePinger with valid endpoints
-				// to query this time, so that when counts are requested by
-				// the internal queuePinger logic, there is a valid host from
-				// which to request those counts
-				q := queue.NewFakeCounter()
-				// NOTE: don't call .Resize here or you'll have to make sure
-				// to receive on q.ResizedCh
-				q.RetMap["validHost"] = 201
-
-				// create a fake interceptor
-				fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
-					"testns",
-					"testSvc",
-					q,
-					1,
-				)
+				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
+					"validHost": 201,
+				}, 2*time.Millisecond)
 				if err != nil {
 					return nil, nil, nil, err
 				}
 
-				// create a fake queue pinger. this is the simulated
-				// scaler that pings the above fake interceptor
-				const tickDur = 1 * time.Millisecond
-				ticker, pinger := newFakeQueuePinger(
-					ctx,
-					lggr,
-					func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
-					func(opts *fakeQueuePingerOpts) { opts.tickDur = tickDur },
-					func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
-				)
-
-				// sleep for a bit to ensure the pinger has time to do its first tick
-				time.Sleep(10 * tickDur)
-
-				return table, pinger, func() {
-					ticker.Stop()
-					fakeSrv.Close()
-				}, nil
+				return table, pinger, done, nil
 			},
 			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
 				t.Helper()
@@ -234,46 +246,14 @@ func TestGetMetrics(t *testing.T) {
 				lggr logr.Logger,
 			) (*routing.Table, *queuePinger, func(), error) {
 				table := routing.NewTable()
-
-				// we need to create a new queuePinger with valid endpoints
-				// to query this time, so that when counts are requested by
-				// the internal queuePinger logic, there is a valid host from
-				// which to request those counts
-				q := queue.NewFakeCounter()
-				// NOTE: don't call .Resize here or you'll have to make sure
-				// to receive on q.ResizedCh
-				q.RetMap["host1"] = 201
-				q.RetMap["host2"] = 202
-
-				// create a fake interceptor
-				fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
-					"testns",
-					"testSvc",
-					q,
-					1,
-				)
+				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
+					"host1": 201,
+					"host2": 202,
+				}, 2*time.Millisecond)
 				if err != nil {
 					return nil, nil, nil, err
 				}
-
-				// create a fake queue pinger. this is the simulated
-				// scaler that pings the above fake interceptor
-				const tickDur = 1 * time.Millisecond
-				ticker, pinger := newFakeQueuePinger(
-					ctx,
-					lggr,
-					func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
-					func(opts *fakeQueuePingerOpts) { opts.tickDur = tickDur },
-					func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
-				)
-
-				// sleep for a bit to ensure the pinger has time to do its first tick
-				time.Sleep(4 * tickDur)
-
-				return table, pinger, func() {
-					ticker.Stop()
-					fakeSrv.Close()
-				}, nil
+				return table, pinger, done, nil
 			},
 			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
 				t.Helper()
