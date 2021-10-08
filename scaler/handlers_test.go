@@ -208,11 +208,9 @@ func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
 		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
 	)
 	defer ticker.Stop()
-	time.Sleep(50 * time.Millisecond)
-
 	// sleep for more than enough time for the pinger to do its
 	// first tick
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	hdl := newImpl(lggr, pinger, table, 123)
 	res, err := hdl.GetMetrics(ctx, req)
@@ -295,5 +293,4 @@ func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
 	r.Equal("interceptor", metricVal.MetricName)
 	aggregate := pinger.aggregate()
 	r.Equal(int64(aggregate), metricVal.MetricValue)
-
 }
