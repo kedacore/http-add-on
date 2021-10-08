@@ -29,9 +29,7 @@ For any contribution you make that impacts the behavior or experience of the KED
 
 ## Development Environment Setup
 
-We have a comprehensive how-to document that details the setup and configuration of the development environment for this project.
-
-Please find it at [docs/developing.md](./docs/developing.md).
+Please see our comprehensive how-to document [on the wiki](https://github.com/kedacore/http-add-on/wiki/Setting-Up-Your-Development-Environment) for details on how to set up and configure your development environment for this project.
 
 ## Developer Certificate of Origin: Signing your work
 

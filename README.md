@@ -3,7 +3,7 @@
 <p style="font-size: 25px" align="center"><b>Kubernetes-based Event Driven Autoscaling - HTTP Add-On</b></p>
 <p style="font-size: 25px" align="center">
 
-The KEDA HTTP Add On allows Kubernetes users to automatically scale their HTTP servers up and down (including to/from zero) based on incoming HTTP traffic. Please see our [use cases document](./docs/use_cases.md) to learn more about how and why you would use this project.
+The KEDA HTTP Add On allows Kubernetes users to automatically scale their HTTP servers up and down (including to/from zero) based on incoming HTTP traffic. Please see our [use cases document](https://github.com/kedacore/http-add-on/wiki/Common-Use-Cases) to learn more about how and why you would use this project.
 
 | 🚧 **Project status: beta** 🚧|
 |---------------------------------------------|
@@ -25,28 +25,26 @@ This project, often called KEDA-HTTP, exists to provide that scaling. It is comp
 
 ## Walkthrough
 
-Although this is currently a **beta release** project, we have prepared a walkthrough document that with instructions on getting started for basic usage.
-
-See that document at [docs/walkthrough.md](./docs/walkthrough.md)
+Although this is currently a **beta release** project, we have prepared a [walkthrough document](https://github.com/kedacore/http-add-on/wiki/Getting-Started) complete with instructions on getting started for basic usage.
 
 ## Design
 
 The HTTP add-on is composed of multiple mostly independent components. This design was chosen to allow for highly
 customizable installations while allowing us to ship reasonable defaults.
 
-- We have written a complete design document. Please see it at [docs/design.md](./docs/design.md).
-- For more context on the design, please see our [scope document](./docs/scope.md).
-- If you have further questions about the project, please see our [FAQ document](./docs/faq.md).
+- We have written a complete design document [on our wiki](https://github.com/kedacore/http-add-on/wiki/Architecture).
+- For more context on the design, please see our [scope document](https://github.com/kedacore/http-add-on/wiki/Project-Scope).
+- If you have further questions about the project, please see our [FAQ document](https://github.com/kedacore/http-add-on/wiki/Frequently-Asked-Questions).
 
 ## Installation
 
-Please see the [complete installation instructions](./docs/install.md).
+Please see our [installation instructions](https://github.com/kedacore/http-add-on/wiki/Installing).
 
 ## Contributing
 
 This project follows the KEDA contributing guidelines, which are outlined in [CONTRIBUTING.md](https://github.com/kedacore/.github/blob/main/CONTRIBUTING.md).
 
-If you would like to contribute code to this project, please see [docs/developing.md](./docs/developing.md).
+If you would like to contribute code to this project, please see [docs/developing.md](https://github.com/kedacore/http-add-on/wiki/Setting-Up-Your-Development-Environment).
 
 ---
 We are a Cloud Native Computing Foundation (CNCF) incubation project.
