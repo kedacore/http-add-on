@@ -206,7 +206,6 @@ func (k *K8sDeploymentCache) addEvt(evt watch.Event) error {
 			"watch event did not contain a Deployment",
 		)
 	}
-	depl.GetName()
 	k.latest[depl.GetName()] = *depl
 	return nil
 }
