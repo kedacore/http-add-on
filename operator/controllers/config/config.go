@@ -8,8 +8,8 @@ import (
 
 // ExternalScaler holds static configuration info for the external scaler
 type ExternalScaler struct {
-	ServiceName string `envconfig:"EXTERNAL_SCALER_SERVICE_NAME" required:"true"`
-	Port        int32  `envconfig:"EXTERNAL_SCALER_PORT" required:"true"`
+	ServiceName string `envconfig:"SERVICE" required:"true"`
+	Port        int32  `envconfig:"PORT" required:"true"`
 }
 
 type Base struct {
