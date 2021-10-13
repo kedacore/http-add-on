@@ -149,7 +149,7 @@ func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
 	r.NoError(err)
 	r.Equal(*depl, fetched)
-	r.Equal(0, len(lw.getWatcher().getEvents()))
+	r.Equal(0, len(lw.events()))
 }
 
 // test to make sure that the update loop tries to
@@ -183,12 +183,15 @@ func TestK8sDeploymentCacheRewatch(t *testing.T) {
 
 	// close all open watch channels after waiting a bit for the watcher to start.
 	// in this call we're allowing channels to be reopened
-	lw.getWatcher().closeOpenChans(true)
-	time.Sleep(500 * time.Millisecond)
+	lw.stopWatcher()
+	time.Sleep(2 * time.Second)
 
 	// make sure that ResultChan was called one more time
 	// after channels were closed
-	r.Equal(false, lw.getWatcher().closed)
+	r.False(
+		lw.isWatcherStopped(),
+		"watcher is marked stopped but shouldn't be",
+	)
 
 	// add the deployment and send an event.
 	depl := newDeployment("testns", "testdepl", "testing", nil, nil, nil, core.PullAlways)
@@ -197,12 +200,11 @@ func TestK8sDeploymentCacheRewatch(t *testing.T) {
 	// and receive the event
 	time.Sleep(500 * time.Millisecond)
 	// make sure that an event came through
-	r.Equal(1, len(lw.getWatcher().getEvents()))
+	r.Equal(1, len(lw.events()))
 	// make sure that the deployment was fetched
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
 	r.NoError(err)
 	r.Equal(*depl, fetched)
-
 }
 
 // test to make sure that when the context is closed, the deployment
