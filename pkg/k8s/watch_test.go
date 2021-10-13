@@ -11,8 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-// closeableWatcher is a watch.Interface that can be closed
-// and optionally reopened
+// will be reopened
 type closeableWatcher struct {
 	uid         uuid.UUID
 	mut         *sync.RWMutex
