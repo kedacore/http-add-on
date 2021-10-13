@@ -107,6 +107,8 @@ func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
 		}
 	}()
 
+	// after we know all events were received,
+	// make sure we got the ones we expected
 	wg.Wait()
 	r.Equal(len(deplList.Items), len(evts))
 	for i := 0; i < len(deplList.Items); i++ {
