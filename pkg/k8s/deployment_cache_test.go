@@ -63,13 +63,25 @@ func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
 		context.Background(),
 	)
 	defer done()
-	cache, err := NewK8sDeploymentCache(ctx, logr.Discard(), newFakeDeploymentListerWatcher())
+	lggr := logr.Discard()
+	listerWatcher := newFakeDeploymentListerWatcher()
+	cache, err := NewK8sDeploymentCache(
+		ctx,
+		lggr,
+		listerWatcher,
+	)
 	r.NoError(err)
 	depl := newDeployment("testns", "testdepl1", "testing", nil, nil, nil, core.PullAlways)
 	deplList := &appsv1.DeploymentList{
 		Items: []appsv1.Deployment{*depl},
 	}
 
+	// call mergeAndBroadcastList in 1 background
+	// goroutine, and then receive the events
+	// that it sends on a different one.
+	// record the events that were sent in
+	// a slice that we'll read after we know
+	// both goroutines have finished
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -138,8 +150,8 @@ func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
 	r.Equal(0, len(lw.getWatcher().getEvents()))
 }
 
-// test to make sure that the update loop tries to re-establish watch
-// streams when they're broken
+// test to make sure that the update loop tries to
+// re-establish watch streams when they're broken
 func TestK8sDeploymentCacheRewatch(t *testing.T) {
 	r := require.New(t)
 	ctx, done := context.WithCancel(
