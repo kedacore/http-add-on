@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
+// closeableWatcher is a watch.Interface that, when closed
 // will be reopened
 type closeableWatcher struct {
 	uid         uuid.UUID
