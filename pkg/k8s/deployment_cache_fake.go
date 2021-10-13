@@ -8,11 +8,17 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
+// FakeDeploymentCache is a fake implementation of
+// DeploymentCache, suitable for testing interceptor-level
+// logic, without requiring any real Kubernetes client
+// or API interaction
 type FakeDeploymentCache struct {
 	Mut      *sync.RWMutex
 	Current  map[string]appsv1.Deployment
 	Watchers map[string]*watch.RaceFreeFakeWatcher
 }
+
+var _ DeploymentCache = &FakeDeploymentCache{}
 
 func NewFakeDeploymentCache() *FakeDeploymentCache {
 	return &FakeDeploymentCache{
