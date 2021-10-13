@@ -21,7 +21,6 @@ type closeableWatcher struct {
 	events      []watch.Event
 	closed      bool
 	allowReopen bool
-	resultCalls int
 }
 
 func newCloseableWatcher() *closeableWatcher {
