@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -20,6 +21,7 @@ type closeableWatcher struct {
 	events      []watch.Event
 	closed      bool
 	allowReopen bool
+	resultCalls int
 }
 
 func newCloseableWatcher() *closeableWatcher {
@@ -43,7 +45,10 @@ func (w *closeableWatcher) String() string {
 func (w *closeableWatcher) Stop() {
 	w.mut.RLock()
 	defer w.mut.RUnlock()
-	close(w.ch)
+	if !w.closed {
+		close(w.ch)
+		w.closed = true
+	}
 }
 
 func (w *closeableWatcher) ResultChan() <-chan watch.Event {
@@ -64,26 +69,34 @@ func (w *closeableWatcher) closeOpenChans(allowReopen bool) {
 	w.allowReopen = allowReopen
 }
 
-func (w *closeableWatcher) Add(d *appsv1.Deployment) {
+func (w *closeableWatcher) Add(d *appsv1.Deployment) error {
 	w.mut.RLock()
 	defer w.mut.RUnlock()
+	if w.closed {
+		return errors.New("watcher is closed")
+	}
 	evt := watch.Event{
 		Type:   watch.Added,
 		Object: d,
 	}
 	w.ch <- evt
 	w.events = append(w.events, evt)
+	return nil
 }
 
-func (w *closeableWatcher) Modify(d *appsv1.Deployment) {
+func (w *closeableWatcher) Modify(d *appsv1.Deployment) error {
 	w.mut.RLock()
 	defer w.mut.RUnlock()
+	if w.closed {
+		return errors.New("watcher is closed")
+	}
 	evt := watch.Event{
 		Type:   watch.Modified,
 		Object: d,
 	}
 	w.ch <- evt
 	w.events = append(w.events, evt)
+	return nil
 }
 
 func (w *closeableWatcher) getEvents() []watch.Event {
@@ -129,16 +142,17 @@ func (lw *fakeDeploymentListerWatcher) getWatcher() *closeableWatcher {
 // already existed. in either case, it will be returned by a future call to List.
 // in the former case, an ADD event if sent if sendEvent is true, and in the latter
 // case, a MODIFY event is sent if sendEvent is true
-func (lw *fakeDeploymentListerWatcher) addDeployment(d appsv1.Deployment, sendEvent bool) {
+func (lw *fakeDeploymentListerWatcher) addDeployment(d appsv1.Deployment, sendEvent bool) error {
 	lw.mut.Lock()
 	defer lw.mut.Unlock()
 	_, existed := lw.items[d.ObjectMeta.Name]
 	lw.items[d.ObjectMeta.Name] = d
 	if sendEvent {
 		if existed {
-			lw.watcher.Modify(&d)
+			return lw.watcher.Modify(&d)
 		} else {
-			lw.watcher.Add(&d)
+			return lw.watcher.Add(&d)
 		}
 	}
+	return nil
 }

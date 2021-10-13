@@ -143,7 +143,7 @@ func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
 	// add the deployment without sending an event, to make sure that
 	// the internal loop won't receive any events and will rely on
 	// just the ticker
-	lw.addDeployment(*depl, false)
+	r.NoError(lw.addDeployment(*depl, false))
 	time.Sleep(tickDur * 2)
 	// make sure that the deployment was fetched
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
@@ -186,9 +186,13 @@ func TestK8sDeploymentCacheRewatch(t *testing.T) {
 	lw.getWatcher().closeOpenChans(true)
 	time.Sleep(500 * time.Millisecond)
 
+	// make sure that ResultChan was called one more time
+	// after channels were closed
+	r.Equal(false, lw.getWatcher().closed)
+
 	// add the deployment and send an event.
 	depl := newDeployment("testns", "testdepl", "testing", nil, nil, nil, core.PullAlways)
-	lw.addDeployment(*depl, true)
+	r.NoError(lw.addDeployment(*depl, true))
 	// sleep for a bit to make sure the watcher has had time to re-establish the watch
 	// and receive the event
 	time.Sleep(500 * time.Millisecond)
