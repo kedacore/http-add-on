@@ -99,12 +99,13 @@ func (w *reopeningWatcher) getEvents() []watch.Event {
 }
 
 type fakeDeploymentListerWatcher struct {
-	mut *sync.RWMutex
-	// watcher *closeableWatcher
+	mut     *sync.RWMutex
 	row     *reopeningWatcher
 	items   map[string]appsv1.Deployment
 	watchCB func()
 }
+
+var _ DeploymentListerWatcher = &fakeDeploymentListerWatcher{}
 
 func newFakeDeploymentListerWatcher() *fakeDeploymentListerWatcher {
 	return &fakeDeploymentListerWatcher{
@@ -125,7 +126,9 @@ func (lw *fakeDeploymentListerWatcher) List(ctx context.Context, options metav1.
 }
 
 func (lw *fakeDeploymentListerWatcher) Watch(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
-	lw.watchCB()
+	if lw.watchCB != nil {
+		lw.watchCB()
+	}
 	return lw.row, nil
 }
 
