@@ -41,5 +41,3 @@ autoscaling:
     minReplicas: 0
     maxReplicas: 10
 
-ingress:
-  enabled: false

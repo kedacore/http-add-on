@@ -41,6 +41,7 @@ func main() {
 	svcName := cfg.TargetService
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
 	targetPendingRequests := cfg.TargetPendingRequests
+	targetPendingRequestsInterceptor := cfg.TargetPendingRequestsInterceptor
 
 	k8sCl, _, err := k8s.NewClientset()
 	if err != nil {
@@ -81,6 +82,7 @@ func main() {
 			pinger,
 			table,
 			int64(targetPendingRequests),
+			int64(targetPendingRequestsInterceptor),
 		)
 	})
 
@@ -118,6 +120,7 @@ func startGrpcServer(
 	pinger *queuePinger,
 	routingTable *routing.Table,
 	targetPendingRequests int64,
+	targetPendingRequestsInterceptor int64,
 ) error {
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
@@ -135,6 +138,7 @@ func startGrpcServer(
 			pinger,
 			routingTable,
 			targetPendingRequests,
+			targetPendingRequestsInterceptor,
 		),
 	)
 	reflection.Register(grpcServer)
