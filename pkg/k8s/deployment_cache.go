@@ -104,7 +104,9 @@ func (k *K8sDeploymentCache) StartWatcher(
 		case evt, validRecv := <-ch:
 			// handle closed watch stream
 			if !validRecv {
-				// make sure to stop the watcher before doing anything else
+				// make sure to stop the watcher before doing anything else.
+				// below, we assign watcher to a new watcher, and that will
+				// then be closed in the defer we set up previously
 				watcher.Stop()
 				newWatcher, err := k.cl.Watch(ctx, metav1.ListOptions{})
 				if err != nil {
@@ -119,8 +121,6 @@ func (k *K8sDeploymentCache) StartWatcher(
 				}
 
 				ch = newWatcher.ResultChan()
-				// stop the old watcher and store the new one.
-				// the new one will be closed in the defer
 				watcher = newWatcher
 			} else {
 				if err := k.addEvt(evt); err != nil {
