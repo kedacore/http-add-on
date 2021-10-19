@@ -104,6 +104,8 @@ func (k *K8sDeploymentCache) StartWatcher(
 		case evt, validRecv := <-ch:
 			// handle closed watch stream
 			if !validRecv {
+				// make sure to stop the watcher before doing anything else
+				watcher.Stop()
 				newWatcher, err := k.cl.Watch(ctx, metav1.ListOptions{})
 				if err != nil {
 					lggr.Error(
@@ -115,10 +117,10 @@ func (k *K8sDeploymentCache) StartWatcher(
 						"failed to re-open watch stream",
 					)
 				}
+
 				ch = newWatcher.ResultChan()
 				// stop the old watcher and store the new one.
 				// the new one will be closed in the defer
-				watcher.Stop()
 				watcher = newWatcher
 			} else {
 				if err := k.addEvt(evt); err != nil {
