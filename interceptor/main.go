@@ -228,8 +228,7 @@ func runProxyServer(
 			routingTable,
 			dialContextFunc,
 			waitFunc,
-			timeouts.DeploymentReplicas,
-			timeouts.ResponseHeader,
+			newForwardingConfigFromTimeouts(timeouts),
 		),
 	)
 

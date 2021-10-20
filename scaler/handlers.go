@@ -21,10 +21,11 @@ func init() {
 }
 
 type impl struct {
-	lggr         logr.Logger
-	pinger       *queuePinger
-	routingTable routing.TableReader
-	targetMetric int64
+	lggr                    logr.Logger
+	pinger                  *queuePinger
+	routingTable            routing.TableReader
+	targetMetric            int64
+	targetMetricInterceptor int64
 	externalscaler.UnimplementedExternalScalerServer
 }
 
@@ -33,12 +34,14 @@ func newImpl(
 	pinger *queuePinger,
 	routingTable routing.TableReader,
 	defaultTargetMetric int64,
+	defaultTargetMetricInterceptor int64,
 ) *impl {
 	return &impl{
-		lggr:         lggr,
-		pinger:       pinger,
-		routingTable: routingTable,
-		targetMetric: defaultTargetMetric,
+		lggr:                    lggr,
+		pinger:                  pinger,
+		routingTable:            routingTable,
+		targetMetric:            defaultTargetMetric,
+		targetMetricInterceptor: defaultTargetMetricInterceptor,
 	}
 }
 
@@ -115,20 +118,27 @@ func (e *impl) GetMetricSpec(
 		lggr.Error(err, "no 'host' found in ScaledObject metadata")
 		return nil, err
 	}
-	target, err := e.routingTable.Lookup(host)
-	if err != nil {
-		lggr.Error(
-			err,
-			"error getting target for host",
-			"host",
-			host,
-		)
-		return nil, err
+
+	var targetPendingRequests int64
+	if host == "interceptor" {
+		targetPendingRequests = e.targetMetricInterceptor
+	} else {
+		target, err := e.routingTable.Lookup(host)
+		if err != nil {
+			lggr.Error(
+				err,
+				"error getting target for host",
+				"host",
+				host,
+			)
+			return nil, err
+		}
+		targetPendingRequests = int64(target.TargetPendingRequests)
 	}
 	metricSpecs := []*externalscaler.MetricSpec{
 		{
 			MetricName: host,
-			TargetSize: int64(target.TargetPendingRequests),
+			TargetSize: targetPendingRequests,
 		},
 	}
 
