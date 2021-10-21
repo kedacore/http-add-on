@@ -117,7 +117,7 @@ func main() {
 
 	routingTable := routing.NewTable()
 	if err := (&controllers.HTTPScaledObjectReconciler{
-		Client:               mgr.GetClient(),
+		Client:               cl,
 		Log:                  ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
 		Scheme:               mgr.GetScheme(),
 		InterceptorConfig:    *interceptorCfg,
