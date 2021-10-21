@@ -36,9 +36,9 @@ helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespa
 
 There are a few values that you can pass to the above `helm install` command by including `--set NAME=VALUE` on the command line.
 
-- `images.operator` - the name of the operator's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-operator`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-operator).
-- `images.scaler` - the name of the scaler's Docker image, not including the tag.  Defaults to [`ghcr.io/kedacore/http-add-on-scaler`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-scaler).
-- `images.interceptor` - the name of the interceptor's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-interceptor`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-interceptor).
+- `images.operator` - the name of the operator's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-operator`](https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-operator).
+- `images.scaler` - the name of the scaler's Docker image, not including the tag.  Defaults to [`ghcr.io/kedacore/http-add-on-scaler`](https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler).
+- `images.interceptor` - the name of the interceptor's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-interceptor`](https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor).
 - `images.tag` - the tag to use for all the above docker images. Defaults to the [latest stable release](https://github.com/kedacore/http-add-on/releases).
 
 >If you want to install the latest build of the HTTP Add on, set `version` to `canary`:
