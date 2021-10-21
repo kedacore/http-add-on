@@ -105,7 +105,7 @@ func main() {
         // crash if the routing table ConfigMap couldn't be found
 	if _, err := k8s.GetConfigMap(ctx, cl, namespace, routing.ConfigMapRoutingTableName); err != nil {
 		setupLog.Error(
-			getConfigMapError,
+			err,
 			"Couldn't fetch routing table config map",
 			"configMapName",
 			routing.ConfigMapRoutingTableName,
