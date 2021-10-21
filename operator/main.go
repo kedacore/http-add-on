@@ -102,10 +102,8 @@ func main() {
 
 	cl := mgr.GetClient()
 	namespace := baseConfig.Namespace
-	_, getConfigMapError := k8s.GetConfigMap(ctx, cl, namespace, routing.ConfigMapRoutingTableName)
-	// if there is an error other than not found on the ConfigMap, we should
-	// fail
-	if getConfigMapError != nil {
+        // crash if the routing table ConfigMap couldn't be found
+	if _, err := k8s.GetConfigMap(ctx, cl, namespace, routing.ConfigMapRoutingTableName); err != nil {
 		setupLog.Error(
 			getConfigMapError,
 			"Couldn't fetch routing table config map",
