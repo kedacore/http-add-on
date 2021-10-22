@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
@@ -65,10 +66,11 @@ func TestForwarderSuccess(t *testing.T) {
 	const respCode = 302
 	const respBody = "TestForwardingHandler"
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			close(reqRecvCh)
 			w.WriteHeader(respCode)
-			w.Write([]byte(respBody))
+			_, err := w.Write([]byte(respBody))
+			r.NoError(err)
 		}),
 	)
 	testServer := httptest.NewServer(originHdl)
@@ -82,6 +84,7 @@ func TestForwarderSuccess(t *testing.T) {
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
@@ -129,6 +132,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
@@ -151,10 +155,11 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	const originRespCode = 200
 	const originRespBodyStr = "Hello World!"
 	hdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			<-originWaitCh
 			w.WriteHeader(originRespCode)
-			w.Write([]byte(originRespBodyStr))
+			_, err := w.Write([]byte(originRespBodyStr))
+			r.NoError(err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(hdl)
@@ -180,6 +185,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
@@ -208,6 +214,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 
 	start := time.Now()
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),

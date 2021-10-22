@@ -168,7 +168,11 @@ func startHealthcheckServer(
 		if err := pinger.requestCounts(ctx); err != nil {
 			lggr.Error(err, "requesting counts failed")
 			w.WriteHeader(500)
-			w.Write([]byte("error requesting counts from interceptors"))
+			if _, err := w.Write(
+				[]byte("error requesting counts from interceptors"),
+			); err != nil {
+				lggr.Error(err, "could not send error message to client")
+			}
 			return
 		}
 		cts := pinger.counts()
@@ -176,7 +180,12 @@ func startHealthcheckServer(
 		if err := json.NewEncoder(w).Encode(&cts); err != nil {
 			lggr.Error(err, "writing counts data to caller")
 			w.WriteHeader(500)
-			w.Write([]byte("error writing counts data to caller"))
+			if _, err := w.Write([]byte("error writing counts data to caller")); err != nil {
+				lggr.Error(
+					err,
+					"could not send error response to client: %s",
+				)
+			}
 		}
 	})
 
@@ -188,7 +197,9 @@ func startHealthcheckServer(
 
 	go func() {
 		<-ctx.Done()
-		srv.Shutdown(ctx)
+		if err := srv.Shutdown(ctx); err != nil {
+			lggr.Error(err, "shutting down health check server")
+		}
 	}()
 	return srv.ListenAndServe()
 }

@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	logrtest "github.com/go-logr/logr/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,12 +63,12 @@ type commonTestInfra struct {
 
 func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 	ctx := context.Background()
-	cl := fake.NewFakeClient()
+	cl := fake.NewClientBuilder().Build()
 	cfg := config.AppInfo{
 		Name:      appName,
 		Namespace: namespace,
 	}
-	logger := logrtest.NullLogger{}
+	logger := logr.Discard()
 	httpso := v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
@@ -114,13 +113,12 @@ var _ = BeforeSuite(func(done Done) {
 	// 	UseExistingCluster: &useExistingCluster,
 	// }
 
-	var err error
 	// cfg, err = testEnv.Start()
 	// Expect(err).ToNot(HaveOccurred())
 	// Expect(cfg).ToNot(BeNil())
 
-	err = httpv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	addSchemeErr := httpv1alpha1.AddToScheme(scheme.Scheme)
+	Expect(addSchemeErr).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme
 

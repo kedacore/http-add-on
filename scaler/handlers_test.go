@@ -74,12 +74,12 @@ func TestGetMetricSpec(t *testing.T) {
 	ctx := context.Background()
 	lggr := logr.Discard()
 	table := routing.NewTable()
-	table.AddTarget(host, routing.NewTarget(
+	r.NoError(table.AddTarget(host, routing.NewTarget(
 		"testsrv",
 		8080,
 		"testdepl",
 		int32(target),
-	))
+	)))
 	ticker, pinger := newFakeQueuePinger(ctx, lggr)
 	defer ticker.Stop()
 	hdl := newImpl(lggr, pinger, table, 123, 200)

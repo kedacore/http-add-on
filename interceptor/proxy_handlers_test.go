@@ -21,9 +21,10 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	r := require.New(t)
 
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(200)
-			w.Write([]byte("test response"))
+			_, err := w.Write([]byte("test response"))
+			r.NoError(err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
@@ -37,7 +38,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		Port:       portInt,
 		Deployment: "testdepl",
 	}
-	routingTable.AddTarget(host, target)
+	r.NoError(routingTable.AddTarget(host, target))
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
@@ -82,11 +83,11 @@ func TestWaitFailedConnection(t *testing.T) {
 		return nil
 	}
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(host, routing.Target{
+	r.NoError(routingTable.AddTarget(host, routing.Target{
 		Service:    "nosuchdepl",
 		Port:       8081,
 		Deployment: "nosuchdepl",
-	})
+	}))
 
 	hdl := newForwardingHandler(
 		logr.Discard(),
@@ -123,11 +124,11 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	noSuchHost := fmt.Sprintf("%s.testing", t.Name())
 
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchHost, routing.Target{
+	r.NoError(routingTable.AddTarget(noSuchHost, routing.Target{
 		Service:    "nosuchsvc",
 		Port:       9091,
 		Deployment: "nosuchdepl",
-	})
+	}))
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
@@ -188,11 +189,11 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	originHost, originPort, err := splitHostPort(testSrvURL.Host)
 	r.NoError(err)
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchHost, routing.Target{
+	r.NoError(routingTable.AddTarget(noSuchHost, routing.Target{
 		Service:    originHost,
 		Port:       originPort,
 		Deployment: "nosuchdepl",
-	})
+	}))
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
@@ -240,10 +241,11 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	// proxy
 	originHdlCh := make(chan struct{})
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			<-originHdlCh
 			w.WriteHeader(200)
-			w.Write([]byte("test response"))
+			_, err := w.Write([]byte("test response"))
+			r.NoError(err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
@@ -261,7 +263,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		Port:       9094,
 		Deployment: "testdepl",
 	}
-	routingTable.AddTarget(originURL.Host, target)
+	r.NoError(routingTable.AddTarget(originURL.Host, target))
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,

@@ -100,9 +100,14 @@ func (e *impl) StreamIsActive(
 				)
 				continue
 			}
-			server.Send(&externalscaler.IsActiveResponse{
+			if err := server.Send(&externalscaler.IsActiveResponse{
 				Result: active.Result,
-			})
+			}); err != nil {
+				e.lggr.Error(
+					err,
+					"error sending active status in stream, continuing",
+				)
+			}
 		}
 	}
 }

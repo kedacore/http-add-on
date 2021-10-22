@@ -72,12 +72,12 @@ func TestStartUpdateLoop(t *testing.T) {
 
 	q := queue.NewFakeCounter()
 	table := NewTable()
-	table.AddTarget("host1", NewTarget(
+	r.NoError(table.AddTarget("host1", NewTarget(
 		"svc1",
 		8080,
 		"depl1",
 		100,
-	))
+	)))
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

@@ -34,7 +34,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 		deplName                  = "testdeployment"
 	)
 	r := require.New(t)
-	h, err := newHarness(deploymentReplicasTimeout, responseHeaderTimeout)
+	h, err := newHarness(t, deploymentReplicasTimeout, responseHeaderTimeout)
 	r.NoError(err)
 	defer h.close()
 	t.Logf("Harness: %s", h.String())
@@ -55,11 +55,11 @@ func TestIntegrationHappyPath(t *testing.T) {
 
 	originHost, originPort, err := splitHostPort(h.originURL.Host)
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), routing.Target{
+	r.NoError(h.routingTable.AddTarget(hostForTest(t), routing.Target{
 		Service:    originHost,
 		Port:       originPort,
 		Deployment: deplName,
-	})
+	}))
 
 	// happy path
 	res, err := doRequest(
@@ -82,7 +82,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 func TestIntegrationNoRoutingTableEntry(t *testing.T) {
 	host := fmt.Sprintf("%s.integrationtest.interceptor.kedahttp.dev", t.Name())
 	r := require.New(t)
-	h, err := newHarness(time.Second, time.Second)
+	h, err := newHarness(t, time.Second, time.Second)
 	r.NoError(err)
 	defer h.close()
 	h.deplCache.Set(host, appsv1.Deployment{
@@ -112,16 +112,16 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	host := hostForTest(t)
 	deployName := "testdeployment"
 	r := require.New(t)
-	h, err := newHarness(deployTimeout, time.Second)
+	h, err := newHarness(t, deployTimeout, time.Second)
 	r.NoError(err)
 
 	originHost, originPort, err := splitHostPort(h.originURL.Host)
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), routing.Target{
+	r.NoError(h.routingTable.AddTarget(hostForTest(t), routing.Target{
 		Service:    originHost,
 		Port:       originPort,
 		Deployment: deployName,
-	})
+	}))
 
 	// 0 replicas
 	h.deplCache.Set(deployName, appsv1.Deployment{
@@ -158,17 +158,17 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	)
 	ctx := context.Background()
 	r := require.New(t)
-	h, err := newHarness(deployTimeout, responseTimeout)
+	h, err := newHarness(t, deployTimeout, responseTimeout)
 	r.NoError(err)
 
 	// add host to routing table
 	originHost, originPort, err := splitHostPort(h.originURL.Host)
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), routing.Target{
+	r.NoError(h.routingTable.AddTarget(hostForTest(t), routing.Target{
 		Service:    originHost,
 		Port:       originPort,
 		Deployment: deployName,
-	})
+	}))
 
 	// set up a deployment with zero replicas and create
 	// a watcher we can use later to fake-send a deployment
@@ -267,9 +267,11 @@ type harness struct {
 }
 
 func newHarness(
+	t *testing.T,
 	deployReplicasTimeout,
 	responseHeaderTimeout time.Duration,
 ) (*harness, error) {
+	t.Helper()
 	lggr := logr.Discard()
 	routingTable := routing.NewTable()
 	dialContextFunc := kedanet.DialContextWithRetry(
@@ -298,7 +300,10 @@ func newHarness(
 
 	originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("hello!"))
+		_, err := w.Write([]byte("hello!"))
+		if err != nil {
+			t.Fatalf("error writing message from origin: %s", err)
+		}
 	})
 	testOriginSrv, originSrvURL, err := kedanet.StartTestServer(originHdl)
 	if err != nil {

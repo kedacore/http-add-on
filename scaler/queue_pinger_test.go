@@ -33,7 +33,7 @@ func TestRequestCounts(t *testing.T) {
 
 	q := queue.NewMemory()
 	for host, count := range counts {
-		q.Resize(host, count)
+		r.NoError(q.Resize(host, count))
 	}
 
 	hdl := http.NewServeMux()

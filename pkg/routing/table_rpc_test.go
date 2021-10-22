@@ -12,10 +12,13 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func newTableFromMap(m map[string]Target) *Table {
+func newTableFromMap(t *testing.T, m map[string]Target) *Table {
+	t.Helper()
 	table := NewTable()
 	for host, target := range m {
-		table.AddTarget(host, target)
+		if err := table.AddTarget(host, target); err != nil {
+			t.Fatalf("Error adding target to table: %s", err)
+		}
 	}
 	return table
 }
@@ -59,7 +62,7 @@ func TestRPCIntegration(t *testing.T) {
 
 	retTable = NewTable()
 	k8sCl, err = fakeConfigMapClientForTable(
-		newTableFromMap(targetMap),
+		newTableFromMap(t, targetMap),
 		ns,
 		ConfigMapRoutingTableName,
 	)

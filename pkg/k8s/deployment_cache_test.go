@@ -124,7 +124,13 @@ func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
 	cache, err := NewK8sDeploymentCache(ctx, logr.Discard(), lw)
 	r.NoError(err)
 	const tickDur = 10 * time.Millisecond
-	go cache.StartWatcher(ctx, logr.Discard(), tickDur)
+	// start the cache watcher in the background and expect it to
+	// fail at the end of the test
+	go func() {
+		if err := cache.StartWatcher(ctx, logr.Discard(), tickDur); err == nil {
+			t.Error("expected watcher to fail at the end of the test, but it didn't")
+		}
+	}()
 	depl := newDeployment("testns", "testdepl", "testing", nil, nil, nil, core.PullAlways)
 	// add the deployment without sending an event, to make sure that
 	// the internal loop won't receive any events and will rely on
@@ -236,7 +242,12 @@ func TestK8sDeploymentCacheBasicWatch(t *testing.T) {
 		fakeDeployments,
 	)
 	r.NoError(err)
-	go cache.StartWatcher(ctx, logr.Discard(), time.Millisecond)
+	// expect the cache watcher to fail at the end of the test
+	go func() {
+		if err := cache.StartWatcher(ctx, logr.Discard(), time.Millisecond); err == nil {
+			t.Error("expected the cache watcher to fail at the end of the test but it didn't")
+		}
+	}()
 
 	watcher := cache.Watch(name)
 	defer watcher.Stop()

@@ -2,12 +2,10 @@ package e2e
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/magefile/mage/sh"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,14 +30,6 @@ func getClient() (
 
 func deleteNS(ns string) error {
 	return sh.RunV("kubectl", "delete", "namespace", ns)
-}
-
-func getPortStrings(svc *corev1.Service) []string {
-	ret := []string{}
-	for _, port := range svc.Spec.Ports {
-		ret = append(ret, strconv.Itoa(int(port.Port)))
-	}
-	return ret
 }
 
 func getScaledObject(

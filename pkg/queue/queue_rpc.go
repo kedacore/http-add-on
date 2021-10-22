@@ -33,17 +33,27 @@ func newSizeHandler(
 		if err != nil {
 			lggr.Error(err, "getting queue size")
 			w.WriteHeader(500)
-			w.Write([]byte(
+			if _, err := w.Write([]byte(
 				"error getting queue size",
-			))
+			)); err != nil {
+				lggr.Error(
+					err,
+					"could not send error message to client",
+				)
+			}
 			return
 		}
 		if err := json.NewEncoder(w).Encode(cur); err != nil {
 			lggr.Error(err, "encoding QueueCounts")
 			w.WriteHeader(500)
-			w.Write([]byte(
+			if _, err := w.Write([]byte(
 				"error encoding queue counts",
-			))
+			)); err != nil {
+				lggr.Error(
+					err,
+					"could not send error message to client",
+				)
+			}
 			return
 		}
 	})
