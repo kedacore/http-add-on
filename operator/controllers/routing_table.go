@@ -68,7 +68,8 @@ func updateRoutingMap(
 
 	newCM := routingConfigMap.DeepCopy()
 	if err := routing.SaveTableToConfigMap(table, newCM); err != nil {
-		return err
+                 lggr.Error(err, "couldn't save new routing table to ConfigMap", "configMap", routing.ConfigMapRoutingTableName)
+		return pkgerrs.Wrap(err, "ConfigMap save error")
 	}
 	if _, err := k8s.PatchConfigMap(ctx, lggr, cl, routingConfigMap, newCM); err != nil {
 	        lggr.Error(err, "couldn't save new routing table ConfigMap to Kubernetes", "configMap", routing.ConfigMapRoutingTableName)
