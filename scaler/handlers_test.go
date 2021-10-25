@@ -19,7 +19,8 @@ func TestIsActive(t *testing.T) {
 	ctx := context.Background()
 	lggr := logr.Discard()
 	table := routing.NewTable()
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
+	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	r.NoError(err)
 	defer ticker.Stop()
 	pinger.pingMut.Lock()
 	pinger.allCounts[host] = 0
@@ -70,6 +71,36 @@ func TestGetMetricSpec(t *testing.T) {
 		target = int64(200)
 	)
 	ctx := context.Background()
+	// <<<<<<< HEAD
+	// 	lggr := logr.Discard()
+	// 	table := routing.NewTable()
+	// 	table.AddTarget(host, routing.NewTarget(
+	// 		"testsrv",
+	// 		8080,
+	// 		"testdepl",
+	// 		int32(target),
+	// 	))
+	// 	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	// 	r.NoError(err)
+	// 	defer ticker.Stop()
+	// 	hdl := newImpl(lggr, pinger, table, 123, 200)
+	// 	meta := map[string]string{
+	// 		"host":                  host,
+	// 		"targetPendingRequests": strconv.Itoa(int(target)),
+	// 	}
+	// 	ref := &externalscaler.ScaledObjectRef{
+	// 		ScalerMetadata: meta,
+	// 	}
+	// 	ret, err := hdl.GetMetricSpec(ctx, ref)
+	// 	r.NoError(err)
+	// 	r.NotNil(ret)
+	// 	r.Equal(1, len(ret.MetricSpecs))
+	// 	spec := ret.MetricSpecs[0]
+	// 	r.Equal(host, spec.MetricName)
+	// 	r.Equal(target, spec.TargetSize)
+	// }
+	// =======
+	// >>>>>>> 30fb204671f165b0a251a0e50634472d2a86960d
 
 	type testCase struct {
 		name                           string
@@ -79,6 +110,24 @@ func TestGetMetricSpec(t *testing.T) {
 		newRoutingTableFn              func() *routing.Table
 		checker                        func(*testing.T, *externalscaler.GetMetricSpecResponse, error)
 	}
+	// <<<<<<< HEAD
+	// 	table := routing.NewTable()
+	// 	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	// 	r.NoError(err)
+	// 	defer ticker.Stop()
+	// 	hdl := newImpl(lggr, pinger, table, 123, 200)
+
+	// 	// no 'host' in the ScalerObjectRef's metadata field
+	// 	res, err := hdl.GetMetrics(ctx, req)
+	// 	r.Error(err)
+	// 	r.Nil(res)
+	// 	r.Contains(
+	// 		err.Error(),
+	// 		"no 'host' field found in ScaledObject metadata",
+	// 	)
+	// }
+	// =======
+	// >>>>>>> 30fb204671f165b0a251a0e50634472d2a86960d
 
 	cases := []testCase{
 		{
@@ -141,6 +190,17 @@ func TestGetMetricSpec(t *testing.T) {
 		},
 	}
 
+	// <<<<<<< HEAD
+	// 	table := routing.NewTable()
+	// 	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	// 	r.NoError(err)
+
+	// 	defer ticker.Stop()
+	// 	hdl := newImpl(lggr, pinger, table, 123, 200)
+
+	// 	req := &externalscaler.GetMetricsRequest{
+	// 		ScaledObjectRef: &externalscaler.ScaledObjectRef{},
+	// =======
 	for i, c := range cases {
 		testName := fmt.Sprintf("test case #%d: %s", i, c.name)
 		// capture tc in scope so that we can run the below test
@@ -150,7 +210,13 @@ func TestGetMetricSpec(t *testing.T) {
 			t.Parallel()
 			lggr := logr.Discard()
 			table := testCase.newRoutingTableFn()
-			ticker, pinger := newFakeQueuePinger(ctx, lggr)
+			ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+			if err != nil {
+				t.Fatalf(
+					"error creating new fake queue pinger and related components: %s",
+					err,
+				)
+			}
 			defer ticker.Stop()
 			hdl := newImpl(
 				lggr,
@@ -165,6 +231,7 @@ func TestGetMetricSpec(t *testing.T) {
 			ret, err := hdl.GetMetricSpec(ctx, &scaledObjectRef)
 			testCase.checker(t, ret, err)
 		})
+		// >>>>>>> 30fb204671f165b0a251a0e50634472d2a86960d
 	}
 }
 
@@ -206,15 +273,52 @@ func TestGetMetrics(t *testing.T) {
 			return nil, nil, err
 		}
 
+		// <<<<<<< HEAD
+		// 	// create a fake interceptor
+		// 	fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
+		// 		ns,
+		// 		svcName,
+		// 		q,
+		// 		1,
+		// 	)
+		// 	r.NoError(err)
+		// 	defer fakeSrv.Close()
+
+		// 	table := routing.NewTable()
+		// 	// create a fake queue pinger. this is the simulated
+		// 	// scaler that pings the above fake interceptor
+		// 	ticker, pinger, err := newFakeQueuePinger(
+		// 		ctx,
+		// 		lggr,
+		// 		func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
+		// 		func(opts *fakeQueuePingerOpts) { opts.tickDur = 1 * time.Millisecond },
+		// 		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
+		// 	)
+		// 	r.NoError(err)
+		// 	defer ticker.Stop()
+		// 	// start the pinger watch loop
+		// 	go func() {
+
+		// 		pinger.start(ctx, ticker)
+		// 	}()
+
+		// 	// sleep for more than enough time for the pinger to do its
+		// 	// first tick
+		// 	time.Sleep(50 * time.Millisecond)
+		// =======
 		// create a fake queue pinger. this is the simulated
 		// scaler that pings the above fake interceptor
-		ticker, pinger := newFakeQueuePinger(
+		ticker, pinger, err := newFakeQueuePinger(
 			ctx,
 			lggr,
 			func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
 			func(opts *fakeQueuePingerOpts) { opts.tickDur = queuePingerTickDur },
 			func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
 		)
+		if err != nil {
+			return nil, nil, err
+		}
+		// >>>>>>> 30fb204671f165b0a251a0e50634472d2a86960d
 
 		// sleep for a bit to ensure the pinger has time to do its first tick
 		time.Sleep(10 * queuePingerTickDur)
@@ -233,7 +337,10 @@ func TestGetMetrics(t *testing.T) {
 				lggr logr.Logger,
 			) (*routing.Table, *queuePinger, func(), error) {
 				table := routing.NewTable()
-				ticker, pinger := newFakeQueuePinger(ctx, lggr)
+				ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+				if err != nil {
+					return nil, nil, nil, err
+				}
 				return table, pinger, func() { ticker.Stop() }, nil
 			},
 			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
@@ -260,7 +367,10 @@ func TestGetMetrics(t *testing.T) {
 			) (*routing.Table, *queuePinger, func(), error) {
 				table := routing.NewTable()
 				// create queue and ticker without the host in it
-				ticker, pinger := newFakeQueuePinger(ctx, lggr)
+				ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+				if err != nil {
+					return nil, nil, nil, err
+				}
 				return table, pinger, func() { ticker.Stop() }, nil
 			},
 			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
@@ -342,6 +452,59 @@ func TestGetMetrics(t *testing.T) {
 		},
 	}
 
+	// <<<<<<< HEAD
+	// 	r := require.New(t)
+	// 	ctx := context.Background()
+	// 	lggr := logr.Discard()
+
+	// 	// we need to create a new queuePinger with valid endpoints
+	// 	// to query this time, so that when counts are requested by
+	// 	// the internal queuePinger logic, there is a valid host from
+	// 	// which to request those counts
+	// 	q := queue.NewFakeCounter()
+	// 	// NOTE: don't call .Resize here or you'll have to make sure
+	// 	// to receive on q.ResizedCh
+	// 	q.RetMap["host1"] = pendingQLen
+	// 	q.RetMap["host2"] = pendingQLen
+
+	// 	// create a fake interceptor
+	// 	fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
+	// 		ns,
+	// 		svcName,
+	// 		q,
+	// 		1,
+	// 	)
+	// 	r.NoError(err)
+	// 	defer fakeSrv.Close()
+
+	// 	table := routing.NewTable()
+	// 	// create a fake queue pinger. this is the simulated
+	// 	// scaler that pings the above fake interceptor
+	// 	const tickDur = 5 * time.Millisecond
+	// 	ticker, pinger, err := newFakeQueuePinger(
+	// 		ctx,
+	// 		lggr,
+	// 		func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
+	// 		func(opts *fakeQueuePingerOpts) { opts.tickDur = tickDur },
+	// 		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
+	// 	)
+	// 	r.NoError(err)
+	// 	defer ticker.Stop()
+
+	// 	// sleep for more than enough time for the pinger to do its
+	// 	// first tick
+	// 	time.Sleep(tickDur * 5)
+
+	// 	hdl := newImpl(lggr, pinger, table, 123, 200)
+	// 	res, err := hdl.GetMetrics(ctx, req)
+	// 	r.NoError(err)
+	// 	r.NotNil(res)
+	// 	r.Equal(1, len(res.MetricValues))
+	// 	metricVal := res.MetricValues[0]
+	// 	r.Equal("interceptor", metricVal.MetricName)
+	// 	aggregate := pinger.aggregate()
+	// 	r.Equal(int64(aggregate), metricVal.MetricValue)
+	// =======
 	for i, c := range testCases {
 		tc := c
 		name := fmt.Sprintf("test case %d: %s", i, tc.name)
@@ -370,4 +533,5 @@ func TestGetMetrics(t *testing.T) {
 			tc.checkFn(t, res, err)
 		})
 	}
+	// >>>>>>> 30fb204671f165b0a251a0e50634472d2a86960d
 }
