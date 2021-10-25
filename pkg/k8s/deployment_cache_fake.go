@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -13,6 +14,7 @@ import (
 // logic, without requiring any real Kubernetes client
 // or API interaction
 type FakeDeploymentCache struct {
+	json.Marshaler
 	Mut      *sync.RWMutex
 	Current  map[string]appsv1.Deployment
 	Watchers map[string]*watch.RaceFreeFakeWatcher
@@ -26,6 +28,16 @@ func NewFakeDeploymentCache() *FakeDeploymentCache {
 		Current:  make(map[string]appsv1.Deployment),
 		Watchers: make(map[string]*watch.RaceFreeFakeWatcher),
 	}
+}
+
+func (f *FakeDeploymentCache) MarshalJSON() ([]byte, error) {
+	f.Mut.RLock()
+	defer f.Mut.RUnlock()
+	ret := map[string]int32{}
+	for name, deployment := range f.Current {
+		ret[name] = *deployment.Spec.Replicas
+	}
+	return json.Marshal(ret)
 }
 
 func (f *FakeDeploymentCache) Get(name string) (appsv1.Deployment, error) {
