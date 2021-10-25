@@ -15,6 +15,7 @@ import (
 )
 
 type DeploymentCache interface {
+	json.Marshaler
 	Get(name string) (appsv1.Deployment, error)
 	Watch(name string) watch.Interface
 }
