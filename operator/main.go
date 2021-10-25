@@ -30,9 +30,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/go-logr/logr"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	// +kubebuilder:scaffold:imports
 )
@@ -124,16 +126,44 @@ func main() {
 	// start the admin server to serve routing table information
 	// to the interceptors
 	errGrp.Go(func() error {
-		mux := http.NewServeMux()
-		routing.AddFetchRoute(setupLog, mux, routingTable)
-		addr := fmt.Sprintf(":%d", adminPort)
-		setupLog.Info(
-			"starting admin RPC server",
-			"port",
+		return runAdminServer(
+			ctx,
+			ctrl.Log,
+			routingTable,
 			adminPort,
+			baseConfig,
+			interceptorCfg,
+			externalScalerCfg,
 		)
-		return http.ListenAndServe(addr, mux)
 	})
 
 	setupLog.Error(errGrp.Wait(), "running the operator")
+}
+
+func runAdminServer(
+	ctx context.Context,
+	lggr logr.Logger,
+	routingTable *routing.Table,
+	port int,
+	baseCfg *config.Base,
+	interceptorCfg *config.Interceptor,
+	externalScalerCfg *config.ExternalScaler,
+
+) error {
+	mux := http.NewServeMux()
+	routing.AddFetchRoute(setupLog, mux, routingTable)
+	kedahttp.AddConfigEndpoint(
+		lggr.WithName("operatorAdmin"),
+		mux,
+		baseCfg,
+		interceptorCfg,
+		externalScalerCfg,
+	)
+	addr := fmt.Sprintf(":%d", port)
+	lggr.Info(
+		"starting admin RPC server",
+		"port",
+		port,
+	)
+	return kedahttp.ServeContext(ctx, addr, mux)
 }

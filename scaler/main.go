@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	"github.com/kedacore/http-add-on/pkg/queue"
@@ -106,6 +107,7 @@ func main() {
 		return startHealthcheckServer(
 			ctx,
 			lggr,
+			cfg,
 			healthPort,
 			pinger,
 		)
@@ -147,12 +149,12 @@ func startGrpcServer(
 		lis.Close()
 	}()
 	return grpcServer.Serve(lis)
-
 }
 
 func startHealthcheckServer(
 	ctx context.Context,
 	lggr logr.Logger,
+	cfg *config,
 	port int,
 	pinger *queuePinger,
 ) error {
@@ -192,15 +194,9 @@ func startHealthcheckServer(
 		}
 	})
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
-	}
-	lggr.Info("starting health check server", "port", port)
+	kedahttp.AddConfigEndpoint(lggr, mux, cfg)
 
-	go func() {
-		<-ctx.Done()
-		srv.Shutdown(ctx)
-	}()
-	return srv.ListenAndServe()
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	lggr.Info("starting health check server", "addr", addr)
+	return kedahttp.ServeContext(ctx, addr, mux)
 }
