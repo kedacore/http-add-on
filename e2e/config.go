@@ -10,9 +10,11 @@ import (
 )
 
 type config struct {
-	Namespace           string        `envconfig:"NAMESPACE"`
+	// Required configurations for all tests
+	Namespace  string `envconfig:"NAMESPACE" required:"true"`
+	IngAddress string `envconfig:"INGRESS_ADDRESS" required:"true"`
+	// Optional configurations
 	NumReqsAgainstProxy int           `envconfig:"NUM_REQUESTS_TO_EXECUTE" default:"10000"`
-	IngAddress          string        `envconfig:"INGRESS_ADDRESS" required:"true"`
 	ProxyAdminSvc       string        `envconfig:"PROXY_ADMIN_SERVICE_NAME" default:"keda-add-ons-http-interceptor-proxy"`
 	ProxyAdminPort      int           `envconfig:"PROXY_ADMIN_PORT" default:"8080"`
 	ScalerAdminSvc      string        `envconfig:"SCALER_ADMIN_SERVICE_NAME" default:"keda-add-ons-http-external-scaler"`
