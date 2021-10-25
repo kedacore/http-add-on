@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,6 +26,7 @@ type K8sDeploymentCache struct {
 	rwm         *sync.RWMutex
 	cl          DeploymentListerWatcher
 	broadcaster *watch.Broadcaster
+	lggr        logr.Logger
 }
 
 func NewK8sDeploymentCache(
@@ -40,6 +42,7 @@ func NewK8sDeploymentCache(
 		rwm:         new(sync.RWMutex),
 		broadcaster: bcaster,
 		cl:          cl,
+		lggr:        lggr,
 	}
 	deployList, err := cl.List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -49,6 +52,8 @@ func NewK8sDeploymentCache(
 		)
 		return nil, err
 	}
+	// this won't broadcast any events because nobody can be watching
+	// yet, but it will update the cache as needed.
 	ret.mergeAndBroadcastList(deployList)
 	return ret, nil
 }
@@ -148,20 +153,43 @@ func (k *K8sDeploymentCache) StartWatcher(
 func (k *K8sDeploymentCache) mergeAndBroadcastList(
 	lst *appsv1.DeploymentList,
 ) {
+	lggr := k.lggr.WithName("pkg.k8s.K8sDeploymentCache.mergeAndBroadcastList")
 	k.rwm.Lock()
 	defer k.rwm.Unlock()
 	for _, depl := range lst.Items {
-		k.latest[depl.ObjectMeta.Name] = depl
-		// if the deployment isn't already in the cache,
-		// we need to broadcast an ADDED event, otherwise
-		// broadcast a MODIFIED event
-		_, ok := k.latest[depl.ObjectMeta.Name]
-		evtType := watch.Modified
-		if !ok {
-			evtType = watch.Added
+		existing, inLatest := k.latest[depl.GetName()]
+		if !inLatest {
+			// deployment wasn't already in cache. broadcast
+			// ADDED event
+			k.broadcaster.Action(watch.Added, &depl)
+		} else {
+			// deployment was already in cache. check
+			// equality and if changed, broadcast
+			// MODIFIED event
+			existingHash, err := hashstructure.Hash(existing, hashstructure.FormatV2, nil)
+			if err != nil {
+				lggr.Error(
+					err,
+					"failed to hash existing deployment",
+				)
+				continue
+			}
+			newHash, err := hashstructure.Hash(depl, hashstructure.FormatV2, nil)
+			if err != nil {
+				lggr.Error(
+					err,
+					"failed to hash new deployment",
+				)
+				continue
+			}
+			changed := existingHash != newHash
+			if changed {
+				k.broadcaster.Action(watch.Modified, &depl)
+			}
 		}
 
-		k.broadcaster.Action(evtType, &depl)
+		// add/overwrite the deployment to the cache
+		k.latest[depl.GetName()] = depl
 	}
 }
 
@@ -179,7 +207,7 @@ func (k *K8sDeploymentCache) addEvt(evt watch.Event) error {
 			"watch event did not contain a Deployment",
 		)
 	}
-	k.latest[depl.GetObjectMeta().GetName()] = *depl
+	k.latest[depl.GetName()] = *depl
 	return nil
 }
 
@@ -200,7 +228,7 @@ func (k *K8sDeploymentCache) Watch(name string) watch.Interface {
 		if !ok {
 			return evt, false
 		}
-		return evt, depl.ObjectMeta.Name == name
+		return evt, depl.GetName() == name
 	})
 }
 
