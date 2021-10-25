@@ -24,9 +24,6 @@ func TestE2EHTTPScaledObjectInstall(t *testing.T) {
 	ns := h.cfg.namespace()
 	t.Logf("Running %s in namespace %s", t.Name(), ns)
 
-	// install an HTTPScaledObject
-	cl, restCfg, err := getClient()
-	r.NoError(err)
 	// need to use the lowercase so that it's a RFC 1123 compliant subdomain
 	universalName := strings.ToLower(t.Name())
 	scaledObject, err := k8s.NewScaledObject(
@@ -39,14 +36,14 @@ func TestE2EHTTPScaledObjectInstall(t *testing.T) {
 		100,
 	)
 	r.NoError(err)
-	r.NoError(cl.Create(h, scaledObject))
+	r.NoError(h.cl.Create(h, scaledObject))
 	// make sure that the routing table is updated on the interceptor
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	r.NoError(tickMax(10, 100*time.Millisecond, func() error {
 		return makeProxiedRequestsToSvc(
 			h,
-			restCfg,
+			h.restCfg,
 			h.cfg.namespace(),
 			h.cfg.ProxyAdminSvc,
 			h.cfg.ProxyAdminPort,
@@ -56,7 +53,7 @@ func TestE2EHTTPScaledObjectInstall(t *testing.T) {
 	r.NoError(tickMax(10, 100*time.Millisecond, func() error {
 		return makeProxiedRequestsToSvc(
 			h,
-			restCfg,
+			h.restCfg,
 			h.cfg.namespace(),
 			h.cfg.OperatorAdminSvc,
 			h.cfg.OperatorAdminPort,
