@@ -29,7 +29,8 @@ func TestPingInterceptors(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 	ctx := context.Background()
-	endpoints := k8s.FakeEndpointsForURL(url, ns, svcName, 2)
+	endpoints, err := k8s.FakeEndpointsForURL(url, ns, svcName, 2)
+	r.NoError(err)
 	cl := fake.NewClientBuilder().WithObjects(endpoints).Build()
 	r.NoError(pingInterceptors(
 		ctx,

@@ -31,13 +31,15 @@ func startFakeQueueEndpointServer(
 ) (*httptest.Server, *url.URL, *v1.Endpoints, error) {
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
-	srv, url, err := kedanet.StartTestServer(hdl)
+	srv, srvURL, err := kedanet.StartTestServer(hdl)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
-	endpoints := k8s.FakeEndpointsForURL(url, ns, svcName, numEndpoints)
-	return srv, url, endpoints, nil
+	endpoints, err := k8s.FakeEndpointsForURL(srvURL, ns, svcName, numEndpoints)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return srv, srvURL, endpoints, nil
 }
 
 type fakeQueuePingerOpts struct {
@@ -56,7 +58,7 @@ func newFakeQueuePinger(
 	ctx context.Context,
 	lggr logr.Logger,
 	optsFuncs ...optsFunc,
-) (*time.Ticker, *queuePinger) {
+) (*time.Ticker, *queuePinger, error) {
 	opts := &fakeQueuePingerOpts{
 		endpoints: &v1.Endpoints{},
 		tickDur:   time.Second,
@@ -66,21 +68,19 @@ func newFakeQueuePinger(
 		optsFunc(opts)
 	}
 	ticker := time.NewTicker(opts.tickDur)
-	pinger := newQueuePinger(
+
+	pinger, err := newQueuePinger(
 		ctx,
 		lggr,
-		func(
-			ctx context.Context,
-			namespace,
-			serviceName string,
-		) (*v1.Endpoints, error) {
+		func(context.Context, string, string) (*v1.Endpoints, error) {
 			return opts.endpoints, nil
-
 		},
 		"testns",
 		"testsvc",
 		opts.port,
-		ticker,
 	)
-	return ticker, pinger
+	if err != nil {
+		return nil, nil, err
+	}
+	return ticker, pinger, nil
 }
