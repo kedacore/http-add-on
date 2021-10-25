@@ -168,199 +168,206 @@ func TestGetMetricSpec(t *testing.T) {
 	}
 }
 
-// GetMetrics with a ScaledObjectRef in the RPC request that has
-// no 'host' field in the metadata field
-func TestGetMetricsMissingHostInMetadata(t *testing.T) {
-	r := require.New(t)
-	ctx := context.Background()
-	lggr := logr.Discard()
-	req := &externalscaler.GetMetricsRequest{
-		ScaledObjectRef: &externalscaler.ScaledObjectRef{},
-	}
-	table := routing.NewTable()
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
-	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, table, 123, 200)
-
-	// no 'host' in the ScalerObjectRef's metadata field
-	res, err := hdl.GetMetrics(ctx, req)
-	r.Error(err)
-	r.Nil(res)
-	r.Contains(
-		err.Error(),
-		"no 'host' field found in ScaledObject metadata",
-	)
-}
-
-// 'host' field found in ScalerObjectRef.ScalerMetadata, but
-// not found in the queuePinger
-func TestGetMetricsMissingHostInQueue(t *testing.T) {
-	r := require.New(t)
-	ctx := context.Background()
-	lggr := logr.Discard()
-
-	const host = "TestGetMetricsMissingHostInQueue.com"
-	meta := map[string]string{
-		"host": host,
+func TestGetMetrics(t *testing.T) {
+	type testCase struct {
+		name           string
+		scalerMetadata map[string]string
+		setupFn        func(
+			context.Context,
+			logr.Logger,
+		) (*routing.Table, *queuePinger, func(), error)
+		checkFn                        func(*testing.T, *externalscaler.GetMetricsResponse, error)
+		defaultTargetMetric            int64
+		defaultTargetMetricInterceptor int64
 	}
 
-	table := routing.NewTable()
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
-	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, table, 123, 200)
+	startFakeInterceptorServer := func(
+		ctx context.Context,
+		lggr logr.Logger,
+		hostMap map[string]int,
+		queuePingerTickDur time.Duration,
+	) (*queuePinger, func(), error) {
+		// create a new fake queue with the host map in it
+		q := queue.NewFakeCounter()
+		for host, val := range hostMap {
+			// NOTE: don't call .Resize here or you'll have to make sure
+			// to receive on q.ResizedCh
+			q.RetMap[host] = val
+		}
+		// create the HTTP server to encode and serve
+		// the host map
+		fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
+			"testns",
+			"testSvc",
+			q,
+			1,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
 
-	req := &externalscaler.GetMetricsRequest{
-		ScaledObjectRef: &externalscaler.ScaledObjectRef{},
+		// create a fake queue pinger. this is the simulated
+		// scaler that pings the above fake interceptor
+		ticker, pinger := newFakeQueuePinger(
+			ctx,
+			lggr,
+			func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
+			func(opts *fakeQueuePingerOpts) { opts.tickDur = queuePingerTickDur },
+			func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
+		)
+
+		// sleep for a bit to ensure the pinger has time to do its first tick
+		time.Sleep(10 * queuePingerTickDur)
+		return pinger, func() {
+			ticker.Stop()
+			fakeSrv.Close()
+		}, nil
 	}
-	req.ScaledObjectRef.ScalerMetadata = meta
-	res, err := hdl.GetMetrics(ctx, req)
-	r.Error(err)
-	r.Contains(err.Error(), fmt.Sprintf(
-		"host '%s' not found in counts", host,
-	))
-	r.Nil(res)
-}
 
-// GetMetrics RPC call with host found in both the incoming
-// ScaledObject and in the queue counter
-func TestGetMetricsHostFoundInQueueCounts(t *testing.T) {
-	const (
-		ns          = "testns"
-		svcName     = "testsrv"
-		pendingQLen = 203
-	)
-
-	host := fmt.Sprintf("%s.scaler.testing.com", t.Name())
-
-	// create a request for the GetMetrics RPC call. it instructs
-	// GetMetrics to return the counts for one specific host.
-	// below, we do setup to ensure that we have a fake
-	// interceptor, and that interceptor knows about the given host
-	req := &externalscaler.GetMetricsRequest{
-		ScaledObjectRef: &externalscaler.ScaledObjectRef{
-			ScalerMetadata: map[string]string{
-				"host": host,
+	testCases := []testCase{
+		{
+			name:           "no 'host' field in the scaler metadata field",
+			scalerMetadata: map[string]string{},
+			setupFn: func(
+				ctx context.Context,
+				lggr logr.Logger,
+			) (*routing.Table, *queuePinger, func(), error) {
+				table := routing.NewTable()
+				ticker, pinger := newFakeQueuePinger(ctx, lggr)
+				return table, pinger, func() { ticker.Stop() }, nil
 			},
+			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.Error(err)
+				r.Nil(res)
+				r.Contains(
+					err.Error(),
+					"no 'host' field found in ScaledObject metadata",
+				)
+			},
+			defaultTargetMetric:            int64(200),
+			defaultTargetMetricInterceptor: int64(300),
 		},
-	}
+		{
+			name: "missing host value in the queue pinger",
+			scalerMetadata: map[string]string{
+				"host": "missingHostInQueue",
+			},
+			setupFn: func(
+				ctx context.Context,
+				lggr logr.Logger,
+			) (*routing.Table, *queuePinger, func(), error) {
+				table := routing.NewTable()
+				// create queue and ticker without the host in it
+				ticker, pinger := newFakeQueuePinger(ctx, lggr)
+				return table, pinger, func() { ticker.Stop() }, nil
+			},
+			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.Error(err)
+				r.Contains(err.Error(), "host 'missingHostInQueue' not found in counts")
+				r.Nil(res)
+			},
+			defaultTargetMetric:            int64(200),
+			defaultTargetMetricInterceptor: int64(300),
+		},
+		{
+			name: "valid host",
+			scalerMetadata: map[string]string{
+				"host": "validHost",
+			},
+			setupFn: func(
+				ctx context.Context,
+				lggr logr.Logger,
+			) (*routing.Table, *queuePinger, func(), error) {
+				table := routing.NewTable()
+				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
+					"validHost": 201,
+				}, 2*time.Millisecond)
+				if err != nil {
+					return nil, nil, nil, err
+				}
 
-	r := require.New(t)
-	ctx := context.Background()
-	lggr := logr.Discard()
-
-	// we need to create a new queuePinger with valid endpoints
-	// to query this time, so that when counts are requested by
-	// the internal queuePinger logic, there is a valid host from
-	// which to request those counts
-	q := queue.NewFakeCounter()
-	// NOTE: don't call .Resize here or you'll have to make sure
-	// to receive on q.ResizedCh
-	q.RetMap[host] = pendingQLen
-
-	// create a fake interceptor
-	fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
-		ns,
-		svcName,
-		q,
-		1,
-	)
-	r.NoError(err)
-	defer fakeSrv.Close()
-
-	table := routing.NewTable()
-	// create a fake queue pinger. this is the simulated
-	// scaler that pings the above fake interceptor
-	ticker, pinger := newFakeQueuePinger(
-		ctx,
-		lggr,
-		func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
-		func(opts *fakeQueuePingerOpts) { opts.tickDur = 1 * time.Millisecond },
-		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
-	)
-	defer ticker.Stop()
-	// sleep for more than enough time for the pinger to do its
-	// first tick
-	time.Sleep(50 * time.Millisecond)
-
-	hdl := newImpl(lggr, pinger, table, 123, 200)
-	res, err := hdl.GetMetrics(ctx, req)
-	r.NoError(err)
-	r.NotNil(res)
-	r.Equal(1, len(res.MetricValues))
-	metricVal := res.MetricValues[0]
-	r.Equal(host, metricVal.MetricName)
-	r.Equal(int64(pendingQLen), metricVal.MetricValue)
-}
-
-// Ensure that the queue pinger returns the aggregate request
-// count when the host is set to "interceptor"
-func TestGetMetricsInterceptorReturnsAggregate(t *testing.T) {
-	const (
-		ns          = "testns"
-		svcName     = "testsrv"
-		pendingQLen = 203
-	)
-
-	// create a request for the GetMetrics RPC call. it instructs
-	// GetMetrics to return the counts for one specific host.
-	// below, we do setup to ensure that we have a fake
-	// interceptor, and that interceptor knows about the given host
-	req := &externalscaler.GetMetricsRequest{
-		ScaledObjectRef: &externalscaler.ScaledObjectRef{
-			ScalerMetadata: map[string]string{
+				return table, pinger, done, nil
+			},
+			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricValues))
+				metricVal := res.MetricValues[0]
+				r.Equal("validHost", metricVal.MetricName)
+				r.Equal(int64(201), metricVal.MetricValue)
+			},
+			defaultTargetMetric:            int64(200),
+			defaultTargetMetricInterceptor: int64(300),
+		},
+		{
+			name: "'interceptor' as host",
+			scalerMetadata: map[string]string{
 				"host": "interceptor",
 			},
+			setupFn: func(
+				ctx context.Context,
+				lggr logr.Logger,
+			) (*routing.Table, *queuePinger, func(), error) {
+				table := routing.NewTable()
+				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
+					"host1": 201,
+					"host2": 202,
+				}, 2*time.Millisecond)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				return table, pinger, done, nil
+			},
+			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricValues))
+				metricVal := res.MetricValues[0]
+				r.Equal("interceptor", metricVal.MetricName)
+				// the value here needs to be the same thing as
+				// the sum of the values in the fake queue created
+				// in the setup function
+				r.Equal(int64(403), metricVal.MetricValue)
+			},
+			defaultTargetMetric:            int64(200),
+			defaultTargetMetricInterceptor: int64(300),
 		},
 	}
 
-	r := require.New(t)
-	ctx := context.Background()
-	lggr := logr.Discard()
-
-	// we need to create a new queuePinger with valid endpoints
-	// to query this time, so that when counts are requested by
-	// the internal queuePinger logic, there is a valid host from
-	// which to request those counts
-	q := queue.NewFakeCounter()
-	// NOTE: don't call .Resize here or you'll have to make sure
-	// to receive on q.ResizedCh
-	q.RetMap["host1"] = pendingQLen
-	q.RetMap["host2"] = pendingQLen
-
-	// create a fake interceptor
-	fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
-		ns,
-		svcName,
-		q,
-		1,
-	)
-	r.NoError(err)
-	defer fakeSrv.Close()
-
-	table := routing.NewTable()
-	// create a fake queue pinger. this is the simulated
-	// scaler that pings the above fake interceptor
-	const tickDur = 5 * time.Millisecond
-	ticker, pinger := newFakeQueuePinger(
-		ctx,
-		lggr,
-		func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
-		func(opts *fakeQueuePingerOpts) { opts.tickDur = tickDur },
-		func(opts *fakeQueuePingerOpts) { opts.port = fakeSrvURL.Port() },
-	)
-	defer ticker.Stop()
-
-	// sleep for more than enough time for the pinger to do its
-	// first tick
-	time.Sleep(tickDur * 5)
-
-	hdl := newImpl(lggr, pinger, table, 123, 200)
-	res, err := hdl.GetMetrics(ctx, req)
-	r.NoError(err)
-	r.NotNil(res)
-	r.Equal(1, len(res.MetricValues))
-	metricVal := res.MetricValues[0]
-	r.Equal("interceptor", metricVal.MetricName)
-	aggregate := pinger.aggregate()
-	r.Equal(int64(aggregate), metricVal.MetricValue)
+	for i, c := range testCases {
+		tc := c
+		name := fmt.Sprintf("test case %d: %s", i, tc.name)
+		t.Run(name, func(t *testing.T) {
+			r := require.New(t)
+			ctx, done := context.WithCancel(
+				context.Background(),
+			)
+			defer done()
+			lggr := logr.Discard()
+			table, pinger, cleanup, err := tc.setupFn(ctx, lggr)
+			r.NoError(err)
+			defer cleanup()
+			hdl := newImpl(
+				lggr,
+				pinger,
+				table,
+				tc.defaultTargetMetric,
+				tc.defaultTargetMetricInterceptor,
+			)
+			res, err := hdl.GetMetrics(ctx, &externalscaler.GetMetricsRequest{
+				ScaledObjectRef: &externalscaler.ScaledObjectRef{
+					ScalerMetadata: tc.scalerMetadata,
+				},
+			})
+			tc.checkFn(t, res, err)
+		})
+	}
 }
