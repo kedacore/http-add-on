@@ -190,7 +190,58 @@ func callMergeAndBcast(
 }
 
 func TestK8sDeploymentCacheAddEvt(t *testing.T) {
-	// see https://github.com/kedacore/http-add-on/issues/245
+	r := require.New(t)
+	ctx, done := context.WithCancel(
+		context.Background(),
+	)
+	defer done()
+	cache, err := NewK8sDeploymentCache(ctx, logr.Discard(), newFakeDeploymentListerWatcher())
+	r.NoError(err)
+	checkDeploymentsInCache := func(depls ...appsv1.Deployment) {
+		t.Helper()
+		r := require.New(t)
+		for _, depl := range depls {
+			ret, ok := cache.latest[depl.GetName()]
+			r.True(ok)
+			r.Equal(depl, ret)
+		}
+	}
+
+	// add a first deployment and make sure it exists in
+	// the latest cache
+	depl1 := newDeployment("testns", "testdepl1", "testing", nil, nil, nil, core.PullAlways)
+	evt1 := watch.Event{
+		Type:   watch.Added, // doesn't matter, addEvt doesn't look at this
+		Object: depl1,
+	}
+	r.NoError(cache.addEvt(evt1))
+	r.Equal(1, len(cache.latest))
+	checkDeploymentsInCache(*depl1)
+
+	// add a second (different name) and make sure both exist
+	// in the cache
+	depl2 := *depl1
+	depl2.Name = "testdepl2"
+	evt2 := watch.Event{
+		Type:   watch.Modified,
+		Object: &depl2,
+	}
+	r.NoError(cache.addEvt(evt2))
+	r.Equal(2, len(cache.latest))
+	checkDeploymentsInCache(*depl1, depl2)
+
+	// try to add a pod, make sure addEvt fails, and afterward, make sure
+	// the original 2 deployments are still in the cache
+	otherObj := &core.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "somepod"},
+	}
+	evt3 := watch.Event{
+		Type:   watch.Added,
+		Object: otherObj,
+	}
+	r.Error(cache.addEvt(evt3))
+	r.Equal(2, len(cache.latest))
+	checkDeploymentsInCache(*depl1, depl2)
 }
 
 // test to make sure that, even when no events come through, the
