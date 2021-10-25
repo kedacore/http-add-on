@@ -410,6 +410,20 @@ func (Operator) BuildManifests() error {
 	return nil
 }
 
+type E2E mg.Namespace
+
+func (E2E) Test(ctx context.Context) error {
+	return sh.RunWithV(
+		map[string]string{
+			"KEDA_HTTP_E2E_SHOULD_RUN": "true",
+		},
+		"go",
+		"test",
+		"-test.v",
+		"./e2e...",
+	)
+}
+
 // --- Misc --- //
 
 // Generates protofiles for external scaler
@@ -453,8 +467,4 @@ func DeleteHTTPSO(ctx context.Context, namespace string) error {
 		make(map[string]string),
 		"kubectl", "delete", "httpscaledobject", "xkcd", "-n", namespace,
 	)
-}
-
-func TestE2E(ctx context.Context) error {
-	return sh.RunV("go", "test", "-test.v", "./e2e...")
 }
