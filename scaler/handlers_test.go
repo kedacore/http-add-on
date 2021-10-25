@@ -3,7 +3,6 @@ package main
 import (
 	context "context"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -70,33 +69,103 @@ func TestGetMetricSpec(t *testing.T) {
 		host   = "abcd"
 		target = int64(200)
 	)
-	r := require.New(t)
 	ctx := context.Background()
-	lggr := logr.Discard()
-	table := routing.NewTable()
-	table.AddTarget(host, routing.NewTarget(
-		"testsrv",
-		8080,
-		"testdepl",
-		int32(target),
-	))
-	ticker, pinger := newFakeQueuePinger(ctx, lggr)
-	defer ticker.Stop()
-	hdl := newImpl(lggr, pinger, table, 123, 200)
-	meta := map[string]string{
-		"host":                  host,
-		"targetPendingRequests": strconv.Itoa(int(target)),
+
+	type testCase struct {
+		name                           string
+		defaultTargetMetric            int64
+		defaultTargetMetricInterceptor int64
+		scalerMetadata                 map[string]string
+		newRoutingTableFn              func() *routing.Table
+		checker                        func(*testing.T, *externalscaler.GetMetricSpecResponse, error)
 	}
-	ref := &externalscaler.ScaledObjectRef{
-		ScalerMetadata: meta,
+
+	cases := []testCase{
+		{
+			name:                           "valid host as host value in scaler metadata",
+			defaultTargetMetric:            0,
+			defaultTargetMetricInterceptor: 123,
+			scalerMetadata: map[string]string{
+				"host":                  "validHost",
+				"targetPendingRequests": "123",
+			},
+			newRoutingTableFn: func() *routing.Table {
+				ret := routing.NewTable()
+				ret.AddTarget("validHost", routing.NewTarget(
+					"testsrv",
+					8080,
+					"testdepl",
+					123,
+				))
+				return ret
+			},
+			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricSpecs))
+				spec := res.MetricSpecs[0]
+				r.Equal("validHost", spec.MetricName)
+				r.Equal(int64(123), spec.TargetSize)
+			},
+		},
+		{
+			name:                           "interceptor as host in scaler metadata",
+			defaultTargetMetric:            1000,
+			defaultTargetMetricInterceptor: 2000,
+			scalerMetadata: map[string]string{
+				"host":                  "interceptor",
+				"targetPendingRequests": "123",
+			},
+			newRoutingTableFn: func() *routing.Table {
+				ret := routing.NewTable()
+				ret.AddTarget("validHost", routing.NewTarget(
+					"testsrv",
+					8080,
+					"testdepl",
+					123,
+				))
+				return ret
+			},
+			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricSpecs))
+				spec := res.MetricSpecs[0]
+				r.Equal("interceptor", spec.MetricName)
+				r.Equal(int64(2000), spec.TargetSize)
+			},
+		},
 	}
-	ret, err := hdl.GetMetricSpec(ctx, ref)
-	r.NoError(err)
-	r.NotNil(ret)
-	r.Equal(1, len(ret.MetricSpecs))
-	spec := ret.MetricSpecs[0]
-	r.Equal(host, spec.MetricName)
-	r.Equal(target, spec.TargetSize)
+
+	for i, c := range cases {
+		testName := fmt.Sprintf("test case #%d: %s", i, c.name)
+		// capture tc in scope so that we can run the below test
+		// in parallel
+		testCase := c
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+			lggr := logr.Discard()
+			table := testCase.newRoutingTableFn()
+			ticker, pinger := newFakeQueuePinger(ctx, lggr)
+			defer ticker.Stop()
+			hdl := newImpl(
+				lggr,
+				pinger,
+				table,
+				testCase.defaultTargetMetric,
+				testCase.defaultTargetMetricInterceptor,
+			)
+			scaledObjectRef := externalscaler.ScaledObjectRef{
+				ScalerMetadata: testCase.scalerMetadata,
+			}
+			ret, err := hdl.GetMetricSpec(ctx, &scaledObjectRef)
+			testCase.checker(t, ret, err)
+		})
+	}
 }
 
 func TestGetMetrics(t *testing.T) {
