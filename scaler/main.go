@@ -137,7 +137,6 @@ func startGrpcServer(
 		lis.Close()
 	}()
 	return grpcServer.Serve(lis)
-
 }
 
 func startHealthcheckServer(
