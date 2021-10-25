@@ -95,6 +95,7 @@ func main() {
 		return startHealthcheckServer(
 			ctx,
 			lggr,
+			cfg,
 			healthPort,
 			pinger,
 		)
@@ -141,6 +142,7 @@ func startGrpcServer(
 func startHealthcheckServer(
 	ctx context.Context,
 	lggr logr.Logger,
+	cfg *config,
 	port int,
 	pinger *queuePinger,
 ) error {
@@ -180,7 +182,9 @@ func startHealthcheckServer(
 		}
 	})
 
-	addr := fmt.Sprintf(":%d", port)
-	lggr.Info("starting health check server", "port", port)
+	kedahttp.AddConfigEndpoint(lggr, mux, cfg)
+
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	lggr.Info("starting health check server", "addr", addr)
 	return kedahttp.ServeContext(ctx, addr, mux)
 }
