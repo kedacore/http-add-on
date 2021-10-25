@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/pkg/errors"
@@ -25,6 +26,15 @@ func getClient() (
 		return nil, nil, errors.Wrap(err, "getClient")
 	}
 	return cl, cfg, nil
+}
+
+func getProxiedHTTPCl(
+	ctx context.Context,
+	cl client.Client,
+	cfg *rest.Config,
+	svcName string,
+) (*http.Client, error) {
+	return nil, nil
 }
 
 func getScaledObject(

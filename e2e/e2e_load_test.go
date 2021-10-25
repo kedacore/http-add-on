@@ -1,72 +1,105 @@
 package e2e
 
 import (
-	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestE2ELoad(t *testing.T) {
-	cfg, shouldRun, err := parseConfig()
+	r := require.New(t)
+	h, shouldRun, err := setup()
 	if !shouldRun {
-		t.Logf("Not running %s", t.Name())
+		t.Logf("not running %s", t.Name())
 		t.SkipNow()
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	r := require.New(t)
-	ns := cfg.namespace()
+	defer h.close()
+	r.NoError(err)
+	ns := h.cfg.namespace()
 	t.Logf("Running %s in namespace %s", t.Name(), ns)
-
-	// setup and register teardown functionality.
-	// register cleanup before executing setup, so that
-	// if setup times out, we'll still clean up
-	t.Cleanup(func() { cancel() })
 
 	cl, restCfg, err := getClient()
 	r.NoError(err)
 
 	// ensure that the interceptor and XKCD scaledobjects
 	// exist
-	_, err = getScaledObject(ctx, cl, ns, "keda-add-ons-http-interceptor")
+	_, err = getScaledObject(h, cl, ns, "keda-add-ons-http-interceptor")
 	r.NoError(err)
-	_, err = getScaledObject(ctx, cl, ns, "xkcd-app")
+	_, err = getScaledObject(h, cl, ns, "xkcd-app")
 	r.NoError(err)
 
-	// issue requests to the XKCD service directly to make
-	// sure it's up and properly configured
-	ingURL, err := url.Parse(cfg.IngAddress)
+	// ensure that there are no replicas of the xkcd service
+	scalerAdminCl, err := getProxiedHTTPCl(
+		h,
+		cl,
+		restCfg,
+		h.cfg.ScalerAdminSvc,
+	)
 	r.NoError(err)
+	res, err := scalerAdminCl.Get("/queue")
+	r.NoError(err)
+	res.Body.Close()
+	counts := map[string]int{}
+	resBytes, err := io.ReadAll(res.Body)
+	r.NoError(err)
+	r.NoError(json.Unmarshal(resBytes, &counts))
+	for host, count := range counts {
+		r.True(
+			count == 0,
+			"count for host %s was %d, expected 0",
+			host,
+			count,
+		)
+	}
+
+	// issue a first request to the XKCD service to
+	// make sure it scales up from zero in reasonable
+	// time
+	ingURL, err := url.Parse(h.cfg.IngAddress)
+	r.NoError(err)
+	start := time.Now()
+	res, err = http.Get(ingURL.String())
+	r.NoError(err)
+	const maxScaleDur = 2 * time.Second
+	r.Less(
+		time.Since(start),
+		maxScaleDur,
+		"didn't scale up within %s", maxScaleDur,
+	)
+	r.Equal(200, res.Status)
+
 	r.NoError(makeRequests(
-		ctx,
+		h,
 		http.DefaultClient,
 		ingURL,
-		cfg.NumReqsAgainstProxy,
+		h.cfg.NumReqsAgainstProxy,
 		func() error {
 			if err := checkInterceptorMetrics(
-				ctx,
+				h,
 				restCfg,
 				ns,
-				cfg.ProxyAdminSvc,
-				cfg.ProxyAdminPort,
+				h.cfg.ProxyAdminSvc,
+				h.cfg.ProxyAdminPort,
 			); err != nil {
 				return err
 			}
 
 			if err := checkScalerMetrics(
-				ctx,
+				h,
 				restCfg,
 				ns,
-				cfg.ScalerAdminSvc,
-				cfg.ScalerAdminPort,
+				h.cfg.ScalerAdminSvc,
+				h.cfg.ScalerAdminPort,
 			); err != nil {
 				return err
 			}
 			return nil
 		},
-		cfg.AdminServerCheckDur,
+		h.cfg.AdminServerCheckDur,
 	))
 }

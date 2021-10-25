@@ -41,6 +41,6 @@ func parseConfig() (config, bool, error) {
 		return config{}, false, nil
 	}
 	cfg := config{}
-	envconfig.MustProcess("KEDA_HTTP_E2E", &cfg)
-	return cfg, true, nil
+	processErr := envconfig.Process("KEDA_HTTP_E2E", &cfg)
+	return cfg, true, processErr
 }

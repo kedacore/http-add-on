@@ -22,6 +22,7 @@ func makeRequests(
 	tickDur time.Duration,
 ) error {
 	ctx, done := context.WithCancel(ctx)
+	defer done()
 	requestsErrGroup, ctx := errgroup.WithContext(ctx)
 	req, err := http.NewRequest("GET", addr.String(), nil)
 	if err != nil {
