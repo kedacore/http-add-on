@@ -1,7 +1,6 @@
 import * as sh from 'shelljs'
 import * as k8s from '@kubernetes/client-node'
 import test from 'ava'
-import * as env from 'env-var';
 import {
     namespace,
     getDeploymentReplicas,
@@ -70,7 +69,7 @@ test.serial('deployKEDA', t => {
     t.log(`Deploying KEDA to namespace ${namespace}`)
     let result = sh.exec(`helm install ${kedaReleaseName} kedacore/keda --create-namespace --namespace ${namespace} --set watchNamespace=${namespace}`)
     if (result.code !== 0) {
-        t.fail("error deploying KEDA. " + result)
+        t.fail(`error deploying KEDA: ${result}`)
     }
     
     t.pass('KEDA deployed successfully')
@@ -80,13 +79,12 @@ test.serial('deployKEDAHttpAddon', t => {
     t.log(`Deploying KEDA HTTP Addon to namespace ${namespace}`)
     let result = sh.exec(`helm install http-add-on ${httpAddonReleaseName} kedacore/keda-add-ons-http --create-namespace --namespace ${namespace}`)
     if (result.code !== 0) {
-        t.fail("error deploying KEDA HTTP Addon. " + result)
+        t.fail(`error deploying KEDA HTTP Addon: ${result}`)
     }
     t.pass("KEDA HTTP Addon deployed successfully")
 })
 
 test.serial('verifyKeda', t => {
-    let namespace = env.get('NAMESPACE').required().asString()
     let success = false
     for (let i = 0; i < 20; i++) {
         t.log(`checking Deployments try ${i}`)

@@ -11,7 +11,7 @@ test.before(t => {
         .replace('{{Name}}', appName)
         .replace('{{Namespace}}', namespace)
         .replace('{{DeploymentName}}', appName)
-        .replace("{{ServieName}}", "testscaler")
+        .replace("{{ServiceName}}", "testscaler")
         .replace("{{Port}}", "8080")
     fs.writeFileSync(tmpFile.name, yml)
     sh.exec(`kubectl create namespace ${namespace}`)
@@ -29,7 +29,7 @@ test.after(t => {
     )
 })
 
-test(t => {
+test("HTTPScaledObject install results in a ScaledObject", t => {
     let scaledObjectFound = false
     for(let i = 0; i < 20; i++) {
         let res = sh.exec(`kubectl get scaledobject --namespace ${namespace} ${appName}`)

@@ -1,9 +1,10 @@
 import * as env from 'env-var';
-import short from 'short-uuid'
+import * as short from 'short-uuid'
 import * as sh from 'shelljs'
 
-export const namespace = env.get('NAMESPACE').required().asString()
-export const appName = `e2e-app-${short.generate()}`
+const shortUID = short.generate().toLowerCase()
+export const namespace = `e2e-app-${shortUID}-ns`
+export const appName = `e2e-app-${shortUID}-n`
 export const kedaReleaseName = "keda"
 export const httpAddonReleaseName = "http-addon"
 
