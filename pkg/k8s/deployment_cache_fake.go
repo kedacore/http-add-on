@@ -9,6 +9,10 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
+// FakeDeploymentCache is a fake implementation of
+// DeploymentCache, suitable for testing interceptor-level
+// logic, without requiring any real Kubernetes client
+// or API interaction
 type FakeDeploymentCache struct {
 	json.Marshaler
 	Mut      *sync.RWMutex

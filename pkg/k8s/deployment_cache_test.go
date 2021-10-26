@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -63,7 +64,13 @@ func TestK8sDeploymentCacheMergeAndBroadcastList(t *testing.T) {
 		context.Background(),
 	)
 	defer done()
-	cache, err := NewK8sDeploymentCache(ctx, logr.Discard(), newFakeDeploymentListerWatcher())
+	lggr := logr.Discard()
+	listerWatcher := newFakeDeploymentListerWatcher()
+	cache, err := NewK8sDeploymentCache(
+		ctx,
+		lggr,
+		listerWatcher,
+	)
 	r.NoError(err)
 	deplList := &appsv1.DeploymentList{
 		Items: []appsv1.Deployment{
@@ -176,12 +183,65 @@ func callMergeAndBcast(
 		cache.mergeAndBroadcastList(deplList)
 	}()
 
+	// after we know all events were received,
+	// make sure we got the ones we expected
 	wg.Wait()
 	return evts
 }
 
 func TestK8sDeploymentCacheAddEvt(t *testing.T) {
-	// see https://github.com/kedacore/http-add-on/issues/245
+	r := require.New(t)
+	ctx, done := context.WithCancel(
+		context.Background(),
+	)
+	defer done()
+	cache, err := NewK8sDeploymentCache(ctx, logr.Discard(), newFakeDeploymentListerWatcher())
+	r.NoError(err)
+	checkDeploymentsInCache := func(depls ...appsv1.Deployment) {
+		t.Helper()
+		r := require.New(t)
+		for _, depl := range depls {
+			ret, ok := cache.latest[depl.GetName()]
+			r.True(ok)
+			r.Equal(depl, ret)
+		}
+	}
+
+	// add a first deployment and make sure it exists in
+	// the latest cache
+	depl1 := newDeployment("testns", "testdepl1", "testing", nil, nil, nil, core.PullAlways)
+	evt1 := watch.Event{
+		Type:   watch.Added, // doesn't matter, addEvt doesn't look at this
+		Object: depl1,
+	}
+	r.NoError(cache.addEvt(evt1))
+	r.Equal(1, len(cache.latest))
+	checkDeploymentsInCache(*depl1)
+
+	// add a second (different name) and make sure both exist
+	// in the cache
+	depl2 := *depl1
+	depl2.Name = "testdepl2"
+	evt2 := watch.Event{
+		Type:   watch.Modified,
+		Object: &depl2,
+	}
+	r.NoError(cache.addEvt(evt2))
+	r.Equal(2, len(cache.latest))
+	checkDeploymentsInCache(*depl1, depl2)
+
+	// try to add a pod, make sure addEvt fails, and afterward, make sure
+	// the original 2 deployments are still in the cache
+	otherObj := &core.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "somepod"},
+	}
+	evt3 := watch.Event{
+		Type:   watch.Added,
+		Object: otherObj,
+	}
+	r.Error(cache.addEvt(evt3))
+	r.Equal(2, len(cache.latest))
+	checkDeploymentsInCache(*depl1, depl2)
 }
 
 // test to make sure that, even when no events come through, the
@@ -201,17 +261,37 @@ func TestK8sDeploymentCachePeriodicFetch(t *testing.T) {
 	// add the deployment without sending an event, to make sure that
 	// the internal loop won't receive any events and will rely on
 	// just the ticker
-	lw.addDeployment(*depl, false)
+	lw.addDeployment(*depl)
 	time.Sleep(tickDur * 2)
 	// make sure that the deployment was fetched
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
 	r.NoError(err)
 	r.Equal(*depl, fetched)
-	r.Equal(0, len(lw.getWatcher().getEvents()))
+	r.Equal(0, len(lw.row.getEvents()))
 }
 
-// test to make sure that the update loop tries to re-establish watch
-// streams when they're broken
+func signalSent(name string, sig <-chan struct{}) error {
+	const dur = 100 * time.Millisecond
+	select {
+	case <-time.After(dur):
+		return fmt.Errorf("%s signal not called within %s", name, dur)
+	case <-sig:
+	}
+	return nil
+}
+
+func errSignalSent(name string, sig <-chan error) error {
+	const dur = 100 * time.Millisecond
+	select {
+	case <-time.After(dur):
+		return fmt.Errorf("%s signal not called within %s", name, dur)
+	case <-sig:
+	}
+	return nil
+}
+
+// test to make sure that the update loop tries to
+// re-establish watch streams when they're broken
 func TestK8sDeploymentCacheRewatch(t *testing.T) {
 	r := require.New(t)
 	ctx, done := context.WithCancel(
@@ -219,6 +299,17 @@ func TestK8sDeploymentCacheRewatch(t *testing.T) {
 	)
 	defer done()
 	lw := newFakeDeploymentListerWatcher()
+	// channel that will receive when watch is called
+	watchCh := make(chan struct{})
+	watchCallNum := 0
+	lw.watchCB = func() {
+		select {
+		case watchCh <- struct{}{}:
+		case <-time.After(100 * time.Millisecond):
+			t.Fatalf("watch callback called but not acknowledged within 100ms for call num %d", watchCallNum+1)
+		}
+		watchCallNum++
+	}
 	cache, err := NewK8sDeploymentCache(ctx, logr.Discard(), lw)
 	r.NoError(err)
 
@@ -231,32 +322,32 @@ func TestK8sDeploymentCacheRewatch(t *testing.T) {
 		watcherErrCh <- cache.StartWatcher(ctx, logr.Discard(), tickDur)
 	}()
 
-	// wait 1/2 second to make sure the watcher goroutine can start up
-	// and doesn't return any errors
-	select {
-	case err := <-watcherErrCh:
-		r.NoError(err)
-	case <-time.After(500 * time.Millisecond):
-	}
+	// make sure the Watch() was called and that the watcher
+	// itself didn't error
+	r.NoError(signalSent("watch", watchCh))
+	r.Error(errSignalSent("watcher error", watcherErrCh))
 
-	// close all open watch channels after waiting a bit for the watcher to start.
-	// in this call we're allowing channels to be reopened
-	lw.getWatcher().closeOpenChans(true)
-	time.Sleep(500 * time.Millisecond)
+	// close all open watch watch channels, then make sure Watch()
+	// was called again and there was no watch error
+	lw.row.Stop()
+	r.NoError(signalSent("watch", watchCh))
+	r.Error(errSignalSent("watcher error", watcherErrCh))
 
 	// add the deployment and send an event.
 	depl := newDeployment("testns", "testdepl", "testing", nil, nil, nil, core.PullAlways)
-	lw.addDeployment(*depl, true)
-	// sleep for a bit to make sure the watcher has had time to re-establish the watch
-	// and receive the event
-	time.Sleep(500 * time.Millisecond)
+	r.NoError(lw.addDeploymentAndSendEvent(*depl, 100*time.Millisecond))
+
+	// make sure that watch wasn't called a third time
+	// and that the watcher itself didn't error
+	r.Error(signalSent("watch", watchCh))
+	r.Error(errSignalSent("watcher error", watcherErrCh))
+
 	// make sure that an event came through
-	r.Equal(1, len(lw.getWatcher().getEvents()))
+	r.Equal(1, len(lw.row.getEvents()))
 	// make sure that the deployment was fetched
 	fetched, err := cache.Get(depl.ObjectMeta.Name)
 	r.NoError(err)
 	r.Equal(*depl, fetched)
-
 }
 
 // test to make sure that when the context is closed, the deployment

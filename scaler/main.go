@@ -49,19 +49,31 @@ func main() {
 		lggr.Error(err, "getting a Kubernetes client")
 		os.Exit(1)
 	}
-	pinger := newQueuePinger(
+	pinger, err := newQueuePinger(
 		context.Background(),
 		lggr,
 		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,
 		svcName,
 		targetPortStr,
-		time.NewTicker(500*time.Millisecond),
 	)
+	if err != nil {
+		lggr.Error(err, "creating a queue pinger")
+		os.Exit(1)
+	}
 
 	table := routing.NewTable()
 
 	grp, ctx := errgroup.WithContext(ctx)
+
+	grp.Go(func() error {
+		defer done()
+		return pinger.start(
+			ctx,
+			time.NewTicker(cfg.QueueTickDuration),
+		)
+	})
+
 	grp.Go(func() error {
 		defer done()
 		return startGrpcServer(
@@ -137,7 +149,6 @@ func startGrpcServer(
 		lis.Close()
 	}()
 	return grpcServer.Serve(lis)
-
 }
 
 func startHealthcheckServer(
@@ -168,7 +179,7 @@ func startHealthcheckServer(
 	mux.HandleFunc("/queue_ping", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		lggr := lggr.WithName("route.counts_ping")
-		if err := pinger.requestCounts(ctx); err != nil {
+		if err := pinger.fetchAndSaveCounts(ctx); err != nil {
 			lggr.Error(err, "requesting counts failed")
 			w.WriteHeader(500)
 			w.Write([]byte("error requesting counts from interceptors"))

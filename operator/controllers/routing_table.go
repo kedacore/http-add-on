@@ -62,9 +62,9 @@ func updateRoutingMap(
 ) error {
 	lggr = lggr.WithName("updateRoutingMap")
 	routingConfigMap, err := k8s.GetConfigMap(ctx, cl, namespace, routing.ConfigMapRoutingTableName)
-	// if there is an error other than not found on the ConfigMap, we should
-	// fail
 	if err != nil && !errors.IsNotFound(err) {
+		// if there is an error other than not found on the ConfigMap, we should
+		// fail
 		lggr.Error(
 			err,
 			"other issue fetching the routing table ConfigMap",
@@ -72,11 +72,9 @@ func updateRoutingMap(
 			routing.ConfigMapRoutingTableName,
 		)
 		return pkgerrs.Wrap(err, "routing table ConfigMap fetch error")
-	}
-
-	// if either the routing table ConfigMap doesn't exist or for some reason it's
-	// nil in memory, we need to create it
-	if errors.IsNotFound(err) || routingConfigMap == nil {
+	} else if errors.IsNotFound(err) || routingConfigMap == nil {
+		// if either the routing table ConfigMap doesn't exist or for some reason it's
+		// nil in memory, we need to create it
 		lggr.Info(
 			"routing table ConfigMap didn't exist, creating it",
 			"configMapName",

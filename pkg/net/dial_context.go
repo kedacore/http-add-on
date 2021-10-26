@@ -25,7 +25,7 @@ type DialContextFunc func(ctx context.Context, network, addr string) (stdnet.Con
 // in the time slice between detecting >=1 replicas and the network send, the connection
 // will be retried a few times.
 //
-// Thanks to KNative for inspiring this code. See GitHub link below
+// Thanks to Knative for inspiring this code. See GitHub link below
 // https://github.com/knative/serving/blob/20815258c92d0f26100031c71a91d0bef930a475/vendor/knative.dev/pkg/network/transports.go#L70
 func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialContextFunc {
 	numDialTries := backoff.Steps
