@@ -9,6 +9,7 @@ import {
     createApp,
     deleteApp,
     App,
+    getHTTPScaledObject,
 } from './k8s'
 import {httpRequest} from './http'
 
@@ -79,6 +80,21 @@ test("scaling up from zero should work", async t => {
         elapsedMS < maxElapsedMS,
         `the first request should take less than ${maxElapsedMS}ms`
     )
+})
+
+test("duplicate hosts should fail", async t => {
+    const ns = t.context["ns"], name = t.context["name"], host = t.context["host"]
+    const name2 = `${name}-2`
+    await createHttpScaledObject(
+        host,
+        namespace(),
+        name2,
+        "testdeploy",
+        "testsvc",
+        8080
+    )
+    const httpso = await getHTTPScaledObject(ns, name)
+    // TODO: ensure there is status in the scaled object...
 })
 
 test("servicing requests after scaled up to 1 should work", async t => {

@@ -157,6 +157,19 @@ export function deleteApp(app: App) {
     }
 }
 
+export async function getHTTPScaledObject(ns: string, name: string) : Promise<object> {
+    const kc = new k8s.KubeConfig();
+    kc.loadFromDefault();
+    const customApi = kc.makeApiClient(k8s.CustomObjectsApi);
+    const res = await customApi.getNamespacedCustomObject(
+        "http.keda.sh",
+        "v1alpha1",
+        ns,
+        "httpscaledobjects",
+        name
+    )
+    return res.body
+}
 
 // createHttpScaledObject creates a new HTTPScaledObject
 // in Kubernetes. The object will have the 
