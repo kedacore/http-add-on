@@ -410,20 +410,6 @@ func (Operator) BuildManifests() error {
 	return nil
 }
 
-type E2E mg.Namespace
-
-func (E2E) Test(ctx context.Context) error {
-	return sh.RunWithV(
-		map[string]string{
-			"KEDA_HTTP_E2E_SHOULD_RUN": "true",
-		},
-		"go",
-		"test",
-		"-test.v",
-		"./e2e...",
-	)
-}
-
 // --- Misc --- //
 
 // Generates protofiles for external scaler
