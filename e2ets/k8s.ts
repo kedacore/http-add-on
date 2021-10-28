@@ -55,6 +55,8 @@ export function deleteApp(app: App) {
     // throw new Error("NOT YET IMPLEMENTED")
 }
 
+// writeHTTPScaledObject writes an HTTPScaledObject
+// with the parameters given
 export function writeHttpScaledObject(
     tmpFile: FileResult,
     namespace: string,

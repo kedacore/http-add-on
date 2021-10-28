@@ -10,7 +10,7 @@ import {
     deleteApp,
     App,
 } from './k8s'
-import axios from 'axios'
+import {httpRequest} from './http'
 
 test.beforeEach(t => {
     const tmpFile = tmp.fileSync()
@@ -70,14 +70,39 @@ test("HTTPScaledObject install results in a ScaledObject", t => {
     )
 })
 
+
 test("scaling up from zero should work", async t => {
     const ingress = env.get("INGRESS_ADDRESS").required().asString()
+    const {status, elapsedMS} = await httpRequest(ingress)
+    t.is(status, 200, "the first request should scale the app from 0")
+    const maxElapsedMS = 2000
+    t.true(
+        elapsedMS < maxElapsedMS,
+        `the first request should take less than ${maxElapsedMS}ms`
+    )
+})
 
-    const start = Date.now()
-    // const res = await fetch(ingress)
-    const res = await axios.get(ingress)
-    const elapsed = Date.now() - start
-    t.is(res.status, 200, "the first request should scale the app from 0")
-    const maxElapsed = 2000
-    t.true(elapsed < maxElapsed, `the first request should take less than ${maxElapsed}ms`)
+test("servicing requests after scaled up to 1 should work", async t => {
+    const ingress = env.get("INGRESS_ADDRESS").required().asString()
+
+    // make first request
+    const resp1 = await httpRequest(ingress)
+    t.is(
+        resp1.status,
+        200,
+        `first request responded with status ${resp1.status}`
+    )
+
+    // make second request immediately afterward
+    const resp2 = await httpRequest(ingress)
+    t.is(
+        resp2.status,
+        200,
+        `second request responded with status ${resp2.status}`
+    )
+    const maxElapsedMS = 500
+    t.true(
+        resp2.elapsedMS < maxElapsedMS,
+        `second response took ${resp2.elapsedMS}ms, which was more than the max of ${maxElapsedMS}`
+    )
 })
