@@ -40,7 +40,7 @@ export interface App{
 // the given name. the deployment and services of the app
 // will be called the same thing as the name parameter
 export function createApp(namespace: string, name: string): App {
-    throw new Error("NOT YET IMPLEMENTED")
+    // throw new Error("NOT YET IMPLEMENTED")
     return {
         namespace: namespace,
         deployName: name,
@@ -52,7 +52,7 @@ export function createApp(namespace: string, name: string): App {
 // deleteApp deletes the app described by the given
 // app parameter
 export function deleteApp(app: App) {
-    throw new Error("NOT YET IMPLEMENTED")
+    // throw new Error("NOT YET IMPLEMENTED")
 }
 
 export function writeHttpScaledObject(
