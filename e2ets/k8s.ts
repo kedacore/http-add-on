@@ -78,8 +78,8 @@ spec:
     let yml = httpsoYaml
         .replace('{{Name}}', name)
         .replace('{{Namespace}}', namespace)
-        .replace('{{DeploymentName}}', name)
-        .replace("{{ServiceName}}", "testscaler")
-        .replace("{{Port}}", "8080")
+        .replace('{{DeploymentName}}', deployName)
+        .replace("{{ServiceName}}", svcName)
+        .replace("{{Port}}", port.toString())
     fs.writeFileSync(tmpFile.name, yml)
 }
