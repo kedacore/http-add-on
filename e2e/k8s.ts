@@ -2,7 +2,9 @@ import * as env from 'env-var';
 import * as short from 'short-uuid'
 import * as sh from 'shelljs'
 import * as fs from 'fs'
-import {FileResult} from 'tmp'
+import * as tmp from 'tmp'
+import { httpsoYamlTpl } from './k8s-yaml';
+import * as k8s from '@kubernetes/client-node'
 
 export function appName(): string {
     const shortUID = short.generate().toLowerCase()
@@ -30,7 +32,7 @@ export function getDeploymentReplicas(
     return parsedResult
 }
 
-export interface App{
+export interface App {
     namespace: string
     deployName: string
     svcName: string
@@ -39,26 +41,127 @@ export interface App{
 // createApp creates a new app in the given namespace with
 // the given name. the deployment and services of the app
 // will be called the same thing as the name parameter
-export function createApp(namespace: string, name: string): App {
-    // throw new Error("NOT YET IMPLEMENTED")
-    return {
+export async function createApp(
+    host: string,
+    namespace: string,
+    name: string,
+): Promise<App> {
+    const port = 8080
+    const kc = new k8s.KubeConfig();
+    kc.loadFromDefault();
+
+    const appsApi = kc.makeApiClient(k8s.AppsV1Api);
+    await appsApi.createNamespacedDeployment(namespace, {
+        metadata: {
+            name: name,
+            labels: {
+                app: name,
+            },
+            },
+            spec: {
+                replicas: 1,
+                selector: {
+                    matchLabels: {
+                        app: name,
+                    },
+                },
+                template: {
+                    metadata: {
+                        labels: {
+                            app: name,
+                        },
+                    },
+                    spec: {
+                        containers: [
+                            {
+                                name: name,
+                                image: `arschles/xkcd`,
+                                ports: [{containerPort: port}],
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    )
+    
+    const coreApi = kc.makeApiClient(k8s.CoreV1Api);
+    await coreApi.createNamespacedService(namespace, {
+        metadata: {
+            name: name,
+            labels: {
+                app: name,
+            },
+        },
+        spec: {
+            ports: [{port: port, targetPort: port as any}],
+            selector: {
+                app: name,
+            },
+        }
+    })
+
+    const extV1Beta1Api = kc.makeApiClient(k8s.ExtensionsV1beta1Api);
+    await extV1Beta1Api.createNamespacedIngress(namespace, {
+        metadata: {
+            name: name,
+            labels: {
+                app: name,
+            },
+        },
+        spec: {
+            rules: [{
+                host: host,
+                http: {
+                    paths: [{
+                        path: `/`,
+                        backend: {
+                            serviceName: name,
+                            servicePort: port as any,
+                        }
+                    }]
+                }
+            }]
+        }
+    })
+
+    return Promise.resolve({
         namespace: namespace,
         deployName: name,
         svcName: name,
-        svcPort: 8080
-    }
+        svcPort: port
+    })
 }
 
 // deleteApp deletes the app described by the given
 // app parameter
 export function deleteApp(app: App) {
-    // throw new Error("NOT YET IMPLEMENTED")
+    const ns = app.namespace
+    const deplRes = sh.exec(`kubectl delete deployment -n ${ns} ${app.deployName}`)
+    const svcRes = sh.exec(`kubectl delete service -n ${ns} ${app.svcName}`)
+    const ingRes = sh.exec(`kubectl delete ingress -n ${ns} ${app.deployName}`)
+    if(deplRes.code !== 0) {
+        throw new Error(
+            `error with 'kubectl delete deployment': ${deplRes.stderr}`
+        )
+    }
+    if(svcRes.code !== 0) {
+        throw new Error(
+            `error with 'kubectl delete service': ${svcRes.stderr}`
+        )
+    }
+    if(ingRes.code !== 0) {
+        throw new Error(
+            `error with 'kubectl delete ingress': ${ingRes.stderr}`
+        )
+    }
 }
 
-// writeHTTPScaledObject writes an HTTPScaledObject
-// to a file with the parameters given
-export function writeHttpScaledObject(
-    tmpFile: FileResult,
+
+// createHttpScaledObject creates a new HTTPScaledObject
+// in Kubernetes. The object will have the 
+// parameters given.
+export function createHttpScaledObject(
     host: string,
     namespace: string,
     name: string,
@@ -66,25 +169,24 @@ export function writeHttpScaledObject(
     svcName: string,
     port: number,
 ) {
-    const httpsoYaml = `
-kind: HTTPScaledObject
-apiVersion: http.keda.sh/v1alpha1
-metadata:
-    name: {{Name}}
-    namespace: {{Namespace}}
-spec:
-    host: {{Host}}
-    scaleTargetRef:
-        deployment: {{DeploymentName}}
-        service: {{ServiceName}}
-        port: {{Port}}
-`
-    let yml = httpsoYaml
+    
+    let yaml = httpsoYamlTpl
         .replace('{{Name}}', name)
         .replace('{{Namespace}}', namespace)
         .replace('{{DeploymentName}}', deployName)
         .replace("{{ServiceName}}", svcName)
         .replace("{{Port}}", port.toString())
         .replace("{{Host}}", host)
-    fs.writeFileSync(tmpFile.name, yml)
+    const file = tmp.fileSync()
+    try {
+        fs.writeFileSync(file.name, yaml)
+        const res = sh.exec(`kubectl apply -f ${file.name}`)
+        if (res.code !== 0) {
+            throw new Error(
+                `error with 'kubectl apply': ${res.stderr}`
+            )
+        }
+    } finally {
+        sh.rm(file.name)
+    }
 }

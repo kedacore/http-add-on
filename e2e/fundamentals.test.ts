@@ -5,7 +5,7 @@ import * as sh from 'shelljs'
 import {
     namespace,
     appName,
-    writeHttpScaledObject,
+    createHttpScaledObject,
     createApp,
     deleteApp,
     App,
@@ -16,29 +16,19 @@ import {httpRequest} from './http'
 // for it. these need to be done in serial, but they
 // can mostly be reversed in parallel.
 test.beforeEach(t => {
-    const tmpFile = tmp.fileSync()
-    t.context["tmpFile"] = tmpFile
-    const ns = namespace(), name = appName()
+    const ns = namespace(), name = appName(), host = appName()
     t.context["ns"] = ns
     t.context["name"] = name
-    const host = `${name.toLowerCase()}.com`
     t.context["host"] = host
-    const app = createApp(ns, name)
+    const app = createApp(host, ns, name)
     t.context["app"] = app
-    writeHttpScaledObject(
-        tmpFile,
+    createHttpScaledObject(
         host,
         namespace(),
         name,
         "testdeploy",
         "testsvc",
         8080
-    )
-    let installRes = sh.exec(`kubectl apply -f ${tmpFile.name} --namespace ${ns}`)
-    t.is(
-        0,
-        installRes.code,
-        'creating an HTTPScaledObject should work.',
     )
 })
 
@@ -57,12 +47,6 @@ test.afterEach(t => {
 test.afterEach(t => {
     const app = t.context["app"] as App
     deleteApp(app)
-})
-
-// remove the HTTPScaledObject YAML file
-test.afterEach(t =>{
-    const tmpFile = t.context["tmpFile"] as tmp.FileResult
-    sh.rm(tmpFile.name)
 })
 
 test("HTTPScaledObject install results in a ScaledObject", t => {
