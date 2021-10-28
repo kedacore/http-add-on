@@ -56,9 +56,10 @@ export function deleteApp(app: App) {
 }
 
 // writeHTTPScaledObject writes an HTTPScaledObject
-// with the parameters given
+// to a file with the parameters given
 export function writeHttpScaledObject(
     tmpFile: FileResult,
+    host: string,
     namespace: string,
     name: string,
     deployName: string,
@@ -72,6 +73,7 @@ metadata:
     name: {{Name}}
     namespace: {{Namespace}}
 spec:
+    host: {{Host}}
     scaleTargetRef:
         deployment: {{DeploymentName}}
         service: {{ServiceName}}
@@ -83,5 +85,6 @@ spec:
         .replace('{{DeploymentName}}', deployName)
         .replace("{{ServiceName}}", svcName)
         .replace("{{Port}}", port.toString())
+        .replace("{{Host}}", host)
     fs.writeFileSync(tmpFile.name, yml)
 }

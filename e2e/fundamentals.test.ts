@@ -12,15 +12,28 @@ import {
 } from './k8s'
 import {httpRequest} from './http'
 
+// create an app then submit a HTTPScaledObject
+// for it. these need to be done in serial, but they
+// can mostly be reversed in parallel.
 test.beforeEach(t => {
     const tmpFile = tmp.fileSync()
     t.context["tmpFile"] = tmpFile
     const ns = namespace(), name = appName()
     t.context["ns"] = ns
     t.context["name"] = name
+    const host = `${name.toLowerCase()}.com`
+    t.context["host"] = host
     const app = createApp(ns, name)
     t.context["app"] = app
-    writeHttpScaledObject(tmpFile, namespace(), name, "testdeploy", "testsvc", 8080)
+    writeHttpScaledObject(
+        tmpFile,
+        host,
+        namespace(),
+        name,
+        "testdeploy",
+        "testsvc",
+        8080
+    )
     let installRes = sh.exec(`kubectl apply -f ${tmpFile.name} --namespace ${ns}`)
     t.is(
         0,
@@ -70,10 +83,12 @@ test("HTTPScaledObject install results in a ScaledObject", t => {
     )
 })
 
-
 test("scaling up from zero should work", async t => {
     const ingress = env.get("INGRESS_ADDRESS").required().asString()
-    const {status, elapsedMS} = await httpRequest(ingress)
+    const {status, elapsedMS} = await httpRequest(
+        ingress,
+        {"Host": t.context["host"]},
+    )
     t.is(status, 200, "the first request should scale the app from 0")
     const maxElapsedMS = 2000
     t.true(
@@ -86,7 +101,10 @@ test("servicing requests after scaled up to 1 should work", async t => {
     const ingress = env.get("INGRESS_ADDRESS").required().asString()
 
     // make first request
-    const resp1 = await httpRequest(ingress)
+    const resp1 = await httpRequest(
+        ingress,
+        {"Host": t.context["host"]},
+    )
     t.is(
         resp1.status,
         200,
@@ -94,7 +112,10 @@ test("servicing requests after scaled up to 1 should work", async t => {
     )
 
     // make second request immediately afterward
-    const resp2 = await httpRequest(ingress)
+    const resp2 = await httpRequest(
+        ingress,
+        {"Host": t.context["host"]},
+    )
     t.is(
         resp2.status,
         200,
