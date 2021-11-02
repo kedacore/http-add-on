@@ -40,7 +40,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 	defer h.close()
 	t.Logf("Harness: %s", h.String())
 
-	h.deplCache.Set(deplName, appsv1.Deployment{
+	h.deplCache.Set(namespace, deplName, appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: deplName},
 		Spec: appsv1.DeploymentSpec{
 			// note that the forwarding wait function doesn't care about
@@ -83,12 +83,15 @@ func TestIntegrationHappyPath(t *testing.T) {
 // need to set the replicas to 1, but we're doing so anyway to
 // isolate the routing table behavior
 func TestIntegrationNoRoutingTableEntry(t *testing.T) {
+	const (
+		ns = "testns"
+	)
 	host := fmt.Sprintf("%s.integrationtest.interceptor.kedahttp.dev", t.Name())
 	r := require.New(t)
 	h, err := newHarness(time.Second, time.Second)
 	r.NoError(err)
 	defer h.close()
-	h.deplCache.Set(host, appsv1.Deployment{
+	h.deplCache.Set(ns, host, appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: host},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: i32Ptr(1),
@@ -111,6 +114,7 @@ func TestIntegrationNoRoutingTableEntry(t *testing.T) {
 func TestIntegrationNoReplicas(t *testing.T) {
 	const (
 		deployTimeout = 100 * time.Millisecond
+		ns            = "testns"
 	)
 	host := hostForTest(t)
 	deployName := "testdeployment"
@@ -127,7 +131,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	})
 
 	// 0 replicas
-	h.deplCache.Set(deployName, appsv1.Deployment{
+	h.deplCache.Set(ns, deployName, appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: deployName},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: i32Ptr(0),
@@ -157,6 +161,7 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	const (
 		deployTimeout   = 2 * time.Second
 		responseTimeout = 1 * time.Second
+		ns              = "testns"
 		deployName      = "testdeployment"
 	)
 	ctx := context.Background()
@@ -182,8 +187,8 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 			Replicas: i32Ptr(0),
 		},
 	}
-	h.deplCache.Set(deployName, initialDeployment)
-	watcher := h.deplCache.SetWatcher(deployName)
+	h.deplCache.Set(ns, deployName, initialDeployment)
+	watcher := h.deplCache.SetWatcher(ns, deployName)
 
 	// make the request in one goroutine, and in the other, wait a bit
 	// and then add replicas to the deployment cache

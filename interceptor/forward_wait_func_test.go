@@ -22,7 +22,8 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	r := require.New(t)
 	const ns = "testNS"
 	const deployName = "TestForwardingHandlerDeploy"
-	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
+	cache := k8s.NewFakeDeploymentCache()
+	cache.Current = map[string]appsv1.Deployment{
 		deployName: *newDeployment(
 			ns,
 			deployName,
@@ -32,7 +33,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 			map[string]string{},
 			corev1.PullAlways,
 		),
-	})
+	}
 
 	ctx, done := context.WithTimeout(ctx, waitFuncWait)
 	defer done()
@@ -43,7 +44,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	)
 
 	group.Go(func() error {
-		return waitFunc(ctx, deployName)
+		return waitFunc(ctx, ns, deployName)
 	})
 	r.NoError(group.Wait(), "wait function failed, but it shouldn't have")
 }
@@ -66,9 +67,10 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 		corev1.PullAlways,
 	)
 	deployment.Status.ReadyReplicas = 0
-	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
+	cache := k8s.NewFakeDeploymentCache()
+	cache.Current = map[string]appsv1.Deployment{
 		deployName: *deployment,
-	})
+	}
 
 	ctx, done := context.WithTimeout(ctx, waitFuncWait)
 	defer done()
@@ -76,7 +78,7 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 		cache,
 	)
 
-	err := waitFunc(ctx, deployName)
+	err := waitFunc(ctx, ns, deployName)
 	r.Error(err)
 }
 
@@ -97,9 +99,10 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		corev1.PullAlways,
 	)
 	deployment.Spec.Replicas = k8s.Int32P(0)
-	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
+	cache := k8s.NewFakeDeploymentCache()
+	cache.Current = map[string]appsv1.Deployment{
 		deployName: *deployment,
-	})
+	}
 	ctx, done := context.WithTimeout(ctx, totalWaitDur)
 	defer done()
 	waitFunc := newDeployReplicasForwardWaitFunc(
@@ -109,13 +112,13 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 	replicasIncreasedCh := make(chan struct{})
 	go func() {
 		time.Sleep(totalWaitDur / 2)
-		cache.RWM.RLock()
-		defer cache.RWM.RUnlock()
+		cache.Mut.RLock()
+		defer cache.Mut.RUnlock()
 		watcher := cache.Watchers[deployName]
 		modifiedDeployment := deployment.DeepCopy()
 		modifiedDeployment.Spec.Replicas = k8s.Int32P(1)
 		watcher.Action(watch.Modified, modifiedDeployment)
 		close(replicasIncreasedCh)
 	}()
-	r.NoError(waitFunc(ctx, deployName))
+	r.NoError(waitFunc(ctx, ns, deployName))
 }

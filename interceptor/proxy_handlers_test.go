@@ -41,7 +41,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(context.Context, string) error {
+	waitFunc := func(context.Context, string, string) error {
 		return nil
 	}
 	hdl := newForwardingHandler(
@@ -78,7 +78,7 @@ func TestWaitFailedConnection(t *testing.T) {
 		timeouts,
 		backoff,
 	)
-	waitFunc := func(context.Context, string) error {
+	waitFunc := func(context.Context, string, string) error {
 		return nil
 	}
 	routingTable := routing.NewTable()
@@ -257,7 +257,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(context.Context, string) error {
+	waitFunc := func(context.Context, string, string) error {
 		return nil
 	}
 	routingTable := routing.NewTable()
@@ -321,13 +321,13 @@ func waitForSignal(sig <-chan struct{}, waitDur time.Duration) error {
 // is called, or the context that is passed to it is done (e.g. cancelled, timed out,
 // etc...). in the former case, the returned func itself returns nil. in the latter,
 // it returns ctx.Err()
-func notifyingFunc() (func(context.Context, string) error, <-chan struct{}, func()) {
+func notifyingFunc() (func(context.Context, string, string) error, <-chan struct{}, func()) {
 	calledCh := make(chan struct{})
 	finishCh := make(chan struct{})
 	finishFunc := func() {
 		close(finishCh)
 	}
-	return func(ctx context.Context, _ string) error {
+	return func(ctx context.Context, _, _ string) error {
 		close(calledCh)
 		select {
 		case <-finishCh:

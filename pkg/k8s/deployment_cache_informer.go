@@ -2,12 +2,14 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/informers"
 	infappsv1 "k8s.io/client-go/informers/apps/v1"
@@ -16,13 +18,22 @@ import (
 )
 
 type InformerBackedDeploymentCache struct {
-	lggr    logr.Logger
-	sei     infappsv1.DeploymentInformer
-	bcaster *watch.Broadcaster
+	lggr         logr.Logger
+	deplInformer infappsv1.DeploymentInformer
+	bcaster      *watch.Broadcaster
+}
+
+func (i *InformerBackedDeploymentCache) MarshalJSON() ([]byte, error) {
+	lst := i.deplInformer.Lister()
+	depls, err := lst.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(&depls)
 }
 
 func (i *InformerBackedDeploymentCache) Start(ctx context.Context) error {
-	i.sei.Informer().Run(ctx.Done())
+	i.deplInformer.Informer().Run(ctx.Done())
 	return errors.Wrap(
 		ctx.Err(), "deployment cache informer was stopped",
 	)
@@ -32,7 +43,7 @@ func (i *InformerBackedDeploymentCache) Get(
 	ns,
 	name string,
 ) (appsv1.Deployment, error) {
-	depl, err := i.sei.Lister().Deployments(ns).Get(name)
+	depl, err := i.deplInformer.Lister().Deployments(ns).Get(name)
 	if err != nil {
 		return appsv1.Deployment{}, err
 	}
@@ -99,11 +110,11 @@ func NewInformerBackedDeploymentCache(
 	)
 	deplInformer := factory.Apps().V1().Deployments()
 	ret := &InformerBackedDeploymentCache{
-		lggr:    lggr,
-		bcaster: watch.NewBroadcaster(0, watch.WaitIfChannelFull),
-		sei:     deplInformer,
+		lggr:         lggr,
+		bcaster:      watch.NewBroadcaster(0, watch.WaitIfChannelFull),
+		deplInformer: deplInformer,
 	}
-	ret.sei.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	ret.deplInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    ret.addEvtHandler,
 		UpdateFunc: ret.updateEvtHandler,
 		DeleteFunc: ret.deleteEvtHandler,
