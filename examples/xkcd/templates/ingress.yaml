@@ -4,6 +4,7 @@ metadata:
   name: {{ include "xkcd.fullname" . }}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: nginx
 spec:
   rules:
   - host: {{ .Values.host }}
