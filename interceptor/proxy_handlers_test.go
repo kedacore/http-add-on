@@ -18,6 +18,7 @@ import (
 
 // the proxy should successfully forward a request to a running server
 func TestImmediatelySuccessfulProxy(t *testing.T) {
+	const ns = "testns"
 	const host = "TestImmediatelySuccessfulProxy.testing"
 	r := require.New(t)
 
@@ -34,6 +35,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	originPort, err := strconv.Atoi(originURL.Port())
 	r.NoError(err)
 	target := targetFromURL(
+		ns,
 		originURL,
 		originPort,
 		"testdepl",
@@ -341,15 +343,18 @@ func notifyingFunc() (func(context.Context, string, string) error, <-chan struct
 }
 
 func targetFromURL(
+	ns string,
 	u *url.URL,
 	port int,
 	deployment string,
 	targetPendingReqs int32,
 ) routing.Target {
-	return routing.Target{
-		Service:               strings.Split(u.Host, ":")[0],
-		Port:                  port,
-		Deployment:            deployment,
-		TargetPendingRequests: targetPendingReqs,
-	}
+	svc := strings.Split(u.Host, ":")[0]
+	return routing.NewTarget(
+		ns,
+		svc,
+		port,
+		deployment,
+		targetPendingReqs,
+	)
 }

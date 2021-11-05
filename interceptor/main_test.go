@@ -26,6 +26,7 @@ import (
 
 func TestRunProxyServerCountMiddleware(t *testing.T) {
 	const (
+		ns   = "testns"
 		port = 8080
 		host = "samplehost"
 	)
@@ -56,6 +57,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	routingTable.AddTarget(
 		host,
 		targetFromURL(
+			ns,
 			originURL,
 			originPort,
 			"testdepl",

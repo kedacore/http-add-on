@@ -57,6 +57,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 	originPort, err := strconv.Atoi(h.originURL.Port())
 	r.NoError(err)
 	h.routingTable.AddTarget(hostForTest(t), targetFromURL(
+		namespace,
 		h.originURL,
 		originPort,
 		deplName,
@@ -124,6 +125,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	originPort, err := strconv.Atoi(h.originURL.Port())
 	r.NoError(err)
 	h.routingTable.AddTarget(hostForTest(t), targetFromURL(
+		ns,
 		h.originURL,
 		originPort,
 		deployName,
@@ -175,6 +177,7 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	h.routingTable.AddTarget(
 		hostForTest(t),
 		targetFromURL(
+			ns,
 			h.originURL,
 			originPort,
 			deployName,
