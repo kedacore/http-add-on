@@ -128,6 +128,8 @@ func main() {
 			routingTable,
 			deployCache,
 			adminPort,
+			servingCfg,
+			timeoutCfg,
 		)
 		lggr.Error(err, "admin server failed")
 		return err
@@ -170,6 +172,8 @@ func runAdminServer(
 	routingTable *routing.Table,
 	deployCache k8s.DeploymentCache,
 	port int,
+	servingConfig *config.Serving,
+	timeoutConfig *config.Timeouts,
 ) error {
 	lggr = lggr.WithName("runAdminServer")
 	adminServer := nethttp.NewServeMux()
@@ -198,6 +202,7 @@ func runAdminServer(
 			}
 		},
 	)
+	kedahttp.AddConfigEndpoint(lggr, adminServer, servingConfig, timeoutConfig)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)

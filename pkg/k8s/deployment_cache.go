@@ -14,9 +14,6 @@ import (
 	// 	"github.com/pkg/errors"
 )
 
-// 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-// 	"k8s.io/apimachinery/pkg/watch"
-
 // DeploymentCache is a simple cache of deployments.
 // It allows callers to quickly get a given deployment in a given
 // namespace, or watch for changes to a specific deployment, all

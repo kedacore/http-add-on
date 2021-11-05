@@ -22,8 +22,8 @@ type ExternalScaler struct {
 }
 
 type Base struct {
-	TargetNamespace       string `envconfig:"TARGET_NAMESPACE" default:""`
 	TargetPendingRequests int32  `envconfig:"TARGET_PENDING_REQUESTS" default:"100"`
+	Namespace             string `envconfig:"NAMESPACE" required:"true"`
 }
 
 func NewBaseFromEnv() (*Base, error) {

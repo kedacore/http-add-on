@@ -25,6 +25,15 @@ func NewCounts() *Counts {
 	}
 }
 
+// Aggregate returns the total count across all hosts
+func (q *Counts) Aggregate() int {
+	agg := 0
+	for _, count := range q.Counts {
+		agg += count
+	}
+	return agg
+}
+
 // MarshalJSON implements json.Marshaler
 func (q *Counts) MarshalJSON() ([]byte, error) {
 	return json.Marshal(q.Counts)

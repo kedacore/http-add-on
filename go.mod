@@ -9,7 +9,8 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/magefile/mage v1.11.0
-	github.com/onsi/ginkgo v1.16.4
+	github.com/mitchellh/hashstructure/v2 v2.0.2
+	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.0

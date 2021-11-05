@@ -54,11 +54,10 @@ func TestIntegrationHappyPath(t *testing.T) {
 		},
 	})
 
-	originHost, originPort, err := splitHostPort(h.originURL.Host)
+	originPort, err := strconv.Atoi(h.originURL.Port())
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), routing.NewTarget(
-		namespace,
-		originHost,
+	h.routingTable.AddTarget(hostForTest(t), targetFromURL(
+		h.originURL,
 		originPort,
 		deplName,
 		123,
@@ -122,13 +121,14 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	h, err := newHarness(deployTimeout, time.Second)
 	r.NoError(err)
 
-	originHost, originPort, err := splitHostPort(h.originURL.Host)
+	originPort, err := strconv.Atoi(h.originURL.Port())
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), routing.Target{
-		Service:    originHost,
-		Port:       originPort,
-		Deployment: deployName,
-	})
+	h.routingTable.AddTarget(hostForTest(t), targetFromURL(
+		h.originURL,
+		originPort,
+		deployName,
+		123,
+	))
 
 	// 0 replicas
 	h.deplCache.Set(ns, deployName, appsv1.Deployment{
@@ -170,13 +170,17 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	r.NoError(err)
 
 	// add host to routing table
-	originHost, originPort, err := splitHostPort(h.originURL.Host)
+	originPort, err := strconv.Atoi(h.originURL.Port())
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), routing.Target{
-		Service:    originHost,
-		Port:       originPort,
-		Deployment: deployName,
-	})
+	h.routingTable.AddTarget(
+		hostForTest(t),
+		targetFromURL(
+			h.originURL,
+			originPort,
+			deployName,
+			123,
+		),
+	)
 
 	// set up a deployment with zero replicas and create
 	// a watcher we can use later to fake-send a deployment

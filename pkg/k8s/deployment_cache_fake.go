@@ -9,7 +9,12 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
+// FakeDeploymentCache is a fake implementation of
+// DeploymentCache, suitable for testing interceptor-level
+// logic, without requiring any real Kubernetes client
+// or API interaction
 type FakeDeploymentCache struct {
+	json.Marshaler
 	Mut      *sync.RWMutex
 	Current  map[string]appsv1.Deployment
 	Watchers map[string]*watch.RaceFreeFakeWatcher
@@ -28,7 +33,11 @@ func NewFakeDeploymentCache() *FakeDeploymentCache {
 func (f *FakeDeploymentCache) MarshalJSON() ([]byte, error) {
 	f.Mut.RLock()
 	defer f.Mut.RUnlock()
-	return json.Marshal(f.Current)
+	ret := map[string]int32{}
+	for name, deployment := range f.Current {
+		ret[name] = *deployment.Spec.Replicas
+	}
+	return json.Marshal(ret)
 }
 
 func (f *FakeDeploymentCache) Get(ns string, name string) (appsv1.Deployment, error) {

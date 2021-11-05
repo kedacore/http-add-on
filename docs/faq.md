@@ -17,15 +17,15 @@ However, Osiris and KEDA-HTTP differ in several ways:
 - The KEDA-HTTP operator can automatically deploy and configure networking and compute resources necessary for an HTTP application to autoscale. Osiris does not have this functionality.
 - Osiris is currently archived in GitHub
 
-## How is this Project Similar or Different from [KNative](https://knative.dev/)?
+## How is this Project Similar or Different from [Knative](https://knative.dev/)?
 
-KNative serving and KEDA-HTTP both have core support for autoscaling, including scale-to-zero of compute workloads. KEDA-HTTP is focused solely on deploying production-grade autoscaling HTTP applications, while KNative builds in additional functionality:
+Knative Serving and KEDA-HTTP both have core support for autoscaling, including scale-to-zero of compute workloads. KEDA-HTTP is focused solely on deploying production-grade autoscaling HTTP applications, while Knative builds in additional functionality:
 
 - Pure [event-based workloads](https://knative.dev/docs/eventing/). [KEDA core](https://github.com/kedacore/keda), without KEDA-HTTP, can support such workloads natively.
 - Complex deployment strategies like [blue-green](https://knative.dev/docs/serving/samples/blue-green-deployment/)
-- Supporting other autoscaling mechanisms beyond the built-in [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), such as the [KNative Pod Autoscaler (KPA)](https://knative.dev/docs/serving/autoscaling/autoscaling-concepts/#knative-pod-autoscaler-kpa)
+- Supporting other autoscaling mechanisms beyond the built-in [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), such as the [Knative Pod Autoscaler (KPA)](https://knative.dev/docs/serving/autoscaling/autoscaling-concepts/#knative-pod-autoscaler-kpa)
 
-Additionally, KNative supports a service mesh, while KEDA-HTTP does not out of the box (support for that is forthcoming).
+Additionally, Knative supports a service mesh, while KEDA-HTTP does not out of the box (support for that is forthcoming).
 
 ## How is this Project Similar or Different from [OpenFaaS](https://www.openfaas.com/)
 
