@@ -35,6 +35,7 @@ import (
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	// +kubebuilder:scaffold:imports
 )
@@ -66,21 +67,6 @@ func main() {
 		"The port on which to run the admin server. This is the port on which RPCs will be accepted to get the routing table",
 	)
 	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "f8508ff1.keda.sh",
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
-
 	interceptorCfg, err := config.NewInterceptorFromEnv()
 	if err != nil {
 		setupLog.Error(err, "unable to get interceptor configuration")
@@ -99,9 +85,39 @@ func main() {
 		)
 		os.Exit(1)
 	}
+
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	ctx := context.Background()
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: metricsAddr,
+		Port:               9443,
+		LeaderElection:     enableLeaderElection,
+		LeaderElectionID:   "f8508ff1.keda.sh",
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	cl := mgr.GetClient()
+	namespace := baseConfig.Namespace
+	// crash if the routing table ConfigMap couldn't be found
+	if _, err := k8s.GetConfigMap(ctx, cl, namespace, routing.ConfigMapRoutingTableName); err != nil {
+		setupLog.Error(
+			err,
+			"Couldn't fetch routing table config map",
+			"configMapName",
+			routing.ConfigMapRoutingTableName,
+		)
+		os.Exit(1)
+	}
+
 	routingTable := routing.NewTable()
 	if err := (&controllers.HTTPScaledObjectReconciler{
-		Client:               mgr.GetClient(),
+		Client:               cl,
 		Log:                  ctrl.Log.WithName("controllers").WithName("HTTPScaledObject"),
 		Scheme:               mgr.GetScheme(),
 		InterceptorConfig:    *interceptorCfg,
@@ -114,7 +130,6 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	ctx := context.Background()
 	errGrp, _ := errgroup.WithContext(ctx)
 
 	// start the control loop

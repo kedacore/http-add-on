@@ -7,7 +7,6 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	pkgerrs "github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -62,55 +61,18 @@ func updateRoutingMap(
 ) error {
 	lggr = lggr.WithName("updateRoutingMap")
 	routingConfigMap, err := k8s.GetConfigMap(ctx, cl, namespace, routing.ConfigMapRoutingTableName)
-	if err != nil && !errors.IsNotFound(err) {
-		// if there is an error other than not found on the ConfigMap, we should
-		// fail
-		lggr.Error(
-			err,
-			"other issue fetching the routing table ConfigMap",
-			"configMapName",
-			routing.ConfigMapRoutingTableName,
-		)
+	if err != nil {
+		lggr.Error(err, "Error getting configmap", "configMapName", routing.ConfigMapRoutingTableName)
 		return pkgerrs.Wrap(err, "routing table ConfigMap fetch error")
-	} else if errors.IsNotFound(err) || routingConfigMap == nil {
-		// if either the routing table ConfigMap doesn't exist or for some reason it's
-		// nil in memory, we need to create it
-		lggr.Info(
-			"routing table ConfigMap didn't exist, creating it",
-			"configMapName",
-			routing.ConfigMapRoutingTableName,
-		)
-		routingTableLabels := map[string]string{
-			"control-plane": "operator",
-			"keda.sh/addon": "http-add-on",
-			"app":           "http-add-on",
-			"name":          "http-add-on-routing-table",
-		}
-		cm := k8s.NewConfigMap(
-			namespace,
-			routing.ConfigMapRoutingTableName,
-			routingTableLabels,
-			map[string]string{},
-		)
-		if err := routing.SaveTableToConfigMap(table, cm); err != nil {
-			return err
-		}
-		if err := k8s.CreateConfigMap(
-			ctx,
-			lggr,
-			cl,
-			cm,
-		); err != nil {
-			return err
-		}
-	} else {
-		newCM := routingConfigMap.DeepCopy()
-		if err := routing.SaveTableToConfigMap(table, newCM); err != nil {
-			return err
-		}
-		if _, patchErr := k8s.PatchConfigMap(ctx, lggr, cl, routingConfigMap, newCM); patchErr != nil {
-			return patchErr
-		}
+	}
+	newCM := routingConfigMap.DeepCopy()
+	if err := routing.SaveTableToConfigMap(table, newCM); err != nil {
+		lggr.Error(err, "couldn't save new routing table to ConfigMap", "configMap", routing.ConfigMapRoutingTableName)
+		return pkgerrs.Wrap(err, "ConfigMap save error")
+	}
+	if _, err := k8s.PatchConfigMap(ctx, lggr, cl, routingConfigMap, newCM); err != nil {
+		lggr.Error(err, "couldn't save new routing table ConfigMap to Kubernetes", "configMap", routing.ConfigMapRoutingTableName)
+		return pkgerrs.Wrap(err, "saving routing table ConfigMap to Kubernetes")
 	}
 
 	return nil
