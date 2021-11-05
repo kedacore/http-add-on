@@ -115,7 +115,11 @@ func newFakeDeploymentListerWatcher() *fakeDeploymentListerWatcher {
 	}
 }
 
-func (lw *fakeDeploymentListerWatcher) List(ctx context.Context, options metav1.ListOptions) (*appsv1.DeploymentList, error) {
+func (lw *fakeDeploymentListerWatcher) List(
+	ctx context.Context,
+	ns string,
+	options metav1.ListOptions,
+) (*appsv1.DeploymentList, error) {
 	lw.mut.Lock()
 	defer lw.mut.Unlock()
 	lst := []appsv1.Deployment{}
@@ -125,7 +129,12 @@ func (lw *fakeDeploymentListerWatcher) List(ctx context.Context, options metav1.
 	return &appsv1.DeploymentList{Items: lst}, nil
 }
 
-func (lw *fakeDeploymentListerWatcher) Watch(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+func (lw *fakeDeploymentListerWatcher) Watch(
+	ctx context.Context,
+	ns,
+	name string,
+	options metav1.ListOptions,
+) (watch.Interface, error) {
 	if lw.watchCB != nil {
 		lw.watchCB()
 	}
