@@ -17,17 +17,15 @@ Before you install any of these components, you need to install KEDA. Below are 
 ```console
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
-helm install keda kedacore/keda --namespace ${NAMESPACE} --set watchNamespace=${NAMESPACE}
+helm install keda kedacore/keda --namespace ${NAMESPACE} --set watchNamespace=${NAMESPACE} --create-namespace
 ```
 
 ## Install via Helm Chart
 
-This repository is within KEDA's default helm repository on [kedacore/charts](http://github.com/kedacore/charts), you can install it by running:
+The Helm chart for this project is within KEDA's default helm repository at [kedacore/charts](http://github.com/kedacore/charts), you can install it by running:
 
 ```console
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE}
+helm install http-add-on kedacore/keda-add-ons-http --namespace ${NAMESPACE}
 ```
 
 >Installing the HTTP add on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).

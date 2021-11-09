@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,13 +31,14 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 	routingTable := routing.NewTable()
-	portInt, err := strconv.Atoi(originURL.Port())
+	originPort, err := strconv.Atoi(originURL.Port())
 	r.NoError(err)
-	target := routing.Target{
-		Service:    strings.Split(originURL.Host, ":")[0],
-		Port:       portInt,
-		Deployment: "testdepl",
-	}
+	target := targetFromURL(
+		originURL,
+		originPort,
+		"testdepl",
+		123,
+	)
 	routingTable.AddTarget(host, target)
 
 	timeouts := defaultTimeouts()
@@ -331,4 +333,18 @@ func notifyingFunc() (func(context.Context, string) error, <-chan struct{}, func
 			return fmt.Errorf("TEST FUNCTION CONTEXT ERROR: %w", ctx.Err())
 		}
 	}, calledCh, finishFunc
+}
+
+func targetFromURL(
+	u *url.URL,
+	port int,
+	deployment string,
+	targetPendingReqs int32,
+) routing.Target {
+	return routing.Target{
+		Service:               strings.Split(u.Host, ":")[0],
+		Port:                  port,
+		Deployment:            deployment,
+		TargetPendingRequests: targetPendingReqs,
+	}
 }

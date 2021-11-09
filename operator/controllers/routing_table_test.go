@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/stretchr/testify/require"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestRoutingTable(t *testing.T) {
@@ -20,7 +22,16 @@ func TestRoutingTable(t *testing.T) {
 	)
 	r := require.New(t)
 	ctx := context.Background()
-	cl := fake.NewClientBuilder().Build()
+	cl := k8s.NewFakeRuntimeClient()
+	cm := &corev1.ConfigMap{
+		Data: map[string]string{},
+	}
+	// save the empty routing table to the config map,
+	// so that it has valid structure
+	r.NoError(routing.SaveTableToConfigMap(table, cm))
+	cl.GetFunc = func() client.Object {
+		return cm
+	}
 	target := routing.Target{
 		Service:    svcName,
 		Port:       8080,
@@ -35,10 +46,12 @@ func TestRoutingTable(t *testing.T) {
 		target,
 		ns,
 	))
-	// TODO: ensure that the ConfigMap was updated.
-	// requires
-	// https://github.com/kubernetes-sigs/controller-runtime/issues/1633
-	// to be implemented.
+	// ensure that the ConfigMap was read and created. no updates
+	// should occur
+	r.Equal(1, len(cl.FakeRuntimeClientReader.GetCalls))
+	r.Equal(1, len(cl.FakeRuntimeClientWriter.Patches))
+	r.Equal(0, len(cl.FakeRuntimeClientWriter.Updates))
+	r.Equal(0, len(cl.FakeRuntimeClientWriter.Creates))
 
 	retTarget, err := table.Lookup(host)
 	r.NoError(err)
@@ -53,10 +66,12 @@ func TestRoutingTable(t *testing.T) {
 		ns,
 	))
 
-	// TODO: ensure that the ConfigMap was updated.
-	// requires
-	// https://github.com/kubernetes-sigs/controller-runtime/issues/1633
-	// to be implemnented
+	// ensure that the ConfigMap was read and updated. no additional
+	// creates should occur.
+	r.Equal(2, len(cl.FakeRuntimeClientReader.GetCalls))
+	r.Equal(2, len(cl.FakeRuntimeClientWriter.Patches))
+	r.Equal(0, len(cl.FakeRuntimeClientWriter.Updates))
+	r.Equal(0, len(cl.FakeRuntimeClientWriter.Creates))
 
 	_, err = table.Lookup(host)
 	r.Error(err)

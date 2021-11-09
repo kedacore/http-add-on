@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	"github.com/kedacore/http-add-on/pkg/queue"
@@ -48,19 +49,31 @@ func main() {
 		lggr.Error(err, "getting a Kubernetes client")
 		os.Exit(1)
 	}
-	pinger := newQueuePinger(
+	pinger, err := newQueuePinger(
 		context.Background(),
 		lggr,
 		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,
 		svcName,
 		targetPortStr,
-		time.NewTicker(500*time.Millisecond),
 	)
+	if err != nil {
+		lggr.Error(err, "creating a queue pinger")
+		os.Exit(1)
+	}
 
 	table := routing.NewTable()
 
 	grp, ctx := errgroup.WithContext(ctx)
+
+	grp.Go(func() error {
+		defer done()
+		return pinger.start(
+			ctx,
+			time.NewTicker(cfg.QueueTickDuration),
+		)
+	})
+
 	grp.Go(func() error {
 		defer done()
 		return startGrpcServer(
@@ -94,6 +107,7 @@ func main() {
 		return startHealthcheckServer(
 			ctx,
 			lggr,
+			cfg,
 			healthPort,
 			pinger,
 		)
@@ -135,12 +149,12 @@ func startGrpcServer(
 		lis.Close()
 	}()
 	return grpcServer.Serve(lis)
-
 }
 
 func startHealthcheckServer(
 	ctx context.Context,
 	lggr logr.Logger,
+	cfg *config,
 	port int,
 	pinger *queuePinger,
 ) error {
@@ -165,7 +179,7 @@ func startHealthcheckServer(
 	mux.HandleFunc("/queue_ping", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		lggr := lggr.WithName("route.counts_ping")
-		if err := pinger.requestCounts(ctx); err != nil {
+		if err := pinger.fetchAndSaveCounts(ctx); err != nil {
 			lggr.Error(err, "requesting counts failed")
 			w.WriteHeader(500)
 			w.Write([]byte("error requesting counts from interceptors"))
@@ -180,15 +194,9 @@ func startHealthcheckServer(
 		}
 	})
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
-	}
-	lggr.Info("starting health check server", "port", port)
+	kedahttp.AddConfigEndpoint(lggr, mux, cfg)
 
-	go func() {
-		<-ctx.Done()
-		srv.Shutdown(ctx)
-	}()
-	return srv.ListenAndServe()
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	lggr.Info("starting health check server", "addr", addr)
+	return kedahttp.ServeContext(ctx, addr, mux)
 }
