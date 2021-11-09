@@ -15,3 +15,4 @@ jobs:
           paths: "**/*.md"
           markdown: true
           retry: true
+          linksToSkip: "https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-operator, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler"
