@@ -34,15 +34,15 @@ import (
 //	go pinger.start(ctx, ticker)
 //
 type queuePinger struct {
-	getEndpointsFn k8s.GetEndpointsFunc
-	ns             string
-	svcName        string
-	adminPort      string
-	pingMut        *sync.RWMutex
-	lastPingTime   time.Time
-	allCounts      map[string]int
-	aggregateCount int
-	lggr           logr.Logger
+	getEndpointsFn     k8s.GetEndpointsFunc
+	interceptorNS      string
+	interceptorSvcName string
+	adminPort          string
+	pingMut            *sync.RWMutex
+	lastPingTime       time.Time
+	allCounts          map[string]int
+	aggregateCount     int
+	lggr               logr.Logger
 }
 
 func newQueuePinger(
@@ -55,14 +55,14 @@ func newQueuePinger(
 ) (*queuePinger, error) {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
-		getEndpointsFn: getEndpointsFn,
-		ns:             ns,
-		svcName:        svcName,
-		adminPort:      adminPort,
-		pingMut:        pingMut,
-		lggr:           lggr,
-		allCounts:      map[string]int{},
-		aggregateCount: 0,
+		getEndpointsFn:     getEndpointsFn,
+		interceptorNS:      ns,
+		interceptorSvcName: svcName,
+		adminPort:          adminPort,
+		pingMut:            pingMut,
+		lggr:               lggr,
+		allCounts:          map[string]int{},
+		aggregateCount:     0,
 	}
 	return pinger, pinger.fetchAndSaveCounts(ctx)
 }
@@ -120,8 +120,8 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 		ctx,
 		q.lggr,
 		q.getEndpointsFn,
-		q.ns,
-		q.svcName,
+		q.interceptorNS,
+		q.interceptorSvcName,
 		q.adminPort,
 	)
 	if err != nil {
