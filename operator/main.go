@@ -24,6 +24,7 @@ import (
 	"os"
 
 	"golang.org/x/sync/errgroup"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -53,6 +54,9 @@ func init() {
 }
 
 func main() {
+	ctx := ctrl.SetupSignalHandler()
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	var adminPort int
@@ -85,10 +89,22 @@ func main() {
 		)
 		os.Exit(1)
 	}
-
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	ctx := context.Background()
+	if err := ensureConfigMap(
+		ctx,
+		setupLog,
+		baseConfig.Namespace,
+		routing.ConfigMapRoutingTableName,
+	); err != nil {
+		setupLog.Error(
+			err,
+			"unable to find routing table ConfigMap",
+			"namespace",
+			baseConfig.Namespace,
+			"name",
+			routing.ConfigMapRoutingTableName,
+		)
+		os.Exit(1)
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
@@ -103,18 +119,6 @@ func main() {
 	}
 
 	cl := mgr.GetClient()
-	namespace := baseConfig.Namespace
-	// crash if the routing table ConfigMap couldn't be found
-	if _, err := k8s.GetConfigMap(ctx, cl, namespace, routing.ConfigMapRoutingTableName); err != nil {
-		setupLog.Error(
-			err,
-			"Couldn't fetch routing table config map",
-			"configMapName",
-			routing.ConfigMapRoutingTableName,
-		)
-		os.Exit(1)
-	}
-
 	routingTable := routing.NewTable()
 	if err := (&controllers.HTTPScaledObjectReconciler{
 		Client:               cl,
@@ -130,17 +134,22 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	errGrp, _ := errgroup.WithContext(ctx)
+	errGrp, ctx := errgroup.WithContext(
+		ctx,
+	)
+	ctx, done := context.WithCancel(ctx)
 
 	// start the control loop
 	errGrp.Go(func() error {
+		defer done()
 		setupLog.Info("starting manager")
-		return mgr.Start(ctrl.SetupSignalHandler())
+		return mgr.Start(ctx)
 	})
 
 	// start the admin server to serve routing table information
 	// to the interceptors
 	errGrp.Go(func() error {
+		defer done()
 		return runAdminServer(
 			ctx,
 			ctrl.Log,
@@ -181,4 +190,52 @@ func runAdminServer(
 		port,
 	)
 	return kedahttp.ServeContext(ctx, addr, mux)
+}
+
+// ensureConfigMap returns a non-nil error if the config
+// map in the given namespace with the given name
+// does not exist, or there was an error finding it.
+//
+// it returns a nil error if it could be fetched.
+// this function works with its own Kubernetes client and
+// is intended for use on operator startup, and should
+// not be used with the controller library's client,
+// since that is not usable until after the controller
+// has started up.
+func ensureConfigMap(
+	ctx context.Context,
+	lggr logr.Logger,
+	ns,
+	name string,
+) error {
+	// we need to get our own Kubernetes clientset
+	// here, rather than using the client.Client from
+	// the manager because the client will not
+	// be instantiated by the time we call this.
+	// You need to start the manager before that client
+	// is usable.
+	clset, _, err := k8s.NewClientset()
+	if err != nil {
+		lggr.Error(
+			err,
+			"couldn't get new clientset",
+		)
+		return err
+	}
+	if _, err := clset.CoreV1().ConfigMaps(ns).Get(
+		ctx,
+		name,
+		metav1.GetOptions{},
+	); err != nil {
+		lggr.Error(
+			err,
+			"couldn't find config map",
+			"namespace",
+			ns,
+			"name",
+			name,
+		)
+		return err
+	}
+	return nil
 }
