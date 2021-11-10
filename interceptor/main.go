@@ -34,6 +34,10 @@ func main() {
 	}
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
+	if err := config.Validate(*servingCfg, *timeoutCfg); err != nil {
+		lggr.Error(err, "invalid configuration")
+		os.Exit(1)
+	}
 	ctx, ctxDone := context.WithCancel(
 		context.Background(),
 	)
