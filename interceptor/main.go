@@ -37,6 +37,13 @@ func main() {
 	ctx, ctxDone := context.WithCancel(
 		context.Background(),
 	)
+	lggr.Info(
+		"starting interceptor",
+		"timeoutConfig",
+		timeoutCfg,
+		"servingConfig",
+		servingCfg,
+	)
 
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
@@ -63,7 +70,7 @@ func main() {
 
 	configMapsInterface := cl.CoreV1().ConfigMaps(servingCfg.CurrentNamespace)
 
-	waitFunc := newDeployReplicasForwardWaitFunc(deployCache)
+	waitFunc := newDeployReplicasForwardWaitFunc(lggr, deployCache)
 
 	lggr.Info("Interceptor starting")
 

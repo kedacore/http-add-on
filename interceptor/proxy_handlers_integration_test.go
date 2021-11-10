@@ -298,7 +298,10 @@ func newHarness(
 	)
 
 	deplCache := k8s.NewFakeDeploymentCache()
-	waitFunc := newDeployReplicasForwardWaitFunc(deplCache)
+	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
+		deplCache,
+	)
 
 	proxyHdl := newForwardingHandler(
 		lggr,

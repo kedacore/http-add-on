@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -37,6 +38,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	group, ctx := errgroup.WithContext(ctx)
 
 	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
 		cache,
 	)
 
@@ -70,6 +72,7 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 	ctx, done := context.WithTimeout(ctx, waitFuncWait)
 	defer done()
 	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
 		cache,
 	)
 
@@ -102,6 +105,7 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 
 	ctx, done := context.WithTimeout(ctx, totalWaitDur)
 	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
 		cache,
 	)
 
