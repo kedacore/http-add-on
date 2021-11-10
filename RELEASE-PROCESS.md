@@ -10,11 +10,13 @@ Please go to the [releases page](https://github.com/kedacore/http-add-on/release
 
 To determine the new version, follow [SemVer guidelines](https://semver.org). Most releases will increment the PATCH or MINOR version number.
 
-## 1: Submit a PR to the [Helm Charts Repository](https://github.com/kedacore/charts)
+## 1: Update the [Helm Charts Repository](https://github.com/kedacore/charts)
 
 The scope of the changes you'll need to make to the Helm chart vary from just changing the `appVersion` field in the [Chart.yaml file](https://github.com/kedacore/charts/blob/master/http-add-on/Chart.yaml) to changing the `HTTPScaledObject` CRD, adding new configuration, or even adding/changing components.
 
-You must, at a minimum, change that `appVersion` field to the new version number, however. If you have chosen `1.2.3`, for example, the `appVersion` field should read:
+You must, at a minimum, change that `appVersion` field to the new version number, however.
+
+If you have chosen `1.2.3`, for example, the `appVersion` field should read:
 
 ```yaml
 appVersion: 1.2.3
@@ -38,6 +40,20 @@ The release description should be a short to medium length summary of what has c
 
 After you create the new release, automation in a GitHub action will build and deploy new container images.
 
-## 3: Write a blog post on the documentation site (_optional_)
+## 3: Update the [ArtifactHub Manifest](https://github.com/kedacore/external-scalers/tree/master/artifacthub)
+
+The HTTP Addon is listed on [ArtifactHub](https://artifacthub.io/packages/helm/kedacore/keda-add-ons-http), and its configuration is at [github.com/kedacore/external-scalers](https://github.com/kedacore/external-scalers).
+
+If you're releasing a new version of the HTTP Addon, you'll need to update that repository. Submit a new pull request to that repository with includes a new directory under `artifacthub/add-ons-http` called the same thing as the release version. If you're releasing version `1.2.3`, the directory should be called that. To create that directory, do this:
+
+```
+cp -R artifacthub/add-ons-http/<previous version> artifacthub/add-ons-http/<new version>
+```
+
+Then, in the new `artifacthub-pkg.yml` file under the new directory, append a new list item under the `changes` section.
+
+Once you're finished with these steps, submit a PR to the [github.com/kedacore/external-scalers](https://github.com/kedacore/external-scalers) repository with your changes.
+
+## 4: Write a blog post on the documentation site (_optional_)
 
 If you believe that your release is large enough to warrant a blog post on the [keda.sh/blog](https://keda.sh/blog/) site, please go to [github.com/kedacore/keda-docs](https://github.com/kedacore/keda-docs) and submit a new PR with a blog article about the release. Include in the article a longer summary of changes and any important information about the new functionality, bugfixes, or anything else appropriate. The post should go into the [content/blog](https://github.com/kedacore/keda-docs/tree/master/content/blog) directory.
