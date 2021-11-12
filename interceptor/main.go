@@ -17,6 +17,7 @@ import (
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -183,7 +184,9 @@ func runAdminServer(
 	timeoutConfig *config.Timeouts,
 ) error {
 	lggr = lggr.WithName("runAdminServer")
+	promHdl := promhttp.Handler()
 	adminServer := nethttp.NewServeMux()
+	adminServer.Handle("/prometheus", promHdl)
 	queue.AddCountsRoute(
 		lggr,
 		adminServer,
