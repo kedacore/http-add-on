@@ -40,7 +40,7 @@ The release description should be a short to medium length summary of what has c
 
 After you create the new release, automation in a GitHub action will build and deploy new container images.
 
-## 3: Update the [ArtifactHub Manifest](https://github.com/kedacore/external-scalers/tree/master/artifacthub)
+## 3: Update the [Artifact Hub Manifest](https://github.com/kedacore/external-scalers/tree/master/artifacthub)
 
 The HTTP Addon is listed on [ArtifactHub](https://artifacthub.io/packages/helm/kedacore/keda-add-ons-http), and its configuration is at [github.com/kedacore/external-scalers](https://github.com/kedacore/external-scalers).
 
