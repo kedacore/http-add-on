@@ -12,7 +12,7 @@ The HTTP Add On is highly modular and, as expected, builds on top of KEDA core. 
 
 Before you install any of these components, you need to install KEDA. Below are simplified instructions for doing so with [Helm](https://helm.sh), but if you need anything more customized, please see the [official KEDA deployment documentation](https://keda.sh/docs/2.0/deploy/). If you need to install Helm, refer to the [installation guide](https://helm.sh/docs/intro/install/).
 
->This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA and the HTTP Addon provide scaling functionality to only one namespace per installation.
+>This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the below `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA and the HTTP Addon provide scaling functionality to only one namespace per installation.
 
 ```console
 helm repo add kedacore https://kedacore.github.io/charts
