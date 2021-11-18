@@ -11,11 +11,11 @@ metadata:
     name: xkcd
 spec:
     host: "myhost.com"
+    targetPendingRequests: 100
     scaleTargetRef:
         deployment: xkcd
         service: xkcd
         port: 8080
-        targetPendingRequests: 100
 ```
 
 This document is a narrated reference guide for the `HTTPScaledObject`, and we'll focus on the `spec` field.

@@ -65,10 +65,15 @@ func (e *impl) IsActive(
 			Result: true,
 		}, nil
 	}
-	allCounts := e.pinger.counts()
-	hostCount, ok := allCounts[host]
+
+	hostCount, ok := getHostCount(
+		host,
+		e.pinger.counts(),
+		e.routingTable,
+	)
 	if !ok {
 		err := fmt.Errorf("host '%s' not found in counts", host)
+		allCounts := mergeCountsWithRoutingTable(e.pinger.counts(), e.routingTable)
 		lggr.Error(err, "Given host was not found in queue count map", "host", host, "allCounts", allCounts)
 		return nil, err
 	}
@@ -96,9 +101,9 @@ func (e *impl) StreamIsActive(
 			if err != nil {
 				e.lggr.Error(
 					err,
-					"error getting active status in stream, continuing",
+					"error getting active status in stream",
 				)
-				continue
+				return err
 			}
 			server.Send(&externalscaler.IsActiveResponse{
 				Result: active.Result,
@@ -157,13 +162,18 @@ func (e *impl) GetMetrics(
 		lggr.Error(err, "ScaledObjectRef", metricRequest.ScaledObjectRef)
 		return nil, err
 	}
-	allCounts := e.pinger.counts()
-	hostCount, ok := allCounts[host]
+
+	hostCount, ok := getHostCount(
+		host,
+		e.pinger.counts(),
+		e.routingTable,
+	)
 	if !ok {
 		if host == "interceptor" {
 			hostCount = e.pinger.aggregate()
 		} else {
 			err := fmt.Errorf("host '%s' not found in counts", host)
+			allCounts := mergeCountsWithRoutingTable(e.pinger.counts(), e.routingTable)
 			lggr.Error(err, "allCounts", allCounts)
 			return nil, err
 		}

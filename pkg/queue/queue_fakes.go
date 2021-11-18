@@ -62,9 +62,6 @@ func (f *FakeCounter) Current() (*Counts, error) {
 	f.mapMut.RLock()
 	defer f.mapMut.RUnlock()
 	retMap := f.RetMap
-	if len(retMap) == 0 {
-		retMap["sample.com"] = 0
-	}
 	ret.Counts = retMap
 	return ret, nil
 }

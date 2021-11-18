@@ -13,8 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build The Scaler
-        run:
-          docker build -t scaler -f scaler/Dockerfile .
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          docker build --build-arg VERSION=${COMMIT} -t scaler -f scaler/Dockerfile .
   
   build_operator:
     
@@ -23,8 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build The Operator
-        run:
-          docker build -t operator -f operator/Dockerfile .
+        run: |
+          COMMIT=$(git rev-parse --short=7 HEAD)
+          docker build --build-arg VERSION=${COMMIT} -t operator -f operator/Dockerfile .
 
   build_interceptor:
     
@@ -33,5 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build The Interceptor
-        run:
-          docker build -t interceptor -f interceptor/Dockerfile .
+        run: |
+          COMMIT=$(git rev-parse --short=7 HEAD)
+          docker build --build-arg VERSION=${COMMIT} -t interceptor -f interceptor/Dockerfile .

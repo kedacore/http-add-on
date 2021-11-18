@@ -34,8 +34,19 @@ func main() {
 	}
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
+	if err := config.Validate(*servingCfg, *timeoutCfg); err != nil {
+		lggr.Error(err, "invalid configuration")
+		os.Exit(1)
+	}
 	ctx, ctxDone := context.WithCancel(
 		context.Background(),
+	)
+	lggr.Info(
+		"starting interceptor",
+		"timeoutConfig",
+		timeoutCfg,
+		"servingConfig",
+		servingCfg,
 	)
 
 	proxyPort := servingCfg.ProxyPort
@@ -51,13 +62,10 @@ func main() {
 		lggr.Error(err, "creating new Kubernetes ClientSet")
 		os.Exit(1)
 	}
-	deployInterface := cl.AppsV1().Deployments(
-		servingCfg.CurrentNamespace,
-	)
-	deployCache, err := k8s.NewK8sDeploymentCache(
-		ctx,
+	deployCache := k8s.NewInformerBackedDeploymentCache(
 		lggr,
-		deployInterface,
+		cl,
+		time.Millisecond*time.Duration(servingCfg.DeploymentCachePollIntervalMS),
 	)
 	if err != nil {
 		lggr.Error(err, "creating new deployment cache")
@@ -66,12 +74,21 @@ func main() {
 
 	configMapsInterface := cl.CoreV1().ConfigMaps(servingCfg.CurrentNamespace)
 
-	waitFunc := newDeployReplicasForwardWaitFunc(deployCache)
+	waitFunc := newDeployReplicasForwardWaitFunc(lggr, deployCache)
 
 	lggr.Info("Interceptor starting")
 
 	q := queue.NewMemory()
 	routingTable := routing.NewTable()
+
+	// Create the informer of ConfigMap resource,
+	// the resynchronization period of the informer should be not less than 1s,
+	// refer to: https://github.com/kubernetes/client-go/blob/v0.22.2/tools/cache/shared_informer.go#L475
+	configMapInformer := k8s.NewInformerConfigMapUpdater(
+		lggr,
+		cl,
+		servingCfg.ConfigMapCacheRsyncPeriod,
+	)
 
 	lggr.Info(
 		"Fetching initial routing table",
@@ -92,11 +109,7 @@ func main() {
 	// start the deployment cache updater
 	errGrp.Go(func() error {
 		defer ctxDone()
-		err := deployCache.StartWatcher(
-			ctx,
-			lggr,
-			time.Duration(servingCfg.DeploymentCachePollIntervalMS)*time.Millisecond,
-		)
+		err := deployCache.Start(ctx)
 		lggr.Error(err, "deployment cache watcher failed")
 		return err
 	})
@@ -109,10 +122,10 @@ func main() {
 		err := routing.StartConfigMapRoutingTableUpdater(
 			ctx,
 			lggr,
-			time.Duration(servingCfg.RoutingTableUpdateDurationMS)*time.Millisecond,
-			configMapsInterface,
+			configMapInformer,
+			servingCfg.CurrentNamespace,
 			routingTable,
-			q,
+			nil,
 		)
 		lggr.Error(err, "config map routing table updater failed")
 		return err
@@ -210,6 +223,7 @@ func runAdminServer(
 		},
 	)
 	kedahttp.AddConfigEndpoint(lggr, adminServer, servingConfig, timeoutConfig)
+	kedahttp.AddVersionEndpoint(lggr.WithName("interceptorAdmin"), adminServer)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
@@ -236,6 +250,7 @@ func runProxyServer(
 			routingTable,
 			dialContextFunc,
 			waitFunc,
+			routing.ServiceURL,
 			newForwardingConfigFromTimeouts(timeouts),
 		),
 	)

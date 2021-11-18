@@ -18,7 +18,8 @@ import (
 
 // the proxy should successfully forward a request to a running server
 func TestImmediatelySuccessfulProxy(t *testing.T) {
-	const host = "TestImmediatelySuccessfulProxy.testing"
+	const ns = "testns"
+	host := fmt.Sprintf("%s.testing", t.Name())
 	r := require.New(t)
 
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(
@@ -34,6 +35,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	originPort, err := strconv.Atoi(originURL.Port())
 	r.NoError(err)
 	target := targetFromURL(
+		ns,
 		originURL,
 		originPort,
 		"testdepl",
@@ -43,14 +45,17 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(context.Context, string) error {
-		return nil
+	waitFunc := func(context.Context, string, string) (int, error) {
+		return 1, nil
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return originURL, nil
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -63,6 +68,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 
 	hdl.ServeHTTP(res, req)
 
+	r.Equal("false", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start false")
 	r.Equal(200, res.Code, "expected response code 200")
 	r.Equal("test response", res.Body.String())
 }
@@ -80,21 +86,26 @@ func TestWaitFailedConnection(t *testing.T) {
 		timeouts,
 		backoff,
 	)
-	waitFunc := func(context.Context, string) error {
-		return nil
+	waitFunc := func(context.Context, string, string) (int, error) {
+		return 1, nil
 	}
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(host, routing.Target{
-		Service:    "nosuchdepl",
-		Port:       8081,
-		Deployment: "nosuchdepl",
-	})
+	routingTable.AddTarget(host, routing.NewTarget(
+		"testns",
+		"nosuchdepl",
+		8081,
+		"nosuchdepl",
+		1234,
+	))
 
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return url.Parse("http://nosuchhost:8081")
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -107,6 +118,7 @@ func TestWaitFailedConnection(t *testing.T) {
 
 	hdl.ServeHTTP(res, req)
 
+	r.Equal("false", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start false")
 	r.Equal(502, res.Code, "response code was unexpected")
 }
 
@@ -125,16 +137,21 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	noSuchHost := fmt.Sprintf("%s.testing", t.Name())
 
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchHost, routing.Target{
-		Service:    "nosuchsvc",
-		Port:       9091,
-		Deployment: "nosuchdepl",
-	})
+	routingTable.AddTarget(noSuchHost, routing.NewTarget(
+		"testns",
+		"nosuchsvc",
+		9091,
+		"nosuchdepl",
+		1234,
+	))
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return url.Parse("http://nosuchhost:9091")
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -151,12 +168,18 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 
 	t.Logf("elapsed time was %s", elapsed)
 	// serving should take at least timeouts.DeploymentReplicas, but no more than
-	// timeouts.DeploymentReplicas*2
-	// elapsed time should be more than the deployment replicas wait time
-	// but not an amount that is much greater than that
+	// timeouts.DeploymentReplicas*4
 	r.GreaterOrEqual(elapsed, timeouts.DeploymentReplicas)
 	r.LessOrEqual(elapsed, timeouts.DeploymentReplicas*4)
 	r.Equal(502, res.Code, "response code was unexpected")
+
+	// we will always return the X-KEDA-HTTP-Cold-Start header
+	// when we are able to forward the
+	// request to the backend but not if we have failed due
+	// to a timeout from a waitFunc or earlier in the pipeline,
+	// for example, if we cannot reach the Kubernetes control
+	// plane.
+	r.Equal("", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start to be empty")
 
 	// waitFunc should have been called, even though it timed out
 	waitFuncCalled := false
@@ -178,8 +201,11 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
-	noSuchHost := "TestWaitsForWaitFunc.test"
-	const originRespCode = 201
+	const (
+		noSuchHost     = "TestWaitsForWaitFunc.test"
+		originRespCode = 201
+		namespace      = "testns"
+	)
 	testSrv, testSrvURL, err := kedanet.StartTestServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(originRespCode)
@@ -190,16 +216,21 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	originHost, originPort, err := splitHostPort(testSrvURL.Host)
 	r.NoError(err)
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchHost, routing.Target{
-		Service:    originHost,
-		Port:       originPort,
-		Deployment: "nosuchdepl",
-	})
+	routingTable.AddTarget(noSuchHost, routing.NewTarget(
+		namespace,
+		originHost,
+		originPort,
+		"nosuchdepl",
+		1234,
+	))
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return testSrvURL, nil
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -233,8 +264,8 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	)
 }
 
-// the proxy should connect to a server, and then time out if the server doesn't
-// respond in time
+// the proxy should connect to a server, and then time out if
+// the server doesn't respond in time
 func TestWaitHeaderTimeout(t *testing.T) {
 	r := require.New(t)
 
@@ -254,21 +285,26 @@ func TestWaitHeaderTimeout(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(context.Context, string) error {
-		return nil
+	waitFunc := func(context.Context, string, string) (int, error) {
+		return 1, nil
 	}
 	routingTable := routing.NewTable()
-	target := routing.Target{
-		Service:    "testsvc",
-		Port:       9094,
-		Deployment: "testdepl",
-	}
+	target := routing.NewTarget(
+		"testns",
+		"testsvc",
+		9094,
+		"testdepl",
+		1234,
+	)
 	routingTable.AddTarget(originURL.Host, target)
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return originURL, nil
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -281,6 +317,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 
 	hdl.ServeHTTP(res, req)
 
+	r.Equal("false", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start false")
 	r.Equal(502, res.Code, "response code was unexpected")
 	close(originHdlCh)
 }
@@ -318,33 +355,36 @@ func waitForSignal(sig <-chan struct{}, waitDur time.Duration) error {
 // is called, or the context that is passed to it is done (e.g. cancelled, timed out,
 // etc...). in the former case, the returned func itself returns nil. in the latter,
 // it returns ctx.Err()
-func notifyingFunc() (func(context.Context, string) error, <-chan struct{}, func()) {
+func notifyingFunc() (forwardWaitFunc, <-chan struct{}, func()) {
 	calledCh := make(chan struct{})
 	finishCh := make(chan struct{})
 	finishFunc := func() {
 		close(finishCh)
 	}
-	return func(ctx context.Context, _ string) error {
+	return func(ctx context.Context, _, _ string) (int, error) {
 		close(calledCh)
 		select {
 		case <-finishCh:
-			return nil
+			return 0, nil
 		case <-ctx.Done():
-			return fmt.Errorf("TEST FUNCTION CONTEXT ERROR: %w", ctx.Err())
+			return 0, fmt.Errorf("TEST FUNCTION CONTEXT ERROR: %w", ctx.Err())
 		}
 	}, calledCh, finishFunc
 }
 
 func targetFromURL(
+	ns string,
 	u *url.URL,
 	port int,
 	deployment string,
 	targetPendingReqs int32,
 ) routing.Target {
-	return routing.Target{
-		Service:               strings.Split(u.Host, ":")[0],
-		Port:                  port,
-		Deployment:            deployment,
-		TargetPendingRequests: targetPendingReqs,
-	}
+	svc := strings.Split(u.Host, ":")[0]
+	return routing.NewTarget(
+		ns,
+		svc,
+		port,
+		deployment,
+		targetPendingReqs,
+	)
 }

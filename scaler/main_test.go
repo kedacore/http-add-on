@@ -29,21 +29,22 @@ func TestHealthChecks(t *testing.T) {
 		TargetService:         "testsvc",
 		TargetPort:            port + 123,
 		TargetPendingRequests: 100,
-		UpdateRoutingTableDur: 100 * time.Millisecond,
 	}
 
 	errgrp, ctx := errgroup.WithContext(ctx)
 
 	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	table := newRoutingTable([]hostAndTarget{})
 	r.NoError(err)
 	defer ticker.Stop()
 	srvFunc := func() error {
-		return startHealthcheckServer(
+		return startAdminServer(
 			ctx,
 			lggr,
 			cfg,
 			port,
 			pinger,
+			table,
 		)
 	}
 

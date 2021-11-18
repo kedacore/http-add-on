@@ -3,48 +3,14 @@ package routing
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/url"
 	"sync"
 )
 
-var ErrTargetNotFound = errors.New("Target not found")
-
-type Target struct {
-	Service               string `json:"service"`
-	Port                  int    `json:"port"`
-	Deployment            string `json:"deployment"`
-	TargetPendingRequests int32  `json:"target"`
-}
-
-// NewTarget creates a new Target from the given parameters.
-func NewTarget(
-	svc string,
-	port int,
-	depl string,
-	target int32,
-) Target {
-	return Target{
-		Service:               svc,
-		Port:                  port,
-		Deployment:            depl,
-		TargetPendingRequests: target,
-	}
-}
-
-func (t *Target) ServiceURL() (*url.URL, error) {
-	urlStr := fmt.Sprintf("http://%s:%d", t.Service, t.Port)
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, err
-	}
-	return u, nil
-
-}
-
 type TableReader interface {
 	Lookup(string) (Target, error)
+	Hosts() []string
+	HasHost(string) bool
 }
 type Table struct {
 	fmt.Stringer
@@ -57,6 +23,26 @@ func NewTable() *Table {
 		m: make(map[string]Target),
 		l: new(sync.RWMutex),
 	}
+}
+
+// Hosts is the TableReader implementation for t.
+// This function returns all hosts that are currently
+// in t.
+func (t Table) Hosts() []string {
+	t.l.RLock()
+	defer t.l.RUnlock()
+	ret := make([]string, 0, len(t.m))
+	for host := range t.m {
+		ret = append(ret, host)
+	}
+	return ret
+}
+
+func (t Table) HasHost(host string) bool {
+	t.l.RLock()
+	defer t.l.RUnlock()
+	_, exists := t.m[host]
+	return exists
 }
 
 func (t *Table) String() string {

@@ -18,7 +18,6 @@ import (
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 	"golang.org/x/sync/errgroup"
@@ -62,7 +61,26 @@ func main() {
 		os.Exit(1)
 	}
 
+	// This callback function is used to fetch and save
+	// the current queue counts from the interceptor immediately
+	// after updating the routingTable information.
+	callbackWhenRoutingTableUpdate := func() error {
+		if err := pinger.fetchAndSaveCounts(ctx); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	table := routing.NewTable()
+
+	// Create the informer of ConfigMap resource,
+	// the resynchronization period of the informer should be not less than 1s,
+	// refer to: https://github.com/kubernetes/client-go/blob/v0.22.2/tools/cache/shared_informer.go#L475
+	configMapInformer := k8s.NewInformerConfigMapUpdater(
+		lggr,
+		k8sCl,
+		cfg.ConfigMapCacheRsyncPeriod,
+	)
 
 	grp, ctx := errgroup.WithContext(ctx)
 
@@ -92,24 +110,22 @@ func main() {
 		return routing.StartConfigMapRoutingTableUpdater(
 			ctx,
 			lggr,
-			cfg.UpdateRoutingTableDur,
-			k8sCl.CoreV1().ConfigMaps(cfg.TargetNamespace),
+			configMapInformer,
+			cfg.TargetNamespace,
 			table,
-			// we don't care about the queue here.
-			// we just want to update the routing table
-			// so that the scaler can use it to determine
-			// the target metrics for given hosts.
-			queue.NewMemory(),
+			callbackWhenRoutingTableUpdate,
 		)
 	})
+
 	grp.Go(func() error {
 		defer done()
-		return startHealthcheckServer(
+		return startAdminServer(
 			ctx,
 			lggr,
 			cfg,
 			healthPort,
 			pinger,
+			table,
 		)
 	})
 	lggr.Error(grp.Wait(), "one or more of the servers failed")
@@ -151,12 +167,13 @@ func startGrpcServer(
 	return grpcServer.Serve(lis)
 }
 
-func startHealthcheckServer(
+func startAdminServer(
 	ctx context.Context,
 	lggr logr.Logger,
 	cfg *config,
 	port int,
 	pinger *queuePinger,
+	routingTable *routing.Table,
 ) error {
 	lggr = lggr.WithName("startHealthcheckServer")
 
@@ -195,6 +212,7 @@ func startHealthcheckServer(
 	})
 
 	kedahttp.AddConfigEndpoint(lggr, mux, cfg)
+	kedahttp.AddVersionEndpoint(lggr.WithName("scalerAdmin"), mux)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("starting health check server", "addr", addr)

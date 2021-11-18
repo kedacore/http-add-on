@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	logrtest "github.com/go-logr/logr/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,8 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	"github.com/kedacore/http-add-on/operator/controllers/config"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -57,7 +54,6 @@ type commonTestInfra struct {
 	appName string
 	ctx     context.Context
 	cl      client.Client
-	cfg     config.AppInfo
 	logger  logr.Logger
 	httpso  v1alpha1.HTTPScaledObject
 }
@@ -65,11 +61,8 @@ type commonTestInfra struct {
 func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 	ctx := context.Background()
 	cl := fake.NewFakeClient()
-	cfg := config.AppInfo{
-		Name:      appName,
-		Namespace: namespace,
-	}
-	logger := logrtest.NullLogger{}
+	logger := logr.Discard()
+
 	httpso := v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
@@ -81,7 +74,7 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 				Service:    appName,
 				Port:       8081,
 			},
-			Replicas: httpv1alpha1.ReplicaStruct{
+			Replicas: v1alpha1.ReplicaStruct{
 				Min: 0,
 				Max: 20,
 			},
@@ -93,7 +86,6 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 		appName: appName,
 		ctx:     ctx,
 		cl:      cl,
-		cfg:     cfg,
 		logger:  logger,
 		httpso:  httpso,
 	}
@@ -119,7 +111,7 @@ var _ = BeforeSuite(func(done Done) {
 	// Expect(err).ToNot(HaveOccurred())
 	// Expect(cfg).ToNot(BeNil())
 
-	err = httpv1alpha1.AddToScheme(scheme.Scheme)
+	err = v1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme

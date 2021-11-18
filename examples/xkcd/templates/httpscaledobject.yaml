@@ -4,6 +4,7 @@ metadata:
     name: {{ include "xkcd.fullname" . }}
 spec:
     host: {{ .Values.host }}
+    targetPendingRequests: {{ .Values.targetPendingRequests }}
     scaleTargetRef:
         deployment: {{ include "xkcd.fullname" . }}
         service: {{ include "xkcd.fullname" . }}

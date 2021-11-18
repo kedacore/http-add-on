@@ -16,14 +16,16 @@ helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 
 You'll need to clone the repository to get access to this chart. If you have your own `Deployment` and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
 
+>If you are running KEDA and the HTTP Addon in cluster-global mode, you can install the XKCD chart in any namespace you choose. If you do so, make sure you add `--set ingressNamespace=${NAMESPACE}` to the above installation command.
+
 >To remove the app, run `helm delete xkcd -n ${NAMESPACE}`
 
 ## Creating an `HTTPScaledObject`
 
-You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object points the To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
+You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object instructs interceptors to forward requests for a given host to your app's backing `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```shell
-kubectl create -f -n $NAMESPACE examples/v0.0.2/httpscaledobject.yaml
+kubectl create -n $NAMESPACE -f examples/v0.2.0/httpscaledobject.yaml
 ```
 
 >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.2.0/http_scaled_object.md).
@@ -65,3 +67,15 @@ An [`Ingress`](https://kubernetes.io/docs/concepts/services-networking/ingress/)
 When you're ready, please run `kubectl get svc -n ${NAMESPACE}`, find the `ingress-nginx-controller` service, and copy and paste its `EXTERNAL-IP`. This is the IP address that your application will be running at on the public internet.
 
 >Note: you should go further and set your DNS records appropriately and set up a TLS certificate for this IP address. Instructions to do that are out of scope of this document, though.
+
+### Making an HTTP Request to your App
+
+Now that you have your application running and your ingress configured, you can issue an HTTP request. To do so, you'll need to know the IP address to request. If you're using an ingress controller, that is the IP of the ingress controller's `Service`. If you're using a "raw" `Service` with `type: LoadBalancer`, that is the IP address of the `Service` itself.
+
+Regardless, you can use the below `curl` command to make a request to your application:
+
+```shell
+curl -H "Host: myhost.com" <Your IP>
+```
+
+>Note the `-H` flag above to specify the `Host` header. This is needed to tell the interceptor how to route the request. If you have a DNS name set up for the IP, you don't need this header.
