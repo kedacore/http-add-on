@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
 	// +kubebuilder:scaffold:imports
 )
@@ -80,7 +79,7 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 				Service:    appName,
 				Port:       8081,
 			},
-			Replicas: httpv1alpha1.ReplicaStruct{
+			Replicas: v1alpha1.ReplicaStruct{
 				Min: 0,
 				Max: 20,
 			},
@@ -118,7 +117,7 @@ var _ = BeforeSuite(func(done Done) {
 	// Expect(err).ToNot(HaveOccurred())
 	// Expect(cfg).ToNot(BeNil())
 
-	err = httpv1alpha1.AddToScheme(scheme.Scheme)
+	err = v1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme
