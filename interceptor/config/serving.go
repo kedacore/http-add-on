@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -16,15 +18,9 @@ type Serving struct {
 	// This is the server that the external scaler will issue metrics
 	// requests to
 	AdminPort int `envconfig:"KEDA_HTTP_ADMIN_PORT" required:"true"`
-	// RoutingTableUpdateDurationMS is the interval (in milliseconds) representing how
-	// often to do a complete update of the routing table ConfigMap.
-	//
-	// The interceptor will also open a watch stream to the routing table
-	// ConfigMap and attempt to update the routing table on every update.
-	//
-	// Since it does full updates alongside watch stream updates, it can
-	// only process one at a time. Therefore, this is a best effort timeout
-	RoutingTableUpdateDurationMS int `envconfig:"KEDA_HTTP_ROUTING_TABLE_UPDATE_DURATION_MS" default:"500"`
+	// ConfigMapCacheRsyncPeriod is the time interval
+	// for the configmap informer to rsync the local cache.
+	ConfigMapCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
 	// The interceptor has an internal process that periodically fetches the state
 	// of deployment that is running the servers it forwards to.
 	//

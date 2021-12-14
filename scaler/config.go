@@ -26,9 +26,9 @@ type config struct {
 	// KEDA, if that value is not set on an incoming
 	// `HTTPScaledObject`
 	TargetPendingRequests int `envconfig:"KEDA_HTTP_SCALER_TARGET_PENDING_REQUESTS" default:"100"`
-	// UpdateRoutingTableDur is the duration between manual
-	// updates to the routing table.
-	UpdateRoutingTableDur time.Duration `envconfig:"KEDA_HTTP_SCALER_ROUTING_TABLE_UPDATE_DUR" default:"100ms"`
+	// ConfigMapCacheRsyncPeriod is the time interval
+	// for the configmap informer to rsync the local cache.
+	ConfigMapCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
 	// QueueTickDuration is the duration between queue requests
 	QueueTickDuration time.Duration `envconfig:"KEDA_HTTP_QUEUE_TICK_DURATION" default:"500ms"`
 	// This will be the 'Target Pending Requests' for the interceptor
