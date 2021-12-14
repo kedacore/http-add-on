@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,10 +42,6 @@ import (
 // approach. The fake watcher documentation is linked below:
 //
 // (https://pkg.go.dev/k8s.io/apimachinery@v0.21.3/pkg/watch#NewFake),
-type fakeCMGetterWatcher struct {
-	k8s.ConfigMapGetter
-	k8s.ConfigMapWatcher
-}
 
 type fakeConfigMapWatcher struct {
 	watchIface watch.Interface
@@ -88,15 +85,13 @@ func TestStartUpdateLoop(t *testing.T) {
 	}
 	r.NoError(SaveTableToConfigMap(table, cm))
 
-	fakeWatcher := watch.NewFake()
 	fakeGetter := fake.NewSimpleClientset(cm)
-	getterWatcher := fakeCMGetterWatcher{
-		ConfigMapGetter: fakeGetter.
-			CoreV1().
-			ConfigMaps(ns),
-		ConfigMapWatcher: fakeConfigMapWatcher{fakeWatcher},
-	}
-	defer fakeWatcher.Stop()
+
+	configMapInformer := k8s.NewInformerConfigMapUpdater(
+		lggr,
+		fakeGetter,
+		time.Second*1,
+	)
 
 	grp, ctx := errgroup.WithContext(ctx)
 
@@ -104,10 +99,11 @@ func TestStartUpdateLoop(t *testing.T) {
 		err := StartConfigMapRoutingTableUpdater(
 			ctx,
 			lggr,
-			interval,
-			getterWatcher,
+			configMapInformer,
+			ns,
 			table,
 			q,
+			nil,
 		)
 		// we purposefully cancel the context below,
 		// so we need to ignore that error.
@@ -120,7 +116,26 @@ func TestStartUpdateLoop(t *testing.T) {
 	// send a watch event in parallel. we'll ensure that it
 	// made it through in the below loop
 	grp.Go(func() error {
-		fakeWatcher.Add(cm)
+		if _, err := fakeGetter.
+			CoreV1().
+			ConfigMaps(ns).
+			Create(ctx, cm, metav1.CreateOptions{}); err != nil && strings.Contains(
+			err.Error(),
+			"already exists",
+		) {
+			if err := fakeGetter.
+				CoreV1().
+				ConfigMaps(ns).
+				Delete(ctx, cm.Name, metav1.DeleteOptions{}); err != nil {
+				return err
+			}
+			if _, err := fakeGetter.
+				CoreV1().
+				ConfigMaps(ns).
+				Create(ctx, cm, metav1.CreateOptions{}); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 
@@ -128,6 +143,12 @@ func TestStartUpdateLoop(t *testing.T) {
 	otherGetActions := []clgotesting.Action{}
 	const waitDur = interval * 5
 	time.Sleep(waitDur)
+
+	_, err := fakeGetter.
+		CoreV1().
+		ConfigMaps(ns).
+		Get(ctx, ConfigMapRoutingTableName, metav1.GetOptions{})
+	r.NoError(err)
 
 	for _, action := range fakeGetter.Actions() {
 		verb := action.GetVerb()
