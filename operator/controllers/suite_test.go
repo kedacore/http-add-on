@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	logrtest "github.com/go-logr/logr/testing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,7 +68,7 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 		Name:      appName,
 		Namespace: namespace,
 	}
-	logger := logrtest.NullLogger{}
+	logger := logr.Discard()
 	httpso := v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
