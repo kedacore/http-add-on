@@ -20,7 +20,7 @@ You'll need to clone the repository to get access to this chart. If you have you
 
 ## Creating an `HTTPScaledObject`
 
-You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object points the To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
+You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object points the request for an `Host` to a `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```shell
 kubectl create -f -n $NAMESPACE examples/v0.0.2/httpscaledobject.yaml
