@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/zapr v1.2.0
 	github.com/golang/protobuf v1.5.2
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/magefile/mage v1.11.0
+	github.com/magefile/mage v1.12.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.19.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	google.golang.org/grpc v1.42.0
+	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
