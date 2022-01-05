@@ -1,9 +1,8 @@
 # taken from Athens
 # https://github.com/gomods/athens/blob/main/cmd/proxy/Dockerfile
-ARG GOLANG_VERSION=1.16
+ARG GOLANG_VERSION=1.17.2
 ARG GOARCH=amd64
 ARG GOOS=linux
-
 
 FROM golang:${GOLANG_VERSION}-alpine AS builder
 

@@ -2,14 +2,11 @@ package routing
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 )
 
 // StartConfigMapRoutingTableUpdater starts a loop that does the following:
@@ -20,48 +17,41 @@ import (
 //	called ConfigMapRoutingTableName. On either of those events, decodes
 //	that ConfigMap into a routing table and stores the new table into table
 //	using table.Replace(newTable)
+//	- Execute the callback function, if one exists
 //	- Returns an appropriate non-nil error if ctx.Done() receives
 func StartConfigMapRoutingTableUpdater(
 	ctx context.Context,
 	lggr logr.Logger,
-	updateEvery time.Duration,
-	getterWatcher k8s.ConfigMapGetterWatcher,
+	cmInformer *k8s.InformerConfigMapUpdater,
+	ns string,
 	table *Table,
+	cbFunc func() error,
 ) error {
 	lggr = lggr.WithName("pkg.routing.StartConfigMapRoutingTableUpdater")
-	watchIface, err := getterWatcher.Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	defer watchIface.Stop()
 
-	ticker := time.NewTicker(updateEvery)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return errors.Wrap(ctx.Err(), "context is done")
-		case <-ticker.C:
-			if err := GetTable(ctx, lggr, getterWatcher, table); err != nil {
-				return errors.Wrap(err, "failed to fetch routing table")
-			}
+	watcher := cmInformer.Watch(ns, ConfigMapRoutingTableName)
+	defer watcher.Stop()
 
-		case evt := <-watchIface.ResultChan():
-			evtType := evt.Type
-			obj := evt.Object
-			if evtType == watch.Added || evtType == watch.Modified {
-				cm, ok := obj.(*corev1.ConfigMap)
-				// by definition of watchIface, all returned objects should
-				// be assertable to a ConfigMap. In the likely impossible
-				// case that it isn't, just ignore and move on.
-				// This check is just to be defensive.
+	ctx, done := context.WithCancel(ctx)
+	defer done()
+	grp, ctx := errgroup.WithContext(ctx)
+
+	grp.Go(func() error {
+		defer done()
+		return cmInformer.Start(ctx)
+	})
+
+	grp.Go(func() error {
+		defer done()
+		for {
+			select {
+			case event := <-watcher.ResultChan():
+				cm, ok := event.Object.(*corev1.ConfigMap)
+				// Theoretically this will not happen
 				if !ok {
-					continue
-				}
-				// the watcher is open on all ConfigMaps in the namespace, so
-				// bail out of this loop iteration immediately if the event
-				// isn't for the routing table ConfigMap.
-				if cm.Name != ConfigMapRoutingTableName {
+					lggr.Info(
+						"The event object observed is not a configmap",
+					)
 					continue
 				}
 				newTable, err := FetchTableFromConfigMap(cm)
@@ -71,6 +61,11 @@ func StartConfigMapRoutingTableUpdater(
 				table.Replace(newTable)
 			}
 		}
-	}
+	})
 
+	if err := grp.Wait(); err != nil {
+		lggr.Error(err, "config map routing updater is failed")
+		return err
+	}
+	return nil
 }

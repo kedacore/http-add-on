@@ -73,6 +73,15 @@ func main() {
 	q := queue.NewMemory()
 	routingTable := routing.NewTable()
 
+	// Create the informer of ConfigMap resource,
+	// the resynchronization period of the informer should be not less than 1s,
+	// refer to: https://github.com/kubernetes/client-go/blob/v0.22.2/tools/cache/shared_informer.go#L475
+	configMapInformer := k8s.NewInformerConfigMapUpdater(
+		lggr,
+		cl,
+		servingCfg.ConfigMapCacheRsyncPeriod,
+	)
+
 	lggr.Info(
 		"Fetching initial routing table",
 	)
@@ -108,9 +117,10 @@ func main() {
 		err := routing.StartConfigMapRoutingTableUpdater(
 			ctx,
 			lggr,
-			time.Duration(servingCfg.RoutingTableUpdateDurationMS)*time.Millisecond,
-			configMapsInterface,
+			configMapInformer,
+			servingCfg.CurrentNamespace,
 			routingTable,
+			nil,
 		)
 		lggr.Error(err, "config map routing table updater failed")
 		return err
@@ -133,6 +143,8 @@ func main() {
 			routingTable,
 			deployCache,
 			adminPort,
+			servingCfg,
+			timeoutCfg,
 		)
 		lggr.Error(err, "admin server failed")
 		return err
@@ -175,6 +187,8 @@ func runAdminServer(
 	routingTable *routing.Table,
 	deployCache k8s.DeploymentCache,
 	port int,
+	servingConfig *config.Serving,
+	timeoutConfig *config.Timeouts,
 ) error {
 	lggr = lggr.WithName("runAdminServer")
 	adminServer := nethttp.NewServeMux()
@@ -202,6 +216,7 @@ func runAdminServer(
 			}
 		},
 	)
+	kedahttp.AddConfigEndpoint(lggr, adminServer, servingConfig, timeoutConfig)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)

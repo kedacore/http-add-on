@@ -12,22 +12,20 @@ The HTTP Add On is highly modular and, as expected, builds on top of KEDA core. 
 
 Before you install any of these components, you need to install KEDA. Below are simplified instructions for doing so with [Helm](https://helm.sh), but if you need anything more customized, please see the [official KEDA deployment documentation](https://keda.sh/docs/2.0/deploy/). If you need to install Helm, refer to the [installation guide](https://helm.sh/docs/intro/install/).
 
->This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the above `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA and the HTTP Addon provide scaling functionality to only one namespace per installation.
+>This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the below `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA and the HTTP Addon provide scaling functionality to only one namespace per installation.
 
 ```console
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
-helm install keda kedacore/keda --namespace ${NAMESPACE} --set watchNamespace=${NAMESPACE}
+helm install keda kedacore/keda --namespace ${NAMESPACE} --set watchNamespace=${NAMESPACE} --create-namespace
 ```
 
 ## Install via Helm Chart
 
-This repository is within KEDA's default helm repository on [kedacore/charts](http://github.com/kedacore/charts), you can install it by running:
+The Helm chart for this project is within KEDA's default helm repository at [kedacore/charts](http://github.com/kedacore/charts), you can install it by running:
 
 ```console
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE}
+helm install http-add-on kedacore/keda-add-ons-http --namespace ${NAMESPACE}
 ```
 
 >Installing the HTTP add on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).
@@ -36,9 +34,9 @@ helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespa
 
 There are a few values that you can pass to the above `helm install` command by including `--set NAME=VALUE` on the command line.
 
-- `images.operator` - the name of the operator's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-operator`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-operator).
-- `images.scaler` - the name of the scaler's Docker image, not including the tag.  Defaults to [`ghcr.io/kedacore/http-add-on-scaler`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-scaler).
-- `images.interceptor` - the name of the interceptor's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-interceptor`](https://github.com/orgs/kedacore/packages/container/package/http-add-on-interceptor).
+- `images.operator` - the name of the operator's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-operator`](https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-operator).
+- `images.scaler` - the name of the scaler's Docker image, not including the tag.  Defaults to [`ghcr.io/kedacore/http-add-on-scaler`](https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler).
+- `images.interceptor` - the name of the interceptor's Docker image, not including the tag. Defaults to [`ghcr.io/kedacore/http-add-on-interceptor`](https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor).
 - `images.tag` - the tag to use for all the above docker images. Defaults to the [latest stable release](https://github.com/kedacore/http-add-on/releases).
 
 >If you want to install the latest build of the HTTP Add on, set `version` to `canary`:
