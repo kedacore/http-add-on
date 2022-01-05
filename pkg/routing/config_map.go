@@ -70,7 +70,6 @@ func GetTable(
 	lggr logr.Logger,
 	getter k8s.ConfigMapGetter,
 	table *Table,
-	// q queue.Counter,
 ) error {
 	lggr = lggr.WithName("pkg.routing.GetTable")
 
