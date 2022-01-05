@@ -29,7 +29,6 @@ func TestHealthChecks(t *testing.T) {
 		TargetService:         "testsvc",
 		TargetPort:            port + 123,
 		TargetPendingRequests: 100,
-		UpdateRoutingTableDur: 100 * time.Millisecond,
 	}
 
 	errgrp, ctx := errgroup.WithContext(ctx)

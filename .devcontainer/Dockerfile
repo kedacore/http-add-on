@@ -1,6 +1,5 @@
-# [Choice] Go version: 1, 1.16, 1.15
-ARG VARIANT=1.17
-FROM mcr.microsoft.com/vscode/devcontainers/go:0-${VARIANT}
+ARG GO_VERSION=1.17
+FROM mcr.microsoft.com/vscode/devcontainers/go:0-${GO_VERSION}
 
 # install mage
 RUN git clone https://github.com/magefile/mage && \
