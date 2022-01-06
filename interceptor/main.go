@@ -250,6 +250,7 @@ func runProxyServer(
 			routingTable,
 			dialContextFunc,
 			waitFunc,
+			routing.ServiceURL,
 			newForwardingConfigFromTimeouts(timeouts),
 		),
 	)

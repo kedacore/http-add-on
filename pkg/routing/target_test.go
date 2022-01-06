@@ -17,7 +17,7 @@ func TestTargetServiceURL(t *testing.T) {
 		"testdeploy",
 		1234,
 	)
-	svcURL, err := target.ServiceURL()
+	svcURL, err := ServiceURL(target)
 	r.NoError(err)
 	r.Equal(
 		fmt.Sprintf("%s.%s:%d", target.Service, target.Namespace, target.Port),

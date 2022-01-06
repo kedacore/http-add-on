@@ -19,7 +19,7 @@ import (
 // the proxy should successfully forward a request to a running server
 func TestImmediatelySuccessfulProxy(t *testing.T) {
 	const ns = "testns"
-	const host = "TestImmediatelySuccessfulProxy.testing"
+	host := fmt.Sprintf("%s.testing", t.Name())
 	r := require.New(t)
 
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(
@@ -53,6 +53,9 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return originURL, nil
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -86,17 +89,22 @@ func TestWaitFailedConnection(t *testing.T) {
 		return nil
 	}
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(host, routing.Target{
-		Service:    "nosuchdepl",
-		Port:       8081,
-		Deployment: "nosuchdepl",
-	})
+	routingTable.AddTarget(host, routing.NewTarget(
+		"testns",
+		"nosuchdepl",
+		8081,
+		"nosuchdepl",
+		1234,
+	))
 
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return url.Parse("http://nosuchhost:8081")
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -127,16 +135,21 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	noSuchHost := fmt.Sprintf("%s.testing", t.Name())
 
 	routingTable := routing.NewTable()
-	routingTable.AddTarget(noSuchHost, routing.Target{
-		Service:    "nosuchsvc",
-		Port:       9091,
-		Deployment: "nosuchdepl",
-	})
+	routingTable.AddTarget(noSuchHost, routing.NewTarget(
+		"testns",
+		"nosuchsvc",
+		9091,
+		"nosuchdepl",
+		1234,
+	))
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return url.Parse("http://nosuchhost:9091")
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -207,6 +220,9 @@ func TestWaitsForWaitFunc(t *testing.T) {
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return testSrvURL, nil
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -240,8 +256,8 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	)
 }
 
-// the proxy should connect to a server, and then time out if the server doesn't
-// respond in time
+// the proxy should connect to a server, and then time out if
+// the server doesn't respond in time
 func TestWaitHeaderTimeout(t *testing.T) {
 	r := require.New(t)
 
@@ -265,17 +281,22 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		return nil
 	}
 	routingTable := routing.NewTable()
-	target := routing.Target{
-		Service:    "testsvc",
-		Port:       9094,
-		Deployment: "testdepl",
-	}
+	target := routing.NewTarget(
+		"testns",
+		"testsvc",
+		9094,
+		"testdepl",
+		1234,
+	)
 	routingTable.AddTarget(originURL.Host, target)
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return originURL, nil
+		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,

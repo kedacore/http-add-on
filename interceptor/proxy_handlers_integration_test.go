@@ -35,7 +35,10 @@ func TestIntegrationHappyPath(t *testing.T) {
 		namespace                 = "testns"
 	)
 	r := require.New(t)
-	h, err := newHarness(deploymentReplicasTimeout, responseHeaderTimeout)
+	h, err := newHarness(
+		deploymentReplicasTimeout,
+		responseHeaderTimeout,
+	)
 	r.NoError(err)
 	defer h.close()
 	t.Logf("Harness: %s", h.String())
@@ -303,17 +306,6 @@ func newHarness(
 		deplCache,
 	)
 
-	proxyHdl := newForwardingHandler(
-		lggr,
-		routingTable,
-		dialContextFunc,
-		waitFunc,
-		forwardingConfig{
-			waitTimeout:       deployReplicasTimeout,
-			respHeaderTimeout: responseHeaderTimeout,
-		},
-	)
-
 	originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("hello!"))
@@ -322,6 +314,20 @@ func newHarness(
 	if err != nil {
 		return nil, err
 	}
+
+	proxyHdl := newForwardingHandler(
+		lggr,
+		routingTable,
+		dialContextFunc,
+		waitFunc,
+		func(routing.Target) (*url.URL, error) {
+			return originSrvURL, nil
+		},
+		forwardingConfig{
+			waitTimeout:       deployReplicasTimeout,
+			respHeaderTimeout: responseHeaderTimeout,
+		},
+	)
 
 	proxySrv, proxySrvURL, err := kedanet.StartTestServer(proxyHdl)
 	if err != nil {
