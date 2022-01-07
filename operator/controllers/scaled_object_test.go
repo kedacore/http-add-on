@@ -52,7 +52,7 @@ var _ = Describe("UserApp", func() {
 				Version: "v1alpha1",
 			})
 			objectKey := client.ObjectKey{
-				Namespace: testInfra.cfg.Namespace,
+				Namespace: testInfra.ns,
 				Name:      config.AppScaledObjectName(&testInfra.httpso),
 			}
 			err = testInfra.cl.Get(testInfra.ctx, objectKey, u)

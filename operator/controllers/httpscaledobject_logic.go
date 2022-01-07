@@ -16,7 +16,7 @@ import (
 func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
-	appInfo config.AppInfo,
+	currentNamespace string,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 
@@ -32,14 +32,14 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		"reconciler.appObjects",
 		"removeObjects",
 		"HTTPScaledObject.name",
-		appInfo.Name,
+		httpso.Name,
 		"HTTPScaledObject.namespace",
-		appInfo.Namespace,
+		httpso.Namespace,
 	)
 
 	// Delete App ScaledObject
 	scaledObject := &unstructured.Unstructured{}
-	scaledObject.SetNamespace(appInfo.Namespace)
+	scaledObject.SetNamespace(httpso.Namespace)
 	scaledObject.SetName(config.AppScaledObjectName(httpso))
 	scaledObject.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "keda.sh",
@@ -71,7 +71,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		rec.Client,
 		rec.RoutingTable,
 		httpso.Spec.Host,
-		httpso.ObjectMeta.Namespace,
+		currentNamespace,
 	); err != nil {
 		return err
 	}
@@ -82,7 +82,8 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
-	appInfo config.AppInfo,
+	currentNamespace string,
+	externalScalerConfig config.ExternalScaler,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	defer httpso.SaveStatus(context.Background(), logger, rec.Client)
@@ -90,9 +91,9 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		"reconciler.appObjects",
 		"addObjects",
 		"HTTPScaledObject.name",
-		appInfo.Name,
+		httpso.Name,
 		"HTTPScaledObject.namespace",
-		appInfo.Namespace,
+		httpso.Namespace,
 	)
 
 	// set initial statuses
@@ -110,7 +111,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		ctx,
 		rec.Client,
 		logger,
-		appInfo.ExternalScalerConfig.HostName(appInfo.Namespace),
+		externalScalerConfig.HostName(httpso.Namespace),
 		httpso,
 	); err != nil {
 		return err
@@ -134,7 +135,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 			httpso.Spec.ScaleTargetRef.Deployment,
 			targetPendingReqs,
 		),
-		httpso.ObjectMeta.Namespace,
+		currentNamespace,
 	); err != nil {
 		return err
 	}
