@@ -111,7 +111,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		ctx,
 		rec.Client,
 		logger,
-		externalScalerConfig.HostName(httpso.Namespace),
+		externalScalerConfig.HostName(currentNamespace),
 		httpso,
 	); err != nil {
 		return err
