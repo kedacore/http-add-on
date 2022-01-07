@@ -16,6 +16,8 @@ helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 
 You'll need to clone the repository to get access to this chart. If you have your own `Deployment` and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
 
+>If you are running KEDA and the HTTP Addon in cluster-global mode, you can install the XKCD chart in any namespace you choose. If you do so, make sure you add `--set ingressNamespace=${NAMESPACE}` to the above installation command.
+
 >To remove the app, run `helm delete xkcd -n ${NAMESPACE}`
 
 ## Creating an `HTTPScaledObject`
