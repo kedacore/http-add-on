@@ -92,14 +92,14 @@ func main() {
 	if err := ensureConfigMap(
 		ctx,
 		setupLog,
-		baseConfig.Namespace,
+		baseConfig.CurrentNamespace,
 		routing.ConfigMapRoutingTableName,
 	); err != nil {
 		setupLog.Error(
 			err,
 			"unable to find routing table ConfigMap",
 			"namespace",
-			baseConfig.Namespace,
+			baseConfig.CurrentNamespace,
 			"name",
 			routing.ConfigMapRoutingTableName,
 		)
@@ -112,7 +112,8 @@ func main() {
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "f8508ff1.keda.sh",
-		Namespace:          baseConfig.Namespace,
+		// will be empty to indicate all namespaces
+		Namespace: baseConfig.WatchNamespace,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

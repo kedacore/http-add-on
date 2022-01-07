@@ -22,8 +22,12 @@ type ExternalScaler struct {
 }
 
 type Base struct {
-	TargetPendingRequests int32  `envconfig:"TARGET_PENDING_REQUESTS" default:"100"`
-	Namespace             string `envconfig:"NAMESPACE" default:""`
+	TargetPendingRequests int32 `envconfig:"TARGET_PENDING_REQUESTS" default:"100"`
+	// The current namespace in which the operator is running.
+	CurrentNamespace string `envconfig:"NAMESPACE" default:""`
+	// The namespace the operator should watch. Leave blank to
+	// tell the operator to watch all namespaces.
+	WatchNamespace string `envconfig:"WATCH_NAMESPACE" default:""`
 }
 
 func NewBaseFromEnv() (*Base, error) {
