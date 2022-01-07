@@ -31,7 +31,12 @@ func newDeployReplicasForwardWaitFunc(
 		deployment, err := deployCache.Get(deployNS, deployName)
 		if err != nil {
 			// if we didn't get the initial deployment state, bail out
-			return fmt.Errorf("error getting state for deployment %s (%s)", deployName, err)
+			return fmt.Errorf(
+				"error getting state for deployment %s/%s (%s)",
+				deployNS,
+				deployName,
+				err,
+			)
 		}
 		// if there is 1 or more replica, we're done waiting
 		if deploymentCanServe(deployment) {
