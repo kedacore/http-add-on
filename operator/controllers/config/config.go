@@ -43,7 +43,7 @@ func NewBaseFromEnv() (*Base, error) {
 
 func (e ExternalScaler) HostName(namespace string) string {
 	return fmt.Sprintf(
-		"%s.%s.svc.cluster.local:%d",
+		"%s.%s:%d",
 		e.ServiceName,
 		namespace,
 		e.Port,
