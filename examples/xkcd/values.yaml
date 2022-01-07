@@ -1,5 +1,10 @@
 replicaCount: 1
 host: myhost.com
+# This is the namespace that the ingress should be installed
+# into. It should be set to the same namespace as the 
+# KEDA HTTP componentry is installed in. Defaults to the Helm
+# chart release namespace
+ingressNamespace: 
 image:
   repository: arschles/xkcd
   pullPolicy: Always
