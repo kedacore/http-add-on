@@ -65,7 +65,10 @@ func (e *impl) IsActive(
 			Result: true,
 		}, nil
 	}
-	allCounts := e.pinger.counts()
+	allCounts := mergeCountsWithRoutingTable(
+		e.pinger.counts(),
+		e.routingTable,
+	)
 	hostCount, ok := allCounts[host]
 	if !ok {
 		err := fmt.Errorf("host '%s' not found in counts", host)
@@ -157,7 +160,10 @@ func (e *impl) GetMetrics(
 		lggr.Error(err, "ScaledObjectRef", metricRequest.ScaledObjectRef)
 		return nil, err
 	}
-	allCounts := e.pinger.counts()
+	allCounts := mergeCountsWithRoutingTable(
+		e.pinger.counts(),
+		e.routingTable,
+	)
 	hostCount, ok := allCounts[host]
 	if !ok {
 		if host == "interceptor" {

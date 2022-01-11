@@ -125,7 +125,6 @@ func main() {
 			configMapInformer,
 			servingCfg.CurrentNamespace,
 			routingTable,
-			q,
 			nil,
 		)
 		lggr.Error(err, "config map routing table updater failed")

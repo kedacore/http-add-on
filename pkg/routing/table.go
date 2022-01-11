@@ -9,6 +9,7 @@ import (
 
 type TableReader interface {
 	Lookup(string) (Target, error)
+	Hosts() []string
 }
 type Table struct {
 	fmt.Stringer
@@ -21,6 +22,19 @@ func NewTable() *Table {
 		m: make(map[string]Target),
 		l: new(sync.RWMutex),
 	}
+}
+
+// Hosts is the TableReader implementation for t.
+// This function returns all hosts that are currently
+// in t.
+func (t Table) Hosts() []string {
+	t.l.RLock()
+	defer t.l.RUnlock()
+	ret := make([]string, 0, len(t.m))
+	for host := range t.m {
+		ret = append(ret, host)
+	}
+	return ret
 }
 
 func (t *Table) String() string {

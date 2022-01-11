@@ -103,7 +103,6 @@ func TestStartUpdateLoop(t *testing.T) {
 			configMapInformer,
 			ns,
 			table,
-			q,
 			nil,
 		)
 		// we purposefully cancel the context below,
