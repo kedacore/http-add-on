@@ -10,15 +10,17 @@ import (
 func TestTargetServiceURL(t *testing.T) {
 	r := require.New(t)
 
-	target := Target{
-		Service:    "testsvc",
-		Port:       8081,
-		Deployment: "testdeploy",
-	}
-	svcURL, err := target.ServiceURL()
+	target := NewTarget(
+		"testns",
+		"testsvc",
+		8081,
+		"testdeploy",
+		1234,
+	)
+	svcURL, err := ServiceURL(target)
 	r.NoError(err)
 	r.Equal(
-		fmt.Sprintf("%s:%d", target.Service, target.Port),
+		fmt.Sprintf("%s.%s:%d", target.Service, target.Namespace, target.Port),
 		svcURL.Host,
 	)
 }

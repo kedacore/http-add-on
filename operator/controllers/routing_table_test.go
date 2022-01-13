@@ -32,11 +32,13 @@ func TestRoutingTable(t *testing.T) {
 	cl.GetFunc = func() client.Object {
 		return cm
 	}
-	target := routing.Target{
-		Service:    svcName,
-		Port:       8080,
-		Deployment: deplName,
-	}
+	target := routing.NewTarget(
+		ns,
+		svcName,
+		8080,
+		deplName,
+		1234,
+	)
 	r.NoError(addAndUpdateRoutingTable(
 		ctx,
 		logr.Discard(),

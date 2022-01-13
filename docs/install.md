@@ -6,8 +6,13 @@ The HTTP Add On is highly modular and, as expected, builds on top of KEDA core. 
 - **Scaler** - communicates scaling-related metrics to KEDA. By default, the operator will install this for you as necessary.
 - **Interceptor** - a cluster-internal proxy that proxies incoming HTTP requests, communicating HTTP queue size metrics to the scaler, and holding requests in a temporary request queue when there are not yet any available app `Pod`s ready to serve. By default, the operator will install this for you as necessary.
 
->There is [pending work in KEDA](https://github.com/kedacore/keda/issues/615) that will eventually make this component optional. See [issue #6 in this repository](https://github.com/kedacore/http-add-on/issues/6) for even more background
+>There is [pending work](https://github.com/kedacore/http-add-on/issues/354) that may eventually make this component optional.
 
+## Before You Start: Cluster-global vs. Namespaced installation
+
+Both KEDA and the HTTP Addon can be installed in either cluster-global or namespaced mode. In the former case, your `ScaledObject`s and `HTTPScaledObject`s (respectively) can be installed in any namespace, and one installation will detect and process it. In the latter case, you must install your `ScaledObject`s and `HTTPScaledObject`s in a specific namespace.
+
+You have the option of installing KEDA and the HTTP Addon in either mode, but if you install one as cluster-global, the other must also be cluster-global. Similarly, if you install one as namespaced, the also must also be namespaced in the same namespace.
 ## Installing KEDA
 
 Before you install any of these components, you need to install KEDA. Below are simplified instructions for doing so with [Helm](https://helm.sh), but if you need anything more customized, please see the [official KEDA deployment documentation](https://keda.sh/docs/2.0/deploy/). If you need to install Helm, refer to the [installation guide](https://helm.sh/docs/intro/install/).
@@ -17,8 +22,10 @@ Before you install any of these components, you need to install KEDA. Below are 
 ```console
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
-helm install keda kedacore/keda --namespace ${NAMESPACE} --set watchNamespace=${NAMESPACE} --create-namespace
+helm install keda kedacore/keda --namespace ${NAMESPACE} --create-namespace
 ```
+
+>The above command installs KEDA in cluster-global mode. Add `--set watchNamespace=<target namespace>` to install KEDA in namespaced mode.
 
 ## Install via Helm Chart
 
@@ -27,6 +34,7 @@ The Helm chart for this project is within KEDA's default helm repository at [ked
 ```console
 helm install http-add-on kedacore/keda-add-ons-http --namespace ${NAMESPACE}
 ```
+>The above command installed the HTTP Addon in cluster-global mode. Add `--set operator.watchNamespace=<target namespace>` to install the HTTP Addon in namepaced mode. If you do this, you must also install KEDA in namespaced mode and use the same target namespace.
 
 >Installing the HTTP add on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).
 

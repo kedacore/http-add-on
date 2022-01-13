@@ -17,11 +17,8 @@ func TestExternalScalerHostName(t *testing.T) {
 	const ns = "testns"
 	hst := sc.HostName(ns)
 	spl := strings.Split(hst, ".")
-	r.Equal(5, len(spl), "HostName should return a hostname with 5 parts")
+	r.Equal(2, len(spl), "HostName should return a hostname with 2 parts")
 	r.Equal(sc.ServiceName, spl[0])
-	r.Equal(ns, spl[1])
-	r.Equal("svc", spl[2])
-	r.Equal("cluster", spl[3])
-	r.Equal(fmt.Sprintf("local:%d", sc.Port), spl[4])
+	r.Equal(fmt.Sprintf("%s:%d", ns, sc.Port), spl[1])
 
 }

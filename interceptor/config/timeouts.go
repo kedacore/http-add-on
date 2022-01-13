@@ -48,7 +48,7 @@ func (t *Timeouts) Backoff(factor, jitter float64, steps int) wait.Backoff {
 
 // DefaultBackoff calls t.Backoff with reasonable defaults and returns
 // the result
-func (t *Timeouts) DefaultBackoff() wait.Backoff {
+func (t Timeouts) DefaultBackoff() wait.Backoff {
 	return t.Backoff(2, 0.5, 5)
 }
 
