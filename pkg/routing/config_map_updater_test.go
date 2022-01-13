@@ -76,6 +76,13 @@ func TestStartUpdateLoop(t *testing.T) {
 		"depl1",
 		100,
 	))
+	table.AddTarget("host2", NewTarget(
+		"testns",
+		"svc2",
+		8080,
+		"depl2",
+		100,
+	))
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -187,22 +194,16 @@ func TestStartUpdateLoop(t *testing.T) {
 	// listening for these events.
 	r.NoError(grp.Wait())
 
-	// ensure that the queue and table host lists matches
-	// exactly
+	// the queue won't _necessarily_ have all the hosts that
+	// the table has in it. Hosts only show up after
+	// 1 or more requests have been made for it.
+	// check to make sure that all hosts that are in the
+	// queue are in the table.
 	table.l.RLock()
+	defer table.l.RUnlock()
 	curTable := table.m
 	curQCounts, err := q.Current()
 	r.NoError(err)
-	// check that the queue has every host in the table
-	for tableHost := range curTable {
-		_, ok := curQCounts.Counts[tableHost]
-		r.True(
-			ok,
-			"host %s not found in queue",
-			tableHost,
-		)
-	}
-	// check that the table has every host in the queue
 	for qHost := range curQCounts.Counts {
 		_, ok := curTable[qHost]
 		r.True(
