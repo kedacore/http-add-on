@@ -13,15 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIsActive(t *testing.T) {
-
-	standardTarget := routing.NewTarget(
+func standardTarget() routing.Target {
+	return routing.NewTarget(
 		"testns",
 		"testsrv",
 		8080,
 		"testdepl",
 		123,
 	)
+}
+func TestIsActive(t *testing.T) {
 	type testCase struct {
 		name        string
 		host        string
@@ -37,7 +38,7 @@ func TestIsActive(t *testing.T) {
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget)
+				table.AddTarget(t.Name(), standardTarget())
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 				q.allCounts[t.Name()] = 0
@@ -56,7 +57,7 @@ func TestIsActive(t *testing.T) {
 			expected:    true,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget)
+				table.AddTarget(t.Name(), standardTarget())
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 				q.allCounts[t.Name()] = 1
@@ -68,7 +69,7 @@ func TestIsActive(t *testing.T) {
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget)
+				table.AddTarget(t.Name(), standardTarget())
 			},
 		},
 		{
@@ -406,6 +407,45 @@ func TestGetMetrics(t *testing.T) {
 				// the sum of the values in the fake queue created
 				// in the setup function
 				r.Equal(int64(403), metricVal.MetricValue)
+			},
+			defaultTargetMetric:            int64(200),
+			defaultTargetMetricInterceptor: int64(300),
+		},
+		{
+			name: "host in routing table, missing in queue pinger",
+			scalerMetadata: map[string]string{
+				"host": "myhost.com",
+			},
+			setupFn: func(
+				ctx context.Context,
+				lggr logr.Logger,
+			) (*routing.Table, *queuePinger, func(), error) {
+				table := routing.NewTable()
+				table.AddTarget(
+					"myhost.com",
+					standardTarget(),
+				)
+				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
+					"host1": 201,
+					"host2": 202,
+				}, 2*time.Millisecond)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				return table, pinger, done, nil
+			},
+			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricValues))
+				metricVal := res.MetricValues[0]
+				r.Equal("myhost.com", metricVal.MetricName)
+				// the value here needs to be the same thing as
+				// the sum of the values in the fake queue created
+				// in the setup function
+				r.Equal(int64(0), metricVal.MetricValue)
 			},
 			defaultTargetMetric:            int64(200),
 			defaultTargetMetricInterceptor: int64(300),
