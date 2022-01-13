@@ -14,55 +14,111 @@ import (
 )
 
 func TestIsActive(t *testing.T) {
-	const host = "TestIsActive.testing.com"
-	r := require.New(t)
-	ctx := context.Background()
-	lggr := logr.Discard()
-	table := routing.NewTable()
-	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
-	r.NoError(err)
-	defer ticker.Stop()
-	pinger.pingMut.Lock()
-	pinger.allCounts[host] = 0
-	pinger.pingMut.Unlock()
 
-	hdl := newImpl(
-		lggr,
-		pinger,
-		table,
+	standardTarget := routing.NewTarget(
+		"testns",
+		"testsrv",
+		8080,
+		"testdepl",
 		123,
-		200,
 	)
-	res, err := hdl.IsActive(
-		ctx,
-		&externalscaler.ScaledObjectRef{
-			ScalerMetadata: map[string]string{
-				"host": host,
-			},
-		},
-	)
-	r.NoError(err)
-	r.NotNil(res)
-	// initially, IsActive should return false since the
-	// count for the host is 0
-	r.False(res.Result)
+	type testCase struct {
+		name        string
+		host        string
+		expected    bool
+		expectedErr bool
+		setup       func(*routing.Table, *queuePinger)
+	}
 
-	// incrment the count for the host and then expect
-	// active to be true
-	pinger.pingMut.Lock()
-	pinger.allCounts[host]++
-	pinger.pingMut.Unlock()
-	res, err = hdl.IsActive(
-		ctx,
-		&externalscaler.ScaledObjectRef{
-			ScalerMetadata: map[string]string{
-				"host": host,
+	testCases := []testCase{
+		{
+			name:        "Simple host inactive",
+			host:        t.Name(),
+			expected:    false,
+			expectedErr: false,
+			setup: func(table *routing.Table, q *queuePinger) {
+				table.AddTarget(t.Name(), standardTarget)
+				q.pingMut.Lock()
+				defer q.pingMut.Unlock()
+				q.allCounts[t.Name()] = 0
 			},
 		},
-	)
-	r.NoError(err)
-	r.NotNil(res)
-	r.True(res.Result)
+		{
+			name:        "Host is 'interceptor'",
+			host:        "interceptor",
+			expected:    true,
+			expectedErr: false,
+			setup:       func(*routing.Table, *queuePinger) {},
+		},
+		{
+			name:        "Simple host active",
+			host:        t.Name(),
+			expected:    true,
+			expectedErr: false,
+			setup: func(table *routing.Table, q *queuePinger) {
+				table.AddTarget(t.Name(), standardTarget)
+				q.pingMut.Lock()
+				defer q.pingMut.Unlock()
+				q.allCounts[t.Name()] = 1
+			},
+		},
+		{
+			name:        "No host present, but host in routing table",
+			host:        t.Name(),
+			expected:    false,
+			expectedErr: false,
+			setup: func(table *routing.Table, q *queuePinger) {
+				table.AddTarget(t.Name(), standardTarget)
+			},
+		},
+		{
+			name:        "Host doesn't exist",
+			host:        t.Name(),
+			expected:    false,
+			expectedErr: true,
+			setup:       func(*routing.Table, *queuePinger) {},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := require.New(t)
+			ctx := context.Background()
+			lggr := logr.Discard()
+			table := routing.NewTable()
+			ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+			if err != nil {
+				t.Fatalf("failed to create queue pinger: %v", err)
+			}
+			r.NoError(err)
+			defer ticker.Stop()
+			tc.setup(table, pinger)
+			hdl := newImpl(
+				lggr,
+				pinger,
+				table,
+				123,
+				200,
+			)
+			res, err := hdl.IsActive(
+				ctx,
+				&externalscaler.ScaledObjectRef{
+					ScalerMetadata: map[string]string{
+						"host": tc.host,
+					},
+				},
+			)
+
+			if tc.expectedErr && err != nil {
+				return
+			} else if err != nil {
+				t.Fatalf("expected no error but got: %v", err)
+			}
+			if tc.expected != res.Result {
+				t.Fatalf("Expected IsActive result %v, got: %v", tc.expected, res.Result)
+			}
+		})
+	}
 }
 
 func TestGetMetricSpecTable(t *testing.T) {
