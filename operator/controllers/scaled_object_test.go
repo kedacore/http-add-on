@@ -25,7 +25,6 @@ var _ = Describe("UserApp", func() {
 		It("Should properly create the ScaledObject for the user app", func() {
 			err := createScaledObjects(
 				testInfra.ctx,
-				testInfra.cfg,
 				testInfra.cl,
 				testInfra.logger,
 				externalScalerHostName,
@@ -53,7 +52,7 @@ var _ = Describe("UserApp", func() {
 				Version: "v1alpha1",
 			})
 			objectKey := client.ObjectKey{
-				Namespace: testInfra.cfg.Namespace,
+				Namespace: testInfra.ns,
 				Name:      config.AppScaledObjectName(&testInfra.httpso),
 			}
 			err = testInfra.cl.Get(testInfra.ctx, objectKey, u)

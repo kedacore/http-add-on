@@ -45,6 +45,7 @@ func newForwardingHandler(
 	routingTable *routing.Table,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
+	targetSvcURL routing.ServiceURLFunc,
 	fwdCfg forwardingConfig,
 ) http.Handler {
 	roundTripper := &http.Transport{
@@ -71,15 +72,19 @@ func newForwardingHandler(
 			return
 		}
 
-		ctx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
+		waitFuncCtx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
 		defer done()
-		if err := waitFunc(ctx, routingTarget.Deployment); err != nil {
+		if err := waitFunc(
+			waitFuncCtx,
+			routingTarget.Namespace,
+			routingTarget.Deployment,
+		); err != nil {
 			lggr.Error(err, "wait function failed, not forwarding request")
 			w.WriteHeader(502)
 			w.Write([]byte(fmt.Sprintf("error on backend (%s)", err)))
 			return
 		}
-		targetSvcURL, err := routingTarget.ServiceURL()
+		targetSvcURL, err := targetSvcURL(routingTarget)
 		if err != nil {
 			lggr.Error(err, "forwarding failed")
 			w.WriteHeader(500)
