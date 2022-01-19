@@ -66,9 +66,9 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	)
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
-	waitFunc := func(ctx context.Context, ns, name string) error {
+	waitFunc := func(ctx context.Context, ns, name string) (int, error) {
 		<-waiterCh
-		return nil
+		return 1, nil
 	}
 	g.Go(func() error {
 		return runProxyServer(
@@ -105,6 +105,9 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 				"unexpected status code: %d",
 				resp.StatusCode,
 			)
+		}
+		if resp.Header.Get("X-KEDA-HTTP-Cold-Start") != "false" {
+			return fmt.Errorf("expected X-KEDA-HTTP-Cold-Start false, but got %s", resp.Header.Get("X-KEDA-HTTP-Cold-Start"))
 		}
 		return nil
 	})

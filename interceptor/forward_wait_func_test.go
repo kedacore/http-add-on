@@ -43,7 +43,8 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	)
 
 	group.Go(func() error {
-		return waitFunc(ctx, ns, deployName)
+		_, err := waitFunc(ctx, ns, deployName)
+		return err
 	})
 	r.NoError(group.Wait(), "wait function failed, but it shouldn't have")
 }
@@ -76,7 +77,7 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 		cache,
 	)
 
-	err := waitFunc(ctx, ns, deployName)
+	_, err := waitFunc(ctx, ns, deployName)
 	r.Error(err)
 }
 
@@ -120,6 +121,7 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		watcher.Action(watch.Modified, modifiedDeployment)
 		close(replicasIncreasedCh)
 	}()
-	r.NoError(waitFunc(ctx, ns, deployName))
+	_, err := waitFunc(ctx, ns, deployName)
+	r.NoError(err)
 	done()
 }
