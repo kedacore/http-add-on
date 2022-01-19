@@ -74,11 +74,12 @@ func newForwardingHandler(
 
 		waitFuncCtx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
 		defer done()
-		if err := waitFunc(
+		replicas, err := waitFunc(
 			waitFuncCtx,
 			routingTarget.Namespace,
 			routingTarget.Deployment,
-		); err != nil {
+		)
+		if err != nil {
 			lggr.Error(err, "wait function failed, not forwarding request")
 			w.WriteHeader(502)
 			w.Write([]byte(fmt.Sprintf("error on backend (%s)", err)))
@@ -91,6 +92,11 @@ func newForwardingHandler(
 			w.Write([]byte("error getting backend service URL"))
 			return
 		}
+		isColdStart := "false"
+		if replicas == 0 {
+			isColdStart = "true"
+		}
+		w.Header().Add("X-KEDA-HTTP-Cold-Start", isColdStart)
 		forwardRequest(w, r, roundTripper, targetSvcURL)
 	})
 }

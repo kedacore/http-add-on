@@ -45,8 +45,8 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(context.Context, string, string) error {
-		return nil
+	waitFunc := func(context.Context, string, string) (int, error) {
+		return 1, nil
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
@@ -68,6 +68,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 
 	hdl.ServeHTTP(res, req)
 
+	r.Equal("false", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start false")
 	r.Equal(200, res.Code, "expected response code 200")
 	r.Equal("test response", res.Body.String())
 }
@@ -85,8 +86,8 @@ func TestWaitFailedConnection(t *testing.T) {
 		timeouts,
 		backoff,
 	)
-	waitFunc := func(context.Context, string, string) error {
-		return nil
+	waitFunc := func(context.Context, string, string) (int, error) {
+		return 1, nil
 	}
 	routingTable := routing.NewTable()
 	routingTable.AddTarget(host, routing.NewTarget(
@@ -117,6 +118,7 @@ func TestWaitFailedConnection(t *testing.T) {
 
 	hdl.ServeHTTP(res, req)
 
+	r.Equal("false", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start false")
 	r.Equal(502, res.Code, "response code was unexpected")
 }
 
@@ -166,12 +168,18 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 
 	t.Logf("elapsed time was %s", elapsed)
 	// serving should take at least timeouts.DeploymentReplicas, but no more than
-	// timeouts.DeploymentReplicas*2
-	// elapsed time should be more than the deployment replicas wait time
-	// but not an amount that is much greater than that
+	// timeouts.DeploymentReplicas*4
 	r.GreaterOrEqual(elapsed, timeouts.DeploymentReplicas)
 	r.LessOrEqual(elapsed, timeouts.DeploymentReplicas*4)
 	r.Equal(502, res.Code, "response code was unexpected")
+
+	// we will always return the X-KEDA-HTTP-Cold-Start header
+	// when we are able to forward the
+	// request to the backend but not if we have failed due
+	// to a timeout from a waitFunc or earlier in the pipeline,
+	// for example, if we cannot reach the Kubernetes control
+	// plane.
+	r.Equal("", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start to be empty")
 
 	// waitFunc should have been called, even though it timed out
 	waitFuncCalled := false
@@ -277,8 +285,8 @@ func TestWaitHeaderTimeout(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(context.Context, string, string) error {
-		return nil
+	waitFunc := func(context.Context, string, string) (int, error) {
+		return 1, nil
 	}
 	routingTable := routing.NewTable()
 	target := routing.NewTarget(
@@ -309,6 +317,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 
 	hdl.ServeHTTP(res, req)
 
+	r.Equal("false", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start false")
 	r.Equal(502, res.Code, "response code was unexpected")
 	close(originHdlCh)
 }
@@ -346,19 +355,19 @@ func waitForSignal(sig <-chan struct{}, waitDur time.Duration) error {
 // is called, or the context that is passed to it is done (e.g. cancelled, timed out,
 // etc...). in the former case, the returned func itself returns nil. in the latter,
 // it returns ctx.Err()
-func notifyingFunc() (func(context.Context, string, string) error, <-chan struct{}, func()) {
+func notifyingFunc() (forwardWaitFunc, <-chan struct{}, func()) {
 	calledCh := make(chan struct{})
 	finishCh := make(chan struct{})
 	finishFunc := func() {
 		close(finishCh)
 	}
-	return func(ctx context.Context, _, _ string) error {
+	return func(ctx context.Context, _, _ string) (int, error) {
 		close(calledCh)
 		select {
 		case <-finishCh:
-			return nil
+			return 0, nil
 		case <-ctx.Done():
-			return fmt.Errorf("TEST FUNCTION CONTEXT ERROR: %w", ctx.Err())
+			return 0, fmt.Errorf("TEST FUNCTION CONTEXT ERROR: %w", ctx.Err())
 		}
 	}, calledCh, finishFunc
 }
