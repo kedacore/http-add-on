@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -108,7 +107,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 			)
 		}
 		if resp.Header.Get("X-KEDA-HTTP-Cold-Start") != "false" {
-			return fmt.Errorf("expected X-KEDA-HTTP-Cold-Start false, but got %s", resp.Header.Get("X-KEDA-HTTP-Cold-Start))
+			return fmt.Errorf("expected X-KEDA-HTTP-Cold-Start false, but got %s", resp.Header.Get("X-KEDA-HTTP-Cold-Start"))
 		}
 		return nil
 	})
