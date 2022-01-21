@@ -14,7 +14,7 @@ func NewZapr() (logr.Logger, error) {
 	}
 	zapLggr, err := zapCfg.Build()
 	if err != nil {
-		return nil, err
+		return logr.Logger{}, err
 	}
 	return zapr.NewLogger(zapLggr), nil
 }
