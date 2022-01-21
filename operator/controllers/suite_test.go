@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	"github.com/kedacore/http-add-on/operator/controllers/config"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -55,7 +54,6 @@ type commonTestInfra struct {
 	appName string
 	ctx     context.Context
 	cl      client.Client
-	cfg     config.AppInfo
 	logger  logr.Logger
 	httpso  v1alpha1.HTTPScaledObject
 }
@@ -63,11 +61,8 @@ type commonTestInfra struct {
 func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 	ctx := context.Background()
 	cl := fake.NewFakeClient()
-	cfg := config.AppInfo{
-		Name:      appName,
-		Namespace: namespace,
-	}
 	logger := logr.Discard()
+
 	httpso := v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
@@ -91,7 +86,6 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 		appName: appName,
 		ctx:     ctx,
 		cl:      cl,
-		cfg:     cfg,
 		logger:  logger,
 		httpso:  httpso,
 	}

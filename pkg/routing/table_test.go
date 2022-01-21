@@ -8,14 +8,19 @@ import (
 )
 
 func TestTableJSONRoundTrip(t *testing.T) {
-	const host = "testhost"
+	const (
+		host = "testhost"
+		ns   = "testns"
+	)
 	r := require.New(t)
 	tbl := NewTable()
-	tgt := Target{
-		Service:    "testsvc",
-		Port:       8082,
-		Deployment: "testdepl",
-	}
+	tgt := NewTarget(
+		ns,
+		"testsvc",
+		8082,
+		"testdepl",
+		1234,
+	)
 	tbl.AddTarget(host, tgt)
 
 	b, err := json.Marshal(&tbl)
@@ -31,13 +36,19 @@ func TestTableJSONRoundTrip(t *testing.T) {
 }
 
 func TestTableRemove(t *testing.T) {
-	const host = "testrm"
+	const (
+		host = "testrm"
+		ns   = "testns"
+	)
+
 	r := require.New(t)
-	tgt := Target{
-		Service:    "testrm",
-		Port:       8084,
-		Deployment: "testrmdepl",
-	}
+	tgt := NewTarget(
+		ns,
+		"testrm",
+		8084,
+		"testrmdepl",
+		1234,
+	)
 
 	tbl := NewTable()
 
@@ -55,19 +66,24 @@ func TestTableRemove(t *testing.T) {
 }
 
 func TestTableReplace(t *testing.T) {
+	const ns = "testns"
 	r := require.New(t)
 	const host1 = "testreplhost1"
 	const host2 = "testreplhost2"
-	tgt1 := Target{
-		Service:    "tgt1",
-		Port:       9090,
-		Deployment: "depl1",
-	}
-	tgt2 := Target{
-		Service:    "tgt2",
-		Port:       9091,
-		Deployment: "depl2",
-	}
+	tgt1 := NewTarget(
+		ns,
+		"tgt1",
+		9090,
+		"depl1",
+		1234,
+	)
+	tgt2 := NewTarget(
+		ns,
+		"tgt2",
+		9091,
+		"depl2",
+		1234,
+	)
 	// create two routing tables, each with different targets
 	tbl1 := NewTable()
 	tbl1.AddTarget(host1, tgt1)

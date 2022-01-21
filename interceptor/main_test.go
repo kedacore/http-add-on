@@ -26,6 +26,7 @@ import (
 
 func TestRunProxyServerCountMiddleware(t *testing.T) {
 	const (
+		ns   = "testns"
 		port = 8080
 		host = "samplehost"
 	)
@@ -56,6 +57,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	routingTable.AddTarget(
 		host,
 		targetFromURL(
+			ns,
 			originURL,
 			originPort,
 			"testdepl",
@@ -64,9 +66,9 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	)
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
-	waitFunc := func(ctx context.Context, name string) error {
+	waitFunc := func(ctx context.Context, ns, name string) (int, error) {
 		<-waiterCh
-		return nil
+		return 1, nil
 	}
 	g.Go(func() error {
 		return runProxyServer(
@@ -103,6 +105,9 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 				"unexpected status code: %d",
 				resp.StatusCode,
 			)
+		}
+		if resp.Header.Get("X-KEDA-HTTP-Cold-Start") != "false" {
+			return fmt.Errorf("expected X-KEDA-HTTP-Cold-Start false, but got %s", resp.Header.Get("X-KEDA-HTTP-Cold-Start"))
 		}
 		return nil
 	})
@@ -144,6 +149,9 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 }
 
 func TestRunAdminServerDeploymentsEndpoint(t *testing.T) {
+	const (
+		ns = "testns"
+	)
 
 	ctx := context.Background()
 	ctx, done := context.WithCancel(ctx)
@@ -174,6 +182,7 @@ func TestRunAdminServerDeploymentsEndpoint(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	deplCache.Set(
+		ns,
 		deplName,
 		appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -194,7 +203,7 @@ func TestRunAdminServerDeploymentsEndpoint(t *testing.T) {
 	r.NoError(json.NewDecoder(res.Body).Decode(&actual))
 
 	expected := map[string]int32{}
-	for name, depl := range deplCache.Current {
+	for name, depl := range deplCache.CurrentDeployments() {
 		expected[name] = *depl.Spec.Replicas
 	}
 

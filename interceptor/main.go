@@ -34,8 +34,19 @@ func main() {
 	}
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
+	if err := config.Validate(*servingCfg, *timeoutCfg); err != nil {
+		lggr.Error(err, "invalid configuration")
+		os.Exit(1)
+	}
 	ctx, ctxDone := context.WithCancel(
 		context.Background(),
+	)
+	lggr.Info(
+		"starting interceptor",
+		"timeoutConfig",
+		timeoutCfg,
+		"servingConfig",
+		servingCfg,
 	)
 
 	proxyPort := servingCfg.ProxyPort
@@ -51,13 +62,10 @@ func main() {
 		lggr.Error(err, "creating new Kubernetes ClientSet")
 		os.Exit(1)
 	}
-	deployInterface := cl.AppsV1().Deployments(
-		servingCfg.CurrentNamespace,
-	)
-	deployCache, err := k8s.NewK8sDeploymentCache(
-		ctx,
+	deployCache := k8s.NewInformerBackedDeploymentCache(
 		lggr,
-		deployInterface,
+		cl,
+		time.Millisecond*time.Duration(servingCfg.DeploymentCachePollIntervalMS),
 	)
 	if err != nil {
 		lggr.Error(err, "creating new deployment cache")
@@ -66,7 +74,7 @@ func main() {
 
 	configMapsInterface := cl.CoreV1().ConfigMaps(servingCfg.CurrentNamespace)
 
-	waitFunc := newDeployReplicasForwardWaitFunc(deployCache)
+	waitFunc := newDeployReplicasForwardWaitFunc(lggr, deployCache)
 
 	lggr.Info("Interceptor starting")
 
@@ -101,11 +109,7 @@ func main() {
 	// start the deployment cache updater
 	errGrp.Go(func() error {
 		defer ctxDone()
-		err := deployCache.StartWatcher(
-			ctx,
-			lggr,
-			time.Duration(servingCfg.DeploymentCachePollIntervalMS)*time.Millisecond,
-		)
+		err := deployCache.Start(ctx)
 		lggr.Error(err, "deployment cache watcher failed")
 		return err
 	})
@@ -121,7 +125,6 @@ func main() {
 			configMapInformer,
 			servingCfg.CurrentNamespace,
 			routingTable,
-			q,
 			nil,
 		)
 		lggr.Error(err, "config map routing table updater failed")
@@ -246,6 +249,7 @@ func runProxyServer(
 			routingTable,
 			dialContextFunc,
 			waitFunc,
+			routing.ServiceURL,
 			newForwardingConfigFromTimeouts(timeouts),
 		),
 	)

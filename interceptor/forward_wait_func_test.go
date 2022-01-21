@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -22,28 +22,29 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	r := require.New(t)
 	const ns = "testNS"
 	const deployName = "TestForwardingHandlerDeploy"
-	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
-		deployName: *newDeployment(
-			ns,
-			deployName,
-			"myimage",
-			[]int32{123},
-			nil,
-			map[string]string{},
-			corev1.PullAlways,
-		),
-	})
+	cache := k8s.NewFakeDeploymentCache()
+	cache.AddDeployment(*newDeployment(
+		ns,
+		deployName,
+		"myimage",
+		[]int32{123},
+		nil,
+		map[string]string{},
+		corev1.PullAlways,
+	))
 
 	ctx, done := context.WithTimeout(ctx, waitFuncWait)
 	defer done()
 	group, ctx := errgroup.WithContext(ctx)
 
 	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
 		cache,
 	)
 
 	group.Go(func() error {
-		return waitFunc(ctx, deployName)
+		_, err := waitFunc(ctx, ns, deployName)
+		return err
 	})
 	r.NoError(group.Wait(), "wait function failed, but it shouldn't have")
 }
@@ -66,17 +67,17 @@ func TestForwardWaitFuncNoReplicas(t *testing.T) {
 		corev1.PullAlways,
 	)
 	deployment.Status.ReadyReplicas = 0
-	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
-		deployName: *deployment,
-	})
+	cache := k8s.NewFakeDeploymentCache()
+	cache.AddDeployment(*deployment)
 
 	ctx, done := context.WithTimeout(ctx, waitFuncWait)
 	defer done()
 	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
 		cache,
 	)
 
-	err := waitFunc(ctx, deployName)
+	_, err := waitFunc(ctx, ns, deployName)
 	r.Error(err)
 }
 
@@ -97,25 +98,30 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		corev1.PullAlways,
 	)
 	deployment.Spec.Replicas = k8s.Int32P(0)
-	cache := k8s.NewMemoryDeploymentCache(map[string]appsv1.Deployment{
-		deployName: *deployment,
-	})
+	cache := k8s.NewFakeDeploymentCache()
+	cache.AddDeployment(*deployment)
+	// create a watcher first so that the goroutine
+	// can later fetch it and send a message on it
+	cache.Watch(ns, deployName)
+
 	ctx, done := context.WithTimeout(ctx, totalWaitDur)
-	defer done()
 	waitFunc := newDeployReplicasForwardWaitFunc(
+		logr.Discard(),
 		cache,
 	)
+
 	// this channel will be closed immediately after the replicas were increased
 	replicasIncreasedCh := make(chan struct{})
 	go func() {
 		time.Sleep(totalWaitDur / 2)
-		cache.RWM.RLock()
-		defer cache.RWM.RUnlock()
-		watcher := cache.Watchers[deployName]
+		watcher := cache.GetWatcher(ns, deployName)
+		r.NotNil(watcher, "watcher was not found")
 		modifiedDeployment := deployment.DeepCopy()
 		modifiedDeployment.Spec.Replicas = k8s.Int32P(1)
 		watcher.Action(watch.Modified, modifiedDeployment)
 		close(replicasIncreasedCh)
 	}()
-	r.NoError(waitFunc(ctx, deployName))
+	_, err := waitFunc(ctx, ns, deployName)
+	r.NoError(err)
+	done()
 }

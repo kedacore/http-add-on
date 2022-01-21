@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +26,6 @@ func StartConfigMapRoutingTableUpdater(
 	cmInformer *k8s.InformerConfigMapUpdater,
 	ns string,
 	table *Table,
-	q queue.Counter,
 	cbFunc func() error,
 ) error {
 	lggr = lggr.WithName("pkg.routing.StartConfigMapRoutingTableUpdater")
@@ -57,21 +55,11 @@ func StartConfigMapRoutingTableUpdater(
 					)
 					continue
 				}
-				newTable, err := FetchTableFromConfigMap(cm, q)
+				newTable, err := FetchTableFromConfigMap(cm)
 				if err != nil {
 					return err
 				}
 				table.Replace(newTable)
-				if err := updateQueueFromTable(lggr, table, q); err != nil {
-					// if we couldn't update the queue, just log but don't bail.
-					// we want to give the loop a chance to tick (or receive a new event)
-					// and update the table & queue again
-					lggr.Error(
-						err,
-						"failed to update queue from table on ConfigMap change event",
-					)
-					continue
-				}
 				// Execute the callback function, if one exists
 				if cbFunc != nil {
 					if err := cbFunc(); err != nil {

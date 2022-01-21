@@ -42,7 +42,7 @@ func TestRunAdminServerConfig(t *testing.T) {
 			externalScalerCfg,
 		)
 	})
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	urlStr := func(path string) string {
 		return fmt.Sprintf("http://0.0.0.0:%d/%s", port, path)
