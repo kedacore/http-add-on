@@ -36,14 +36,16 @@ const (
 	NAMESPACE_ENV_VAR         = "KEDAHTTP_NAMESPACE"
 )
 
-var goBuild = sh.OutCmd("go", "build", "-o")
-
 type Scaler mg.Namespace
 
 // Generate Go build of the scaler binary
 func (Scaler) Build(ctx context.Context) error {
 	fmt.Println("Running scaler binary build")
-	out, err := goBuild("bin/scaler", "./scaler")
+	buildFunc, err := build.GoBuild()
+	if err != nil {
+		return err
+	}
+	out, err := buildFunc("bin/scaler", "./scaler")
 	if err != nil {
 		return err
 	}
@@ -107,7 +109,11 @@ type Operator mg.Namespace
 // Generate Go build of the operator binary
 func (Operator) Build(ctx context.Context) error {
 	fmt.Println("Running operator binary build")
-	out, err := goBuild("bin/operator", "./operator")
+	buildFunc, err := build.GoBuild()
+	if err != nil {
+		return err
+	}
+	out, err := buildFunc("bin/operator", "./operator")
 	if err != nil {
 		return err
 	}
@@ -171,7 +177,11 @@ type Interceptor mg.Namespace
 // Generate Go build of the interceptor binary
 func (Interceptor) Build(ctx context.Context) error {
 	fmt.Println("Running interceptor binary build")
-	out, err := goBuild("bin/interceptor", "./interceptor")
+	buildFunc, err := build.GoBuild()
+	if err != nil {
+		return err
+	}
+	out, err := buildFunc("bin/interceptor", "./interceptor")
 	if err != nil {
 		return err
 	}
