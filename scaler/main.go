@@ -210,7 +210,7 @@ func startAdminServer(
 	})
 
 	kedahttp.AddConfigEndpoint(lggr, mux, cfg)
-	kedahttp.AddVersionEndpoint(lggr, mux)
+	kedahttp.AddVersionEndpoint(lggr.WithName("scalerAdmin"), mux)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("starting health check server", "addr", addr)

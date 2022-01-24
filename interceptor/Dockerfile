@@ -20,7 +20,7 @@ ENV CGO_ENABLED=0
 ENV GOOS=${GOOS}
 ENV GOARCH=${GOARCH}
 ENV GOPROXY="https://proxy.golang.org"
-RUN go build -ldflags "-X github.com/kedacore/http-add-on/pkg/build.version=$VERSION" -a -o /bin/interceptor ./interceptor
+RUN go build -ldflags "-X github.com/kedacore/http-add-on/pkg/build.version=${VERSION}" -a -o /bin/interceptor ./interceptor
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

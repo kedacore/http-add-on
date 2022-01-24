@@ -20,7 +20,7 @@ ENV CGO_ENABLED=0
 ENV GOOS=${GOOS}
 ENV GOARCH=${GOARCH}
 ENV GOPROXY="https://proxy.golang.org"
-RUN go build -ldflags "-X github.com/kedacore/http-add-on/pkg/build.version=$VERSION" -a -o /bin/scaler ./scaler
+RUN go build -ldflags "-X github.com/kedacore/http-add-on/pkg/build.version=${VERSION}" -a -o /bin/scaler ./scaler
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

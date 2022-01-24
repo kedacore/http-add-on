@@ -223,7 +223,7 @@ func runAdminServer(
 		},
 	)
 	kedahttp.AddConfigEndpoint(lggr, adminServer, servingConfig, timeoutConfig)
-	kedahttp.AddVersionEndpoint(lggr, adminServer)
+	kedahttp.AddVersionEndpoint(lggr.WithName("interceptorAdmin"), adminServer)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)

@@ -22,7 +22,7 @@ ENV GOARCH=${GOARCH}
 ENV GOPROXY="https://proxy.golang.org"
 
 # Build
-RUN go build -ldflags "-X github.com/kedacore/http-add-on/pkg/build.version=$VERSION" -a -o /bin/operator ./operator
+RUN go build -ldflags "-X github.com/kedacore/http-add-on/pkg/build.version=${VERSION}" -a -o /bin/operator ./operator
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
