@@ -185,6 +185,7 @@ func runAdminServer(
 		interceptorCfg,
 		externalScalerCfg,
 	)
+	kedahttp.AddVersionEndpoint(lggr.WithName("operatorAdmin"), mux)
 	addr := fmt.Sprintf(":%d", port)
 	lggr.Info(
 		"starting admin RPC server",
