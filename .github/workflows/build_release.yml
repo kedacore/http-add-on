@@ -50,6 +50,7 @@ jobs:
             sh.keda.http.image.created=${{steps.prep.outputs.created}}
             sh.keda.http.image.revision=${{github.sha}}
             sh.keda.http.image.release=${{github.ref}}
+          build-args: "VERSION=${{ steps.prep.outputs.VERSION }}"
           file: operator/Dockerfile
           context: .
           push: true
