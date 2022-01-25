@@ -3,6 +3,7 @@
 ARG GOLANG_VERSION=1.17.2
 ARG GOARCH=amd64
 ARG GOOS=linux
+ARG VERSION="unset"
 
 FROM golang:${GOLANG_VERSION}-alpine AS builder
 
@@ -19,7 +20,7 @@ ENV CGO_ENABLED=0
 ENV GOOS=${GOOS}
 ENV GOARCH=${GOARCH}
 ENV GOPROXY="https://proxy.golang.org"
-RUN go build -o /bin/scaler ./scaler
+RUN go build -ldflags "-X github.com/kedacore/http-add-on/pkg/build.version=${VERSION}" -a -o /bin/scaler ./scaler
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
