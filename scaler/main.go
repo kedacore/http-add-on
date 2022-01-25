@@ -119,7 +119,7 @@ func main() {
 
 	grp.Go(func() error {
 		defer done()
-		return startHealthcheckServer(
+		return startAdminServer(
 			ctx,
 			lggr,
 			cfg,
@@ -166,7 +166,7 @@ func startGrpcServer(
 	return grpcServer.Serve(lis)
 }
 
-func startHealthcheckServer(
+func startAdminServer(
 	ctx context.Context,
 	lggr logr.Logger,
 	cfg *config,
@@ -210,6 +210,7 @@ func startHealthcheckServer(
 	})
 
 	kedahttp.AddConfigEndpoint(lggr, mux, cfg)
+	kedahttp.AddVersionEndpoint(lggr.WithName("scalerAdmin"), mux)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("starting health check server", "addr", addr)

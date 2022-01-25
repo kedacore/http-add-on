@@ -37,7 +37,7 @@ func TestHealthChecks(t *testing.T) {
 	r.NoError(err)
 	defer ticker.Stop()
 	srvFunc := func() error {
-		return startHealthcheckServer(
+		return startAdminServer(
 			ctx,
 			lggr,
 			cfg,
