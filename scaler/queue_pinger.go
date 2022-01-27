@@ -74,8 +74,9 @@ func (q *queuePinger) start(
 ) error {
 	lggr := q.lggr.WithName("scaler.queuePinger.start")
 	defer ticker.Stop()
-	for range ticker.C {
+	for {
 		select {
+		// handle cancellations/timeout
 		case <-ctx.Done():
 			lggr.Error(
 				ctx.Err(),
@@ -85,7 +86,8 @@ func (q *queuePinger) start(
 				ctx.Err(),
 				"context marked done. stopping queuePinger loop",
 			)
-		default:
+		// do our regularly scheduled work
+		case <-ticker.C:
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts")
@@ -93,6 +95,17 @@ func (q *queuePinger) start(
 					err,
 					"error getting request counts",
 				)
+			}
+		// handle changes to the interceptor fleet
+		// Deployment
+		case <-deployEvtChan:
+			err := q.fetchAndSaveCounts(ctx)
+			if err != nil {
+				lggr.Error(err, "getting request counts")
+				// return errors.Wrap(
+				// 	err,
+				// 	"error getting request counts",
+				// )
 			}
 		}
 	}
