@@ -3,7 +3,6 @@ package main
 import (
 	context "context"
 	"fmt"
-	"log"
 	"net"
 	"testing"
 	"time"
@@ -113,12 +112,7 @@ func TestStreamIsActive(t *testing.T) {
 				grpcServer,
 				hdl,
 			)
-
-			go func() {
-				if err := grpcServer.Serve(lis); err != nil {
-					log.Fatalf("Server exited with error: %v", err)
-				}
-			}()
+			go grpcServer.Serve(lis)
 
 			bufDialFunc := func(context.Context, string) (net.Conn, error) {
 				return lis.Dial()
