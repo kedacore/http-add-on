@@ -99,9 +99,9 @@ func (e *impl) StreamIsActive(
 			if err != nil {
 				e.lggr.Error(
 					err,
-					"error getting active status in stream, continuing",
+					"error getting active status in stream",
 				)
-				continue
+				return err
 			}
 			server.Send(&externalscaler.IsActiveResponse{
 				Result: active.Result,
