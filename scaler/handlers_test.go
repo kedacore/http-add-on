@@ -108,6 +108,7 @@ func TestStreamIsActive(t *testing.T) {
 			bufSize := 1024 * 1024
 			lis := bufconn.Listen(bufSize)
 			grpcServer := grpc.NewServer()
+			defer grpcServer.Stop()
 			externalscaler.RegisterExternalScalerServer(
 				grpcServer,
 				hdl,
