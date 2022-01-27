@@ -77,6 +77,7 @@ func newFakeQueuePinger(
 		},
 		"testns",
 		"testsvc",
+		"testdepl",
 		opts.port,
 	)
 	if err != nil {

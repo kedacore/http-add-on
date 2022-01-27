@@ -17,6 +17,7 @@ func TestCounts(t *testing.T) {
 	const (
 		ns           = "testns"
 		svcName      = "testsvc"
+		deplName     = "testdepl"
 		tickDur      = 10 * time.Millisecond
 		numEndpoints = 3
 	)
@@ -51,6 +52,7 @@ func TestCounts(t *testing.T) {
 		},
 		ns,
 		svcName,
+		deplName,
 		srvURL.Port(),
 	)
 	r.NoError(err)
@@ -100,6 +102,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	const (
 		ns           = "testns"
 		svcName      = "testsvc"
+		deplName     = "testdepl"
 		adminPort    = "8081"
 		numEndpoints = 3
 	)
@@ -132,6 +135,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		endpointsFn,
 		ns,
 		svcName,
+		deplName,
 		srvURL.Port(),
 		// time.NewTicker(1*time.Millisecond),
 	)

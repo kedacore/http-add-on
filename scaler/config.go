@@ -18,6 +18,8 @@ type config struct {
 	TargetNamespace string `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE" required:"true"`
 	// TargetService is the name of the service to issue metrics RPC requests to interceptors
 	TargetService string `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE" required:"true"`
+	// TargetDeployment is the name of the deployment to issue metrics RPC requests to interceptors
+	TargetDeployment string `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT" required:"true"`
 	// TargetPort is the port on TargetService to which to issue metrics RPC requests to
 	// interceptors
 	TargetPort int `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_PORT" required:"true"`
@@ -29,6 +31,9 @@ type config struct {
 	// ConfigMapCacheRsyncPeriod is the time interval
 	// for the configmap informer to rsync the local cache.
 	ConfigMapCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
+	// DeploymentCacheRsyncPeriod is the time interval
+	// for the deployment informer to rsync the local cache.
+	DeploymentCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_DEPLOYMENT_INFORMER_RSYNC_PERIOD" default:"60m"`
 	// QueueTickDuration is the duration between queue requests
 	QueueTickDuration time.Duration `envconfig:"KEDA_HTTP_QUEUE_TICK_DURATION" default:"500ms"`
 	// This will be the 'Target Pending Requests' for the interceptor
