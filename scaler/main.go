@@ -125,6 +125,7 @@ func main() {
 			cfg,
 			healthPort,
 			pinger,
+			table,
 		)
 	})
 	lggr.Error(grp.Wait(), "one or more of the servers failed")
@@ -172,6 +173,7 @@ func startAdminServer(
 	cfg *config,
 	port int,
 	pinger *queuePinger,
+	routingTable *routing.Table,
 ) error {
 	lggr = lggr.WithName("startHealthcheckServer")
 

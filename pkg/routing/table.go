@@ -10,6 +10,7 @@ import (
 type TableReader interface {
 	Lookup(string) (Target, error)
 	Hosts() []string
+	HasHost(string) bool
 }
 type Table struct {
 	fmt.Stringer
@@ -35,6 +36,13 @@ func (t Table) Hosts() []string {
 		ret = append(ret, host)
 	}
 	return ret
+}
+
+func (t Table) HasHost(host string) bool {
+	t.l.RLock()
+	defer t.l.RUnlock()
+	_, exists := t.m[host]
+	return exists
 }
 
 func (t *Table) String() string {

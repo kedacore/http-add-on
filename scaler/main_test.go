@@ -34,6 +34,7 @@ func TestHealthChecks(t *testing.T) {
 	errgrp, ctx := errgroup.WithContext(ctx)
 
 	ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+	table := newRoutingTable([]hostAndTarget{})
 	r.NoError(err)
 	defer ticker.Stop()
 	srvFunc := func() error {
@@ -43,6 +44,7 @@ func TestHealthChecks(t *testing.T) {
 			cfg,
 			port,
 			pinger,
+			table,
 		)
 	}
 
