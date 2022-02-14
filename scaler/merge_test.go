@@ -74,7 +74,7 @@ func TestMergeCountsWithRoutingTable(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := require.New(t)
 			ret := mergeCountsWithRoutingTable(
-				tc.counts,
+				newSafeCount().update(tc.counts),
 				tc.table,
 			)
 			r.Equal(tc.retCounts, ret)

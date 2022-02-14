@@ -56,7 +56,7 @@ func TestCounts(t *testing.T) {
 	r.NoError(err)
 	// the pinger does an initial fetch, so ensure that
 	// the saved counts are correct
-	retCounts := pinger.counts()
+	retCounts := pinger.counts().counts
 	r.Equal(len(counts), len(retCounts))
 
 	// now update the queue, start the ticker, and ensure
@@ -75,7 +75,7 @@ func TestCounts(t *testing.T) {
 
 	// now ensure that all the counts in the pinger
 	// are the same as in the queue, which has been updated
-	retCounts = pinger.counts()
+	retCounts = pinger.counts().counts
 	expectedCounts, err := q.Current()
 	r.NoError(err)
 	r.Equal(len(expectedCounts.Counts), len(retCounts))
@@ -150,7 +150,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	for host, val := range expectedCounts {
 		expectedCounts[host] = val * numEndpoints
 	}
-	r.Equal(expectedCounts, pinger.allCounts)
+	r.Equal(expectedCounts, pinger.allCounts.counts)
 }
 
 func TestFetchCounts(t *testing.T) {

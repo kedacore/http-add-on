@@ -6,17 +6,21 @@ import "github.com/kedacore/http-add-on/pkg/routing"
 // table are present in counts, and their count is set to 0
 // if they weren't already in counts
 func mergeCountsWithRoutingTable(
-	counts map[string]int,
+	counts *SafeCount,
 	table routing.TableReader,
 ) map[string]int {
 	// ensure that every host is in the queue, even if it has
 	// zero pending requests. This is important so that the
 	// scaler can report on all applications.
+
+	counts.modifyMut.Lock()
+	defer counts.modifyMut.Unlock()
+
 	for _, host := range table.Hosts() {
-		_, exists := counts[host]
+		_, exists := counts.counts[host]
 		if !exists {
-			counts[host] = 0
+			counts.counts[host] = 0
 		}
 	}
-	return counts
+	return counts.counts
 }

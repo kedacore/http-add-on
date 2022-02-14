@@ -184,7 +184,7 @@ func startAdminServer(
 	})
 	mux.HandleFunc("/queue", func(w http.ResponseWriter, r *http.Request) {
 		lggr = lggr.WithName("route.counts")
-		cts := pinger.counts()
+		cts := pinger.counts().counts
 		lggr.Info("counts endpoint", "counts", cts)
 		if err := json.NewEncoder(w).Encode(&cts); err != nil {
 			lggr.Error(err, "writing counts information to client")
@@ -200,7 +200,7 @@ func startAdminServer(
 			w.Write([]byte("error requesting counts from interceptors"))
 			return
 		}
-		cts := pinger.counts()
+		cts := pinger.counts().counts
 		lggr.Info("counts ping endpoint", "counts", cts)
 		if err := json.NewEncoder(w).Encode(&cts); err != nil {
 			lggr.Error(err, "writing counts data to caller")

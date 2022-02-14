@@ -45,7 +45,7 @@ func TestStreamIsActive(t *testing.T) {
 				table.AddTarget(t.Name(), standardTarget())
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
-				q.allCounts[t.Name()] = 0
+				q.allCounts.counts[t.Name()] = 0
 			},
 		},
 		{
@@ -64,7 +64,7 @@ func TestStreamIsActive(t *testing.T) {
 				table.AddTarget(t.Name(), standardTarget())
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
-				q.allCounts[t.Name()] = 1
+				q.allCounts.counts[t.Name()] = 1
 			},
 		},
 		{
@@ -175,7 +175,7 @@ func TestIsActive(t *testing.T) {
 				table.AddTarget(t.Name(), standardTarget())
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
-				q.allCounts[t.Name()] = 0
+				q.allCounts.counts[t.Name()] = 0
 			},
 		},
 		{
@@ -194,7 +194,7 @@ func TestIsActive(t *testing.T) {
 				table.AddTarget(t.Name(), standardTarget())
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
-				q.allCounts[t.Name()] = 1
+				q.allCounts.counts[t.Name()] = 1
 			},
 		},
 		{

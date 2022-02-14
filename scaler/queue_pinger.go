@@ -15,6 +15,25 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type SafeCount struct {
+	counts    map[string]int
+	modifyMut *sync.RWMutex
+}
+
+func newSafeCount() *SafeCount {
+	return &SafeCount{
+		counts:    map[string]int{},
+		modifyMut: new(sync.RWMutex),
+	}
+}
+
+func (s *SafeCount) update(counts map[string]int) *SafeCount {
+	s.modifyMut.Lock()
+	defer s.modifyMut.Unlock()
+	s.counts = counts
+	return s
+}
+
 // queuePinger has functionality to ping all interceptors
 // behind a given `Service`, fetch their pending queue counts,
 // and aggregate all of those counts together.
@@ -40,7 +59,7 @@ type queuePinger struct {
 	adminPort          string
 	pingMut            *sync.RWMutex
 	lastPingTime       time.Time
-	allCounts          map[string]int
+	allCounts          *SafeCount
 	aggregateCount     int
 	lggr               logr.Logger
 }
@@ -61,7 +80,7 @@ func newQueuePinger(
 		adminPort:          adminPort,
 		pingMut:            pingMut,
 		lggr:               lggr,
-		allCounts:          map[string]int{},
+		allCounts:          newSafeCount(),
 		aggregateCount:     0,
 	}
 	return pinger, pinger.fetchAndSaveCounts(ctx)
@@ -99,7 +118,7 @@ func (q *queuePinger) start(
 	return nil
 }
 
-func (q *queuePinger) counts() map[string]int {
+func (q *queuePinger) counts() *SafeCount {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return q.allCounts
@@ -128,7 +147,7 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 		q.lggr.Error(err, "getting request counts")
 		return err
 	}
-	q.allCounts = counts
+	q.allCounts.update(counts)
 	q.aggregateCount = agg
 	q.lastPingTime = time.Now()
 
