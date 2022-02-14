@@ -25,7 +25,7 @@ You'll need to clone the repository to get access to this chart. If you have you
 You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object instructs interceptors to forward requests for a given host to your app's backing `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```shell
-kubectl create -f -n $NAMESPACE examples/v0.0.2/httpscaledobject.yaml
+kubectl create -n $NAMESPACE -f examples/v0.2.0/httpscaledobject.yaml
 ```
 
 >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.2.0/http_scaled_object.md).
