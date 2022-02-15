@@ -22,7 +22,7 @@ You'll need to clone the repository to get access to this chart. If you have you
 
 ## Creating an `HTTPScaledObject`
 
-You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object points the To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
+You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object instructs interceptors to forward requests for a given host to your app's backing `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```shell
 kubectl create -n $NAMESPACE -f examples/v0.2.0/httpscaledobject.yaml
