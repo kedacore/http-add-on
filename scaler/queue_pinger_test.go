@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -68,8 +69,9 @@ func TestCounts(t *testing.T) {
 	q.Resize("host3", 3)
 	q.Resize("host4", 4)
 	ticker := time.NewTicker(tickDur)
+	fakeCache := k8s.NewFakeDeploymentCache()
 	go func() {
-		pinger.start(ctx, ticker)
+		pinger.start(ctx, ticker, fakeCache)
 	}()
 	// sleep to ensure we ticked and finished calling
 	// fetchAndSaveCounts
