@@ -34,15 +34,16 @@ import (
 //	go pinger.start(ctx, ticker)
 //
 type queuePinger struct {
-	getEndpointsFn     k8s.GetEndpointsFunc
-	interceptorNS      string
-	interceptorSvcName string
-	adminPort          string
-	pingMut            *sync.RWMutex
-	lastPingTime       time.Time
-	allCounts          map[string]int
-	aggregateCount     int
-	lggr               logr.Logger
+	getEndpointsFn      k8s.GetEndpointsFunc
+	interceptorNS       string
+	interceptorSvcName  string
+	interceptorDeplName string
+	adminPort           string
+	pingMut             *sync.RWMutex
+	lastPingTime        time.Time
+	allCounts           map[string]int
+	aggregateCount      int
+	lggr                logr.Logger
 }
 
 func newQueuePinger(
@@ -51,18 +52,20 @@ func newQueuePinger(
 	getEndpointsFn k8s.GetEndpointsFunc,
 	ns,
 	svcName,
+	deplName,
 	adminPort string,
 ) (*queuePinger, error) {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
-		getEndpointsFn:     getEndpointsFn,
-		interceptorNS:      ns,
-		interceptorSvcName: svcName,
-		adminPort:          adminPort,
-		pingMut:            pingMut,
-		lggr:               lggr,
-		allCounts:          map[string]int{},
-		aggregateCount:     0,
+		getEndpointsFn:      getEndpointsFn,
+		interceptorNS:       ns,
+		interceptorSvcName:  svcName,
+		interceptorDeplName: deplName,
+		adminPort:           adminPort,
+		pingMut:             pingMut,
+		lggr:                lggr,
+		allCounts:           map[string]int{},
+		aggregateCount:      0,
 	}
 	return pinger, pinger.fetchAndSaveCounts(ctx)
 }
@@ -71,11 +74,17 @@ func newQueuePinger(
 func (q *queuePinger) start(
 	ctx context.Context,
 	ticker *time.Ticker,
+	deplCache k8s.DeploymentCache,
 ) error {
+	deployWatchIface := deplCache.Watch(q.interceptorNS, q.interceptorDeplName)
+	deployEvtChan := deployWatchIface.ResultChan()
+	defer deployWatchIface.Stop()
+
 	lggr := q.lggr.WithName("scaler.queuePinger.start")
 	defer ticker.Stop()
-	for range ticker.C {
+	for {
 		select {
+		// handle cancellations/timeout
 		case <-ctx.Done():
 			lggr.Error(
 				ctx.Err(),
@@ -85,7 +94,8 @@ func (q *queuePinger) start(
 				ctx.Err(),
 				"context marked done. stopping queuePinger loop",
 			)
-		default:
+		// do our regularly scheduled work
+		case <-ticker.C:
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts")
@@ -94,9 +104,18 @@ func (q *queuePinger) start(
 					"error getting request counts",
 				)
 			}
+		// handle changes to the interceptor fleet
+		// Deployment
+		case <-deployEvtChan:
+			err := q.fetchAndSaveCounts(ctx)
+			if err != nil {
+				lggr.Error(
+					err,
+					"getting request counts after interceptor deployment event",
+				)
+			}
 		}
 	}
-	return nil
 }
 
 func (q *queuePinger) counts() map[string]int {

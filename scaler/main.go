@@ -39,6 +39,7 @@ func main() {
 	healthPort := cfg.HealthPort
 	namespace := cfg.TargetNamespace
 	svcName := cfg.TargetService
+	deplName := cfg.TargetDeployment
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
 	targetPendingRequests := cfg.TargetPendingRequests
 	targetPendingRequestsInterceptor := cfg.TargetPendingRequestsInterceptor
@@ -54,6 +55,7 @@ func main() {
 		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,
 		svcName,
+		deplName,
 		targetPortStr,
 	)
 	if err != nil {
@@ -81,14 +83,27 @@ func main() {
 		k8sCl,
 		cfg.ConfigMapCacheRsyncPeriod,
 	)
+	// create the deployment informer
+	deployInformer := k8s.NewInformerBackedDeploymentCache(
+		lggr,
+		k8sCl,
+		cfg.DeploymentCacheRsyncPeriod,
+	)
 
 	grp, ctx := errgroup.WithContext(ctx)
+
+	// start the deployment informer
+	grp.Go(func() error {
+		defer done()
+		return deployInformer.Start(ctx)
+	})
 
 	grp.Go(func() error {
 		defer done()
 		return pinger.start(
 			ctx,
 			time.NewTicker(cfg.QueueTickDuration),
+			deployInformer,
 		)
 	})
 

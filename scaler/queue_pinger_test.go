@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -17,6 +18,7 @@ func TestCounts(t *testing.T) {
 	const (
 		ns           = "testns"
 		svcName      = "testsvc"
+		deplName     = "testdepl"
 		tickDur      = 10 * time.Millisecond
 		numEndpoints = 3
 	)
@@ -51,6 +53,7 @@ func TestCounts(t *testing.T) {
 		},
 		ns,
 		svcName,
+		deplName,
 		srvURL.Port(),
 	)
 	r.NoError(err)
@@ -66,8 +69,9 @@ func TestCounts(t *testing.T) {
 	q.Resize("host3", 3)
 	q.Resize("host4", 4)
 	ticker := time.NewTicker(tickDur)
+	fakeCache := k8s.NewFakeDeploymentCache()
 	go func() {
-		pinger.start(ctx, ticker)
+		pinger.start(ctx, ticker, fakeCache)
 	}()
 	// sleep to ensure we ticked and finished calling
 	// fetchAndSaveCounts
@@ -100,6 +104,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	const (
 		ns           = "testns"
 		svcName      = "testsvc"
+		deplName     = "testdepl"
 		adminPort    = "8081"
 		numEndpoints = 3
 	)
@@ -132,6 +137,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		endpointsFn,
 		ns,
 		svcName,
+		deplName,
 		srvURL.Port(),
 		// time.NewTicker(1*time.Millisecond),
 	)
