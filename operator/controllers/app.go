@@ -11,16 +11,19 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
+func removeApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
-	currentNamespace string,
+	cl client.Client,
+	routingTable *routing.Table,
+	baseConfig config.Base,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 
-	defer httpso.SaveStatus(context.Background(), logger, rec.Client)
+	defer httpso.SaveStatus(context.Background(), logger, cl)
 	// Set initial statuses
 	httpso.AddCondition(*v1alpha1.CreateCondition(
 		v1alpha1.Terminating,
@@ -28,7 +31,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		v1alpha1.TerminatingResources,
 	).SetMessage("Received termination signal"))
 
-	logger = rec.Log.WithValues(
+	logger = logger.WithValues(
 		"reconciler.appObjects",
 		"removeObjects",
 		"HTTPScaledObject.name",
@@ -46,7 +49,7 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 		Kind:    "ScaledObject",
 		Version: "v1alpha1",
 	})
-	if err := rec.Client.Delete(ctx, scaledObject); err != nil {
+	if err := cl.Delete(ctx, scaledObject); err != nil {
 		if apierrs.IsNotFound(err) {
 			logger.Info("App ScaledObject not found, moving on")
 		} else {
@@ -68,10 +71,10 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	if err := removeAndUpdateRoutingTable(
 		ctx,
 		logger,
-		rec.Client,
-		rec.RoutingTable,
+		cl,
+		routingTable,
 		httpso.Spec.Host,
-		currentNamespace,
+		baseConfig.CurrentNamespace,
 	); err != nil {
 		return err
 	}
@@ -79,15 +82,17 @@ func (rec *HTTPScaledObjectReconciler) removeApplicationResources(
 	return nil
 }
 
-func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
+func createOrUpdateApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
-	currentNamespace string,
+	cl client.Client,
+	routingTable *routing.Table,
+	baseConfig config.Base,
 	externalScalerConfig config.ExternalScaler,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	defer httpso.SaveStatus(context.Background(), logger, rec.Client)
-	logger = rec.Log.WithValues(
+	defer httpso.SaveStatus(context.Background(), logger, cl)
+	logger = logger.WithValues(
 		"reconciler.appObjects",
 		"addObjects",
 		"HTTPScaledObject.name",
@@ -107,11 +112,11 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	// the app deployment and the interceptor deployment.
 	// this needs to be submitted so that KEDA will scale both the app and
 	// interceptor
-	if err := createScaledObjects(
+	if err := createOrUpdateScaledObject(
 		ctx,
-		rec.Client,
+		cl,
 		logger,
-		externalScalerConfig.HostName(currentNamespace),
+		externalScalerConfig.HostName(baseConfig.CurrentNamespace),
 		httpso,
 	); err != nil {
 		return err
@@ -119,14 +124,14 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 
 	targetPendingReqs := httpso.Spec.TargetPendingRequests
 	if targetPendingReqs == 0 {
-		targetPendingReqs = rec.BaseConfig.TargetPendingRequests
+		targetPendingReqs = baseConfig.TargetPendingRequests
 	}
 
 	if err := addAndUpdateRoutingTable(
 		ctx,
 		logger,
-		rec.Client,
-		rec.RoutingTable,
+		cl,
+		routingTable,
 		httpso.Spec.Host,
 		routing.NewTarget(
 			httpso.GetNamespace(),
@@ -135,7 +140,7 @@ func (rec *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 			httpso.Spec.ScaleTargetRef.Deployment,
 			targetPendingReqs,
 		),
-		currentNamespace,
+		baseConfig.CurrentNamespace,
 	); err != nil {
 		return err
 	}
