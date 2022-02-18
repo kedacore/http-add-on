@@ -42,6 +42,12 @@ func forwardRequest(
 			// required
 			return nil
 		}
+		if !strings.HasPrefix(locHdr, "http://") {
+			// ensure that the location header
+			// starts with the scheme so that
+			// url.Parse parses it properly
+			locHdr = "http://" + locHdr
+		}
 		// if there is a location header, and it has
 		// no host in it, we need to rewrite that
 		// a host in it, we need to rewrite that
@@ -53,7 +59,7 @@ func forwardRequest(
 
 		// if the location header has no host,
 		// add the incoming host to it
-		if locURL.Host == "" {
+		if locURL.Hostname() == "" {
 			locURL.Host = r.Host
 			locURL.Scheme = ""
 			loc := strings.TrimPrefix(locURL.String(), "//")
