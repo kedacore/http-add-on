@@ -32,6 +32,18 @@ func DeleteScaledObject(ctx context.Context, name string, namespace string, cl c
 	return nil
 }
 
+func NewEmptyScaledObject() *unstructured.Unstructured {
+	ret := &unstructured.Unstructured{}
+	ret.SetGroupVersionKind(
+		schema.GroupVersionKind{
+			Group:   "keda.sh",
+			Version: "v1alpha1",
+			Kind:    "ScaledObject",
+		},
+	)
+	return ret
+}
+
 // NewScaledObject creates a new ScaledObject in memory
 func NewScaledObject(
 	namespace,

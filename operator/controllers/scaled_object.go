@@ -12,8 +12,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// create ScaledObjects for the app and interceptor
-func createScaledObjects(
+// createOrUpdateScaledObject attempts to create a new ScaledObject
+// according to the given parameters. If the create failed because the
+// ScaledObject already exists, attempts to patch the scaledobject.
+// otherwise, fails.
+func createOrUpdateScaledObject(
 	ctx context.Context,
 	cl client.Client,
 	logger logr.Logger,
@@ -39,7 +42,25 @@ func createScaledObjects(
 	logger.Info("Creating App ScaledObject", "ScaledObject", *appScaledObject)
 	if err := cl.Create(ctx, appScaledObject); err != nil {
 		if errors.IsAlreadyExists(err) {
-			logger.Info("User app scaled object already exists, moving on")
+			existingSOKey := client.ObjectKey{
+				Namespace: httpso.GetNamespace(),
+				Name:      appScaledObject.GetName(),
+			}
+			fetchedSO := k8s.NewEmptyScaledObject()
+			if err := cl.Get(ctx, existingSOKey, fetchedSO); err != nil {
+				logger.Error(
+					err,
+					"failed to fetch existing ScaledObject for patching",
+				)
+				return err
+			}
+			if err := cl.Patch(ctx, appScaledObject, client.Merge); err != nil {
+				logger.Error(
+					err,
+					"failed to patch existing ScaledObject",
+				)
+				return err
+			}
 		} else {
 			logger.Error(err, "Creating ScaledObject")
 			httpso.AddCondition(*v1alpha1.CreateCondition(
