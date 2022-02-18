@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -18,14 +20,13 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 	const externalScalerHostName = "mysvc.myns.svc.cluster.local:9090"
 
 	testInfra := newCommonTestInfra("testns", "testapp")
-	err := createOrUpdateScaledObject(
+	r.NoError(createOrUpdateScaledObject(
 		testInfra.ctx,
 		testInfra.cl,
 		testInfra.logger,
 		externalScalerHostName,
 		&testInfra.httpso,
-	)
-	r.NoError(err)
+	))
 
 	// make sure that httpso has the AppScaledObjectCreated
 	// condition on it
@@ -40,23 +41,24 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 	r.Equal(v1alpha1.AppScaledObjectCreated, cond1.Reason)
 
 	// check that the app ScaledObject was created
-	retSO := k8s.NewEmptyScaledObject()
-	err = testInfra.cl.Get(testInfra.ctx, client.ObjectKey{
-		Namespace: testInfra.ns,
-		Name:      config.AppScaledObjectName(&testInfra.httpso),
-	}, retSO)
+	retSO, err := getSO(
+		testInfra.ctx,
+		testInfra.cl,
+		testInfra.httpso,
+	)
 	r.NoError(err)
 
 	metadata, err := getKeyAsMap(retSO.Object, "metadata")
 	r.NoError(err)
+	spec, err := getKeyAsMap(retSO.Object, "spec")
+	r.NoError(err)
+
 	r.Equal(testInfra.ns, metadata["namespace"])
 	r.Equal(
 		config.AppScaledObjectName(&testInfra.httpso),
 		metadata["name"],
 	)
 
-	spec, err := getKeyAsMap(retSO.Object, "spec")
-	r.NoError(err)
 	// HTTPScaledObject min/max replicas are int32s,
 	// but the ScaledObject's spec is decoded into
 	// an *unsructured.Unstructured (basically a map[string]interface{})
@@ -71,6 +73,49 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 		spec["maxReplicaCount"],
 	)
 
+	// now update the min and max replicas on the httpso
+	// and call createOrUpdateScaledObject again
+	testInfra.httpso.Spec.Replicas.Min++
+	testInfra.httpso.Spec.Replicas.Max++
+	r.NoError(createOrUpdateScaledObject(
+		testInfra.ctx,
+		testInfra.cl,
+		testInfra.logger,
+		externalScalerHostName,
+		&testInfra.httpso,
+	))
+
+	// get the scaledobject again and ensure it has
+	// the new min/max replicas
+	retSO, err = getSO(
+		testInfra.ctx,
+		testInfra.cl,
+		testInfra.httpso,
+	)
+	r.NoError(err)
+	spec, err = getKeyAsMap(retSO.Object, "spec")
+	r.NoError(err)
+	r.Equal(
+		int64(testInfra.httpso.Spec.Replicas.Min),
+		spec["minReplicaCount"],
+	)
+	r.Equal(
+		int64(testInfra.httpso.Spec.Replicas.Max),
+		spec["maxReplicaCount"],
+	)
+}
+
+func getSO(
+	ctx context.Context,
+	cl client.Client,
+	httpso v1alpha1.HTTPScaledObject,
+) (*unstructured.Unstructured, error) {
+	retSO := k8s.NewEmptyScaledObject()
+	err := cl.Get(ctx, client.ObjectKey{
+		Namespace: httpso.GetNamespace(),
+		Name:      config.AppScaledObjectName(&httpso),
+	}, retSO)
+	return retSO, err
 }
 
 func getKeyAsMap(m map[string]interface{}, key string) (map[string]interface{}, error) {
