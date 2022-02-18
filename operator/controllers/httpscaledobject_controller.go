@@ -85,7 +85,14 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 		// and don't schedule for another reconcile. Kubernetes
 		// will finalize them
 		// TODO: move this function call into `finalizeScaledObject`
-		removeErr := rec.removeApplicationResources(ctx, logger, rec.BaseConfig.CurrentNamespace, httpso)
+		removeErr := removeApplicationResources(
+			ctx,
+			logger,
+			rec.Client,
+			rec.RoutingTable,
+			rec.BaseConfig,
+			httpso,
+		)
 		if removeErr != nil {
 			// if we failed to remove app resources, reschedule a reconcile so we can try
 			// again
@@ -113,19 +120,23 @@ func (rec *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.R
 	)
 
 	// Create required app objects for the application defined by the CRD
-	if err := rec.createOrUpdateApplicationResources(
+	if err := createOrUpdateApplicationResources(
 		ctx,
 		logger,
-		rec.BaseConfig.CurrentNamespace,
+		rec.Client,
+		rec.RoutingTable,
+		rec.BaseConfig,
 		rec.ExternalScalerConfig,
 		httpso,
 	); err != nil {
 		// if we failed to create app resources, remove what we've created and exit
 		logger.Error(err, "Removing app resources")
-		if removeErr := rec.removeApplicationResources(
+		if removeErr := removeApplicationResources(
 			ctx,
 			logger,
-			rec.BaseConfig.CurrentNamespace,
+			rec.Client,
+			rec.RoutingTable,
+			rec.BaseConfig,
 			httpso,
 		); removeErr != nil {
 			logger.Error(removeErr, "Removing previously created resources")
