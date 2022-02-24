@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/go-logr/logr v1.2.2
-	github.com/go-logr/zapr v1.2.2
+	github.com/go-logr/zapr v1.2.3
 	github.com/golang/protobuf v1.5.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/magefile/mage v1.12.1
