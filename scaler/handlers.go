@@ -73,7 +73,9 @@ func (e *impl) IsActive(
 	)
 	if !ok {
 		err := fmt.Errorf("host '%s' not found in counts", host)
-		allCounts := mergeCountsWithRoutingTable(e.pinger.counts(), e.routingTable)
+		allCounts := e.pinger.mergeCountsWithRoutingTable(
+			e.routingTable,
+		)
 		lggr.Error(err, "Given host was not found in queue count map", "host", host, "allCounts", allCounts)
 		return nil, err
 	}
@@ -173,7 +175,7 @@ func (e *impl) GetMetrics(
 			hostCount = e.pinger.aggregate()
 		} else {
 			err := fmt.Errorf("host '%s' not found in counts", host)
-			allCounts := mergeCountsWithRoutingTable(e.pinger.counts(), e.routingTable)
+			allCounts := e.pinger.mergeCountsWithRoutingTable(e.routingTable)
 			lggr.Error(err, "allCounts", allCounts)
 			return nil, err
 		}
