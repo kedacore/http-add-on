@@ -1,6 +1,6 @@
 # adapted from Athens 
 # https://github.com/gomods/athens/blob/main/cmd/proxy/Dockerfile
-ARG GOLANG_VERSION=1.17.2
+ARG GOLANG_VERSION=1.18.0
 ARG GOARCH=amd64
 ARG GOOS=linux
 ARG VERSION="unset"

@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.17
+ARG GO_VERSION=1.18
 FROM mcr.microsoft.com/vscode/devcontainers/go:0-${GO_VERSION}
 
 # install mage
