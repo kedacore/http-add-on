@@ -9,6 +9,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -214,4 +215,49 @@ func TestFetchCounts(t *testing.T) {
 		expectedCounts[host] = val * numEndpoints
 	}
 	r.Equal(expectedCounts, cts)
+}
+
+func TestMergeCountsWithRoutingTable(t *testing.T) {
+	for _, tc := range cases() {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			grp, ctx := errgroup.WithContext(ctx)
+			r := require.New(t)
+			const C = 100
+			tickr, q, err := newFakeQueuePinger(
+				ctx,
+				logr.Discard(),
+			)
+			r.NoError(err)
+			defer tickr.Stop()
+			q.allCounts = tc.counts
+
+			retCh := make(chan map[string]int)
+			for i := 0; i < C; i++ {
+				grp.Go(func() error {
+					retCh <- q.mergeCountsWithRoutingTable(tc.table)
+					return nil
+				})
+			}
+
+			// ensure we receive from retCh C times
+			allRets := map[int]map[string]int{}
+			for i := 0; i < C; i++ {
+				allRets[i] = <-retCh
+			}
+
+			r.NoError(grp.Wait())
+
+			// ensure that all returned maps are the
+			// same
+			prev := allRets[0]
+			for i := 1; i < C; i++ {
+				r.Equal(prev, allRets[i])
+				prev = allRets[i]
+			}
+			// ensure that all the returned maps are
+			// equal to what we expected
+			r.Equal(tc.retCounts, prev)
+		})
+	}
 }
