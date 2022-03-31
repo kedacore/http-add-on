@@ -128,3 +128,61 @@ jobs:
           file: scaler/Dockerfile
           context: .
           push: true
+
+  smoke_tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Helm install
+        uses: Azure/setup-helm@v1
+
+      - name: Create k8s v1.23 Kind Cluster
+        uses: JorTurFer/kind-action@main
+        with:
+          node_image: kindest/node:v1.23.0@sha256:49824ab1727c04e56a21a5d8372a402fcd32ea51ac96a2706a12af38934f81ac
+          cluster_name: http-add-on-smoke-tests-cluster
+      
+      - name: Install KEDA
+        run: |
+          helm repo add kedacore https://kedacore.github.io/charts
+          helm repo update
+          helm install keda kedacore/keda --namespace keda --create-namespace --wait
+
+      - name: Show Kubernetes resources in keda namespace
+        run: kubectl get all --namespace keda
+      
+      - name: Install Http-add-on
+        run: |
+          helm install http-add-on kedacore/keda-add-ons-http --set images.tag=canary --namespace http-add-on --create-namespace --wait
+
+      - name: Show Kubernetes resources in http-add-on namespace
+        run: kubectl get all --namespace http-add-on
+
+      - name: Create resources
+        run: |
+          kubectl create ns app
+          helm install xkcd ./examples/xkcd --set autoscaling.http.minReplicas=1 -n app --wait
+
+      - name: Show Kubernetes resources in app namespace
+        run: kubectl get all --namespace app
+
+      - name: Check http-add-on generated ScaledObject
+        run: |  
+          n=0
+          max=5
+          until [ "$n" -ge "$max" ]
+          do
+            ready=$(kubectl get so xkcd-app -n app -o jsonpath="{.status.conditions[0].status}")
+            echo "ready: $ready"
+            if [ $ready == "True" ]; then
+              break
+            fi
+            n=$((n+1))
+            sleep 15
+          done
+
+          if [ $n -eq $max ]; then
+            echo "The HPA is not working correctly"
+            exit 1
+          fi
