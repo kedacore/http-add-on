@@ -61,8 +61,7 @@ if [ $n -eq $max ]; then
 fi
 echo "The workflow is scaled to zero"
 
-# Generate one request 
-
+# Generate one request
 cat <<EOF | kubectl apply -f -
 apiVersion: batch/v1
 kind: Job
