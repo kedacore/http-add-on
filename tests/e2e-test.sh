@@ -88,7 +88,7 @@ until [ "$n" -ge "$max" ]
 do
   replicas=$(kubectl get deploy xkcd -n app -o jsonpath="{.spec.replicas}")
   echo "replicas: $replicas"
-  if [ $replicas == "3" ]; then
+  if [ $replicas == "1" ]; then
     break
   fi
   n=$((n+1))
