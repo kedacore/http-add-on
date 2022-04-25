@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -122,6 +123,23 @@ func (q *queuePinger) counts() map[string]int {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return q.allCounts
+}
+
+// mergeCountsWithRoutingTable ensures that all hosts in routing table
+// are present in combined counts, if count is not present value is set to 0
+func (q *queuePinger) mergeCountsWithRoutingTable(
+	table routing.TableReader,
+) map[string]int {
+	q.pingMut.RLock()
+	defer q.pingMut.RUnlock()
+	mergedCounts := make(map[string]int)
+	for _, host := range table.Hosts() {
+		mergedCounts[host] = 0
+	}
+	for key, value := range q.allCounts {
+		mergedCounts[key] = value
+	}
+	return mergedCounts
 }
 
 func (q *queuePinger) aggregate() int {

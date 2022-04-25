@@ -14,79 +14,66 @@ type testCase struct {
 	retCounts map[string]int
 }
 
-var cases = []testCase{
-	{
-		name: "empty queue",
-		table: newRoutingTable([]hostAndTarget{
-			{
-				host:   "www.example.com",
-				target: routing.Target{},
+func cases() []testCase {
+	return []testCase{
+		{
+			name: "empty queue",
+			table: newRoutingTable([]hostAndTarget{
+				{
+					host:   "www.example.com",
+					target: routing.Target{},
+				},
+				{
+					host:   "www.example2.com",
+					target: routing.Target{},
+				},
+			}),
+			counts: make(map[string]int),
+			retCounts: map[string]int{
+				"www.example.com":  0,
+				"www.example2.com": 0,
 			},
-			{
-				host:   "www.example2.com",
-				target: routing.Target{},
+		},
+		{
+			name: "one entry in queue, same entry in routing table",
+			table: newRoutingTable([]hostAndTarget{
+				{
+					host:   "example.com",
+					target: routing.Target{},
+				},
+			}),
+			counts: map[string]int{
+				"example.com": 1,
 			},
-		}),
-		counts: make(map[string]int),
-		retCounts: map[string]int{
-			"www.example.com":  0,
-			"www.example2.com": 0,
-		},
-	},
-	{
-		name: "one entry in queue, same entry in routing table",
-		table: newRoutingTable([]hostAndTarget{
-			{
-				host:   "example.com",
-				target: routing.Target{},
+			retCounts: map[string]int{
+				"example.com": 1,
 			},
-		}),
-		counts: map[string]int{
-			"example.com": 1,
 		},
-		retCounts: map[string]int{
-			"example.com": 1,
-		},
-	},
-	{
-		name: "one entry in queue, two in routing table",
-		table: newRoutingTable([]hostAndTarget{
-			{
-				host:   "example.com",
-				target: routing.Target{},
+		{
+			name: "one entry in queue, two in routing table",
+			table: newRoutingTable([]hostAndTarget{
+				{
+					host:   "example.com",
+					target: routing.Target{},
+				},
+				{
+					host:   "example2.com",
+					target: routing.Target{},
+				},
+			}),
+			counts: map[string]int{
+				"example.com": 1,
 			},
-			{
-				host:   "example2.com",
-				target: routing.Target{},
+			retCounts: map[string]int{
+				"example.com":  1,
+				"example2.com": 0,
 			},
-		}),
-		counts: map[string]int{
-			"example.com": 1,
 		},
-		retCounts: map[string]int{
-			"example.com":  1,
-			"example2.com": 0,
-		},
-	},
-}
-
-func TestMergeCountsWithRoutingTable(t *testing.T) {
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			r := require.New(t)
-			ret := mergeCountsWithRoutingTable(
-				tc.counts,
-				tc.table,
-			)
-			r.Equal(tc.retCounts, ret)
-		})
 	}
+
 }
-
 func TestGetHostCount(t *testing.T) {
-
-	for _, tc := range cases {
+	for _, tc := range cases() {
 		for host, retCount := range tc.retCounts {
 			t.Run(tc.name, func(t *testing.T) {
 				r := require.New(t)
