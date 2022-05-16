@@ -108,9 +108,9 @@ Then, when you see a `curl` command below, replace the entire path up to and inc
 
 ### Interceptor
 
-Any interceptor pod has both a _proxy_ and _admin_ server running inside it. The proxy server is where users send HTTP requests to, and the admin server is for internal use. The admin server runs on a separate port, fronted by a separate `Service`.
+Any interceptor pod has both a _proxy_ and _admin_ server running inside it. The proxy server is where users send HTTP requests to, and the admin server is for internal use. The admin server runs on a separate port, fronted by a separate `Service`. The admin server also performs following tasks:
 
-1. Prompt the interceptor to re-fetch the routing table from the interceptor, or
+1. Prompt the interceptor to re-fetch the routing table, or
 2. Print out the interceptor's current routing table (useful for debugging)
 
 #### Configuration
