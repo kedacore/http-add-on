@@ -45,7 +45,7 @@ Please see the [complete installation instructions](./docs/install.md).
 ## Roadmap
 We use GitHub issues to build our backlog, a complete overview of all open items and our planning.
 
-Learn more about our roadmap [here](ROADMAP.md).
+Learn more about our [roadmap](ROADMAP.md).
 
 ## Contributing
 
