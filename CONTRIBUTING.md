@@ -25,7 +25,7 @@ You can learn about the governance of KEDA [here](https://github.com/kedacore/go
 
 ## Including Documentation Changes
 
-For any contribution you make that impacts the behavior or experience of the KEDA HTTP Addon, please make sure you include updates to the documentation in the same pull request, and if appropriate, changes to [the KEDA main documentation repository](https://github.com/kedacore/keda-docs). Contributions that do not include documentation or samples will be rejected.
+For any contribution you make that impacts the behavior or experience of the KEDA HTTP Add-on, please make sure you include updates to the documentation in the same pull request, and if appropriate, changes to [the KEDA main documentation repository](https://github.com/kedacore/keda-docs). Contributions that do not include documentation or samples will be rejected.
 
 ## Development Environment Setup
 
