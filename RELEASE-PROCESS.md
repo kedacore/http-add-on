@@ -1,6 +1,6 @@
 # Release Process
 
-The process of releasing a new version of the KEDA HTTP Addon involves a few steps, detailed below.
+The process of releasing a new version of the KEDA HTTP Add-on involves a few steps, detailed below.
 
 >The process herein is largely automated but we recognize that there may be more that we can automate. If you find something that _can_ and _should_ be automated, and you believe that you know how, please [submit an issue](https://github.com/kedacore/http-add-on/issues/new?assignees=&labels=needs-discussion%2Cfeature-request&template=Feature_request.md) explaining how.
 
@@ -51,7 +51,7 @@ Once you've made changes to the chart, here's how to do submit the change to the
 
 - Submit a Pull Request (PR) to the [github.com/kedacore/charts](https://github.com/kedacore/charts) repository with your changes. Also ensure that you follow the [Shipping a new version](https://github.com/kedacore/charts/blob/master/CONTRIBUTING.md#shipping-a-new-version) guidelines in the charts documentation to complete the chart release.
 - Your chart changes must go into the [http-add-on](https://github.com/kedacore/charts/tree/master/http-add-on) directory. The release artifact will go into the [docs](https://github.com/kedacore/charts/tree/master/docs) directory.
-- Ensure that you add a link to the HTTP Addon repository and the new release number, so that PR reviewers are aware what the work relates to
+- Ensure that you add a link to the HTTP Add-on repository and the new release number, so that PR reviewers are aware what the work relates to
 - Work with the maintainers of that repository to get the chart merged
 
 After your PR is merged, you've completed the release. Congratulations! You can optionally write a blog post about it; see the next section if you're interested.

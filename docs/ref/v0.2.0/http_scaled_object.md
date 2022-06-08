@@ -34,11 +34,11 @@ This is the primary and most important part of the `spec` because it describes:
 
 ### `deployment`
 
-This is the name of the `Deployment` to scale. It must exist in the same namespace as this `HTTPScaledObject` and shouldn't be managed by any other autoscaling system. This means that there should not be any `ScaledObject` already created for this `Deployment`. The HTTP add on will manage a `ScaledObject` internally.
+This is the name of the `Deployment` to scale. It must exist in the same namespace as this `HTTPScaledObject` and shouldn't be managed by any other autoscaling system. This means that there should not be any `ScaledObject` already created for this `Deployment`. The HTTP Add-on will manage a `ScaledObject` internally.
 
 ### `service`
 
-This is the name of the service to route traffic to. The add on will create autoscaling and routing components that route to this `Service`. It must exist in the same namespace as this `HTTPScaledObject` and should route to the same `Deployment` as you entered in the `deployment` field.
+This is the name of the service to route traffic to. The add-on will create autoscaling and routing components that route to this `Service`. It must exist in the same namespace as this `HTTPScaledObject` and should route to the same `Deployment` as you entered in the `deployment` field.
 
 ### `port`
 
@@ -48,6 +48,6 @@ This is the port to route to on the service that you specified in the `service` 
 
 >Default: 100
 
-This is the number of _pending_ (or in-progress) requests that your application needs to have before the HTTP Addon will scale it. Conversely, if your application has below this number of pending requests, the HTTP addon will scale it down.
+This is the number of _pending_ (or in-progress) requests that your application needs to have before the HTTP Add-on will scale it. Conversely, if your application has below this number of pending requests, the HTTP add-on will scale it down.
 
-For example, if you set this field to 100, the HTTP Addon will scale your app up if it sees that there are 200 in-progress requests. On the other hand, it will scale down if it sees that there are only 20 in-progress requests. Note that it will _never_ scale your app to zero replicas unless there are _no_ requests in-progress. Even if you set this value to a very high number and only have a single in-progress request, your app will still have one replica.
+For example, if you set this field to 100, the HTTP Add-on will scale your app up if it sees that there are 200 in-progress requests. On the other hand, it will scale down if it sees that there are only 20 in-progress requests. Note that it will _never_ scale your app to zero replicas unless there are _no_ requests in-progress. Even if you set this value to a very high number and only have a single in-progress request, your app will still have one replica.
