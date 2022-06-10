@@ -23,6 +23,12 @@ For these reasons, the KEDA core project has purposely not built generic HTTP-ba
 
 This project, often called KEDA-HTTP, exists to provide that scaling. It is composed of simple, isolated components and includes an opinionated way to put them together.
 
+## Adopters - Become a listed KEDA user!
+
+We are always happy to start list users who run KEDA's HTTP Add-On in production or are evaluating it, learn more about it [here](ADOPTERS.md).
+
+We welcome pull requests to list new adopters.
+
 ## Walkthrough
 
 Although this is currently a **beta release** project, we have prepared a walkthrough document that with instructions on getting started for basic usage.
