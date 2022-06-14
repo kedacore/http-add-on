@@ -27,13 +27,17 @@ import (
 
 // Global consts
 const (
-	DEFAULT_NAMESPACE string = "kedahttp"
+	DEFAULT_NAMESPACE      string = "kedahttp"
+	DEFAULT_CHART_LOCATION        = "kedacore/http-add-on"
+	DEFAULT_HTTP_SO_YAML          = "./examples/v0.3.0/httpscaledobject.yaml"
 
 	ACR_REGISTRY_NAME         = "KEDAHTTP_ACR_REGISTRY"
 	SCALER_IMAGE_ENV_VAR      = "KEDAHTTP_SCALER_IMAGE"
 	INTERCEPTOR_IMAGE_ENV_VAR = "KEDAHTTP_INTERCEPTOR_IMAGE"
 	OPERATOR_IMAGE_ENV_VAR    = "KEDAHTTP_OPERATOR_IMAGE"
 	NAMESPACE_ENV_VAR         = "KEDAHTTP_NAMESPACE"
+	CHART_LOCATION_ENV_VAR    = "KEDAHTTP_CHART_LOCATION"
+	HTTP_SO_YAML_ENV_VAR      = "KEDAHTTP_HTTP_SO_YAML"
 )
 
 type Scaler mg.Namespace
@@ -288,10 +292,8 @@ func DockerPush(ctx context.Context) error {
 // "kedacore/http-add-on-operator:{SHA}" image and install along with the
 // interceptor and scaler images on the same SHA
 func UpgradeOperator(ctx context.Context) error {
-	namespace, err := env.Get(NAMESPACE_ENV_VAR)
-	if err != nil {
-		namespace = DEFAULT_NAMESPACE
-	}
+	namespace := env.GetOr(NAMESPACE_ENV_VAR, DEFAULT_NAMESPACE)
+
 	operatorImg, err := build.GetImageName(OPERATOR_IMAGE_ENV_VAR)
 	if err != nil {
 		return err
@@ -305,11 +307,13 @@ func UpgradeOperator(ctx context.Context) error {
 		return err
 	}
 
+	chartLocation := env.GetOr(CHART_LOCATION_ENV_VAR, DEFAULT_CHART_LOCATION)
+
 	if err := sh.RunV(
 		"helm",
 		"upgrade",
 		"http-add-on",
-		"kedacore/http-add-on",
+		chartLocation,
 		"--install",
 		"--namespace",
 		namespace,
@@ -439,7 +443,8 @@ func (Scaler) GenerateProto() error {
 
 // Create a new example HTTPScaledObject
 func NewHTTPSO(ctx context.Context, namespace string) error {
-	return sh.RunV("kubectl", "create", "-f", "./examples/v0.3.0/httpscaledobject.yaml", "-n", namespace)
+	httpSODefinition := env.GetOr(HTTP_SO_YAML_ENV_VAR, DEFAULT_HTTP_SO_YAML)
+	return sh.RunV("kubectl", "create", "-f", httpSODefinition, "-n", namespace)
 }
 
 func ShowHTTPSO(ctx context.Context, namespace string) error {
@@ -448,7 +453,8 @@ func ShowHTTPSO(ctx context.Context, namespace string) error {
 
 // Delete the example HTTPScaledObject created from NewHTTPSO
 func DeleteHTTPSO(ctx context.Context, namespace string) error {
-	return sh.RunV("kubectl", "delete", "httpscaledobject", "xkcd", "-n", namespace)
+	httpSODefinition := env.GetOr(HTTP_SO_YAML_ENV_VAR, DEFAULT_HTTP_SO_YAML)
+	return sh.RunV("kubectl", "delete", "-f", httpSODefinition, "-n", namespace)
 }
 
 func TestE2E(ctx context.Context) error {
