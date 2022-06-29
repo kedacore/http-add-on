@@ -70,17 +70,17 @@ Some of the above commands require several environment variables to be set. You 
 - `KEDAHTTP_SCALER_IMAGE`: the fully qualified name of the [scaler](../scaler) image. This is used to build, push, and install the scaler into a Kubernetes cluster (required)
 - `KEDAHTTP_INTERCEPTOR_IMAGE`: the fully qualified name of the [interceptor](../interceptor) image. This is used to build, push, and install the interceptor into a Kubernetes cluster (required)
 - `KEDAHTTP_OPERATOR_IMAGE`: the fully qualified name of the [operator](../operator) image. This is used to build, push, and install the operator into a Kubernetes cluster (required)
-- `KEDAHTTP_NAMESPACE`: the Kubernetes namespace to which to install the add on and other required components (optional, defaults to `kedahttp`)
+- `KEDAHTTP_NAMESPACE`: the Kubernetes namespace to which to install the add-on and other required components (optional, defaults to `kedahttp`)
 
 >Suffix any `*_IMAGE` variable with `<keda-git-sha>` and the build system will automatically replace it with `sha-$(git rev-parse --short HEAD)`
 
 ## Debugging and Observing Components
 
-The below tips assist with debugging, introspecting, or observing the current state of a running HTTP addon installation. They involve making network requests to cluster-internal (i.e. `ClusterIP` `Service`s).
+The below tips assist with debugging, introspecting, or observing the current state of a running HTTP add-on installation. They involve making network requests to cluster-internal (i.e. `ClusterIP` `Service`s).
 
 There are generally two ways to communicate with these services. In the following sections, we'll assume you are using the `kubectl proxy` method, but the most instructions will be simple enough to adapt to other methods.
 
-We'll also assume that you have set the `$NAMESPACE` environment variable in your environment to the namespace in which the HTTP addon is installed.
+We'll also assume that you have set the `$NAMESPACE` environment variable in your environment to the namespace in which the HTTP add-on is installed.
 
 ### Use `kubectl proxy`
 
@@ -110,7 +110,9 @@ Then, when you see a `curl` command below, replace the entire path up to and inc
 
 Any interceptor pod has both a _proxy_ and _admin_ server running inside it. The proxy server is where users send HTTP requests to, and the admin server is for internal use. The admin server runs on a separate port, fronted by a separate `Service`.
 
-1. Prompt the interceptor to re-fetch the routing table from the interceptor, or
+The admin server also performs following tasks:
+
+1. Prompt the interceptor to re-fetch the routing table, or
 2. Print out the interceptor's current routing table (useful for debugging)
 
 #### Configuration

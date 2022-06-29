@@ -49,7 +49,7 @@ body:
 - type: input
   id: keda-http-version
   attributes:
-    label: What version of the KEDA HTTP Addon are you running?
+    label: What version of the KEDA HTTP Add-on are you running?
   validations:
     required: false
 - type: dropdown
