@@ -135,7 +135,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Helm install
-        uses: Azure/setup-helm@v1
+        uses: Azure/setup-helm@v3
 
       - name: Create k8s v1.23 Kind Cluster
         uses: helm/kind-action@main
