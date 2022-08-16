@@ -1,6 +1,6 @@
-# KEDA HTTP Add-On Adopters
+# KEDA HTTP Add-on Adopters
 
-This page contains a list of organizations who are using KEDA's HTTP Add-On in production or at stages of testing.
+This page contains a list of organizations who are using KEDA's HTTP Add-on in production or at stages of testing.
 
 ## Adopters
 
@@ -12,7 +12,7 @@ This page contains a list of organizations who are using KEDA's HTTP Add-On in p
 
 You can easily become an adopter by sending a pull request to this file.
 
-These are the adoption statusses that you can use:
+These are the adoption statuses that you can use:
 
 - ![production](https://img.shields.io/badge/-production-blue?style=flat)
 - ![testing](https://img.shields.io/badge/-development%20&%20testing-green?style=flat)

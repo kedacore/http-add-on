@@ -8,7 +8,7 @@ There are three major components in this system. You can find more detail and di
 
 - [Operator](../operator) - This component listens for events related to `HTTPScaledObject`s and creates, updates or removes internal machinery as appropriate.
 - [Interceptor](../interceptor) - This component accepts and routes external HTTP traffic to the appropriate internal application, as appropriate.
-- [Scaler](../scaler) - This component tracks the size of the pending HTTP request queue for a given app and reports it to KEDA. It acts as an [external scaler](https://keda.sh/docs/2.1/scalers/external-push/).
+- [Scaler](../scaler) - This component tracks the size of the pending HTTP request queue for a given app and reports it to KEDA. It acts as an [external scaler](https://keda.sh/docs/latest/scalers/external-push/).
 - [KEDA](https://keda.sh) - KEDA acts as the scaler for the user's HTTP application.
 
 ## Functionality Areas
@@ -35,7 +35,7 @@ The interceptor keeps track of the number of pending HTTP requests - HTTP reques
 
 #### The Horizontal Pod Autoscaler
 
-The HTTP Add-on works with the Kubernetes [Horizonal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details) (HPA) -- via KEDA itself -- to execute scale-up and scale-down operations (except for scaling between zero and non-zero replicas). The add-on furnishes KEDA with two metrics - the current number of pending requests for a host, and the desired number (called `targetPendingRequests` in the [HTTPScaledObject](./ref/v0.2.0/http_scaled_object.md)). KEDA then sends these metrics to the HPA, which uses them as the `currentMetricValue` and `desiredMetricValue`, respectively, in the [HPA Algorithm](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details).
+The HTTP Add-on works with the Kubernetes [Horizonal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details) (HPA) -- via KEDA itself -- to execute scale-up and scale-down operations (except for scaling between zero and non-zero replicas). The add-on furnishes KEDA with two metrics - the current number of pending requests for a host, and the desired number (called `targetPendingRequests` in the [HTTPScaledObject](./ref/v0.3.0/http_scaled_object.md)). KEDA then sends these metrics to the HPA, which uses them as the `currentMetricValue` and `desiredMetricValue`, respectively, in the [HPA Algorithm](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details).
 
 The net effect is that the add-on scales up when your app grows to more pending requests than the `targetPendingRequests` value, and scales down when it has fewer than that value.
 

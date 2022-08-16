@@ -2,8 +2,8 @@
 
 Running production HTTP servers in Kubernetes is complicated and involves many pieces of infrastructure. The HTTP Add-on (called the "add-on" hereafter) aims to autoscale these HTTP servers, but does not aim to extend beyond that scope. Generally, this project only aims to do two things:
 
-1. Autoscale arbitrary HTTP servers based on the volume of traffic incoming to it, including to zero
-2. Route HTTP traffic from a given source to an arbitrary HTTP server, as far as we need to efficiently accomplish (1)
+1. Autoscale arbitrary HTTP servers based on the volume of traffic incoming to it, including to zero.
+2. Route HTTP traffic from a given source to an arbitrary HTTP server, as far as we need to efficiently accomplish (1).
 
 The add-on only provides this functionality to workloads that _opt in_ to it. We provide more detail below.
 

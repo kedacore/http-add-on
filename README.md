@@ -7,11 +7,11 @@ The KEDA HTTP Add-on allows Kubernetes users to automatically scale their HTTP s
 
 | 🚧 **Project status: beta** 🚧|
 |---------------------------------------------|
-| ⚠ The HTTP Add-on currently is in [beta](https://github.com/kedacore/http-add-on/releases/tag/v0.1.0). We can't yet recommend it for production usage because we are still developing and testing it. It may have "rough edges" including missing documentation, bugs and other issues. It is currently provided as-is without support.
+| ⚠ The HTTP Add-on currently is in [beta](https://github.com/kedacore/http-add-on/releases/latest). We can't yet recommend it for production usage because we are still developing and testing it. It may have "rough edges" including missing documentation, bugs and other issues. It is currently provided as-is without support.
 
 ## HTTP Autoscaling Made Simple
 
-[KEDA](https://github.com/kedacore/keda) provides a reliable and well tested solution to scaling your workloads based on external events. The project supports a wide variety of [scalers](https://keda.sh/docs/2.2/scalers/) - sources of these events, in other words. These scalers are systems that produce precisely measurable events via an API.
+[KEDA](https://github.com/kedacore/keda) provides a reliable and well tested solution to scaling your workloads based on external events. The project supports a wide variety of [scalers](https://keda.sh/docs/latest/scalers/) - sources of these events, in other words. These scalers are systems that produce precisely measurable events via an API.
 
 KEDA does not, however, include an HTTP-based scaler out of the box for several reasons:
 
@@ -25,13 +25,13 @@ This project, often called KEDA-HTTP, exists to provide that scaling. It is comp
 
 ## Adopters - Become a listed KEDA user!
 
-We are always happy to start list users who run KEDA's HTTP Add-On in production or are evaluating it, learn more about it [here](ADOPTERS.md).
+We are always happy to start list users who run KEDA's HTTP Add-on in production or are evaluating it, learn more about it [here](ADOPTERS.md).
 
 We welcome pull requests to list new adopters.
 
 ## Walkthrough
 
-Although this is currently a **beta release** project, we have prepared a walkthrough document that with instructions on getting started for basic usage.
+Although this is currently a **beta release** project, we have prepared a walkthrough document with instructions on getting started for basic usage.
 
 See that document at [docs/walkthrough.md](./docs/walkthrough.md)
 
