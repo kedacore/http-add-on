@@ -52,9 +52,9 @@ The most useful and common commands from the root directory are listed below. Pl
 
 - `mage build`: Builds all the binaries for local testing.
 - `mage test`: Tests the entire codebase
-- `mage dockerbuild`: Builds all docker images
+- `mage dockerBuild`: Builds all docker images
   - Please see the below "Environment Variables" section for more information on this command
-- `mage dockerpush`: Pushes all docker images, without building them first
+- `mage dockerPush`: Pushes all docker images, without building them first
   - Please see the below "Environment Variables" section for more information on this command
 
 ### In the Operator Directory
@@ -88,7 +88,7 @@ We'll also assume that you have set the `$NAMESPACE` environment variable in you
 
 To establish one, run the following command in a separate terminal window:
 
-```shell
+```console
 kubectl proxy -p 9898
 ```
 
@@ -98,9 +98,9 @@ kubectl proxy -p 9898
 
 The second way to communicate with these services is almost the opposite as the previous. Instead of bringing the API server to you with `kubectl proxy`, you'll be creating an execution environment closer to the API server.
 
-First, launch a container with an interactive shell in Kubernetes with the following command (substituting your namespace in for `$NAMESPACE`):
+First, launch a container with an interactive console in Kubernetes with the following command (substituting your namespace in for `$NAMESPACE`):
 
-```shell
+```console
 kubectl run -it alpine --image=alpine -n $NAMESPACE
 ```
 
@@ -119,7 +119,7 @@ The admin server also performs following tasks:
 
 Run the following `curl` command to get the running configuration of the interceptor:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/config
 ```
 
@@ -127,13 +127,13 @@ curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-i
 
 To prompt the interceptor to fetch the routing table, then print it out:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/routing_ping
 ```
 
 Or, to just ask the interceptor to print out its routing table:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/routing_table
 ```
 
@@ -141,7 +141,7 @@ curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-i
 
 To fetch the state of an individual interceptor's pending HTTP request queue:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/queue
 ```
 
@@ -149,7 +149,7 @@ curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-i
 
 To fetch the current state of an individual interceptor's deployment queue:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-interceptor-admin:9090/proxy/deployments
 ```
 
@@ -163,7 +163,7 @@ Like the interceptor, the operator has an admin server that has HTTP endpoints a
 
 Run the following `curl` command to get the running configuration of the operator:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-operator-admin:9090/proxy/config
 ```
 
@@ -173,7 +173,7 @@ The operator has a similar `/routing_table` endpoint as the interceptor. That da
 
 Fetch the operator's routing table with the following command:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-operator-admin:9090/proxy/routing_table
 ```
 
@@ -183,9 +183,9 @@ Like the interceptor, the scaler has an HTTP admin interface against which you c
 
 #### Configuration
 
-Run the following `curl` command to get the running configuration of the interceptor:
+Run the following `curl` command to get the running configuration of the scaler:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-external-scaler:9091/proxy/config
 ```
 
@@ -195,12 +195,12 @@ The external scaler fetches pending queue counts from each interceptor in the sy
 
 For convenience, the scaler also provides a plain HTTP server from which you can also fetch these metrics. Fetch the queue counts from this HTTP server with the following command:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-external-scaler:9091/proxy/queue
 ```
 
 Alternatively, you can prompt the scaler to fetch counts from all interceptors, aggregate, store, and return counts:
 
-```shell
+```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-external-scaler:9091/proxy/queue_ping
 ```

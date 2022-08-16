@@ -42,36 +42,43 @@ Please find it at [docs/developing.md](./docs/developing.md).
 
 ### Pre-requisite:
 
-- A running cluster with Keda installed.
+- A running Kubernetes cluster with KEDA installed.
 - [Mage](https://magefile.org/)
 - [Helm](https://helm.sh/)
-- [k9s](https://github.com/derailed/k9s) 
+- [k9s](https://github.com/derailed/k9s) (_optional_)
 - Set the required environment variables explained [here](https://github.com/kedacore/http-add-on/blob/main/docs/developing.md#required-environment-variables).
 
-### Building: 
+### Building:
 
-- Fork & clone the repo : https://github.com/kedacore/http-add-on.git
-- cd http-add-on
-- Use Mage to build with : 
-   ```
-   mage build: build local binaries
-   mage dockerBuild: build docker images of the components
+- Fork & clone the repo:
+  ```console
+  $ git clone https://github.com/<your-username>/http-add-on.git
+  ```
+- Change into the repo directory:
+  ```console
+  $ cd http-add-on
+  ```
+- Use Mage to build with:
+   ```console
+   $ mage build       # build local binaries
+   $ mage dockerBuild # build docker images of the components
    ```
  If the environment variables are not setup , the docker build will fail so remember to export the right variable values.
 
 ### Deploying:
 
-Custom KEDA-http-addon as an image
+Custom HTTP Add-on as an image
 
 - Make your changes in the code
-- Build and publish images with your changes, remember  to 	set your environment variables for images as per the registry of your choice and run 
-  ```
+- Build and publish images with your changes, remember  to 	set your environment variables for images as per the registry of your choice and run
+  ```console
   $ mage dockerBuild
   ```
- If you want to deploy with docker or any other registry of your choice then use right address in setting the images. 
+ If you want to deploy with docker or any other registry of your choice then use right address in setting the images.
 
- There are local clusters with local registries provided, in such cases  make sure to use and push your images to its local registry. In the case of MicroK8s, the address is localhost:32000 and the helm install command would look like the following.
-```   
+ There are local clusters with local registries provided, in such cases  make sure to use and push your images to its local registry. In the case of MicroK8s, the address is `localhost:32000` and the helm install command would look like the following.
+
+```console
 $ helm repo add kedacore https://kedacore.github.io/charts
 $ helm repo update
 $ helm pull kedacore/keda-add-ons-http --untar --untardir ./charts
@@ -82,22 +89,22 @@ $ helm upgrade kedahttp ./charts/keda-add-ons-http \
   --set image=localhost:32000/keda-http-operator \
   --set images.scaler=localhost:32000/keda-http-scaler \
   --set images.interceptor=localhost:32000/keda-http-interceptor
-```  
- If you want to install the latest build of the HTTP Add on, set version to canary:
- ``` 
+```
+ If you want to install the latest build of the HTTP Add-on, set version to `canary`:
+ ```console
  $ helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.tag=canary
  ```
 ### Load testing with k9s:
 
 K9s integrates Hey, a CLI tool to benchmark HTTP endpoints similar to AB bench. This preliminary feature currently supports benchmarking port-forwards and services. You can use this feature in load testing as follows:
 
-- Install an application to scale: we used the sample provided for which you have to clone 
-  ```
+- Install an application to scale, we use the provided sample -
+  ```console
   $ helm install xkcd ./examples/xkcd -n ${NAMESPACE}
   ```
-- You'll need to clone the repository to get access to this chart. If you have your own Deployment and Service installed, you can go right to creating an HTTPScaledObject by
+- You'll need to clone the repository to get access to this chart. If you have your own Deployment and Service installed, you can go right to creating an HTTPScaledObject. We use the provided sample HTTPScaledObject -
   ```
-  $ kubectl create -n $NAMESPACE -f examples/v0.2.0/httpscaledobject.yaml
+  $ kubectl create -n $NAMESPACE -f examples/v0.3.0/httpscaledobject.yaml
   ```
 - Testing Your Installation using k9s:
   ```
@@ -112,7 +119,7 @@ K9s integrates Hey, a CLI tool to benchmark HTTP endpoints similar to AB bench. 
   (e) Enter the port-forward and apply <CTRL+L> to start a benchmark
 
   (f) You can enter the port-forward to see the run stat details and performance.
-  ```  
+  ```
 >You can customize the benchmark in k9s also. It's explained well in [here](https://k9scli.io/topics/bench/).
 
 ## Developer Certificate of Origin: Signing your work
@@ -143,7 +150,7 @@ Signed-off-by: Random J Developer <random@developer.example.org>
 
 Git even has a `-s` command line option to append this automatically to your commit message:
 
-```
+```console
 $ git commit -s -m 'This is my commit message'
 ```
 
@@ -153,10 +160,10 @@ Each Pull Request is checked whether or not commits in a Pull Request do contain
 
 No worries - You can easily replay your changes, sign them and force push them!
 
-```
-git checkout <branch-name>
-git reset $(git merge-base main <branch-name>)
-git add -A
-git commit -sm "one commit on <branch-name>"
-git push --force
+```console
+$ git checkout <branch-name>
+$ git reset $(git merge-base main <branch-name>)
+$ git add -A
+$ git commit -sm "one commit on <branch-name>"
+$ git push --force
 ```

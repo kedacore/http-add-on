@@ -10,8 +10,8 @@ If you haven't installed KEDA and the HTTP Add-on (this project), please do so f
 
 You'll need to install a `Deployment` and `Service` first. You'll tell the add-on to begin scaling it up and down after this step. We've provided a [Helm](https://helm.sh) chart in this repository that you can use to try it out. Use this command to create the resources you need.
 
-```shell
-helm install xkcd ./examples/xkcd -n ${NAMESPACE}
+```console
+$ helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 ```
 
 You'll need to clone the repository to get access to this chart. If you have your own `Deployment` and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
@@ -24,25 +24,25 @@ You'll need to clone the repository to get access to this chart. If you have you
 
 You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object instructs interceptors to forward requests for a given host to your app's backing `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
-```shell
-kubectl create -n $NAMESPACE -f examples/v0.2.0/httpscaledobject.yaml
+```console
+$ kubectl create -n $NAMESPACE -f examples/v0.3.0/httpscaledobject.yaml
 ```
 
->If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.2.0/http_scaled_object.md).
+>If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.3.0/http_scaled_object.md).
 
 ## Testing Your Installation
 
 You've now installed a web application and activated autoscaling by creating an `HTTPScaledObject` for it. For autoscaling to work properly, HTTP traffic needs to route through the `Service` that the add-on has set up. You can use `kubectl port-forward` to quickly test things out:
 
-```shell
-kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8080:80
+```console
+$ kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8080:80
 ```
 
 ### Routing to the Right `Service`
 
 As said above, you need to route your HTTP traffic to the `Service` that the add-on has created. If you have existing systems - like an ingress controller - you'll need to anticipate the name of these created `Service`s. Each one will be named consistently like so, in the same namespace as the `HTTPScaledObject` and your application (i.e. `$NAMESPACE`):
 
-```shell
+```console
 keda-add-ons-http-interceptor-proxy
 ```
 
@@ -56,7 +56,7 @@ While you can access it via the `kubectl port-forward` command above, we recomme
 
 First, install the controller using the commands below. These commands use Helm v3. For other installation methods, see the [installation page](https://kubernetes.github.io/ingress-nginx/deploy/).
 
-```shell
+```console
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 helm install ingress-nginx ingress-nginx/ingress-nginx -n ${NAMESPACE}
@@ -74,7 +74,7 @@ Now that you have your application running and your ingress configured, you can 
 
 Regardless, you can use the below `curl` command to make a request to your application:
 
-```shell
+```console
 curl -H "Host: myhost.com" <Your IP>
 ```
 

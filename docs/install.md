@@ -5,10 +5,9 @@ The HTTP Add-on is highly modular and, as expected, builds on top of KEDA core. 
 - **Operator** - watches for `ScaledHTTPObject` CRD resources and creates necessary backing Kubernetes resources (e.g. `Deployment`s, `Service`s, `ScaledObject`s, and so forth)
 - **Scaler** - communicates scaling-related metrics to KEDA. By default, the operator will install this for you as necessary.
 - **Interceptor** - a cluster-internal proxy that proxies incoming HTTP requests, communicating HTTP queue size metrics to the scaler, and holding requests in a temporary request queue when there are not yet any available app `Pod`s ready to serve. By default, the operator will install this for you as necessary.
+    >There is [pending work](https://github.com/kedacore/http-add-on/issues/354) that may eventually make this component optional.
 
->There is [pending work](https://github.com/kedacore/http-add-on/issues/354) that may eventually make this component optional.
-
-## Before You Start: Cluster-global vs. Namespaced installation
+## Before You Start: Cluster-global vs. Namespaced Installation
 
 Both KEDA and the HTTP Add-on can be installed in either cluster-global or namespaced mode. In the former case, your `ScaledObject`s and `HTTPScaledObject`s (respectively) can be installed in any namespace, and one installation will detect and process it. In the latter case, you must install your `ScaledObject`s and `HTTPScaledObject`s in a specific namespace.
 
@@ -17,17 +16,17 @@ You have the option of installing KEDA and the HTTP Add-on in either mode, but i
 
 Before you install any of these components, you need to install KEDA. Below are simplified instructions for doing so with [Helm](https://helm.sh), but if you need anything more customized, please see the [official KEDA deployment documentation](https://keda.sh/docs/2.0/deploy/). If you need to install Helm, refer to the [installation guide](https://helm.sh/docs/intro/install/).
 
->This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the below `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into. KEDA and the HTTP Add-on provide scaling functionality to only one namespace per installation.
+>This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the below `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into.
 
 ```console
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-helm install keda kedacore/keda --namespace ${NAMESPACE} --create-namespace
+$ helm repo add kedacore https://kedacore.github.io/charts
+$ helm repo update
+$ helm install keda kedacore/keda --namespace ${NAMESPACE} --create-namespace
 ```
 
 >The above command installs KEDA in cluster-global mode. Add `--set watchNamespace=<target namespace>` to install KEDA in namespaced mode.
 
-## Install via Helm Chart
+## Install the Add-on via Helm Chart
 
 The Helm chart for this project is within KEDA's default helm repository at [kedacore/charts](http://github.com/kedacore/charts), you can install it by running:
 
@@ -50,7 +49,7 @@ There are a few values that you can pass to the above `helm install` command by 
 >If you want to install the latest build of the HTTP Add-on, set `version` to `canary`:
 
 ```console
-helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.tag=canary
+$ helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.tag=canary
 ```
 
 For an exhaustive list of configuration options, see the official HTTP Add-on chart [values.yaml file](https://github.com/kedacore/charts/blob/master/http-add-on/values.yaml).
@@ -59,11 +58,11 @@ For an exhaustive list of configuration options, see the official HTTP Add-on ch
 
 Local clusters like [Microk8s](https://microk8s.io/) offer in-cluster image registries. These are popular tools to speed up and ease local development. If you use such a tool for local development, we recommend that you use and push your images to its local registry. When you do, you'll want to set your `images.*` variables to the address of the local registry. In the case of MicroK8s, that address is `localhost:32000` and the `helm install` command would look like the following:
 
-```shell
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-helm pull kedacore/keda-add-ons-http --untar --untardir ./charts
-helm upgrade kedahttp ./charts/keda-add-ons-http \
+```console
+$ helm repo add kedacore https://kedacore.github.io/charts
+$ helm repo update
+$ helm pull kedacore/keda-add-ons-http --untar --untardir ./charts
+$ helm upgrade kedahttp ./charts/keda-add-ons-http \
     --install \
     --namespace ${NAMESPACE} \
     --create-namespace \
