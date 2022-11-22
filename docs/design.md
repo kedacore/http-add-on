@@ -47,4 +47,4 @@ Although the HTTP Add-on is very configurable and supports multiple different de
 
 ![architecture diagram](./images/arch.png)
 
-[Go back to landing page](/)
+[Go back to landing page](./)
