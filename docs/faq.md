@@ -38,3 +38,5 @@ OpenFaaS and KEDA-HTTP both can deploy and autoscale HTTP workloads onto Kuberne
 - You don't need to build a container image to deploy code to OpenFaaS, while you do to deploy to KEDA-HTTP.
 - OpenFaaS can run either on or off Kubernetes, while KEDA-HTTP is Kubernetes-only.
 - OpenFaaS requires several additional components when running in Kubernetes, like Prometheus. The documentation refers to this as the [PLONK stack](https://docs.openfaas.com/deployment/#plonk-stack).
+
+[Go back to landing page](/)

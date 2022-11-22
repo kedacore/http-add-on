@@ -37,3 +37,5 @@ Getting the HTTP Add-on working can be done transparently and without downtime t
 
 - [Install](./install.md) the add-on. This step will have no effect on the running application.
 - Create a new `HTTPScaledObject`. This step activates autoscaling for the `Deployment` that you specify and the application will immediately start scaling up and down based on incoming traffic through the interceptor that was created.
+
+[Go back to landing page](/)
