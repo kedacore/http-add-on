@@ -46,3 +46,5 @@ The net effect is that the add-on scales up when your app grows to more pending 
 Although the HTTP Add-on is very configurable and supports multiple different deployments, the below diagram is the most common architecture that is shipped by default.
 
 ![architecture diagram](./images/arch.png)
+
+[Go back to landing page](/)

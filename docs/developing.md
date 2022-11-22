@@ -204,3 +204,5 @@ Alternatively, you can prompt the scaler to fetch counts from all interceptors, 
 ```console
 curl -L localhost:9898/api/v1/namespaces/$NAMESPACE/services/keda-add-ons-http-external-scaler:9091/proxy/queue_ping
 ```
+
+[Go back to landing page](/)
