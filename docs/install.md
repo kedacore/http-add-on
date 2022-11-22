@@ -75,4 +75,4 @@ $ helm upgrade kedahttp ./charts/keda-add-ons-http \
 
 Now that you're finished installing KEDA and the HTTP Add-on, please proceed to the [walkthrough](./walkthrough.md) to test out your new installation.
 
-[Go back to landing page](/)
+[Go back to landing page](./)

@@ -17,4 +17,4 @@ The HTTP Add-on only includes the necessary infrastructure to respond to new, mo
 
 To learn more, we recommend reading about our [design](design.md) or go through our [FAQ](faq.md).
 
-[Go back to landing page](/)
+[Go back to landing page](./)
