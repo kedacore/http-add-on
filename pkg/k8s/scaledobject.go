@@ -5,7 +5,6 @@ import (
 	"context"
 	"embed"
 	"text/template"
-	"time"
 
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -54,7 +53,7 @@ func NewScaledObject(
 	host string,
 	minReplicas,
 	maxReplicas int32,
-	cooldownPeriod time.Duration,
+	cooldownPeriod int32,
 ) (*unstructured.Unstructured, error) {
 	// https://keda.sh/docs/1.5/faq/
 	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
@@ -83,7 +82,7 @@ func NewScaledObject(
 		"DeploymentName": deploymentName,
 		"ScalerAddress":  scalerAddress,
 		"Host":           host,
-		"CooldownPeriod": 
+		"CooldownPeriod": cooldownPeriod,
 	}); tplErr != nil {
 		return nil, tplErr
 	}

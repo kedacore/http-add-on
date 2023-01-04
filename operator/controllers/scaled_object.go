@@ -34,6 +34,7 @@ func createOrUpdateScaledObject(
 		httpso.Spec.Host,
 		httpso.Spec.Replicas.Min,
 		httpso.Spec.Replicas.Max,
+		httpso.Spec.CooldownPeriod,
 	)
 	if appErr != nil {
 		return appErr

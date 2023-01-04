@@ -56,6 +56,7 @@ func getScaledObject(
 		"",
 		1,
 		2,
+		30,
 	)
 	if err != nil {
 		return nil, err
