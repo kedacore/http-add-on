@@ -4,8 +4,8 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/codeskyblue/go-sh"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/magefile/mage/sh"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -31,7 +31,7 @@ func getClient() (
 }
 
 func deleteNS(ns string) error {
-	return sh.RunV("kubectl", "delete", "namespace", ns)
+	return sh.Command("kubectl", "delete", "namespace", ns).Run()
 }
 
 func getPortStrings(svc *corev1.Service) []string {

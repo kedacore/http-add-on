@@ -1,0 +1,72 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keda-http-add-on-scaler
+  namespace: keda
+  labels:
+    control-plane: external-scaler
+    app: keda-http-add-on
+    app.kubernetes.io/name: keda-http-add-on
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: scaler
+    app.kubernetes.io/part-of: keda-http-add-on
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: external-scaler
+  template:
+    metadata:
+      labels:
+        control-plane: external-scaler
+      name: keda-http-add-on-scaler
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: keda-http-add-on
+      containers:        
+        - name: external-scaler
+          image: ghcr.io/kedacore/http-add-on-scaler:latest
+          command:
+            - /scaler          
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 1000m
+              memory: 1000Mi
+          ports:
+          - containerPort: 9091
+            name: scaler-health
+          - containerPort: 9090
+            name: scaler-grpc
+          env:
+          - name: KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT
+            value: "keda-http-add-on-interceptor"
+          - name: KEDA_HTTP_SCALER_PORT
+            value: "9090"
+          - name: KEDA_HTTP_HEALTH_PORT
+            value: "9091"
+          - name: KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE
+            value: "keda"
+          - name: KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE
+            value: "keda-http-add-on-interceptor-admin"
+          - name: KEDA_HTTP_SCALER_TARGET_ADMIN_PORT
+            value: "9090"
+          - name: KEDA_HTTP_SCALER_TARGET_PENDING_REQUESTS_INTERCEPTOR
+            value: "200"
+          securityContext:
+            runAsNonRoot: true
+            capabilities:
+              drop:
+              - ALL
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+      terminationGracePeriodSeconds: 10
+      nodeSelector:
+        kubernetes.io/os: linux

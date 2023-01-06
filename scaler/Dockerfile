@@ -1,14 +1,10 @@
-# taken from Athens
-# https://github.com/gomods/athens/blob/main/cmd/proxy/Dockerfile
-ARG GOLANG_VERSION=1.18.3
+# Build the adapter binary
+FROM --platform=$BUILDPLATFORM ghcr.io/kedacore/build-tools:1.18.8 as builder
 
-ARG GOARCH=amd64
-ARG GOOS=linux
-ARG VERSION="unset"
+ARG VERSION=main
+ARG GIT_COMMIT=HEAD
 
-FROM golang:${GOLANG_VERSION}-alpine AS builder
-
-WORKDIR $GOPATH/src/github.com/kedacore/http-add-on
+WORKDIR /workspace
 
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -16,17 +12,17 @@ RUN go mod download
 
 COPY . .
 
-ENV GO111MODULE=on
-ENV CGO_ENABLED=0
-ENV GOOS=${GOOS}
-ENV GOARCH=${GOARCH}
-ENV GOPROXY="https://proxy.golang.org"
-RUN go build -ldflags "-X github.com/kedacore/http-add-on/pkg/build.version=${VERSION}" -a -o /bin/scaler ./scaler
+# Build
+# https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
+ARG TARGETOS
+ARG TARGETARCH
+RUN VERSION=${VERSION} GIT_COMMIT=${GIT_COMMIT} TARGET_OS=$TARGETOS ARCH=$TARGETARCH make build-scaler
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /bin/scaler .
-USER nonroot:nonroot
+COPY --from=builder /workspace/bin/scaler .
+# 65532 is numeric for nonroot
+USER 65532:65532
 EXPOSE 8080
 
 ENTRYPOINT ["/scaler"]

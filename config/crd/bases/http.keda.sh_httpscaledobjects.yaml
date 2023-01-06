@@ -1,0 +1,162 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
+  name: httpscaledobjects.http.keda.sh
+spec:
+  group: http.keda.sh
+  names:
+    kind: HTTPScaledObject
+    listKind: HTTPScaledObjectList
+    plural: httpscaledobjects
+    shortNames:
+    - httpso
+    singular: httpscaledobject
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.scaleTargetRef.deploymentName
+      name: ScaleTargetDeploymentName
+      type: string
+    - jsonPath: .spec.scaleTargetRef
+      name: ScaleTargetServiceName
+      type: string
+    - jsonPath: .spec.scaleTargetRef
+      name: ScaleTargetPort
+      type: integer
+    - jsonPath: .spec.replicas.min
+      name: MinReplicas
+      type: integer
+    - jsonPath: .spec.replicas.max
+      name: MaxReplicas
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .status.conditions[?(@.type=="HTTPScaledObjectIsReady")].status
+      name: Active
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
+            properties:
+              host:
+                description: The host to route. All requests with this host in the
+                  "Host" header will be routed to the Service and Port specified in
+                  the scaleTargetRef
+                type: string
+              replicas:
+                description: (optional) Replica information
+                properties:
+                  max:
+                    description: Maximum amount of replicas to have in the deployment
+                      (Default 100)
+                    format: int32
+                    type: integer
+                  min:
+                    description: Minimum amount of replicas to have in the deployment
+                      (Default 0)
+                    format: int32
+                    type: integer
+                type: object
+              scaleTargetRef:
+                description: The name of the deployment to route HTTP requests to
+                  (and to autoscale). Either this or Image must be set
+                properties:
+                  deployment:
+                    description: The name of the deployment to scale according to
+                      HTTP traffic
+                    type: string
+                  port:
+                    description: The port to route to
+                    format: int32
+                    type: integer
+                  service:
+                    description: The name of the service to route to
+                    type: string
+                required:
+                - deployment
+                - port
+                - service
+                type: object
+              scaledownPeriod:
+                description: (optional) Cooldown period value
+                format: int32
+                type: integer
+              targetPendingRequests:
+                description: (optional) Target metric value
+                format: int32
+                type: integer
+            required:
+            - host
+            - scaleTargetRef
+            type: object
+          status:
+            description: HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
+            properties:
+              conditions:
+                description: List of auditable conditions of the operator
+                items:
+                  description: Condition to store the condition state
+                  properties:
+                    message:
+                      description: A human readable message indicating details about
+                        the transition.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition.
+                      enum:
+                      - ErrorCreatingAppScaledObject
+                      - AppScaledObjectCreated
+                      - TerminatingResources
+                      - AppScaledObjectTerminated
+                      - AppScaledObjectTerminationError
+                      - PendingCreation
+                      - HTTPScaledObjectIsReady
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    timestamp:
+                      description: Timestamp of the condition
+                      type: string
+                    type:
+                      description: Type of condition
+                      enum:
+                      - Created
+                      - Error
+                      - Pending
+                      - Unknown
+                      - Terminating
+                      - Terminated
+                      - Ready
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: keda-http-add-on
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/part-of: keda-http-add-on
+  name: keda-http-add-on-controller-manager-metrics-service
+  namespace: keda
+spec:
+  ports:
+  - name: https
+    port: 8443
+    targetPort: https
+  selector:
+    control-plane: controller-manager

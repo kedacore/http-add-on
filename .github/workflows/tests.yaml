@@ -1,4 +1,4 @@
-name: Run tests
+name: Validate
 on:
   push:
     branches: [main]
@@ -6,15 +6,49 @@ on:
     branches: [main]
 
 jobs:
-  run_tests:
-
-    runs-on: ubuntu-20.04
-
+  validate:
+    name: validate - ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    container: ghcr.io/kedacore/build-tools:1.18.8
+    strategy:
+      matrix:
+        include:
+        - runner: ARM64
+          name: arm64
+        - runner: ubuntu-latest
+          name: amd64
     steps:
     - uses: actions/checkout@v3
-    - name: Install Go
-      uses: actions/setup-go@v3
+
+    - name: Register workspace path
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+    - name: Check go version
+      run: go version
+
+    - name: Manifests
+      run: make verify-manifests
+
+    - name: Set Go paths
+      id: go-paths
+      run: |
+        echo ::set-output name=mod_cache::$(go env GOMODCACHE)
+        echo ::set-output name=build_cache::$(go env GOCACHE)
+
+    - name: Go modules cache
+      uses: actions/cache@v3.2.2
       with:
-        go-version: 1.17.2
+        path: ${{ steps.go-paths.outputs.mod_cache }}
+        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+
+    - name: Go build cache
+      uses: actions/cache@v3.2.2
+      with:
+        path: ${{ steps.go-paths.outputs.build_cache }}
+        key: ${{ runner.os }}-go-build-cache-${{ hashFiles('**/go.sum') }}
+
+    - name: Build
+      run: ARCH=${{ matrix.name }} make build
+
     - name: Test
-      run: go test ./...
+      run: ARCH=${{ matrix.name }} make test

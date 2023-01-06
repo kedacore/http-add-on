@@ -7,10 +7,12 @@ import (
 	"math/rand"
 	nethttp "net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
@@ -176,6 +178,10 @@ func main() {
 		lggr.Error(err, "proxy server failed")
 		return err
 	})
+	lggr.Info(fmt.Sprintf("Interceptor Version: %s", build.Version()))
+	lggr.Info(fmt.Sprintf("Interceptor Commit: %s", build.GitCommit()))
+	lggr.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
+	lggr.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
 
 	// errGrp.Wait() should hang forever for healthy admin and proxy servers.
 	// if it returns an error, log and exit immediately.

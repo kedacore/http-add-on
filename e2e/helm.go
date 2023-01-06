@@ -3,34 +3,34 @@ package e2e
 import (
 	"fmt"
 
-	"github.com/magefile/mage/sh"
+	"github.com/codeskyblue/go-sh"
 )
 
 func helmDelete(namespace, chartName string) error {
-	return sh.RunV(
+	return sh.Command(
 		"helm",
 		"delete",
 		"-n",
 		namespace,
 		chartName,
-	)
+	).Run()
 }
 
 func helmRepoAdd(name, url string) error {
-	return sh.RunV(
+	return sh.Command(
 		"helm",
 		"repo",
 		"add",
 		name,
 		url,
-	)
+	).Run()
 }
 func helmRepoUpdate() error {
-	return sh.RunV(
+	return sh.Command(
 		"helm",
 		"repo",
 		"update",
-	)
+	).Run()
 }
 
 func emptyHelmVars() map[string]string {
@@ -57,8 +57,8 @@ func helmInstall(
 			v,
 		))
 	}
-	return sh.RunV(
+	return sh.Command(
 		"helm",
-		helmArgs...,
-	)
+		helmArgs,
+	).Run()
 }

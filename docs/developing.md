@@ -34,45 +34,28 @@ the service, you can host your own with a series of amazing tools like:
 
 Follow the [install instructions](./install.md) to check out how to install and get this add-on up and running.
 
-## Build scripts
-
-This project uses [Mage](https://magefile.org) as opposed to Make because it's way faster to build and push images, as well as to run tests and other common tasks. Please install [version v1.11.0](https://github.com/magefile/mage/releases/tag/v1.11.0) or above to have access to the task runner.
-
 ### In the Root Directory
 
-The Magefile located in the root directory has targets useful for the whole project. There is another magefile [in the operator directory](../operator/magefile.go), which has targets more specific to the operator module.
+The Makefile located in the root directory has targets useful for the whole project.
 
-The most useful and common commands from the root directory are listed below. Please see the "In the Operator Directory" section for the operator-specific targets. Whther you're in the root or the operator directory, you can always run the following general helper commands:
+> All commands are case sensitive.
 
-- `mage -l`: shows a list of all available commands
-- `mage -h <command>`: shows command-specific details
-- `mage -h`: shows the general help
-
-> All commands are case insensitive, so `buildAll` and `buildall` are the same.
-
-- `mage build`: Builds all the binaries for local testing.
-- `mage test`: Tests the entire codebase
-- `mage dockerBuild`: Builds all docker images
-  - Please see the below "Environment Variables" section for more information on this command
-- `mage dockerPush`: Pushes all docker images, without building them first
-  - Please see the below "Environment Variables" section for more information on this command
-
-### In the Operator Directory
-
-- `mage Manifests`: Builds all the manifest files for Kubernetes, it's important to build after every change
-  to a Kustomize annotation.
-- `mage All`: Generates the operator.
+- `make build`: Builds all the binaries for local testing.
+- `make test`: Tests the entire codebase
+- `make docker-build`: Builds all docker images
+- `make docker-publish`: Pushes all docker images, building them first
+- `make publish-multiarch`: Pushes all docker images, building them first for `linux/arm64` and `linux/amd64`
+- `make manifests`: Builds all the manifest files for Kubernetes, it's important to build after every change
+- `make deploy`: Deploys the HTTP Add-on to the cluster selected in `~/.kube/config` using `config` folder manifests
 
 ### Required Environment Variables
 
-Some of the above commands require several environment variables to be set. You should set them once in your environment to ensure that you can run these targets. We recommend using [direnv](https://direnv.net) to set these environment variables once, so that you don't need to remember to do it.
+Some of the above commands support changes in the default values: 
 
-- `KEDAHTTP_SCALER_IMAGE`: the fully qualified name of the [scaler](../scaler) image. This is used to build, push, and install the scaler into a Kubernetes cluster (required)
-- `KEDAHTTP_INTERCEPTOR_IMAGE`: the fully qualified name of the [interceptor](../interceptor) image. This is used to build, push, and install the interceptor into a Kubernetes cluster (required)
-- `KEDAHTTP_OPERATOR_IMAGE`: the fully qualified name of the [operator](../operator) image. This is used to build, push, and install the operator into a Kubernetes cluster (required)
-- `KEDAHTTP_NAMESPACE`: the Kubernetes namespace to which to install the add-on and other required components (optional, defaults to `kedahttp`)
-
->Suffix any `*_IMAGE` variable with `<keda-git-sha>` and the build system will automatically replace it with `sha-$(git rev-parse --short HEAD)`
+- `IMAGE_REGISTRY`: Image registry to be used for docker images
+- `IMAGE_REPO`: Repository to be used for docker images
+- `VERSION`: Tag to be used for docker images
+- `BUILD_PLATFORMS`: Built platform targeted for multi-arch docker images
 
 ## Debugging and Observing Components
 

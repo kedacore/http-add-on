@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	goruntime "runtime"
 
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +36,7 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
+	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/routing"
@@ -162,7 +164,10 @@ func main() {
 			externalScalerCfg,
 		)
 	})
-
+	setupLog.Info(fmt.Sprintf("Operator Version: %s", build.Version()))
+	setupLog.Info(fmt.Sprintf("Operator Commit: %s", build.GitCommit()))
+	setupLog.Info(fmt.Sprintf("Go Version: %s", goruntime.Version()))
+	setupLog.Info(fmt.Sprintf("Go OS/Arch: %s/%s", goruntime.GOOS, goruntime.GOARCH))
 	setupLog.Error(errGrp.Wait(), "running the operator")
 }
 

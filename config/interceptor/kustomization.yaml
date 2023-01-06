@@ -1,0 +1,11 @@
+resources:
+- interceptor.yaml
+- service-admin.yaml
+- service-proxy.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: ghcr.io/kedacore/http-add-on-interceptor
+  newName: ghcr.io/kedacore/http-add-on-interceptor
+  newTag: main

@@ -1,0 +1,86 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keda-http-add-on-operator
+  namespace: keda
+  labels:
+    control-plane: controller-manager
+    app: keda-http-add-on
+    app.kubernetes.io/name: keda-http-add-on
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/part-of: keda-http-add-on
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+      name: keda-http-add-on-operator
+    spec:      
+      serviceAccountName: keda-http-add-on
+      containers:
+        - name: kube-rbac-proxy
+          image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+          args:
+          - --secure-listen-address=0.0.0.0:8443
+          - --upstream=http://127.0.0.1:8080/
+          - --logtostderr=true
+          - --v=10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 100Mi
+            limits:
+              cpu: 100m
+              memory: 100Mi
+        - name: operator
+          image: ghcr.io/kedacore/http-add-on-operator:latest
+          command:
+            - /operator          
+          args:
+            - --metrics-addr=127.0.0.1:8080
+            - --enable-leader-election
+            - --admin-port=9090
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 1000m
+              memory: 1000Mi
+          ports:
+          - containerPort: 9090
+            name: admin-http
+          env:
+          - name: KEDAHTTP_INTERCEPTOR_SERVICE
+            value: keda-http-add-on-interceptor-admin
+          - name: KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE
+            value: keda-http-add-on-external-scaler
+          - name: KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT
+            value: "9090"
+          - name: KEDAHTTP_INTERCEPTOR_ADMIN_PORT
+            value: "9090"
+          - name: KEDAHTTP_INTERCEPTOR_PROXY_PORT
+            value: "8080"
+          - name: KEDA_HTTP_OPERATOR_NAMESPACE
+            value: "keda"
+          - name: KEDA_HTTP_OPERATOR_WATCH_NAMESPACE
+            value: ""
+          securityContext:
+            runAsNonRoot: true
+            capabilities:
+              drop:
+              - ALL
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+      terminationGracePeriodSeconds: 10
+      nodeSelector:
+        kubernetes.io/os: linux

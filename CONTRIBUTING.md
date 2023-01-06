@@ -43,57 +43,44 @@ Please find it at [docs/developing.md](./docs/developing.md).
 ### Pre-requisite:
 
 - A running Kubernetes cluster with KEDA installed.
-- [Mage](https://magefile.org/)
+- [Make](https://www.gnu.org/software/make/)
 - [Helm](https://helm.sh/)
 - [k9s](https://github.com/derailed/k9s) (_optional_)
-- Set the required environment variables explained [here](https://github.com/kedacore/http-add-on/blob/main/docs/developing.md#required-environment-variables).
 
 ### Building:
 
 - Fork & clone the repo:
-  ```console
+  ```bash
   $ git clone https://github.com/<your-username>/http-add-on.git
   ```
 - Change into the repo directory:
-  ```console
+  ```bash
   $ cd http-add-on
   ```
-- Use Mage to build with:
-   ```console
-   $ mage build       # build local binaries
-   $ mage dockerBuild # build docker images of the components
+- Use Make to build with:
+   ```bash
+   $ make build         # build local binaries
+   $ make docker-build  # build docker images of the components
    ```
- If the environment variables are not setup , the docker build will fail so remember to export the right variable values.
 
 ### Deploying:
 
 Custom HTTP Add-on as an image
 
 - Make your changes in the code
-- Build and publish images with your changes, remember  to 	set your environment variables for images as per the registry of your choice and run
-  ```console
-  $ mage dockerBuild
-  ```
- If you want to deploy with docker or any other registry of your choice then use right address in setting the images.
+- Build and publish images with your changes, remembering to update the information for registry of your choice:
 
- There are local clusters with local registries provided, in such cases  make sure to use and push your images to its local registry. In the case of MicroK8s, the address is `localhost:32000` and the helm install command would look like the following.
-
-```console
-$ helm repo add kedacore https://kedacore.github.io/charts
-$ helm repo update
-$ helm pull kedacore/keda-add-ons-http --untar --untardir ./charts
-$ helm upgrade kedahttp ./charts/keda-add-ons-http \
-  --install \
-  --namespace ${NAMESPACE} \
-  --create-namespace \
-  --set image=localhost:32000/keda-http-operator \
-  --set images.scaler=localhost:32000/keda-http-scaler \
-  --set images.interceptor=localhost:32000/keda-http-interceptor
+```bash
+IMAGE_REGISTRY=docker.io IMAGE_REPO=johndo make docker-publish
 ```
- If you want to install the latest build of the HTTP Add-on, set version to `canary`:
- ```console
- $ helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.tag=canary
- ```
+
+> Note: If you need to build images to other architecture from your machine, you can use multi-arch building with `IMAGE_REGISTRY=docker.io IMAGE_REPO=johndo make publish-multiarch`.
+
+There are local clusters with local registries provided, in such cases  make sure to use and push your images to its local registry. In the case of MicroK8s, the address is `localhost:32000` and the  command would look like the following.
+
+```bash
+IMAGE_REGISTRY=localhost:32000 IMAGE_REPO=johndo make deploy
+```
 ### Load testing with k9s:
 
 K9s integrates Hey, a CLI tool to benchmark HTTP endpoints similar to AB bench. This preliminary feature currently supports benchmarking port-forwards and services. You can use this feature in load testing as follows:
