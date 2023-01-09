@@ -12,7 +12,7 @@ metadata:
     app.kubernetes.io/component: interceptor
     app.kubernetes.io/part-of: keda-http-add-on
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       control-plane: interceptor
