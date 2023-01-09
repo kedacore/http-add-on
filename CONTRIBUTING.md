@@ -71,7 +71,7 @@ Custom HTTP Add-on as an image
 - Build and publish images with your changes, remembering to update the information for registry of your choice:
 
 ```bash
-IMAGE_REGISTRY=docker.io IMAGE_REPO=johndo make docker-publish
+IMAGE_REGISTRY=docker.io IMAGE_REPO=johndoe make docker-publish
 ```
 
 > Note: If you need to build images to other architecture from your machine, you can use multi-arch building with `IMAGE_REGISTRY=docker.io IMAGE_REPO=johndo make publish-multiarch`.
