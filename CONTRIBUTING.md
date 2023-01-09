@@ -76,7 +76,7 @@ IMAGE_REGISTRY=docker.io IMAGE_REPO=johndoe make docker-publish
 
 > Note: If you need to build images to other architecture from your machine, you can use multi-arch building with `IMAGE_REGISTRY=docker.io IMAGE_REPO=johndo make publish-multiarch`.
 
-There are local clusters with local registries provided, in such cases  make sure to use and push your images to its local registry. In the case of MicroK8s, the address is `localhost:32000` and the  command would look like the following.
+There are local clusters with local registries provided, in such cases make sure to use and push your images to its local registry. In the case of MicroK8s, the address is `localhost:32000` and the  command would look like the following.
 
 ```bash
 IMAGE_REGISTRY=localhost:32000 IMAGE_REPO=johndo make deploy
