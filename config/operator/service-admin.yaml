@@ -15,3 +15,4 @@ spec:
     targetPort: admin-http
   selector:
     control-plane: controller-manager
+    app: keda-http-add-on

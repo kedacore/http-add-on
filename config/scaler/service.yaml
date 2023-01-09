@@ -18,3 +18,4 @@ spec:
     targetPort: scaler-health
   selector:
     control-plane: external-scaler
+    app: keda-http-add-on

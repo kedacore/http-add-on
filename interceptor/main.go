@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	nethttp "net/http"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -178,10 +177,7 @@ func main() {
 		lggr.Error(err, "proxy server failed")
 		return err
 	})
-	lggr.Info(fmt.Sprintf("Interceptor Version: %s", build.Version()))
-	lggr.Info(fmt.Sprintf("Interceptor Commit: %s", build.GitCommit()))
-	lggr.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
-	lggr.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
+	build.PrintComponentInfo(lggr, "Interceptor")
 
 	// errGrp.Wait() should hang forever for healthy admin and proxy servers.
 	// if it returns an error, log and exit immediately.

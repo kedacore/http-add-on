@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -145,10 +144,7 @@ func main() {
 			table,
 		)
 	})
-	lggr.Info(fmt.Sprintf("Scaler Version: %s", build.Version()))
-	lggr.Info(fmt.Sprintf("Scaler Commit: %s", build.GitCommit()))
-	lggr.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
-	lggr.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
+	build.PrintComponentInfo(lggr, "Scaler")
 	lggr.Error(grp.Wait(), "one or more of the servers failed")
 }
 

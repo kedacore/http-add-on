@@ -16,10 +16,12 @@ spec:
   selector:
     matchLabels:
       control-plane: interceptor
+      app: keda-http-add-on
   template:
     metadata:
       labels:
         control-plane: interceptor
+        app: keda-http-add-on
       name: keda-http-add-on-interceptor
     spec:
       securityContext:

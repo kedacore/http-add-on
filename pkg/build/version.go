@@ -1,5 +1,12 @@
 package build
 
+import (
+	"fmt"
+	"runtime"
+
+	"github.com/go-logr/logr"
+)
+
 var (
 	version   = "main"
 	gitCommit string
@@ -13,4 +20,11 @@ func Version() string {
 // GitCommit stores the current commit hash
 func GitCommit() string {
 	return gitCommit
+}
+
+func PrintComponentInfo(logger logr.Logger, component string) {
+	logger.Info(fmt.Sprintf("%s Version: %s", component, Version()))
+	logger.Info(fmt.Sprintf("%s Commit: %s", component, GitCommit()))
+	logger.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
+	logger.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
 }

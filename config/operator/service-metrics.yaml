@@ -15,3 +15,4 @@ spec:
     targetPort: https
   selector:
     control-plane: controller-manager
+    app: keda-http-add-on

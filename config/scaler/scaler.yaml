@@ -16,10 +16,12 @@ spec:
   selector:
     matchLabels:
       control-plane: external-scaler
+      app: keda-http-add-on
   template:
     metadata:
       labels:
         control-plane: external-scaler
+        app: keda-http-add-on
       name: keda-http-add-on-scaler
     spec:
       securityContext:

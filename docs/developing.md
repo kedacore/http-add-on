@@ -40,12 +40,13 @@ The Makefile located in the root directory has targets useful for the whole proj
 
 > All commands are case sensitive.
 
-- `make build`: Builds all the binaries for local testing.
-- `make test`: Tests the entire codebase
+- `make build`: Builds all the binaries for local testing
+- `make test`: Run all unit tests
+- `make e2e-test`: Run all e2e tests
 - `make docker-build`: Builds all docker images
-- `make docker-publish`: Pushes all docker images, building them first
-- `make publish-multiarch`: Pushes all docker images, building them first for `linux/arm64` and `linux/amd64`
-- `make manifests`: Builds all the manifest files for Kubernetes, it's important to build after every change
+- `make docker-publish`: Build and push all Docker images
+- `make publish-multiarch`: Build and push all Docker images for `linux/arm64` and `linux/amd64`
+- `make manifests`: Generate all the manifest files for Kubernetes, it's important to build after every change
 - `make deploy`: Deploys the HTTP Add-on to the cluster selected in `~/.kube/config` using `config` folder manifests
 
 ### Required Environment Variables

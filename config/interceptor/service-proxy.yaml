@@ -15,3 +15,4 @@ spec:
     targetPort: inter-proxy
   selector:
     control-plane: interceptor
+    app: keda-http-add-on
