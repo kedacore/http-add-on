@@ -91,9 +91,11 @@ golangci: ## Run golangci against code.
 proto-gen: protoc-gen-go ## Scaler protobuffers
 	protoc --proto_path=proto scaler.proto --go_out=proto --go-grpc_out=proto
 
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0
 
+KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v4@v4.5.7
 
