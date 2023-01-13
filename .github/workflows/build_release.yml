@@ -4,31 +4,20 @@ on:
   push:
     tags: [ "v[0-9].[0-9].[0-9]" ]
 
-env:
-  IMAGE_OPERATOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-operator
-  IMAGE_INTERCEPTOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-interceptor
-  IMAGE_SCALER_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-scaler
-
 jobs:
-  build_operator:
-
+  build:
     runs-on: ubuntu-20.04
-
+    container: ghcr.io/kedacore/build-tools:1.19.5
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up tags and refs
-        id: prep
-        run: |
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-      
+      - name: Register workspace path
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Get the version
         id: get_version
         run: |
           echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v2
 
       - name: Login to GHCR
         uses: docker/login-action@v2
@@ -40,104 +29,10 @@ jobs:
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
 
-      - name: Build and push operator image
-        uses: docker/build-push-action@v3
-        with:
-          # Docker repository to tag the image with
-          tags: ${{ env.IMAGE_OPERATOR_NAME }}:latest,${{ env.IMAGE_OPERATOR_NAME }}:${{ steps.get_version.outputs.VERSION }}
-          labels: |
-            sh.keda.http.image.source=${{github.event.repository.html_url}}
-            sh.keda.http.image.created=${{steps.prep.outputs.created}}
-            sh.keda.http.image.revision=${{github.sha}}
-            sh.keda.http.image.release=${{github.ref}}
-          build-args: "VERSION=${{ steps.prep.outputs.VERSION }}"
-          file: operator/Dockerfile
-          context: .
-          push: true
-
-  build_interceptor:
-
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up tags and refs
-        id: prep
-        run: |
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-
-      - name: Get the version
-        id: get_version
-        run: |
-          echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
-
-      - name: Set up Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Login to GHCR
-        uses: docker/login-action@v2
-        with:
-          # Username used to log in to a Docker registry. If not set then no login will occur
-          username: ${{ github.repository_owner }}
-          # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
-          password: ${{ secrets.GITHUB_TOKEN }}
-          # Server address of Docker registry. If not set then will default to Docker Hub
-          registry: ghcr.io
-
-      - name: Build and push interceptor image
-        uses: docker/build-push-action@v3
-        with:
-          # Docker repository to tag the image with
-          tags: ${{ env.IMAGE_INTERCEPTOR_NAME }}:latest,${{ env.IMAGE_INTERCEPTOR_NAME }}:${{ steps.get_version.outputs.VERSION }}
-          labels: |
-            sh.keda.http.image.source=${{github.event.repository.html_url}}
-            sh.keda.http.image.created=${{steps.prep.outputs.created}}
-            sh.keda.http.image.revision=${{github.sha}}
-            sh.keda.http.image.release=${{github.ref}}
-          file: interceptor/Dockerfile
-          context: .
-          push: true
-
-  build_scaler:
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up tags and refs
-        id: prep
-        run: |
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-
-      - name: Get the version
-        id: get_version
-        run: |
-          echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to GHCR
-        uses: docker/login-action@v2
-        with:
-          # Username used to log in to a Docker registry. If not set then no login will occur
-          username: ${{ github.repository_owner }}
-          # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
-          password: ${{ secrets.GITHUB_TOKEN }}
-          # Server address of Docker registry. If not set then will default to Docker Hub
-          registry: ghcr.io
-
-      - name: Build and push scaler image
-        uses: docker/build-push-action@v3
-        with:
-          # Docker repository to tag the image with
-          tags: ${{ env.IMAGE_SCALER_NAME }}:latest,${{ env.IMAGE_SCALER_NAME }}:${{ steps.get_version.outputs.VERSION }}
-          labels: |
-            sh.keda.http.image.source=${{github.event.repository.html_url}}
-            sh.keda.http.image.created=${{steps.prep.outputs.created}}
-            sh.keda.http.image.revision=${{github.sha}}
-            sh.keda.http.image.release=${{github.ref}}
-          file: scaler/Dockerfile
-          context: .
-          push: true
+      - name: Publish on GitHub Container Registry
+        run: make publish-multiarch
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
