@@ -9,7 +9,7 @@ jobs:
   validate:
     name: validate - ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
-    container: ghcr.io/kedacore/build-tools:1.18.8
+    container: ghcr.io/kedacore/build-tools:1.19.5
     strategy:
       matrix:
         include:

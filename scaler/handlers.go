@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func init() {
@@ -45,8 +45,8 @@ func newImpl(
 	}
 }
 
-func (e *impl) Ping(context.Context, *empty.Empty) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (e *impl) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
 }
 
 func (e *impl) IsActive(
