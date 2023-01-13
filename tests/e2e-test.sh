@@ -1,20 +1,48 @@
 #!/bin/bash
 
-TAG=${TAG:-canary}
+function clear_resources(){
+  # Clear e2e resources
+  kubectl delete ns app
+
+  # Remove Http-add-on
+  make undeploy
+
+  # Remove KEDA
+  helm uninstall keda --namespace keda --wait
+}
+
+function print_logs {   
+  echo ">>> KEDA Operator log <<<"
+  kubectl logs -n keda -l app=keda-operator
+  printf "##############################################\n"
+  printf "##############################################\n"
+
+  echo ">>> HTTP Add-on Operator log <<<"
+  kubectl logs -n keda -l control-plane=controller-manager -c operator
+  printf "##############################################\n"
+  printf "##############################################\n"
+
+  echo ">>> HTTP Add-on Interceptor log <<<"
+  kubectl logs -n keda -l control-plane=interceptor
+  printf "##############################################\n"
+  printf "##############################################\n"
+
+    echo ">>> HTTP Add-on Scaler log <<<"
+  kubectl logs -n keda -l control-plane=external-scaler
+  printf "##############################################\n"
+  printf "##############################################\n"
+}
 
 # Install KEDA
 helm repo add kedacore https://kedacore.github.io/charts
 helm repo update
 helm upgrade --install keda kedacore/keda --namespace keda --create-namespace --wait
 
+# Install Http-add-on
+make deploy
+
 # Show Kubernetes resources in keda namespace
 kubectl get all --namespace keda
-
-# Install Http-add-on
-helm upgrade --install http-add-on kedacore/keda-add-ons-http --set images.tag=$TAG --namespace keda --create-namespace --wait
-
-# Show Kubernetes resources in http-add-on namespace
-kubectl get all --namespace http-add-on
 
 # Create resources
 kubectl create ns app
@@ -30,13 +58,16 @@ until [ "$n" -ge "$max" ]
 do
   ready=$(kubectl get so xkcd-app -n app -o jsonpath="{.status.conditions[0].status}")
   echo "ready: $ready"
-  if [ $ready == "True" ]; then
+  if [ "$ready" == "True" ]; then
     break
   fi
   n=$((n+1))
   sleep 15
 done
 if [ $n -eq $max ]; then
+  kubectl get all --namespace keda
+  print_logs
+  clear_resources
   echo "The ScaledObject is not working correctly"
   exit 1
 fi
@@ -75,7 +106,7 @@ spec:
       - name: curl-client
         image: curlimages/curl
         imagePullPolicy: Always
-        command: ["curl", "-H", "Host: myhost.com", "keda-add-ons-http-interceptor-proxy.keda:8080"]
+        command: ["curl", "-H", "Host: myhost.com", "keda-http-add-on-interceptor-proxy.keda:8080"]
       restartPolicy: Never
   activeDeadlineSeconds: 600
   backoffLimit: 5
@@ -94,11 +125,15 @@ do
   n=$((n+1))
   sleep 15
 done
+
 if [ $n -eq $max ]; then
+  print_logs
+  clear_resources
   echo "Current replica count is not 1"
   exit 1
 fi
 
-echo "The workflow is scaled to one"
+clear_resources
 
+echo "The workflow is scaled to one"
 echo "SUCCESS"

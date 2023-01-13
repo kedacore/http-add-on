@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: operator-admin
+    app.kubernetes.io/name: keda-http-add-on
+    app.kubernetes.io/version: latest
+    app.kubernetes.io/part-of: keda-http-add-on
+  name: keda-http-add-on-operator-admin
+  namespace: keda
+spec:
+  ports:
+  - name: admin-http
+    port: 9090
+    targetPort: admin-http
+  selector:
+    control-plane: controller-manager
+    app: keda-http-add-on

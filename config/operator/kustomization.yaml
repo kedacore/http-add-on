@@ -1,0 +1,11 @@
+resources:
+- operator.yaml
+- service-admin.yaml
+- service-metrics.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: ghcr.io/kedacore/http-add-on-operator
+  newName: ghcr.io/kedacore/http-add-on-operator
+  newTag: main

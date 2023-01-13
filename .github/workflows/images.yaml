@@ -7,34 +7,37 @@ on:
 
 jobs:
   build_scaler:
-    
-    runs-on: ubuntu-20.04
-
+    runs-on: ubuntu-latest
+    container: ghcr.io/kedacore/build-tools:1.18.8
     steps:
       - uses: actions/checkout@v3
+      - name: Register workspace path
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Scaler
         run: |
           COMMIT=$(git rev-parse --short HEAD)
-          docker build --build-arg VERSION=${COMMIT} -t scaler -f scaler/Dockerfile .
+          VERSION=${COMMIT} make docker-build-scaler
   
   build_operator:
-    
-    runs-on: ubuntu-20.04
-
+    runs-on: ubuntu-latest
+    container: ghcr.io/kedacore/build-tools:1.18.8
     steps:
       - uses: actions/checkout@v3
+      - name: Register workspace path
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Operator
         run: |
           COMMIT=$(git rev-parse --short=7 HEAD)
-          docker build --build-arg VERSION=${COMMIT} -t operator -f operator/Dockerfile .
+          VERSION=${COMMIT} make docker-build-operator
 
   build_interceptor:
-    
-    runs-on: ubuntu-20.04
-
+    runs-on: ubuntu-latest
+    container: ghcr.io/kedacore/build-tools:1.18.8
     steps:
       - uses: actions/checkout@v3
+      - name: Register workspace path
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Interceptor
         run: |
           COMMIT=$(git rev-parse --short=7 HEAD)
-          docker build --build-arg VERSION=${COMMIT} -t interceptor -f interceptor/Dockerfile .
+          VERSION=${COMMIT} make docker-build-interceptor

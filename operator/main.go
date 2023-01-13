@@ -35,6 +35,7 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
+	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/routing"
@@ -162,7 +163,7 @@ func main() {
 			externalScalerCfg,
 		)
 	})
-
+	build.PrintComponentInfo(setupLog, "Operator")
 	setupLog.Error(errGrp.Wait(), "running the operator")
 }
 

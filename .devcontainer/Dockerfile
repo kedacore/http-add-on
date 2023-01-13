@@ -1,13 +1,6 @@
 ARG GO_VERSION=1.18
 FROM mcr.microsoft.com/vscode/devcontainers/go:0-${GO_VERSION}
 
-# install mage
-RUN git clone https://github.com/magefile/mage && \
-    cd mage && \
-    go run bootstrap.go && \
-    cd .. && \
-    rm -rf mage
-
 # install helm
 RUN curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 

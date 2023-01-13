@@ -14,6 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs="*"
+
 func removeApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,

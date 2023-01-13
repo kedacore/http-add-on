@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
@@ -143,6 +144,7 @@ func main() {
 			table,
 		)
 	})
+	build.PrintComponentInfo(lggr, "Scaler")
 	lggr.Error(grp.Wait(), "one or more of the servers failed")
 }
 

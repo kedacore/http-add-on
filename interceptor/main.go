@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
@@ -176,6 +177,7 @@ func main() {
 		lggr.Error(err, "proxy server failed")
 		return err
 	})
+	build.PrintComponentInfo(lggr, "Interceptor")
 
 	// errGrp.Wait() should hang forever for healthy admin and proxy servers.
 	// if it returns an error, log and exit immediately.

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keda-http-routing-table
+  namespace: keda
+  labels:
+    "control-plane": "operator"
+    "keda.sh/addon": "http-add-on"
+    "app":           "http-add-on"
+    "name":          "http-add-on-routing-table"
+data:
+  # this is where the operator writes the encoded routing table,
+  # and where the interceptor/scaler reads it
+  routing-table: "{}"
