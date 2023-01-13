@@ -6,15 +6,14 @@ require (
 	github.com/codeskyblue/go-sh v0.0.0-20200712050446-30169cf553fe
 	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/zapr v1.2.3
-	github.com/golang/protobuf v1.5.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.24.2
+	github.com/onsi/gomega v1.18.1
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.21.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	google.golang.org/grpc v1.48.0
+	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.28.1
 	k8s.io/api v0.24.3
 	k8s.io/apimachinery v0.24.3
@@ -38,6 +37,7 @@ require (
 	github.com/go-openapi/swag v0.19.14 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
