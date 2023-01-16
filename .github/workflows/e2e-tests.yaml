@@ -8,7 +8,7 @@ on:
 jobs:
   e2e_tests:
     runs-on: ubuntu-latest
-    name: Execute e2e test on k8s-${{ matrix.kubernetesVersion }}
+    name: Execute e2e test on AMD64 ${{ matrix.kubernetesVersion }}
     strategy:
       fail-fast: false
       matrix:
@@ -22,7 +22,6 @@ jobs:
           kindImage: kindest/node:v1.24.4@sha256:adfaebada924a26c2c9308edd53c6e33b3d4e453782c0063dc0028bdebaddf98
         - kubernetesVersion: v1.23
           kindImage: kindest/node:v1.23.10@sha256:f047448af6a656fae7bc909e2fab360c18c487ef3edc93f06d78cdfd864b2d12
-
     steps:
       - name: Install prerequisites
         run: |
@@ -40,19 +39,91 @@ jobs:
         uses: helm/kind-action@v1.4.0
         with:
           node_image: ${{ matrix.kindImage }}
-          cluster_name: e2e-tests-cluster
+          cluster_name: cluster
 
       - name: Generate images and push to the cluster
         run: |
           make docker-build
-          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name e2e-tests-cluster
-          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name e2e-tests-cluster
-          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name e2e-tests-cluster
+          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name cluster
+          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name cluster
+          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name cluster
         env:
-          VERSION: e2e-test
+          VERSION: ${{ github.sha }}
+
+      - name: Show Kubernetes version
+        run: |
+          kubectl version
 
       - name: Run e2e test
         run: |
           make e2e-test
         env:
-          VERSION: e2e-test
+          VERSION: ${{ github.sha }}
+
+  arm_image_generation:
+    runs-on: ARM64
+    name: Generate ARM64 images for e2e tests
+    steps:
+      - name: Install prerequisites
+        run: |
+          sudo apt update
+          sudo apt install curl make ca-certificates gcc libc-dev -y
+        env:
+          DEBIAN_FRONTEND: noninteractive
+
+      - uses: actions/checkout@v3
+
+      - name: Generate images
+        run: |
+          make docker-build
+        env:
+          VERSION: ${{ github.sha }}
+
+  arm_e2e_tests:
+    runs-on: http-add-on-e2e
+    needs: arm_image_generation
+    name: Execute e2e test on ARM64 ${{ matrix.kubernetesVersion }}
+    env:
+      KUBECONFIG: ${{ github.workspace }}/.kube/config
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetesVersion: [v1.26, v1.25, v1.24, v1.23]
+        include:
+        - kubernetesVersion: v1.26
+          kindImage: kindest/node:v1.26.0@sha256:691e24bd2417609db7e589e1a479b902d2e209892a10ce375fab60a8407c7352
+        - kubernetesVersion: v1.25
+          kindImage: kindest/node:v1.25.0@sha256:428aaa17ec82ccde0131cb2d1ca6547d13cf5fdabcc0bbecf749baa935387cbf
+        - kubernetesVersion: v1.24
+          kindImage: kindest/node:v1.24.4@sha256:adfaebada924a26c2c9308edd53c6e33b3d4e453782c0063dc0028bdebaddf98
+        - kubernetesVersion: v1.23
+          kindImage: kindest/node:v1.23.10@sha256:f047448af6a656fae7bc909e2fab360c18c487ef3edc93f06d78cdfd864b2d12
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Helm install
+        uses: Azure/setup-helm@v3
+
+      - name: Create k8s ${{ matrix.kubernetesVersion }} Kind Cluster
+        uses: helm/kind-action@v1.4.0
+        with:
+          node_image: ${{ matrix.kindImage }}
+          cluster_name: ${{ runner.name }}
+
+      - name: Push images to the cluster
+        run: |
+          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name ${{ runner.name }}
+          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name ${{ runner.name }}
+          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name ${{ runner.name }}
+        env:
+          VERSION: ${{ github.sha }}
+
+      - name: Show Kubernetes version
+        run: |
+          kubectl version
+
+      - name: Run e2e test
+        run: |
+          make e2e-test
+        env:
+          VERSION: ${{ github.sha }}

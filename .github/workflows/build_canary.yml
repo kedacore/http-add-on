@@ -5,27 +5,15 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  IMAGE_OPERATOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-operator
-  IMAGE_INTERCEPTOR_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-interceptor
-  IMAGE_SCALER_NAME: ghcr.io/${{ github.repository_owner }}/http-add-on-scaler
-
 jobs:
-  build_operator:
-
+  build:
     runs-on: ubuntu-20.04
-
+    container: ghcr.io/kedacore/build-tools:1.19.5
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up tags and refs
-        id: prep
-        run: |
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-          echo ::set-output name=sha::$(git rev-parse --short HEAD)
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Register workspace path
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Login to GHCR
         uses: docker/login-action@v2
@@ -37,112 +25,10 @@ jobs:
           # Server address of Docker registry. If not set then will default to Docker Hub
           registry: ghcr.io
 
-      - name: Build and push operator image
-        uses: docker/build-push-action@v3
-        with:
-          # Docker repository to tag the image with
-          tags: |
-            ${{ env.IMAGE_OPERATOR_NAME }}:canary,${{ env.IMAGE_OPERATOR_NAME }}:sha-${{ steps.prep.outputs.sha }}
-          labels: |
-            sh.keda.http.image.source=${{github.event.repository.html_url}}
-            sh.keda.http.image.created=${{steps.prep.outputs.created}}
-            sh.keda.http.image.revision=${{github.sha}}
-          build-args: "VERSION=${{ steps.prep.outputs.sha }}"
-          file: operator/Dockerfile
-          context: .
-          push: true
-
-  build_interceptor:
-
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up tags and refs
-        id: prep
-        run: |
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-          echo ::set-output name=sha::$(git rev-parse --short HEAD)
-
-      - name: Set up Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Login to GHCR
-        uses: docker/login-action@v2
-        with:
-          # Username used to log in to a Docker registry. If not set then no login will occur
-          username: ${{ github.repository_owner }}
-          # https://github.blog/changelog/2021-03-24-packages-container-registry-now-supports-github_token/
-          password: ${{ secrets.GITHUB_TOKEN }}
-          # Server address of Docker registry. If not set then will default to Docker Hub
-          registry: ghcr.io
-
-      - name: Build and push interceptor image
-        uses: docker/build-push-action@v3
-        with:
-          # Docker repository to tag the image with
-          tags: ${{ env.IMAGE_INTERCEPTOR_NAME }}:canary,${{ env.IMAGE_INTERCEPTOR_NAME }}:sha-${{steps.prep.outputs.sha}}
-          labels: |
-            sh.keda.http.image.source=${{github.event.repository.html_url}}
-            sh.keda.http.image.created=${{steps.prep.outputs.created}}
-            sh.keda.http.image.revision=${{github.sha}}
-          file: interceptor/Dockerfile
-          context: .
-          push: true
-
-  build_scaler:
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up tags and refs
-        id: prep
-        run: |
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-          echo ::set-output name=sha::$(git rev-parse --short HEAD)
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to GHCR
-        uses: docker/login-action@v2
-        with:
-          # Username used to log in to a Docker registry. If not set then no login will occur
-          username: ${{ github.repository_owner }}
-          # Password or personal access token used to log in to a Docker registry. If not set then no login will occur
-          password: ${{ secrets.GITHUB_TOKEN }}
-          # Server address of Docker registry. If not set then will default to Docker Hub
-          registry: ghcr.io
-
-      - name: Build and push scaler image
-        uses: docker/build-push-action@v3
-        with:
-          # Docker repository to tag the image with
-          tags: ${{ env.IMAGE_SCALER_NAME }}:canary,${{ env.IMAGE_SCALER_NAME }}:sha-${{steps.prep.outputs.sha}}
-          labels: |
-            sh.keda.http.image.source=${{github.event.repository.html_url}}
-            sh.keda.http.image.created=${{steps.prep.outputs.created}}
-            sh.keda.http.image.revision=${{github.sha}}
-          file: scaler/Dockerfile
-          context: .
-          push: true
-
-  e2e_tests:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Helm install
-        uses: Azure/setup-helm@v3
-
-      - name: Create k8s v1.23 Kind Cluster
-        uses: helm/kind-action@main
-        with:
-          node_image: kindest/node:v1.23.0@sha256:49824ab1727c04e56a21a5d8372a402fcd32ea51ac96a2706a12af38934f81ac
-          cluster_name: http-add-on-smoke-tests-cluster
-      
-      - name: Run e2e test
-        run: |
-          ./tests/e2e-test.sh
+      - name: Publish on GitHub Container Registry
+        run: make publish-multiarch
+        env:
+          VERSION: canary
