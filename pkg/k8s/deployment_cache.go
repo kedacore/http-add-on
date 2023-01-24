@@ -27,5 +27,5 @@ type DeploymentCache interface {
 	// If the deployment doesn't exist in the cache, it
 	// will be requested from the backing store (most commonly
 	// the Kubernetes API server)
-	Watch(namespace, name string) watch.Interface
+	Watch(namespace, name string) (watch.Interface, error)
 }

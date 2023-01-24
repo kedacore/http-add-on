@@ -54,8 +54,12 @@ func (i *InformerConfigMapUpdater) Get(
 func (i *InformerConfigMapUpdater) Watch(
 	ns,
 	name string,
-) watch.Interface {
-	return watch.Filter(i.bcaster.Watch(), func(e watch.Event) (watch.Event, bool) {
+) (watch.Interface, error) {
+	watched, err := i.bcaster.Watch()
+	if err != nil {
+		return nil, err
+	}
+	return watch.Filter(watched, func(e watch.Event) (watch.Event, bool) {
 		cm, ok := e.Object.(*corev1.ConfigMap)
 		if !ok {
 			i.lggr.Error(
@@ -69,7 +73,7 @@ func (i *InformerConfigMapUpdater) Watch(
 			return e, true
 		}
 		return e, false
-	})
+	}), nil
 }
 
 func (i *InformerConfigMapUpdater) addEvtHandler(obj interface{}) {
