@@ -53,14 +53,18 @@ func (i *InformerBackedDeploymentCache) Get(
 func (i *InformerBackedDeploymentCache) Watch(
 	ns,
 	name string,
-) watch.Interface {
-	return watch.Filter(i.bcaster.Watch(), func(e watch.Event) (watch.Event, bool) {
+) (watch.Interface, error) {
+	watched, err := i.bcaster.Watch()
+	if err != nil {
+		return nil, err
+	}
+	return watch.Filter(watched, func(e watch.Event) (watch.Event, bool) {
 		depl := e.Object.(*appsv1.Deployment)
 		if depl.Namespace == ns && depl.Name == name {
 			return e, true
 		}
 		return e, false
-	})
+	}), nil
 }
 
 func (i *InformerBackedDeploymentCache) addEvtHandler(obj interface{}) {

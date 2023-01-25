@@ -78,7 +78,7 @@ func (f *FakeDeploymentCache) Get(ns string, name string) (appsv1.Deployment, er
 	return appsv1.Deployment{}, fmt.Errorf("no deployment %s found", name)
 }
 
-func (f *FakeDeploymentCache) Watch(ns, name string) watch.Interface {
+func (f *FakeDeploymentCache) Watch(ns, name string) (watch.Interface, error) {
 	f.mut.RLock()
 	defer f.mut.RUnlock()
 	watcher, ok := f.watchers[key(ns, name)]
@@ -86,7 +86,7 @@ func (f *FakeDeploymentCache) Watch(ns, name string) watch.Interface {
 		watcher = watch.NewRaceFreeFake()
 		f.watchers[key(ns, name)] = watcher
 	}
-	return watcher
+	return watcher, nil
 }
 
 func (f *FakeDeploymentCache) Set(ns, name string, deployment appsv1.Deployment) {
