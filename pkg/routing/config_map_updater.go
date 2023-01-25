@@ -12,14 +12,14 @@ import (
 
 // StartConfigMapRoutingTableUpdater starts a loop that does the following:
 //
-//	- Fetches a full version of the ConfigMap called ConfigMapRoutingTableName in
-//	the given namespace ns, and calls table.Replace(newTable) after it does so
-//	- Uses watcher to watch for all ADDED or CREATED events on the ConfigMap
-//	called ConfigMapRoutingTableName. On either of those events, decodes
-//	that ConfigMap into a routing table and stores the new table into table
-//	using table.Replace(newTable)
-//	- Execute the callback function, if one exists
-//	- Returns an appropriate non-nil error if ctx.Done() receives
+//   - Fetches a full version of the ConfigMap called ConfigMapRoutingTableName in
+//     the given namespace ns, and calls table.Replace(newTable) after it does so
+//   - Uses watcher to watch for all ADDED or CREATED events on the ConfigMap
+//     called ConfigMapRoutingTableName. On either of those events, decodes
+//     that ConfigMap into a routing table and stores the new table into table
+//     using table.Replace(newTable)
+//   - Execute the callback function, if one exists
+//   - Returns an appropriate non-nil error if ctx.Done() receives
 func StartConfigMapRoutingTableUpdater(
 	ctx context.Context,
 	lggr logr.Logger,
@@ -30,7 +30,10 @@ func StartConfigMapRoutingTableUpdater(
 ) error {
 	lggr = lggr.WithName("pkg.routing.StartConfigMapRoutingTableUpdater")
 
-	watcher := cmInformer.Watch(ns, ConfigMapRoutingTableName)
+	watcher, err := cmInformer.Watch(ns, ConfigMapRoutingTableName)
+	if err != nil {
+		return err
+	}
 	defer watcher.Stop()
 
 	ctx, done := context.WithCancel(ctx)

@@ -33,7 +33,6 @@ import (
 //	// you can shut this loop down by using a cancellable
 //	// context
 //	go pinger.start(ctx, ticker)
-//
 type queuePinger struct {
 	getEndpointsFn      k8s.GetEndpointsFunc
 	interceptorNS       string
@@ -77,7 +76,10 @@ func (q *queuePinger) start(
 	ticker *time.Ticker,
 	deplCache k8s.DeploymentCache,
 ) error {
-	deployWatchIface := deplCache.Watch(q.interceptorNS, q.interceptorDeplName)
+	deployWatchIface, err := deplCache.Watch(q.interceptorNS, q.interceptorDeplName)
+	if err != nil {
+		return err
+	}
 	deployEvtChan := deployWatchIface.ResultChan()
 	defer deployWatchIface.Stop()
 

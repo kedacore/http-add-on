@@ -24,7 +24,10 @@ func newDeployReplicasForwardWaitFunc(
 	return func(ctx context.Context, deployNS, deployName string) (int, error) {
 		// get a watcher & its result channel before querying the
 		// deployment cache, to ensure we don't miss events
-		watcher := deployCache.Watch(deployNS, deployName)
+		watcher, err := deployCache.Watch(deployNS, deployName)
+		if err != nil {
+			return 0, err
+		}
 		eventCh := watcher.ResultChan()
 		defer watcher.Stop()
 

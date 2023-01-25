@@ -62,6 +62,7 @@ func (f *FakeRuntimeClientReader) Get(
 	ctx context.Context,
 	key client.ObjectKey,
 	obj client.Object,
+	opts ...client.GetOption,
 ) error {
 	f.GetCalls = append(f.GetCalls, GetCall{
 		Key: key,
@@ -168,4 +169,9 @@ type FakeRuntimeStatusClient struct {
 // nil.
 func (f *FakeRuntimeStatusClient) Status() client.StatusWriter {
 	return nil
+}
+
+// SubResource implements client.Client
+func (*FakeRuntimeClient) SubResource(subResource string) client.SubResourceClient {
+	panic("unimplemented")
 }
