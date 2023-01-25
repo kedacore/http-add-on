@@ -13,22 +13,22 @@ function clear_resources(){
 
 function print_logs {   
   echo ">>> KEDA Operator log <<<"
-  kubectl logs -n keda -l app=keda-operator
+  kubectl logs -n keda -l app=keda-operator --tail 5000
   printf "##############################################\n"
   printf "##############################################\n"
 
   echo ">>> HTTP Add-on Operator log <<<"
-  kubectl logs -n keda -l control-plane=controller-manager -c operator
+  kubectl logs -n keda -l control-plane=controller-manager -c operator --tail 5000
   printf "##############################################\n"
   printf "##############################################\n"
 
   echo ">>> HTTP Add-on Interceptor log <<<"
-  kubectl logs -n keda -l control-plane=interceptor
+  kubectl logs -n keda -l control-plane=interceptor --tail 5000
   printf "##############################################\n"
   printf "##############################################\n"
 
     echo ">>> HTTP Add-on Scaler log <<<"
-  kubectl logs -n keda -l control-plane=external-scaler
+  kubectl logs -n keda -l control-plane=external-scaler --tail 5000
   printf "##############################################\n"
   printf "##############################################\n"
 }
