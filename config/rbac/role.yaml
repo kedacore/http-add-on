@@ -9,8 +9,10 @@ rules:
   - ""
   resources:
   - configmaps
+  - configmaps/status
   - endpoint
   - endpoints
+  - events
   - pods
   - services
   verbs:

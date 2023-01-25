@@ -3,7 +3,7 @@ kind: LabelTransformer
 metadata:
   name: metadataLabelTransformer
 labels:
-  app.kubernetes.io/version: e2e-test
+  app.kubernetes.io/version: main
   app.kubernetes.io/part-of: keda-http-add-on
 fieldSpecs:
 - path: metadata/labels
