@@ -44,7 +44,6 @@ func finalizeScaledObject(
 	client client.Client,
 	httpso *httpv1alpha1.HTTPScaledObject) error {
 	if contains(httpso.GetFinalizers(), httpScaledObjectFinalizer) {
-
 		httpso.SetFinalizers(remove(httpso.GetFinalizers(), httpScaledObjectFinalizer))
 		if err := client.Update(ctx, httpso); err != nil {
 			logger.Error(

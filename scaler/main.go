@@ -141,7 +141,6 @@ func main() {
 			cfg,
 			healthPort,
 			pinger,
-			table,
 		)
 	})
 	build.PrintComponentInfo(lggr, "Scaler")
@@ -190,7 +189,6 @@ func startAdminServer(
 	cfg *config,
 	port int,
 	pinger *queuePinger,
-	routingTable *routing.Table,
 ) error {
 	lggr = lggr.WithName("startHealthcheckServer")
 

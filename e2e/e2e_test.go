@@ -68,9 +68,9 @@ func TestE2E(t *testing.T) {
 
 	// ensure that the interceptor and XKCD scaledobjects
 	// exist
-	_, err = getScaledObject(ctx, cl, ns, "keda-add-ons-http-interceptor")
+	err = getScaledObject(ctx, cl, ns, "keda-add-ons-http-interceptor")
 	r.NoError(err)
-	_, err = getScaledObject(ctx, cl, ns, "xkcd-app")
+	err = getScaledObject(ctx, cl, ns, "xkcd-app")
 	r.NoError(err)
 
 	// issue requests to the XKCD service directly to make

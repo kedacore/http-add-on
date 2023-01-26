@@ -24,7 +24,6 @@ func removeApplicationResources(
 	baseConfig config.Base,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-
 	defer httpso.SaveStatus(context.Background(), logger, cl)
 	// Set initial statuses
 	httpso.AddCondition(*v1alpha1.CreateCondition(

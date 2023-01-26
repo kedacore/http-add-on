@@ -20,5 +20,4 @@ func TestExternalScalerHostName(t *testing.T) {
 	r.Equal(2, len(spl), "HostName should return a hostname with 2 parts")
 	r.Equal(sc.ServiceName, spl[0])
 	r.Equal(fmt.Sprintf("%s:%d", ns, sc.Port), spl[1])
-
 }

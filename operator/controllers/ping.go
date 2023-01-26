@@ -34,8 +34,12 @@ func pingInterceptors(
 		endpointStr := endpointURL.String()
 		errGrp.Go(func() error {
 			fullAddr := fmt.Sprintf("%s/routing_ping", endpointStr)
-			_, err := httpCl.Get(fullAddr)
-			return err
+			resp, err := httpCl.Get(fullAddr)
+			if err != nil {
+				return err
+			}
+			resp.Body.Close()
+			return nil
 		})
 	}
 	return errGrp.Wait()

@@ -128,5 +128,4 @@ func getKeyAsMap(m map[string]interface{}, key string) (map[string]interface{}, 
 		return nil, fmt.Errorf("key %s was not a map[string]interface{}", key)
 	}
 	return val, nil
-
 }

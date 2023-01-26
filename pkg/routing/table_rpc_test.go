@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 func newTableFromMap(m map[string]Target) *Table {

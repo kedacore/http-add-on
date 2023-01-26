@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
+
 	"github.com/kedacore/http-add-on/pkg/build"
 )
 

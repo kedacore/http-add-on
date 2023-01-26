@@ -34,7 +34,9 @@ func countMiddleware(
 		if err != nil {
 			lggr.Error(err, "not forwarding request")
 			w.WriteHeader(400)
-			w.Write([]byte("Host not found, not forwarding request"))
+			if _, err := w.Write([]byte("Host not found, not forwarding request")); err != nil {
+				lggr.Error(err, "could not write error message to client")
+			}
 			return
 		}
 		if err := q.Resize(host, +1); err != nil {

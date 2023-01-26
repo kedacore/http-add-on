@@ -57,16 +57,14 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	routingTable.AddTarget(
 		host,
 		targetFromURL(
-			ns,
 			originURL,
 			originPort,
 			"testdepl",
-			123,
 		),
 	)
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
-	waitFunc := func(ctx context.Context, ns, name string) (int, error) {
+	waitFunc := func(_ context.Context, ns, name string) (int, error) {
 		<-waiterCh
 		return 1, nil
 	}
@@ -100,6 +98,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf(
 				"unexpected status code: %d",

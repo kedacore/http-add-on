@@ -75,5 +75,4 @@ func TestRunAdminServerConfig(t *testing.T) {
 
 	done()
 	r.Error(errgrp.Wait())
-
 }

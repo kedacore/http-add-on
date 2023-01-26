@@ -13,7 +13,6 @@ func Validate(srvCfg Serving, timeoutsCfg Timeouts) error {
 			timeoutsCfg.DeploymentReplicas,
 			deplCachePollInterval,
 		)
-
 	}
 	return nil
 }

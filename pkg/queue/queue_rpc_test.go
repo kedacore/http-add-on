@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	"github.com/stretchr/testify/require"
+
 	pkghttp "github.com/kedacore/http-add-on/pkg/http"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
-	"github.com/stretchr/testify/require"
 )
 
 func TestQueueSizeHandlerSuccess(t *testing.T) {
@@ -74,5 +75,4 @@ func TestQueueSizeHandlerIntegration(t *testing.T) {
 	}
 	reqs := hdl.IncomingRequests()
 	r.Equal(1, len(reqs))
-
 }

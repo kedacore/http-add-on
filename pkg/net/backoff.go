@@ -13,7 +13,7 @@ func MinTotalBackoffDuration(backoff wait.Backoff) time.Duration {
 	retMS := backoff.Duration.Milliseconds()
 	numSteps := backoff.Steps
 	for i := 2; i <= numSteps; i++ {
-		retMS += int64(initial) * int64(i)
+		retMS += initial * int64(i)
 	}
 	return time.Duration(retMS) * time.Millisecond
 }

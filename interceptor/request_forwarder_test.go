@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/interceptor/config"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
@@ -82,6 +83,7 @@ func TestForwarderSuccess(t *testing.T) {
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
@@ -129,6 +131,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
@@ -180,6 +183,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
@@ -189,7 +193,6 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	ensureSignalBeforeTimeout(originWaitCh, originDelay*2)
 	r.Equal(originRespCode, res.Code)
 	r.Equal(originRespBodyStr, res.Body.String())
-
 }
 
 func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
@@ -208,6 +211,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 
 	start := time.Now()
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),
@@ -263,6 +267,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	forwardRequest(
+		logr.Discard(),
 		res,
 		req,
 		newRoundTripper(dialCtxFunc, timeouts.ResponseHeader),

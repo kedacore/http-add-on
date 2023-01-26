@@ -23,7 +23,6 @@ func createOrUpdateScaledObject(
 	externalScalerHostName string,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
 
 	appScaledObject, appErr := k8s.NewScaledObject(

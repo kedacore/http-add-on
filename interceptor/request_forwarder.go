@@ -5,9 +5,12 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/go-logr/logr"
 )
 
 func forwardRequest(
+	lggr logr.Logger,
 	w http.ResponseWriter,
 	r *http.Request,
 	roundTripper http.RoundTripper,
@@ -30,7 +33,12 @@ func forwardRequest(
 		// not Sprintf or anything similar. this means we have to create the
 		// failure string in this slightly convoluted way.
 		errMsg := fmt.Errorf("error on backend (%w)", err).Error()
-		w.Write([]byte(errMsg))
+		if _, err := w.Write([]byte(errMsg)); err != nil {
+			lggr.Error(
+				err,
+				"could not write error response to client",
+			)
+		}
 	}
 
 	proxy.ServeHTTP(w, r)

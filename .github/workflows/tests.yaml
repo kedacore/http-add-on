@@ -52,3 +52,13 @@ jobs:
 
     - name: Test
       run: ARCH=${{ matrix.name }} make test
+
+  statics:
+    name: Static Checks
+    runs-on: ubuntu-latest
+    container: ghcr.io/kedacore/build-tools:1.19.5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get golangci
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.49.0
+      - uses: pre-commit/action@v3.0.0

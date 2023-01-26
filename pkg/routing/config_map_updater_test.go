@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	clgotesting "k8s.io/client-go/testing"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 // fake adapters for the k8s.GetterWatcher interface.
@@ -42,17 +42,6 @@ import (
 // approach. The fake watcher documentation is linked below:
 //
 // (https://pkg.go.dev/k8s.io/apimachinery@v0.21.3/pkg/watch#NewFake),
-
-type fakeConfigMapWatcher struct {
-	watchIface watch.Interface
-}
-
-func (c fakeConfigMapWatcher) Watch(
-	ctx context.Context,
-	opts metav1.ListOptions,
-) (watch.Interface, error) {
-	return c.watchIface, nil
-}
 
 func TestStartUpdateLoop(t *testing.T) {
 	r := require.New(t)
@@ -212,5 +201,4 @@ func TestStartUpdateLoop(t *testing.T) {
 			qHost,
 		)
 	}
-
 }
