@@ -75,7 +75,7 @@ func removeApplicationResources(
 		logger,
 		cl,
 		routingTable,
-		httpso.Spec.Host,
+		httpso.Spec.Hosts,
 		baseConfig.CurrentNamespace,
 	); err != nil {
 		return err
@@ -134,7 +134,7 @@ func createOrUpdateApplicationResources(
 		logger,
 		cl,
 		routingTable,
-		httpso.Spec.Host,
+		httpso.Spec.Hosts,
 		routing.NewTarget(
 			httpso.GetNamespace(),
 			httpso.Spec.ScaleTargetRef.Service,

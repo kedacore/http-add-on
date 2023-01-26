@@ -13,14 +13,18 @@ import (
 	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
+func getHosts() []string {
+	return []string{"myhost.com"}
+}
+
 func TestRoutingTable(t *testing.T) {
 	table := routing.NewTable()
 	const (
-		host     = "myhost.com"
 		ns       = "testns"
 		svcName  = "testsvc"
 		deplName = "testdepl"
 	)
+	hosts := getHosts()
 	r := require.New(t)
 	ctx := context.Background()
 	cl := k8s.NewFakeRuntimeClient()
@@ -45,7 +49,7 @@ func TestRoutingTable(t *testing.T) {
 		logr.Discard(),
 		cl,
 		table,
-		host,
+		hosts,
 		target,
 		ns,
 	))
@@ -56,16 +60,18 @@ func TestRoutingTable(t *testing.T) {
 	r.Equal(0, len(cl.FakeRuntimeClientWriter.Updates))
 	r.Equal(0, len(cl.FakeRuntimeClientWriter.Creates))
 
-	retTarget, err := table.Lookup(host)
-	r.NoError(err)
-	r.Equal(target, retTarget)
+	for _, host := range hosts {
+		retTarget, err := table.Lookup(host)
+		r.NoError(err)
+		r.Equal(target, retTarget)
+	}
 
 	r.NoError(removeAndUpdateRoutingTable(
 		ctx,
 		logr.Discard(),
 		cl,
 		table,
-		host,
+		hosts,
 		ns,
 	))
 
@@ -76,6 +82,8 @@ func TestRoutingTable(t *testing.T) {
 	r.Equal(0, len(cl.FakeRuntimeClientWriter.Updates))
 	r.Equal(0, len(cl.FakeRuntimeClientWriter.Creates))
 
-	_, err = table.Lookup(host)
-	r.Error(err)
+	for _, host := range hosts {
+		_, err := table.Lookup(host)
+		r.Error(err)
+	}
 }

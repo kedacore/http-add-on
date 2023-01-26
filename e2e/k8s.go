@@ -43,7 +43,7 @@ func getScaledObject(
 		name,
 		"",
 		"",
-		"",
+		[]string{""},
 		1,
 		2,
 		30,

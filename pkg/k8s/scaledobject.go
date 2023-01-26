@@ -49,8 +49,8 @@ func NewScaledObject(
 	namespace,
 	name,
 	deploymentName,
-	scalerAddress,
-	host string,
+	scalerAddress string,
+	hosts []string,
 	minReplicas,
 	maxReplicas int32,
 	cooldownPeriod int32,
@@ -81,8 +81,8 @@ func NewScaledObject(
 		"MaxReplicas":    maxReplicas,
 		"DeploymentName": deploymentName,
 		"ScalerAddress":  scalerAddress,
-		"Host":           host,
 		"CooldownPeriod": cooldownPeriod,
+		"Hosts":          hosts,
 	}); tplErr != nil {
 		return nil, tplErr
 	}
