@@ -88,6 +88,9 @@ vet: ## Run go vet against code.
 golangci: ## Run golangci against code.
 	golangci-lint run
 
+pre-commit: ## Run static-checks.
+	pre-commit run --all-files
+
 proto-gen: protoc-gen-go ## Scaler protobuffers
 	protoc --proto_path=proto scaler.proto --go_out=proto --go-grpc_out=proto
 

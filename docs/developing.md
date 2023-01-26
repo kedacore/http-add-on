@@ -9,6 +9,7 @@ to have the following tools installed:
 
 - [Golang](http://golang.org/) for development
 - [Docker](https://docker.com) for building the images and testing it locally
+- [Pre-commit](https://pre-commit.com/) for static checks (_optional_)
 
 ## Prerequisites
 
@@ -48,6 +49,7 @@ The Makefile located in the root directory has targets useful for the whole proj
 - `make publish-multiarch`: Build and push all Docker images for `linux/arm64` and `linux/amd64`
 - `make manifests`: Generate all the manifest files for Kubernetes, it's important to build after every change
 - `make deploy`: Deploys the HTTP Add-on to the cluster selected in `~/.kube/config` using `config` folder manifests
+- `make pre-commit`: Execute static checks
 
 ### Required Environment Variables
 
