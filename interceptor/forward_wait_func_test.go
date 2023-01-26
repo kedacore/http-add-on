@@ -103,7 +103,8 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 	cache.AddDeployment(*deployment)
 	// create a watcher first so that the goroutine
 	// can later fetch it and send a message on it
-	cache.Watch(ns, deployName)
+	_, err := cache.Watch(ns, deployName)
+	r.NoError(err)
 
 	ctx, done := context.WithTimeout(ctx, totalWaitDur)
 	waitFunc := newDeployReplicasForwardWaitFunc(
@@ -122,7 +123,7 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		watcher.Action(watch.Modified, modifiedDeployment)
 		close(replicasIncreasedCh)
 	}()
-	_, err := waitFunc(ctx, ns, deployName)
+	_, err = waitFunc(ctx, ns, deployName)
 	r.NoError(err)
 	done()
 }

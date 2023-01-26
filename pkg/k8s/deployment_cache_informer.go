@@ -76,7 +76,10 @@ func (i *InformerBackedDeploymentCache) addEvtHandler(obj interface{}) {
 		)
 		return
 	}
-	i.bcaster.Action(watch.Added, depl)
+
+	if err := i.bcaster.Action(watch.Added, depl); err != nil {
+		i.lggr.Error(err, "informer expected deployment")
+	}
 }
 
 func (i *InformerBackedDeploymentCache) updateEvtHandler(oldObj, newObj interface{}) {
@@ -88,7 +91,10 @@ func (i *InformerBackedDeploymentCache) updateEvtHandler(oldObj, newObj interfac
 		)
 		return
 	}
-	i.bcaster.Action(watch.Modified, depl)
+
+	if err := i.bcaster.Action(watch.Modified, depl); err != nil {
+		i.lggr.Error(err, "informer expected deployment")
+	}
 }
 
 func (i *InformerBackedDeploymentCache) deleteEvtHandler(obj interface{}) {
@@ -100,7 +106,10 @@ func (i *InformerBackedDeploymentCache) deleteEvtHandler(obj interface{}) {
 		)
 		return
 	}
-	i.bcaster.Action(watch.Deleted, depl)
+
+	if err := i.bcaster.Action(watch.Deleted, depl); err != nil {
+		i.lggr.Error(err, "informer expected deployment")
+	}
 }
 
 func NewInformerBackedDeploymentCache(
@@ -118,10 +127,13 @@ func NewInformerBackedDeploymentCache(
 		bcaster:      watch.NewBroadcaster(0, watch.WaitIfChannelFull),
 		deplInformer: deplInformer,
 	}
-	ret.deplInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := ret.deplInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    ret.addEvtHandler,
 		UpdateFunc: ret.updateEvtHandler,
 		DeleteFunc: ret.deleteEvtHandler,
 	})
+	if err != nil {
+		lggr.Error(err, "error creating backend informer")
+	}
 	return ret
 }
