@@ -11,17 +11,18 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
+
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/test"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
-	appsv1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 func TestRunProxyServerCountMiddleware(t *testing.T) {
@@ -54,17 +55,17 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	// so that the proxy calculates a URL for that
 	// host that points to the (above) fake origin
 	// server.
-	routingTable.AddTarget(
+	r.NoError(routingTable.AddTarget(
 		host,
 		targetFromURL(
 			originURL,
 			originPort,
 			"testdepl",
 		),
-	)
+	))
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
-	waitFunc := func(_ context.Context, ns, name string) (int, error) {
+	waitFunc := func(_ context.Context, _, _ string) (int, error) {
 		<-waiterCh
 		return 1, nil
 	}

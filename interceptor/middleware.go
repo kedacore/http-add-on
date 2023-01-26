@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	"log"
-	nethttp "net/http"
+	"net/http"
 
 	"github.com/go-logr/logr"
+
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
-func getHost(r *nethttp.Request) (string, error) {
+func getHost(r *http.Request) (string, error) {
 	// check the host header first, then the request host
 	// field (which may contain the actual URL if there is no
 	// host header)
@@ -27,9 +28,9 @@ func getHost(r *nethttp.Request) (string, error) {
 func countMiddleware(
 	lggr logr.Logger,
 	q queue.Counter,
-	next nethttp.Handler,
-) nethttp.Handler {
-	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+	next http.Handler,
+) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, err := getHost(r)
 		if err != nil {
 			lggr.Error(err, "not forwarding request")

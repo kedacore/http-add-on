@@ -4,14 +4,15 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	"github.com/kedacore/http-add-on/operator/controllers/config"
-	"github.com/kedacore/http-add-on/pkg/routing"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/controllers/config"
+	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 // +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs="*"

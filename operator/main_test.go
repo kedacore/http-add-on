@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/operator/controllers/config"
-	"github.com/kedacore/http-add-on/pkg/routing"
-	"github.com/kedacore/http-add-on/pkg/test"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/util/rand"
+
+	"github.com/kedacore/http-add-on/operator/controllers/config"
+	"github.com/kedacore/http-add-on/pkg/routing"
+	"github.com/kedacore/http-add-on/pkg/test"
 )
 
 func TestRunAdminServerConfig(t *testing.T) {

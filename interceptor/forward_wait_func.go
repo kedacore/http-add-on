@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 // forwardWaitFunc is a function that waits for a condition

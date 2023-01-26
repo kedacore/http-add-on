@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 )
 
 func TestPingInterceptors(t *testing.T) {

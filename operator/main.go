@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,7 +32,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/go-logr/logr"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers"
 	"github.com/kedacore/http-add-on/operator/controllers/config"

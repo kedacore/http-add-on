@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 )
 
 const (

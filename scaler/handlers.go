@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func init() {

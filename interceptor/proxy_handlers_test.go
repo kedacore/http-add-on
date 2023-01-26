@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/stretchr/testify/require"
+
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/routing"
-	"github.com/stretchr/testify/require"
 )
 
 // the proxy should successfully forward a request to a running server
@@ -271,10 +272,11 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	// proxy
 	originHdlCh := make(chan struct{})
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			<-originHdlCh
 			w.WriteHeader(200)
-			w.Write([]byte("test response"))
+			_, err := w.Write([]byte("test response"))
+			r.NoError(err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)

@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/interceptor/config"
-	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/kedacore/http-add-on/interceptor/config"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 )
 
 func newRoundTripper(
@@ -66,10 +67,11 @@ func TestForwarderSuccess(t *testing.T) {
 	const respCode = 302
 	const respBody = "TestForwardingHandler"
 	originHdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			close(reqRecvCh)
 			w.WriteHeader(respCode)
-			w.Write([]byte(respBody))
+			_, err := w.Write([]byte(respBody))
+			r.NoError(err)
 		}),
 	)
 	testServer := httptest.NewServer(originHdl)
@@ -154,10 +156,11 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	const originRespCode = 200
 	const originRespBodyStr = "Hello World!"
 	hdl := kedanet.NewTestHTTPHandlerWrapper(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			<-originWaitCh
 			w.WriteHeader(originRespCode)
-			w.Write([]byte(originRespBodyStr))
+			_, err := w.Write([]byte(originRespBodyStr))
+			r.NoError(err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(hdl)
@@ -247,12 +250,13 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 
 	srv, srvURL, err := kedanet.StartTestServer(
 		kedanet.NewTestHTTPHandlerWrapper(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.Header().Set("X-Custom-Header", "somethingcustom")
 				w.Header().Set("Location", "abc123.com")
 				w.WriteHeader(301)
-				w.Write([]byte("Hello from srv"))
+				_, err := w.Write([]byte("Hello from srv"))
+				r.NoError(err)
 			}),
 		),
 	)

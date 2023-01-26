@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 func pingInterceptors(

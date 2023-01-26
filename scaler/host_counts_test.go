@@ -3,8 +3,9 @@ package main
 import (
 	"testing"
 
-	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 type testCase struct {
@@ -14,11 +15,11 @@ type testCase struct {
 	retCounts map[string]int
 }
 
-func cases() []testCase {
+func cases(r *require.Assertions) []testCase {
 	return []testCase{
 		{
 			name: "empty queue",
-			table: newRoutingTable([]hostAndTarget{
+			table: newRoutingTable(r, []hostAndTarget{
 				{
 					host:   "www.example.com",
 					target: routing.Target{},
@@ -36,7 +37,7 @@ func cases() []testCase {
 		},
 		{
 			name: "one entry in queue, same entry in routing table",
-			table: newRoutingTable([]hostAndTarget{
+			table: newRoutingTable(r, []hostAndTarget{
 				{
 					host:   "example.com",
 					target: routing.Target{},
@@ -51,7 +52,7 @@ func cases() []testCase {
 		},
 		{
 			name: "one entry in queue, two in routing table",
-			table: newRoutingTable([]hostAndTarget{
+			table: newRoutingTable(r, []hostAndTarget{
 				{
 					host:   "example.com",
 					target: routing.Target{},
@@ -70,10 +71,10 @@ func cases() []testCase {
 			},
 		},
 	}
-
 }
 func TestGetHostCount(t *testing.T) {
-	for _, tc := range cases() {
+	r := require.New(t)
+	for _, tc := range cases(r) {
 		for host, retCount := range tc.retCounts {
 			t.Run(tc.name, func(t *testing.T) {
 				r := require.New(t)
@@ -94,10 +95,10 @@ type hostAndTarget struct {
 	target routing.Target
 }
 
-func newRoutingTable(entries []hostAndTarget) *routing.Table {
+func newRoutingTable(r *require.Assertions, entries []hostAndTarget) *routing.Table {
 	ret := routing.NewTable()
 	for _, entry := range entries {
-		ret.AddTarget(entry.host, entry.target)
+		r.NoError(ret.AddTarget(entry.host, entry.target))
 	}
 	return ret
 }

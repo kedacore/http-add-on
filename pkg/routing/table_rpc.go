@@ -88,7 +88,6 @@ func newTableHandler(
 					"could not send error message to client",
 				)
 			}
-
 		}
 	})
 }

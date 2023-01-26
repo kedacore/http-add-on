@@ -48,6 +48,7 @@ issues:
       linters:
         - gomnd
         - dupl
+        - unparam
 linters-settings:
   funlen:
     lines: 80

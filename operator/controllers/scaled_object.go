@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 // createOrUpdateScaledObject attempts to create a new ScaledObject

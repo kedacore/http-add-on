@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -14,9 +13,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	kedanet "github.com/kedacore/http-add-on/pkg/net"
-	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,6 +20,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
+	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 // happy path - deployment is scaled to 1 and host in routing table
@@ -38,7 +38,6 @@ func TestIntegrationHappyPath(t *testing.T) {
 	h, err := newHarness(
 		t,
 		deploymentReplicasTimeout,
-		responseHeaderTimeout,
 	)
 	r.NoError(err)
 	defer h.close()
@@ -60,19 +59,17 @@ func TestIntegrationHappyPath(t *testing.T) {
 
 	originPort, err := strconv.Atoi(h.originURL.Port())
 	r.NoError(err)
-	h.routingTable.AddTarget(hostForTest(t), targetFromURL(
+	r.NoError(h.routingTable.AddTarget(hostForTest(t), targetFromURL(
 		h.originURL,
 		originPort,
 		deplName,
-	))
+	)))
 
 	// happy path
 	res, err := doRequest(
 		http.DefaultClient,
-		"GET",
 		h.proxyURL.String(),
 		hostForTest(t),
-		nil,
 	)
 	r.NoError(err)
 	r.Equal(200, res.StatusCode)
@@ -91,7 +88,7 @@ func TestIntegrationNoRoutingTableEntry(t *testing.T) {
 	)
 	host := fmt.Sprintf("%s.integrationtest.interceptor.kedahttp.dev", t.Name())
 	r := require.New(t)
-	h, err := newHarness(t, time.Second, time.Second)
+	h, err := newHarness(t, time.Second)
 	r.NoError(err)
 	defer h.close()
 	h.deplCache.Set(ns, host, appsv1.Deployment{
@@ -104,10 +101,8 @@ func TestIntegrationNoRoutingTableEntry(t *testing.T) {
 	// not in the routing table
 	res, err := doRequest(
 		http.DefaultClient,
-		"GET",
 		h.proxyURL.String(),
 		"not-in-the-table",
-		nil,
 	)
 	res.Body.Close()
 	r.NoError(err)
@@ -124,7 +119,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	host := hostForTest(t)
 	deployName := "testdeployment"
 	r := require.New(t)
-	h, err := newHarness(t, deployTimeout, time.Second)
+	h, err := newHarness(t, deployTimeout)
 	r.NoError(err)
 
 	originPort, err := strconv.Atoi(h.originURL.Port())
@@ -146,10 +141,8 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	start := time.Now()
 	res, err := doRequest(
 		http.DefaultClient,
-		"GET",
 		h.proxyURL.String(),
 		host,
-		nil,
 	)
 	r.NoError(err)
 	r.Equal(502, res.StatusCode)
@@ -171,7 +164,7 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	)
 	ctx := context.Background()
 	r := require.New(t)
-	h, err := newHarness(t, deployTimeout, responseTimeout)
+	h, err := newHarness(t, deployTimeout)
 	r.NoError(err)
 
 	// add host to routing table
@@ -206,10 +199,8 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	grp.Go(func() error {
 		resp, err := doRequest(
 			http.DefaultClient,
-			"GET",
 			h.proxyURL.String(),
 			hostForTest(t),
-			nil,
 		)
 		if err != nil {
 			return err
@@ -251,10 +242,8 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 
 func doRequest(
 	cl *http.Client,
-	method,
 	urlStr,
 	host string,
-	body io.ReadCloser,
 ) (*http.Response, error) {
 	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
@@ -284,8 +273,7 @@ type harness struct {
 
 func newHarness(
 	t *testing.T,
-	deployReplicasTimeout,
-	responseHeaderTimeout time.Duration,
+	deployReplicasTimeout time.Duration,
 ) (*harness, error) {
 	t.Helper()
 	lggr := logr.Discard()
@@ -328,7 +316,7 @@ func newHarness(
 		},
 		forwardingConfig{
 			waitTimeout:       deployReplicasTimeout,
-			respHeaderTimeout: responseHeaderTimeout,
+			respHeaderTimeout: time.Second,
 		},
 	)
 

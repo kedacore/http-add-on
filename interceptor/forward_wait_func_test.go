@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 // Test to make sure the wait function returns a nil error if there is immediately
