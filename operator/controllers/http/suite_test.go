@@ -113,6 +113,7 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 				Service:    appName,
 				Port:       8081,
 			},
+			Hosts: []string{"myhost1.com", "myhost2.com"},
 		},
 	}
 

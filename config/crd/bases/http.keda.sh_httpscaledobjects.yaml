@@ -59,11 +59,13 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
-              host:
+              hosts:
                 description: The host to route. All requests with this host in the
                   "Host" header will be routed to the Service and Port specified in
                   the scaleTargetRef
-                type: string
+                items:
+                  type: string
+                type: array
               replicas:
                 description: (optional) Replica information
                 properties:
@@ -107,7 +109,7 @@ spec:
                 format: int32
                 type: integer
             required:
-            - host
+            - hosts
             - scaleTargetRef
             type: object
           status:

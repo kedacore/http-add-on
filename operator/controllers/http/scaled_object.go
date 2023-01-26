@@ -39,7 +39,7 @@ func createOrUpdateScaledObject(
 		fmt.Sprintf("%s-app", httpso.GetName()), // HTTPScaledObject name is the same as the ScaledObject name
 		httpso.Spec.ScaleTargetRef.Deployment,
 		externalScalerHostName,
-		httpso.Spec.Host,
+		httpso.Spec.Hosts,
 		minReplicaCount,
 		maxReplicaCount,
 		httpso.Spec.CooldownPeriod,

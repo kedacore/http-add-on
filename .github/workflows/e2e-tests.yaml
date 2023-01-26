@@ -51,7 +51,6 @@ jobs:
       - name: Show Kubernetes version
         run: |
           kubectl version
-
       - name: Run e2e test
         run: |
           make e2e-test
