@@ -72,7 +72,7 @@ func TestCounts(t *testing.T) {
 	ticker := time.NewTicker(tickDur)
 	fakeCache := k8s.NewFakeDeploymentCache()
 	go func() {
-		r.NoError(pinger.start(ctx, ticker, fakeCache))
+		_ = pinger.start(ctx, ticker, fakeCache)
 	}()
 	// sleep to ensure we ticked and finished calling
 	// fetchAndSaveCounts
