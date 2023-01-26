@@ -8,19 +8,17 @@ There are many areas we can use contributions - ranging from code, documentation
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## Table of contents
 
-- [Contributing to KEDA](#contributing-to-keda)
-  - [Table of contents](#table-of-contents)
-  - [Project governance](#project-governance)
-  - [Including Documentation Changes](#including-documentation-changes)
-  - [Development Environment Setup](#development-environment-setup)
-  - [Locally Build & Deploy KEDA HTTP Addon](#locally-build--deploy-keda-http-addon)
-    - [Pre-requisite](#pre-requisite)
-    - [Building](#building)
-    - [Deploying](#deploying)
-    - [Load testing with k9s](#load-testing-with-k9s)
-  - [Developer Certificate of Origin: Signing your work](#developer-certificate-of-origin-signing-your-work)
-    - [Every commit needs to be signed](#every-commit-needs-to-be-signed)
-    - [I didn't sign my commit, now what?!](#i-didnt-sign-my-commit-now-what)
+- [Project governance](#project-governance)
+- [Including Documentation Changes](#including-documentation-changes)
+- [Development Environment Setup](#development-environment-setup)
+- [Locally Build & Deploy KEDA HTTP Addon](#locally-build--deploy-keda-http-addon)
+  - [Pre-requisite:](#pre-requisite)
+  - [Building:](#building)
+  - [Deploying:](#deploying)
+  - [Load testing with k9s:](#load-testing-with-k9s)
+- [Developer Certificate of Origin: Signing your work](#developer-certificate-of-origin-signing-your-work)
+  - [Every commit needs to be signed](#every-commit-needs-to-be-signed)
+  - [I didn't sign my commit, now what?!](#i-didnt-sign-my-commit-now-what)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 

@@ -51,7 +51,7 @@ The Makefile located in the root directory has targets useful for the whole proj
 
 ### Required Environment Variables
 
-Some of the above commands support changes in the default values: 
+Some of the above commands support changes in the default values:
 
 - `IMAGE_REGISTRY`: Image registry to be used for docker images
 - `IMAGE_REPO`: Repository to be used for docker images

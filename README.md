@@ -1,3 +1,18 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [HTTP Autoscaling Made Simple](#http-autoscaling-made-simple)
+- [Adopters - Become a listed KEDA user!](#adopters---become-a-listed-keda-user)
+- [Walkthrough](#walkthrough)
+- [Design](#design)
+- [Installation](#installation)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Code of Conduct](#code-of-conduct)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 <p align="center"><img src="https://github.com/kedacore/keda/raw/main/images/logos/keda-word-colour.png" width="300"/></p>
 
 <p style="font-size: 25px" align="center"><b>Kubernetes-based Event Driven Autoscaling - HTTP Add-on</b></p>
@@ -47,7 +62,7 @@ customizable installations while allowing us to ship reasonable defaults.
 ## Installation
 
 Please see the [complete installation instructions](./docs/install.md).
-  
+
 ## Roadmap
 We use GitHub issues to build our backlog, a complete overview of all open items and our planning.
 

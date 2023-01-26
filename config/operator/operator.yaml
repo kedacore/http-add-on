@@ -23,7 +23,7 @@ spec:
         control-plane: controller-manager
         app: keda-http-add-on
       name: keda-http-add-on-operator
-    spec:      
+    spec:
       serviceAccountName: keda-http-add-on
       containers:
         - name: kube-rbac-proxy
@@ -48,7 +48,7 @@ spec:
         - name: operator
           image: ghcr.io/kedacore/http-add-on-operator:latest
           command:
-            - /operator          
+            - /operator
           args:
             - --metrics-addr=127.0.0.1:8080
             - --enable-leader-election

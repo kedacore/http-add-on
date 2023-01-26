@@ -30,7 +30,7 @@ repos:
       name: Check for language that we do not accept as community
       description: Please use "deny_list" or "allow_list"  instead.
       entry: "(?i)(black|white)[_-]?(list|List)"
-      pass_filenames: true    
+      pass_filenames: true
     - id: golangci-lint
       language: golang
       name: Run golangci against the code
