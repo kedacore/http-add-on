@@ -114,7 +114,9 @@ func TestStreamIsActive(t *testing.T) {
 				grpcServer,
 				hdl,
 			)
-			go r.NoError(grpcServer.Serve(lis))
+			go func() {
+				r.NoError(grpcServer.Serve(lis))
+			}()
 
 			bufDialFunc := func(context.Context, string) (net.Conn, error) {
 				return lis.Dial()
