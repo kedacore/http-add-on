@@ -1,5 +1,7 @@
 replicaCount: 1
-host: myhost.com
+hosts:
+  - "myhost.com"
+  - "myhost2.com"
 targetPendingRequests: 200
 # This is the namespace that the ingress should be installed
 # into. It should be set to the same namespace as the
