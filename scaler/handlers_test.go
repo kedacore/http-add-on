@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
+
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 func standardTarget() routing.Target {
@@ -34,7 +36,7 @@ func TestStreamIsActive(t *testing.T) {
 		expectedErr bool
 		setup       func(*routing.Table, *queuePinger)
 	}
-
+	r := require.New(t)
 	testCases := []testCase{
 		{
 			name:        "Simple host inactive",
@@ -42,7 +44,7 @@ func TestStreamIsActive(t *testing.T) {
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget())
+				r.NoError(table.AddTarget(t.Name(), standardTarget()))
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 				q.allCounts[t.Name()] = 0
@@ -61,7 +63,7 @@ func TestStreamIsActive(t *testing.T) {
 			expected:    true,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget())
+				r.NoError(table.AddTarget(t.Name(), standardTarget()))
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 				q.allCounts[t.Name()] = 1
@@ -73,7 +75,7 @@ func TestStreamIsActive(t *testing.T) {
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget())
+				r.NoError(table.AddTarget(t.Name(), standardTarget()))
 			},
 		},
 		{
@@ -112,13 +114,15 @@ func TestStreamIsActive(t *testing.T) {
 				grpcServer,
 				hdl,
 			)
-			go grpcServer.Serve(lis)
+			go func() {
+				r.NoError(grpcServer.Serve(lis))
+			}()
 
 			bufDialFunc := func(context.Context, string) (net.Conn, error) {
 				return lis.Dial()
 			}
 
-			conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialFunc), grpc.WithInsecure())
+			conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialFunc), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				t.Fatalf("Failed to dial bufnet: %v", err)
 			}
@@ -164,7 +168,7 @@ func TestIsActive(t *testing.T) {
 		expectedErr bool
 		setup       func(*routing.Table, *queuePinger)
 	}
-
+	r := require.New(t)
 	testCases := []testCase{
 		{
 			name:        "Simple host inactive",
@@ -172,7 +176,7 @@ func TestIsActive(t *testing.T) {
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget())
+				r.NoError(table.AddTarget(t.Name(), standardTarget()))
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 				q.allCounts[t.Name()] = 0
@@ -191,7 +195,7 @@ func TestIsActive(t *testing.T) {
 			expected:    true,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget())
+				r.NoError(table.AddTarget(t.Name(), standardTarget()))
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 				q.allCounts[t.Name()] = 1
@@ -203,7 +207,7 @@ func TestIsActive(t *testing.T) {
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
-				table.AddTarget(t.Name(), standardTarget())
+				r.NoError(table.AddTarget(t.Name(), standardTarget()))
 			},
 		},
 		{
@@ -263,7 +267,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 		newRoutingTableFn              func() *routing.Table
 		checker                        func(*testing.T, *externalscaler.GetMetricSpecResponse, error)
 	}
-
+	r := require.New(t)
 	cases := []testCase{
 		{
 			name:                           "valid host as host value in scaler metadata",
@@ -275,13 +279,13 @@ func TestGetMetricSpecTable(t *testing.T) {
 			},
 			newRoutingTableFn: func() *routing.Table {
 				ret := routing.NewTable()
-				ret.AddTarget("validHost", routing.NewTarget(
+				r.NoError(ret.AddTarget("validHost", routing.NewTarget(
 					ns,
 					"testsrv",
 					8080,
 					"testdepl",
 					123,
-				))
+				)))
 				return ret
 			},
 			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
@@ -305,13 +309,13 @@ func TestGetMetricSpecTable(t *testing.T) {
 			},
 			newRoutingTableFn: func() *routing.Table {
 				ret := routing.NewTable()
-				ret.AddTarget("validHost", routing.NewTarget(
+				r.NoError(ret.AddTarget("validHost", routing.NewTarget(
 					ns,
 					"testsrv",
 					8080,
 					"testdepl",
 					123,
-				))
+				)))
 				return ret
 			},
 			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
@@ -390,7 +394,6 @@ func TestGetMetrics(t *testing.T) {
 		// create the HTTP server to encode and serve
 		// the host map
 		fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
-			"testns",
 			"testSvc",
 			q,
 			1,
@@ -552,10 +555,11 @@ func TestGetMetrics(t *testing.T) {
 				lggr logr.Logger,
 			) (*routing.Table, *queuePinger, func(), error) {
 				table := routing.NewTable()
-				table.AddTarget(
+				r := require.New(t)
+				r.NoError(table.AddTarget(
 					"myhost.com",
 					standardTarget(),
-				)
+				))
 				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
 					"host1": 201,
 					"host2": 202,

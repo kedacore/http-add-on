@@ -11,7 +11,7 @@ function clear_resources(){
   helm uninstall keda --namespace keda --wait
 }
 
-function print_logs {   
+function print_logs {
   echo ">>> KEDA Operator log <<<"
   kubectl logs -n keda -l app=keda-operator --tail 5000
   printf "##############################################\n"

@@ -15,15 +15,16 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
 	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 	ctx, done := context.WithCancel(
 		context.Background(),
 	)
-	defer done()
+
 	cfg := mustParseConfig()
 	grpcPort := cfg.GRPCPort
 	healthPort := cfg.HealthPort
@@ -48,6 +49,7 @@ func main() {
 	k8sCl, _, err := k8s.NewClientset()
 	if err != nil {
 		lggr.Error(err, "getting a Kubernetes client")
+		done()
 		os.Exit(1)
 	}
 	pinger, err := newQueuePinger(
@@ -61,8 +63,10 @@ func main() {
 	)
 	if err != nil {
 		lggr.Error(err, "creating a queue pinger")
+		done()
 		os.Exit(1)
 	}
+	defer done()
 
 	// This callback function is used to fetch and save
 	// the current queue counts from the interceptor immediately
@@ -141,7 +145,6 @@ func main() {
 			cfg,
 			healthPort,
 			pinger,
-			table,
 		)
 	})
 	build.PrintComponentInfo(lggr, "Scaler")
@@ -157,7 +160,6 @@ func startGrpcServer(
 	targetPendingRequests int64,
 	targetPendingRequestsInterceptor int64,
 ) error {
-
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("starting grpc server", "address", addr)
 	lis, err := net.Listen("tcp", addr)
@@ -190,7 +192,6 @@ func startAdminServer(
 	cfg *config,
 	port int,
 	pinger *queuePinger,
-	routingTable *routing.Table,
 ) error {
 	lggr = lggr.WithName("startHealthcheckServer")
 
@@ -216,7 +217,8 @@ func startAdminServer(
 		if err := pinger.fetchAndSaveCounts(ctx); err != nil {
 			lggr.Error(err, "requesting counts failed")
 			w.WriteHeader(500)
-			w.Write([]byte("error requesting counts from interceptors"))
+			_, err := w.Write([]byte("error requesting counts from interceptors"))
+			lggr.Error(err, "failed sending equesting counts failed")
 			return
 		}
 		cts := pinger.counts()
@@ -224,7 +226,8 @@ func startAdminServer(
 		if err := json.NewEncoder(w).Encode(&cts); err != nil {
 			lggr.Error(err, "writing counts data to caller")
 			w.WriteHeader(500)
-			w.Write([]byte("error writing counts data to caller"))
+			_, err := w.Write([]byte("error writing counts data to caller"))
+			lggr.Error(err, "failed sending writing counts data to caller")
 		}
 	})
 

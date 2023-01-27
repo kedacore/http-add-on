@@ -52,3 +52,18 @@ jobs:
 
     - name: Test
       run: ARCH=${{ matrix.name }} make test
+
+  statics:
+    name: Static Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4.5.0
+        with:
+          python-version: 3.x
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - name: Get golangci
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.49.0
+      - uses: pre-commit/action@v3.0.0

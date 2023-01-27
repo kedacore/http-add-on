@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 // StartConfigMapRoutingTableUpdater starts a loop that does the following:

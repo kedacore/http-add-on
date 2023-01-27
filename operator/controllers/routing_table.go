@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/routing"
 	pkgerrs "github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 func removeAndUpdateRoutingTable(

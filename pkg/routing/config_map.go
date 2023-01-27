@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 const (

@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	clgotesting "k8s.io/client-go/testing"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 // fake adapters for the k8s.GetterWatcher interface.
@@ -43,17 +43,6 @@ import (
 //
 // (https://pkg.go.dev/k8s.io/apimachinery@v0.21.3/pkg/watch#NewFake),
 
-type fakeConfigMapWatcher struct {
-	watchIface watch.Interface
-}
-
-func (c fakeConfigMapWatcher) Watch(
-	ctx context.Context,
-	opts metav1.ListOptions,
-) (watch.Interface, error) {
-	return c.watchIface, nil
-}
-
 func TestStartUpdateLoop(t *testing.T) {
 	r := require.New(t)
 	a := assert.New(t)
@@ -69,20 +58,20 @@ func TestStartUpdateLoop(t *testing.T) {
 
 	q := queue.NewFakeCounter()
 	table := NewTable()
-	table.AddTarget("host1", NewTarget(
+	r.NoError(table.AddTarget("host1", NewTarget(
 		"testns",
 		"svc1",
 		8080,
 		"depl1",
 		100,
-	))
-	table.AddTarget("host2", NewTarget(
+	)))
+	r.NoError(table.AddTarget("host2", NewTarget(
 		"testns",
 		"svc2",
 		8080,
 		"depl2",
 		100,
-	))
+	)))
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -212,5 +201,4 @@ func TestStartUpdateLoop(t *testing.T) {
 			qHost,
 		)
 	}
-
 }

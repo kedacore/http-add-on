@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	v1 "k8s.io/api/core/v1"
+
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
-	v1 "k8s.io/api/core/v1"
 )
 
 // startFakeQueuePinger starts a fake server that simulates
@@ -24,7 +25,6 @@ import (
 // returns nil for the first 3 return value and a non-nil error in
 // case of a failure.
 func startFakeQueueEndpointServer(
-	ns,
 	svcName string,
 	q queue.CountReader,
 	numEndpoints int,
@@ -35,7 +35,7 @@ func startFakeQueueEndpointServer(
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	endpoints, err := k8s.FakeEndpointsForURL(srvURL, ns, svcName, numEndpoints)
+	endpoints, err := k8s.FakeEndpointsForURL(srvURL, "testns", svcName, numEndpoints)
 	if err != nil {
 		return nil, nil, nil, err
 	}

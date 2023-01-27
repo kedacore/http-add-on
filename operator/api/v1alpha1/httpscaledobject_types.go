@@ -96,13 +96,13 @@ type HTTPScaledObjectSpec struct {
 	// or Image must be set
 	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`
 	// (optional) Replica information
-	//+optional
+	// +optional
 	Replicas ReplicaStruct `json:"replicas,omitempty"`
-	//(optional) Target metric value
-	//+optional
+	// (optional) Target metric value
+	// +optional
 	TargetPendingRequests int32 `json:"targetPendingRequests,omitempty" description:"The target metric value for the HPA (Default 100)"`
-	//(optional) Cooldown period value
-	//+optional
+	// (optional) Cooldown period value
+	// +optional
 	CooldownPeriod int32 `json:"scaledownPeriod,omitempty" description:"Cooldown period (seconds) for resources to scale down(Default x)"`
 }
 

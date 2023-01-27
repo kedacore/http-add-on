@@ -1,4 +1,4 @@
-// inspired from 
+// inspired from
 // https://github.com/microsoft/vscode-dev-containers/blob/main/containers/go/.devcontainer/devcontainer.json
 {
     "name": "Go",

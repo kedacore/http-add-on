@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 func pingInterceptors(
@@ -34,8 +35,12 @@ func pingInterceptors(
 		endpointStr := endpointURL.String()
 		errGrp.Go(func() error {
 			fullAddr := fmt.Sprintf("%s/routing_ping", endpointStr)
-			_, err := httpCl.Get(fullAddr)
-			return err
+			resp, err := httpCl.Get(fullAddr)
+			if err != nil {
+				return err
+			}
+			resp.Body.Close()
+			return nil
 		})
 	}
 	return errGrp.Wait()

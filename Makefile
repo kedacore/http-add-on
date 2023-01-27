@@ -44,13 +44,13 @@ e2e-test:
 	./tests/e2e-test.sh
 
 # Docker targets
-docker-build-operator: 
+docker-build-operator:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_OPERATOR} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
-docker-build-interceptor: 
+docker-build-interceptor:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_INTERCEPTOR} -f interceptor/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
-docker-build-scaler: 
+docker-build-scaler:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_SCALER} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 docker-build: docker-build-operator docker-build-interceptor docker-build-scaler
@@ -76,7 +76,7 @@ publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publ
 manifests: controller-gen ## Generate ClusterRole and CustomResourceDefinition objects for core componenets.
 	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=keda-http-add-on paths="./..." output:crd:artifacts:config=config/crd/bases
 
-verify-manifests: 
+verify-manifests:
 	./hack/verify-manifests.sh
 
 fmt: ## Run go fmt against code.
@@ -85,8 +85,8 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-golangci: ## Run golangci against code.
-	golangci-lint run
+pre-commit: ## Run static-checks.
+	pre-commit run --all-files
 
 proto-gen: protoc-gen-go ## Scaler protobuffers
 	protoc --proto_path=proto scaler.proto --go_out=proto --go-grpc_out=proto

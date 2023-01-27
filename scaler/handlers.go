@@ -11,14 +11,19 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
+
+const (
+	interceptor = "interceptor"
+)
 
 type impl struct {
 	lggr                    logr.Logger
@@ -60,7 +65,7 @@ func (e *impl) IsActive(
 		lggr.Error(err, "returning immediately from IsActive RPC call", "ScaledObject", scaledObject)
 		return nil, err
 	}
-	if host == "interceptor" {
+	if host == interceptor {
 		return &externalscaler.IsActiveResponse{
 			Result: true,
 		}, nil
@@ -107,9 +112,16 @@ func (e *impl) StreamIsActive(
 				)
 				return err
 			}
-			server.Send(&externalscaler.IsActiveResponse{
+			err = server.Send(&externalscaler.IsActiveResponse{
 				Result: active.Result,
 			})
+			if err != nil {
+				e.lggr.Error(
+					err,
+					"error sending the active result in stream",
+				)
+				return err
+			}
 		}
 	}
 }
@@ -126,7 +138,7 @@ func (e *impl) GetMetricSpec(
 		return nil, err
 	}
 	var targetPendingRequests int64
-	if host == "interceptor" {
+	if host == interceptor {
 		targetPendingRequests = e.targetMetricInterceptor
 	} else {
 		target, err := e.routingTable.Lookup(host)
@@ -171,7 +183,7 @@ func (e *impl) GetMetrics(
 		e.routingTable,
 	)
 	if !ok {
-		if host == "interceptor" {
+		if host == interceptor {
 			hostCount = e.pinger.aggregate()
 		} else {
 			err := fmt.Errorf("host '%s' not found in counts", host)

@@ -15,7 +15,7 @@ jobs:
         run: |
           COMMIT=$(git rev-parse --short HEAD)
           VERSION=${COMMIT} make docker-build-scaler
-  
+
   build_operator:
     runs-on: ubuntu-latest
     container: ghcr.io/kedacore/build-tools:1.19.5

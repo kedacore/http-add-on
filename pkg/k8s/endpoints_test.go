@@ -57,6 +57,7 @@ func TestGetEndpoints(t *testing.T) {
 	addrLookup := map[string]*v1.EndpointAddress{}
 	for _, subset := range endpoints.Subsets {
 		for _, addr := range subset.Addresses {
+			addr := addr
 			key := fmt.Sprintf("http://%s:%s", addr.IP, svcPort)
 			addrLookup[key] = &addr
 		}

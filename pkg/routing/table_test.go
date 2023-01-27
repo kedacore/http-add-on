@@ -21,7 +21,7 @@ func TestTableJSONRoundTrip(t *testing.T) {
 		"testdepl",
 		1234,
 	)
-	tbl.AddTarget(host, tgt)
+	r.NoError(tbl.AddTarget(host, tgt))
 
 	b, err := json.Marshal(&tbl)
 	r.NoError(err)
@@ -53,7 +53,7 @@ func TestTableRemove(t *testing.T) {
 	tbl := NewTable()
 
 	// add the target to the table and ensure that you can look it up
-	tbl.AddTarget(host, tgt)
+	r.NoError(tbl.AddTarget(host, tgt))
 	retTgt, err := tbl.Lookup(host)
 	r.Equal(tgt, retTgt)
 	r.NoError(err)
@@ -86,9 +86,9 @@ func TestTableReplace(t *testing.T) {
 	)
 	// create two routing tables, each with different targets
 	tbl1 := NewTable()
-	tbl1.AddTarget(host1, tgt1)
+	r.NoError(tbl1.AddTarget(host1, tgt1))
 	tbl2 := NewTable()
-	tbl2.AddTarget(host2, tgt2)
+	r.NoError(tbl2.AddTarget(host2, tgt2))
 
 	// replace the second table with the first and ensure that the tables
 	// are now equal

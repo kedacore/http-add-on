@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	nethttp "net/http"
 	"net/url"
 
 	"github.com/go-logr/logr"
@@ -14,7 +13,7 @@ import (
 
 const countsPath = "/queue"
 
-func AddCountsRoute(lggr logr.Logger, mux *nethttp.ServeMux, q CountReader) {
+func AddCountsRoute(lggr logr.Logger, mux *http.ServeMux, q CountReader) {
 	lggr = lggr.WithName("pkg.queue.AddCountsRoute")
 	lggr.Info("adding queue counts route", "path", countsPath)
 	mux.Handle(countsPath, newSizeHandler(lggr, q))
@@ -26,24 +25,33 @@ func AddCountsRoute(lggr logr.Logger, mux *nethttp.ServeMux, q CountReader) {
 func newSizeHandler(
 	lggr logr.Logger,
 	q CountReader,
-) nethttp.Handler {
-	return http.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
-
+) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cur, err := q.Current()
 		if err != nil {
 			lggr.Error(err, "getting queue size")
 			w.WriteHeader(500)
-			w.Write([]byte(
+			if _, err := w.Write([]byte(
 				"error getting queue size",
-			))
+			)); err != nil {
+				lggr.Error(
+					err,
+					"could not send error message to client",
+				)
+			}
 			return
 		}
 		if err := json.NewEncoder(w).Encode(cur); err != nil {
 			lggr.Error(err, "encoding QueueCounts")
 			w.WriteHeader(500)
-			w.Write([]byte(
+			if _, err := w.Write([]byte(
 				"error encoding queue counts",
-			))
+			)); err != nil {
+				lggr.Error(
+					err,
+					"could not send error message to client",
+				)
+			}
 			return
 		}
 	})
@@ -55,7 +63,7 @@ func newSizeHandler(
 func GetCounts(
 	ctx context.Context,
 	lggr logr.Logger,
-	httpCl *nethttp.Client,
+	httpCl *http.Client,
 	interceptorURL url.URL,
 ) (*Counts, error) {
 	interceptorURL.Path = countsPath

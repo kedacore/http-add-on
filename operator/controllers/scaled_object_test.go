@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
-	"github.com/kedacore/http-add-on/operator/controllers/config"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/controllers/config"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 func TestCreateOrUpdateScaledObject(t *testing.T) {
@@ -128,5 +129,4 @@ func getKeyAsMap(m map[string]interface{}, key string) (map[string]interface{}, 
 		return nil, fmt.Errorf("key %s was not a map[string]interface{}", key)
 	}
 	return val, nil
-
 }

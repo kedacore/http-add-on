@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
+
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
@@ -50,9 +51,14 @@ func AddPingRoute(
 		if err != nil {
 			lggr.Error(err, "fetching new routing table")
 			w.WriteHeader(500)
-			w.Write([]byte(
+			if _, err := w.Write([]byte(
 				"error fetching routing table",
-			))
+			)); err != nil {
+				lggr.Error(
+					err,
+					"could not write error response to client",
+				)
+			}
 			return
 		}
 		w.WriteHeader(200)
@@ -74,9 +80,14 @@ func newTableHandler(
 		if err != nil {
 			w.WriteHeader(500)
 			lggr.Error(err, "encoding logging table JSON")
-			w.Write([]byte(
+			if _, err := w.Write([]byte(
 				"error encoding and transmitting the routing table",
-			))
+			)); err != nil {
+				lggr.Error(
+					err,
+					"could not send error message to client",
+				)
+			}
 		}
 	})
 }

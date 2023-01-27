@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 )
 
 // queuePinger has functionality to ping all interceptors
@@ -172,7 +173,6 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	q.lastPingTime = time.Now()
 
 	return nil
-
 }
 
 // fetchCounts fetches all counts from every endpoint returned
@@ -273,5 +273,4 @@ func fetchCounts(
 	}
 
 	return totalCounts, agg, nil
-
 }

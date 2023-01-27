@@ -21,7 +21,7 @@ func GetOr(envName, otherwise string) string {
 func Get(envName string) (string, error) {
 	fromEnv := os.Getenv(envName)
 	if fromEnv == "" {
-		return "", fmt.Errorf("Environnment variable %s not found", envName)
+		return "", fmt.Errorf("environnment variable %s not found", envName)
 	}
 	return fromEnv, nil
 }

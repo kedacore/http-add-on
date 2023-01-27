@@ -70,7 +70,6 @@ func GetConfigMap(
 	namespace string,
 	name string,
 ) (*corev1.ConfigMap, error) {
-
 	configMap := &corev1.ConfigMap{}
 	err := cl.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, configMap)
 	if err != nil {

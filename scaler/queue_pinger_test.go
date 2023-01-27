@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 func TestCounts(t *testing.T) {
@@ -35,11 +36,10 @@ func TestCounts(t *testing.T) {
 
 	q := queue.NewMemory()
 	for host, count := range counts {
-		q.Resize(host, count)
+		r.NoError(q.Resize(host, count))
 	}
 
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
-		ns,
 		svcName,
 		q,
 		3,
@@ -65,14 +65,14 @@ func TestCounts(t *testing.T) {
 
 	// now update the queue, start the ticker, and ensure
 	// that counts are updated after the first tick
-	q.Resize("host1", 1)
-	q.Resize("host2", 2)
-	q.Resize("host3", 3)
-	q.Resize("host4", 4)
+	r.NoError(q.Resize("host1", 1))
+	r.NoError(q.Resize("host2", 2))
+	r.NoError(q.Resize("host3", 3))
+	r.NoError(q.Resize("host4", 4))
 	ticker := time.NewTicker(tickDur)
 	fakeCache := k8s.NewFakeDeploymentCache()
 	go func() {
-		pinger.start(ctx, ticker, fakeCache)
+		_ = pinger.start(ctx, ticker, fakeCache)
 	}()
 	// sleep to ensure we ticked and finished calling
 	// fetchAndSaveCounts
@@ -117,10 +117,10 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	}
 	q := queue.NewMemory()
 	for host, count := range counts.Counts {
-		q.Resize(host, count)
+		r.NoError(q.Resize(host, count))
 	}
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
-		ns, svcName, q, numEndpoints,
+		svcName, q, numEndpoints,
 	)
 	r.NoError(err)
 	defer srv.Close()
@@ -181,7 +181,7 @@ func TestFetchCounts(t *testing.T) {
 		r.NoError(q.Resize(host, count))
 	}
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
-		ns, svcName, q, numEndpoints,
+		svcName, q, numEndpoints,
 	)
 	r.NoError(err)
 
@@ -218,7 +218,8 @@ func TestFetchCounts(t *testing.T) {
 }
 
 func TestMergeCountsWithRoutingTable(t *testing.T) {
-	for _, tc := range cases() {
+	r := require.New(t)
+	for _, tc := range cases(r) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			grp, ctx := errgroup.WithContext(ctx)

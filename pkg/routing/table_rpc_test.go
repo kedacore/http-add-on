@@ -5,17 +5,18 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
-func newTableFromMap(m map[string]Target) *Table {
+func newTableFromMap(r *require.Assertions, m map[string]Target) *Table {
 	table := NewTable()
 	for host, target := range m {
-		table.AddTarget(host, target)
+		r.NoError(table.AddTarget(host, target))
 	}
 	return table
 }
@@ -59,7 +60,7 @@ func TestRPCIntegration(t *testing.T) {
 
 	retTable = NewTable()
 	k8sCl, err = fakeConfigMapClientForTable(
-		newTableFromMap(targetMap),
+		newTableFromMap(r, targetMap),
 		ns,
 		ConfigMapRoutingTableName,
 	)

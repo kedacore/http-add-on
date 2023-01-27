@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 )
 
 func TestAppScaledObjectName(t *testing.T) {

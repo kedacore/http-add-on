@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 // Test to make sure the wait function returns a nil error if there is immediately
@@ -102,7 +103,8 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 	cache.AddDeployment(*deployment)
 	// create a watcher first so that the goroutine
 	// can later fetch it and send a message on it
-	cache.Watch(ns, deployName)
+	_, err := cache.Watch(ns, deployName)
+	r.NoError(err)
 
 	ctx, done := context.WithTimeout(ctx, totalWaitDur)
 	waitFunc := newDeployReplicasForwardWaitFunc(
@@ -121,7 +123,7 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		watcher.Action(watch.Modified, modifiedDeployment)
 		close(replicasIncreasedCh)
 	}()
-	_, err := waitFunc(ctx, ns, deployName)
+	_, err = waitFunc(ctx, ns, deployName)
 	r.NoError(err)
 	done()
 }

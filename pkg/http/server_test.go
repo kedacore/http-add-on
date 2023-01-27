@@ -17,7 +17,10 @@ func TestServeContext(t *testing.T) {
 	)
 	hdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("foo", "bar")
-		w.Write([]byte("hello world"))
+		_, err := w.Write([]byte("hello world"))
+		if err != nil {
+			t.Fatalf("error writing message to client from handler")
+		}
 	})
 	addr := "localhost:1234"
 	const cancelDur = 500 * time.Millisecond

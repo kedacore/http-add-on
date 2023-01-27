@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/kedacore/http-add-on/pkg/env"
 	"github.com/kelseyhightower/envconfig"
+
+	"github.com/kedacore/http-add-on/pkg/env"
 )
 
 // Interceptor holds static configuration info for the interceptor

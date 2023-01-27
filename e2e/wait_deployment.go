@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 func waitUntilDeployment(

@@ -35,10 +35,10 @@ appVersion: 1.2.3
 ```yaml
 images:
   # tag is the image tag to use for all images.
-  # for example, if the operator image is "myoperator" and 
+  # for example, if the operator image is "myoperator" and
   # tag is "mytag", the operator image used will be
   # "myoperator:mytag". `latest` is used to indicate the latest
-  # stable release in the official images, `canary` is 
+  # stable release in the official images, `canary` is
   # the build for the latest commit to the `main` branch,
   # and you can target any other commit with `sha-<GIT_SHA[0:7]>`
   tag: 1.2.3

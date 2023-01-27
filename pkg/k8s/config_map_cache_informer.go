@@ -85,7 +85,10 @@ func (i *InformerConfigMapUpdater) addEvtHandler(obj interface{}) {
 		)
 		return
 	}
-	i.bcaster.Action(watch.Added, cm)
+
+	if err := i.bcaster.Action(watch.Added, cm); err != nil {
+		i.lggr.Error(err, "informer expected configMap")
+	}
 }
 
 func (i *InformerConfigMapUpdater) updateEvtHandler(oldObj, newObj interface{}) {
@@ -97,7 +100,10 @@ func (i *InformerConfigMapUpdater) updateEvtHandler(oldObj, newObj interface{}) 
 		)
 		return
 	}
-	i.bcaster.Action(watch.Modified, cm)
+
+	if err := i.bcaster.Action(watch.Modified, cm); err != nil {
+		i.lggr.Error(err, "informer expected configMap")
+	}
 }
 
 func (i *InformerConfigMapUpdater) deleteEvtHandler(obj interface{}) {
@@ -109,7 +115,10 @@ func (i *InformerConfigMapUpdater) deleteEvtHandler(obj interface{}) {
 		)
 		return
 	}
-	i.bcaster.Action(watch.Deleted, cm)
+
+	if err := i.bcaster.Action(watch.Deleted, cm); err != nil {
+		i.lggr.Error(err, "informer expected configMap")
+	}
 }
 
 func NewInformerConfigMapUpdater(
@@ -127,10 +136,13 @@ func NewInformerConfigMapUpdater(
 		bcaster:    watch.NewBroadcaster(0, watch.WaitIfChannelFull),
 		cmInformer: cmInformer,
 	}
-	ret.cmInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := ret.cmInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    ret.addEvtHandler,
 		UpdateFunc: ret.updateEvtHandler,
 		DeleteFunc: ret.deleteEvtHandler,
 	})
+	if err != nil {
+		lggr.Error(err, "error creating config informer")
+	}
 	return ret
 }

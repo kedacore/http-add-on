@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
+
 	"github.com/kedacore/http-add-on/pkg/build"
 )
 
@@ -15,7 +16,8 @@ func AddConfigEndpoint(lggr logr.Logger, mux *http.ServeMux, configs ...interfac
 		}); err != nil {
 			lggr.Error(err, "failed to encode configs")
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			_, err := w.Write([]byte(err.Error()))
+			lggr.Error(err, "failed sending encode version error")
 		}
 	})
 }
@@ -27,7 +29,8 @@ func AddVersionEndpoint(lggr logr.Logger, mux *http.ServeMux) {
 		}); err != nil {
 			lggr.Error(err, "failed to encode version")
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			_, err := w.Write([]byte(err.Error()))
+			lggr.Error(err, "failed sending encode version error")
 		}
 	})
 }

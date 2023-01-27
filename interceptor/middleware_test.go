@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 func TestCountMiddleware(t *testing.T) {
@@ -23,9 +24,10 @@ func TestCountMiddleware(t *testing.T) {
 	middleware := countMiddleware(
 		logr.Discard(),
 		queueCounter,
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(200)
-			w.Write([]byte("OK"))
+		http.HandlerFunc(func(wr http.ResponseWriter, req *http.Request) {
+			wr.WriteHeader(200)
+			_, err := wr.Write([]byte("OK"))
+			r.NoError(err)
 		}),
 	)
 
