@@ -2,6 +2,10 @@ kind: HTTPScaledObject
 apiVersion: http.keda.sh/v1alpha1
 metadata:
     name: {{ include "xkcd.fullname" . }}
+    {{- with .Values.hosts }}
+    hosts:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
 spec:
     {{- with .Values.hosts }}
     hosts:
