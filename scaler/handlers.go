@@ -59,7 +59,8 @@ func (e *impl) IsActive(
 	scaledObject *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
 	lggr := e.lggr.WithName("IsActive")
-	host, ok := scaledObject.ScalerMetadata["host"]
+	host, ok := scaledObject.ScalerMetadata["hosts"]
+	fmt.Println(host)
 	if !ok {
 		err := fmt.Errorf("no 'host' field found in ScaledObject metadata")
 		lggr.Error(err, "returning immediately from IsActive RPC call", "ScaledObject", scaledObject)
