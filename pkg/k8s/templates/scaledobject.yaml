@@ -21,7 +21,7 @@ spec:
         scalerAddress: {{ .ScalerAddress }}
         {{- with .Values.hosts }}
         hosts:
-            {{- toYaml . | nindent 12 }}
+            {{- . | nindent 12 }}
         {{- end }}
   advanced:
     restoreToOriginalReplicaCount: true
