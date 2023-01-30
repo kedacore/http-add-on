@@ -19,6 +19,9 @@ spec:
     - type: external-push
       metadata:
         scalerAddress: {{ .ScalerAddress }}
-        host: {{ .Host }}
+        {{- with .Values.hosts }}
+        hosts:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
   advanced:
     restoreToOriginalReplicaCount: true

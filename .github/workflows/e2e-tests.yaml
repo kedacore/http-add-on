@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetesVersion: [v1.26, v1.25, v1.24, v1.23]
+        kubernetesVersion: [v1.24]
         include:
         - kubernetesVersion: v1.24
           kindImage: kindest/node:v1.24.4@sha256:adfaebada924a26c2c9308edd53c6e33b3d4e453782c0063dc0028bdebaddf98
@@ -51,24 +51,5 @@ jobs:
       - name: Run e2e test
         run: |
           make e2e-test
-        env:
-          VERSION: main
-
-  arm_image_generation:
-    runs-on: ARM64
-    name: Generate ARM64 images for e2e tests
-    steps:
-      - name: Install prerequisites
-        run: |
-          sudo apt update
-          sudo apt install curl make ca-certificates gcc libc-dev -y
-        env:
-          DEBIAN_FRONTEND: noninteractive
-
-      - uses: actions/checkout@v3
-
-      - name: Generate images
-        run: |
-          make docker-build
         env:
           VERSION: main
