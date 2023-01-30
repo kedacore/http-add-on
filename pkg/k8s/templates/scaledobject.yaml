@@ -10,6 +10,7 @@ metadata:
 spec:
   minReplicaCount: {{ .MinReplicas }}
   maxReplicaCount: {{ .MaxReplicas }}
+  cooldownPeriod: {{ .CooldownPeriod }}
   pollingInterval: 1
   scaleTargetRef:
     name: {{ .DeploymentName }}
