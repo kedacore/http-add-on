@@ -10,7 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
- 
+
 ## Unreleased
 
 ### Breaking Changes
