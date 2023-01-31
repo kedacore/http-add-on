@@ -12,3 +12,4 @@ spec:
     replicas:
         min: {{ .Values.autoscaling.http.minReplicas }}
         max: {{ .Values.autoscaling.http.maxReplicas }}
+        idle: {{ .Values.autoscaling.http.idleReplicas }}

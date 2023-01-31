@@ -26,22 +26,16 @@ func createOrUpdateScaledObject(
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
-
-	var minReplicaCount *int32
-	var maxReplicaCount *int32
-	if replicas := httpso.Spec.Replicas; replicas != nil {
-		minReplicaCount = replicas.Min
-		maxReplicaCount = replicas.Max
-	}
-
-	appScaledObject := k8s.NewScaledObject(
+	logger.Info("This is the current httpso object", "output", httpso.Spec)
+	appScaledObject, appErr := k8s.NewScaledObject(
 		httpso.GetNamespace(),
 		fmt.Sprintf("%s-app", httpso.GetName()), // HTTPScaledObject name is the same as the ScaledObject name
 		httpso.Spec.ScaleTargetRef.Deployment,
 		externalScalerHostName,
 		httpso.Spec.Host,
-		minReplicaCount,
-		maxReplicaCount,
+		httpso.Spec.Replicas.Min,
+		httpso.Spec.Replicas.Max,
+		httpso.Spec.Replicas.Idle,
 		httpso.Spec.CooldownPeriod,
 	)
 

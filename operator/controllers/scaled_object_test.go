@@ -56,32 +56,29 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 		metadata.Name,
 	)
 
-	var minReplicaCount *int32
-	var maxReplicaCount *int32
-	if replicas := testInfra.httpso.Spec.Replicas; replicas != nil {
-		minReplicaCount = replicas.Min
-		maxReplicaCount = replicas.Max
-	}
-
-	r.EqualValues(
-		minReplicaCount,
-		spec.MinReplicaCount,
+	// HTTPScaledObject min/max/idle replicas are int32s,
+	// but the ScaledObject's spec is decoded into
+	// an *unsructured.Unstructured (basically a map[string]interface{})
+	// which is an int64. we need to convert the
+	// HTTPScaledObject's values into int64s before we compare
+	r.Equal(
+		int64(testInfra.httpso.Spec.Replicas.Min),
+		spec["minReplicaCount"],
 	)
 	r.EqualValues(
 		maxReplicaCount,
 		spec.MaxReplicaCount,
 	)
+	r.Equal(
+		int64(testInfra.httpso.Spec.Replicas.Idle),
+		spec["idleReplicaCount"],
+	)
 
 	// now update the min and max replicas on the httpso
 	// and call createOrUpdateScaledObject again
-	if spec := &testInfra.httpso.Spec; spec.Replicas == nil {
-		spec.Replicas = &v1alpha1.ReplicaStruct{
-			Min: new(int32),
-			Max: new(int32),
-		}
-	}
-	*testInfra.httpso.Spec.Replicas.Min++
-	*testInfra.httpso.Spec.Replicas.Max++
+	testInfra.httpso.Spec.Replicas.Min++
+	testInfra.httpso.Spec.Replicas.Max++
+	testInfra.httpso.Spec.Replicas.Idle++
 	r.NoError(createOrUpdateScaledObject(
 		testInfra.ctx,
 		testInfra.cl,
@@ -106,6 +103,10 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 	r.Equal(
 		*testInfra.httpso.Spec.Replicas.Max,
 		*spec.MaxReplicaCount,
+	)
+	r.Equal(
+		int64(testInfra.httpso.Spec.Replicas.Idle),
+		spec["idleReplicaCount"],
 	)
 }
 

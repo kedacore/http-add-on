@@ -46,3 +46,4 @@ autoscaling:
   http:
     minReplicas: 0
     maxReplicas: 10
+    idleReplicas: 0
