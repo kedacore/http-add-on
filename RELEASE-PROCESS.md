@@ -58,7 +58,7 @@ After your PR is merged, you've completed the release. Congratulations! You can 
 
 ## 4: Publish release on Artifact Hub
 
-Publish release on Artifact Hub by creating a new version in [kedacore/external-scalers](https://github.com/kedacore/external-scalers/tree/http/artifacthub/add-ons-http).
+Publish release on Artifact Hub by creating a new version in [kedacore/external-scalers](https://github.com/kedacore/external-scalers/tree/main/artifacthub/add-ons-http).
 
 ## 5: Write a blog post on the documentation site (_optional_)
 
