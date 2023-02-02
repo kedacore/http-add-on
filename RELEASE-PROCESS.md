@@ -56,7 +56,11 @@ Once you've made changes to the chart, here's how to do submit the change to the
 
 After your PR is merged, you've completed the release. Congratulations! You can optionally write a blog post about it; see the next section if you're interested.
 
-## 4: Write a blog post on the documentation site (_optional_)
+## 4: Publish release on Artifact Hub
+
+Publish release on Artifact Hub by creating a new version in [kedacore/external-scalers](https://github.com/kedacore/external-scalers/tree/http/artifacthub/add-ons-http).
+
+## 5: Write a blog post on the documentation site (_optional_)
 
 If you believe that your release is large enough to warrant a blog post on the [keda.sh/blog](https://keda.sh/blog/) site, please go to [github.com/kedacore/keda-docs](https://github.com/kedacore/keda-docs) and submit a new PR with a blog article about the release.
 
