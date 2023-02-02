@@ -15,7 +15,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
-- TODO
+- **General**: Move Docker images to ghcr.io/kedacore/http-add-on/* ([#567](https://github.com/kedacore/http-add-on/issues/567))
 
 ### New
 
