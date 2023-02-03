@@ -521,7 +521,7 @@ func TestGetMetrics(t *testing.T) {
 				r.Nil(res)
 				r.Contains(
 					err.Error(),
-					"no 'hosts' field found in ScaledObject metadata",
+					"no 'hosts' field in the scaler metadata field",
 				)
 			},
 			defaultTargetMetric:            int64(200),

@@ -30,7 +30,7 @@ func getHostsFromScaledObjectRef(lggr logr.Logger, sor *externalscaler.ScaledObj
 	serializedHosts, ok := sor.ScalerMetadata["hosts"]
 	if !ok {
 		err := fmt.Errorf("'hosts' not found in ScaledObject metadata")
-		lggr.Error(err, "no 'hosts' field found in ScaledObject metadata")
+		lggr.Error(err, "no 'hosts' field in the scaler metadata field")
 		return make([]string, 0), err
 	}
 	var hosts []string

@@ -74,6 +74,12 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 		spec["maxReplicaCount"],
 	)
 
+	// get hosts from spec and ensure all the hosts are there
+	r.Equal(
+		2,
+		len(testInfra.httpso.Spec.Hosts),
+	)
+
 	// now update the min and max replicas on the httpso
 	// and call createOrUpdateScaledObject again
 	testInfra.httpso.Spec.Replicas.Min++
@@ -104,9 +110,6 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 		int64(testInfra.httpso.Spec.Replicas.Max),
 		spec["maxReplicaCount"],
 	)
-
-	// get hosts from spec and ensure all the hosts are there
-	r.Equal(2, len(testInfra.httpso.Spec.Hosts))
 }
 
 func getSO(
