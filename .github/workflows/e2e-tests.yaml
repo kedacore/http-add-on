@@ -44,9 +44,9 @@ jobs:
       - name: Generate images and push to the cluster
         run: |
           make docker-build
-          kind load docker-image ghcr.io/kedacore/http-add-on/operator:${VERSION} --name cluster
-          kind load docker-image ghcr.io/kedacore/http-add-on/interceptor:${VERSION} --name cluster
-          kind load docker-image ghcr.io/kedacore/http-add-on/scaler:${VERSION} --name cluster
+          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name cluster
+          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name cluster
+          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name cluster
         env:
           VERSION: ${{ github.sha }}
 
@@ -112,9 +112,9 @@ jobs:
 
       - name: Push images to the cluster
         run: |
-          kind load docker-image ghcr.io/kedacore/http-add-on/operator:${VERSION} --name ${{ runner.name }}
-          kind load docker-image ghcr.io/kedacore/http-add-on/interceptor:${VERSION} --name ${{ runner.name }}
-          kind load docker-image ghcr.io/kedacore/http-add-on/scaler:${VERSION} --name ${{ runner.name }}
+          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name ${{ runner.name }}
+          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name ${{ runner.name }}
+          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name ${{ runner.name }}
         env:
           VERSION: ${{ github.sha }}
 
