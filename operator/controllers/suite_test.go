@@ -75,6 +75,7 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 				Min: 0,
 				Max: 20,
 			},
+			Hosts: []string{"myhost1.com", "myhost2.com"},
 		},
 	}
 

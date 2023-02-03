@@ -19,9 +19,9 @@ spec:
     - type: external-push
       metadata:
         scalerAddress: {{ .ScalerAddress }}
-        {{- with .Values.hosts }}
+        {{- with .Values.Hosts }}
         hosts:
-            {{- . | nindent 12 }}
+          {{- . }}
         {{- end }}
   advanced:
     restoreToOriginalReplicaCount: true

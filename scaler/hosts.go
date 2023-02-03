@@ -1,12 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
-	"gopkg.in/yaml.v2"
 )
 
 // getHostCount gets proper count for given host regardless whether
@@ -30,11 +30,11 @@ func getHostsFromScaledObjectRef(lggr logr.Logger, sor *externalscaler.ScaledObj
 	serializedHosts, ok := sor.ScalerMetadata["hosts"]
 	if !ok {
 		err := fmt.Errorf("'hosts' not found in ScaledObject metadata")
-		lggr.Error(err, "no 'hosts' found in ScaledObject metadata")
+		lggr.Error(err, "no 'hosts' field found in ScaledObject metadata")
 		return make([]string, 0), err
 	}
 	var hosts []string
-	err := yaml.Unmarshal([]byte(serializedHosts), &hosts)
+	err := json.Unmarshal([]byte(serializedHosts), &hosts)
 	if err != nil {
 		err := fmt.Errorf("unable to unmarshal 'hosts' from scaledobject config")
 		lggr.Error(err, "'hosts' not configured properly in scaledobjectref")

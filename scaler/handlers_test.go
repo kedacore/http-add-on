@@ -2,6 +2,7 @@ package main
 
 import (
 	context "context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"testing"
@@ -31,7 +32,7 @@ func standardTarget() routing.Target {
 func TestStreamIsActive(t *testing.T) {
 	type testCase struct {
 		name        string
-		host        string
+		hosts       []string
 		expected    bool
 		expectedErr bool
 		setup       func(*routing.Table, *queuePinger)
@@ -40,7 +41,7 @@ func TestStreamIsActive(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:        "Simple host inactive",
-			host:        t.Name(),
+			hosts:       []string{t.Name()},
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
@@ -52,14 +53,14 @@ func TestStreamIsActive(t *testing.T) {
 		},
 		{
 			name:        "Host is 'interceptor'",
-			host:        "interceptor",
+			hosts:       []string{"interceptor"},
 			expected:    true,
 			expectedErr: false,
 			setup:       func(*routing.Table, *queuePinger) {},
 		},
 		{
 			name:        "Simple host active",
-			host:        t.Name(),
+			hosts:       []string{t.Name()},
 			expected:    true,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
@@ -70,8 +71,21 @@ func TestStreamIsActive(t *testing.T) {
 			},
 		},
 		{
+			name:        "Simple multi host active",
+			hosts:       []string{"host1", "host2"},
+			expected:    true,
+			expectedErr: false,
+			setup: func(table *routing.Table, q *queuePinger) {
+				r.NoError(table.AddTarget(t.Name(), standardTarget()))
+				q.pingMut.Lock()
+				defer q.pingMut.Unlock()
+				q.allCounts["host1"] = 1
+				q.allCounts["host2"] = 1
+			},
+		},
+		{
 			name:        "No host present, but host in routing table",
-			host:        t.Name(),
+			hosts:       []string{t.Name()},
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
@@ -80,7 +94,7 @@ func TestStreamIsActive(t *testing.T) {
 		},
 		{
 			name:        "Host doesn't exist",
-			host:        t.Name(),
+			hosts:       []string{t.Name()},
 			expected:    false,
 			expectedErr: true,
 			setup:       func(*routing.Table, *queuePinger) {},
@@ -130,9 +144,10 @@ func TestStreamIsActive(t *testing.T) {
 
 			client := externalscaler.NewExternalScalerClient(conn)
 
+			serializedHosts, _ := json.Marshal(tc.hosts)
 			testRef := &externalscaler.ScaledObjectRef{
 				ScalerMetadata: map[string]string{
-					"host": tc.host,
+					"hosts": string(serializedHosts),
 				},
 			}
 
@@ -163,7 +178,7 @@ func TestStreamIsActive(t *testing.T) {
 func TestIsActive(t *testing.T) {
 	type testCase struct {
 		name        string
-		host        string
+		hosts       []string
 		expected    bool
 		expectedErr bool
 		setup       func(*routing.Table, *queuePinger)
@@ -172,7 +187,7 @@ func TestIsActive(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:        "Simple host inactive",
-			host:        t.Name(),
+			hosts:       []string{t.Name()},
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
@@ -184,14 +199,14 @@ func TestIsActive(t *testing.T) {
 		},
 		{
 			name:        "Host is 'interceptor'",
-			host:        "interceptor",
+			hosts:       []string{"interceptor"},
 			expected:    true,
 			expectedErr: false,
 			setup:       func(*routing.Table, *queuePinger) {},
 		},
 		{
 			name:        "Simple host active",
-			host:        t.Name(),
+			hosts:       []string{t.Name()},
 			expected:    true,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
@@ -202,8 +217,21 @@ func TestIsActive(t *testing.T) {
 			},
 		},
 		{
+			name:        "Simple multi host active",
+			hosts:       []string{"host1", "host2"},
+			expected:    true,
+			expectedErr: false,
+			setup: func(table *routing.Table, q *queuePinger) {
+				r.NoError(table.AddTarget(t.Name(), standardTarget()))
+				q.pingMut.Lock()
+				defer q.pingMut.Unlock()
+				q.allCounts["host1"] = 1
+				q.allCounts["host2"] = 1
+			},
+		},
+		{
 			name:        "No host present, but host in routing table",
-			host:        t.Name(),
+			hosts:       []string{t.Name()},
 			expected:    false,
 			expectedErr: false,
 			setup: func(table *routing.Table, q *queuePinger) {
@@ -212,7 +240,7 @@ func TestIsActive(t *testing.T) {
 		},
 		{
 			name:        "Host doesn't exist",
-			host:        t.Name(),
+			hosts:       []string{t.Name()},
 			expected:    false,
 			expectedErr: true,
 			setup:       func(*routing.Table, *queuePinger) {},
@@ -236,11 +264,13 @@ func TestIsActive(t *testing.T) {
 				123,
 				200,
 			)
+
+			serializedHosts, _ := json.Marshal(tc.hosts)
 			res, err := hdl.IsActive(
 				ctx,
 				&externalscaler.ScaledObjectRef{
 					ScalerMetadata: map[string]string{
-						"host": tc.host,
+						"hosts": string(serializedHosts),
 					},
 				},
 			)
@@ -268,13 +298,16 @@ func TestGetMetricSpecTable(t *testing.T) {
 		checker                        func(*testing.T, *externalscaler.GetMetricSpecResponse, error)
 	}
 	r := require.New(t)
+	t1Hosts, _ := json.Marshal([]string{"validHost"})
+	t2Hosts, _ := json.Marshal([]string{"validHost1", "validHost2"})
+	t3Hosts, _ := json.Marshal([]string{"interceptor"})
 	cases := []testCase{
 		{
-			name:                           "valid host as host value in scaler metadata",
+			name:                           "valid host as single host value in scaler metadata",
 			defaultTargetMetric:            0,
 			defaultTargetMetricInterceptor: 123,
 			scalerMetadata: map[string]string{
-				"host":                  "validHost",
+				"hosts":                 string(t1Hosts),
 				"targetPendingRequests": "123",
 			},
 			newRoutingTableFn: func() *routing.Table {
@@ -300,11 +333,51 @@ func TestGetMetricSpecTable(t *testing.T) {
 			},
 		},
 		{
+			name:                           "valid hosts as multiple hosts value in scaler metadata",
+			defaultTargetMetric:            0,
+			defaultTargetMetricInterceptor: 123,
+			scalerMetadata: map[string]string{
+				"hosts":                 string(t2Hosts),
+				"targetPendingRequests": "123",
+			},
+			newRoutingTableFn: func() *routing.Table {
+				ret := routing.NewTable()
+				r.NoError(ret.AddTarget("validHost1", routing.NewTarget(
+					ns,
+					"testsrv",
+					8080,
+					"testdepl",
+					123,
+				)))
+				r.NoError(ret.AddTarget("validHost2", routing.NewTarget(
+					ns,
+					"testsrv",
+					8080,
+					"testdepl",
+					456,
+				)))
+				return ret
+			},
+			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(2, len(res.MetricSpecs))
+				spec := res.MetricSpecs[0]
+				r.Equal("validHost1", spec.MetricName)
+				r.Equal(int64(123), spec.TargetSize)
+				spec = res.MetricSpecs[1]
+				r.Equal("validHost2", spec.MetricName)
+				r.Equal(int64(456), spec.TargetSize)
+			},
+		},
+		{
 			name:                           "interceptor as host in scaler metadata",
 			defaultTargetMetric:            1000,
 			defaultTargetMetricInterceptor: 2000,
 			scalerMetadata: map[string]string{
-				"host":                  "interceptor",
+				"hosts":                 string(t3Hosts),
 				"targetPendingRequests": "123",
 			},
 			newRoutingTableFn: func() *routing.Table {
@@ -423,9 +496,12 @@ func TestGetMetrics(t *testing.T) {
 		}, nil
 	}
 
+	t2Hosts, _ := json.Marshal([]string{"missingHostInQueue"})
+	t4Hosts, _ := json.Marshal([]string{"interceptor"})
+	t5Hosts, _ := json.Marshal([]string{"myhost.com"})
 	testCases := []testCase{
 		{
-			name:           "no 'host' field in the scaler metadata field",
+			name:           "no 'hosts' field in the scaler metadata field",
 			scalerMetadata: map[string]string{},
 			setupFn: func(
 				ctx context.Context,
@@ -445,7 +521,7 @@ func TestGetMetrics(t *testing.T) {
 				r.Nil(res)
 				r.Contains(
 					err.Error(),
-					"no 'host' field found in ScaledObject metadata",
+					"no 'hosts' field found in ScaledObject metadata",
 				)
 			},
 			defaultTargetMetric:            int64(200),
@@ -454,7 +530,7 @@ func TestGetMetrics(t *testing.T) {
 		{
 			name: "missing host value in the queue pinger",
 			scalerMetadata: map[string]string{
-				"host": "missingHostInQueue",
+				"hosts": string(t2Hosts),
 			},
 			setupFn: func(
 				ctx context.Context,
@@ -481,7 +557,7 @@ func TestGetMetrics(t *testing.T) {
 		{
 			name: "valid host",
 			scalerMetadata: map[string]string{
-				"host": "validHost",
+				"hosts": "validHost",
 			},
 			setupFn: func(
 				ctx context.Context,
@@ -513,7 +589,7 @@ func TestGetMetrics(t *testing.T) {
 		{
 			name: "'interceptor' as host",
 			scalerMetadata: map[string]string{
-				"host": "interceptor",
+				"hosts": string(t4Hosts),
 			},
 			setupFn: func(
 				ctx context.Context,
@@ -548,7 +624,7 @@ func TestGetMetrics(t *testing.T) {
 		{
 			name: "host in routing table, missing in queue pinger",
 			scalerMetadata: map[string]string{
-				"host": "myhost.com",
+				"hosts": string(t5Hosts),
 			},
 			setupFn: func(
 				ctx context.Context,

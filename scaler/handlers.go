@@ -144,7 +144,7 @@ func (e *impl) GetMetricSpec(
 	}
 
 	var targetPendingRequests int64
-	hostMetricSpec := make([]*externalscaler.MetricSpec, len(hosts))
+	var hostMetricSpec []*externalscaler.MetricSpec
 	for _, host := range hosts {
 		if host == "interceptor" {
 			targetPendingRequests = e.targetMetricInterceptor
@@ -184,7 +184,7 @@ func (e *impl) GetMetrics(
 		return nil, err
 	}
 
-	hostMetricValues := make([]*externalscaler.MetricValue, len(hosts))
+	var hostMetricValues []*externalscaler.MetricValue
 	for _, host := range hosts {
 		hostCount, ok := getHostCount(
 			host,
