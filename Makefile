@@ -7,17 +7,17 @@ IMAGE_REGISTRY 	?= ghcr.io
 IMAGE_REPO     	?= kedacore
 VERSION 		?= main
 
-IMAGE_OPERATOR_BASE 	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
-IMAGE_INTERCEPTOR_BASE	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
-IMAGE_SCALER_BASE		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-scaler
+IMAGE_OPERATOR 		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
+IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
+IMAGE_SCALER		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-scaler
 
-IMAGE_OPERATOR_VERSION		?= ${IMAGE_OPERATOR_BASE}:$(VERSION)
-IMAGE_INTERCEPTOR_VERSION	?= ${IMAGE_INTERCEPTOR_BASE}:$(VERSION)
-IMAGE_SCALER_VERSION		?= ${IMAGE_SCALER_BASE}:$(VERSION)
+IMAGE_OPERATOR_VERSIONED_TAG	?= ${IMAGE_OPERATOR}:$(VERSION)
+IMAGE_INTERCEPTOR_VERSIONED_TAG	?= ${IMAGE_INTERCEPTOR}:$(VERSION)
+IMAGE_SCALER_VERSIONED_TAG		?= ${IMAGE_SCALER}:$(VERSION)
 
-IMAGE_OPERATOR_SHA		?= ${IMAGE_OPERATOR_BASE}:$(GIT_COMMIT_SHORT)
-IMAGE_INTERCEPTOR_SHA	?= ${IMAGE_INTERCEPTOR_BASE}:$(GIT_COMMIT_SHORT)
-IMAGE_SCALER_SHA		?= ${IMAGE_SCALER_BASE}:$(GIT_COMMIT_SHORT)
+IMAGE_OPERATOR_SHA_TAG		?= ${IMAGE_OPERATOR}:$(GIT_COMMIT_SHORT)
+IMAGE_INTERCEPTOR_SHA_TAG	?= ${IMAGE_INTERCEPTOR}:$(GIT_COMMIT_SHORT)
+IMAGE_SCALER_SHA_TAG		?= ${IMAGE_SCALER}:$(GIT_COMMIT_SHORT)
 
 ARCH       ?=amd64
 CGO        ?=0
@@ -54,32 +54,32 @@ e2e-test:
 
 # Docker targets
 docker-build-operator:
-	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_OPERATOR_VERSION} -t ${IMAGE_OPERATOR_SHA} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_OPERATOR_VERSIONED_TAG} -t ${IMAGE_OPERATOR_SHA_TAG} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 docker-build-interceptor:
-	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_INTERCEPTOR_VERSION} -t ${IMAGE_INTERCEPTOR_SHA} -f interceptor/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_INTERCEPTOR_VERSIONED_TAG} -t ${IMAGE_INTERCEPTOR_SHA_TAG} -f interceptor/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 docker-build-scaler:
-	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_SCALER_VERSION} -t ${IMAGE_SCALER_SHA} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_SCALER_VERSIONED_TAG} -t ${IMAGE_SCALER_SHA_TAG} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 docker-build: docker-build-operator docker-build-interceptor docker-build-scaler
 
 docker-publish: docker-build ## Push images on to Container Registry (default: ghcr.io).
-	docker push $(IMAGE_OPERATOR_VERSION)
-	docker push $(IMAGE_OPERATOR_SHA)
-	docker push $(IMAGE_INTERCEPTOR_VERSION)
-	docker push $(IMAGE_INTERCEPTOR_SHA)
-	docker push $(IMAGE_SCALER_VERSION)
-	docker push $(IMAGE_SCALER_SHA)
+	docker push $(IMAGE_OPERATOR_VERSIONED_TAG)
+	docker push $(IMAGE_OPERATOR_SHA_TAG)
+	docker push $(IMAGE_INTERCEPTOR_VERSIONED_TAG)
+	docker push $(IMAGE_INTERCEPTOR_SHA_TAG)
+	docker push $(IMAGE_SCALER_VERSIONED_TAG)
+	docker push $(IMAGE_SCALER_SHA_TAG)
 
 publish-operator-multiarch:
-	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_OPERATOR_VERSION} -t ${IMAGE_OPERATOR_SHA} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_OPERATOR_VERSIONED_TAG} -t ${IMAGE_OPERATOR_SHA_TAG} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 publish-interceptor-multiarch:
-	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_INTERCEPTOR_VERSION} -t ${IMAGE_INTERCEPTOR_SHA} -f interceptor/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_INTERCEPTOR_VERSIONED_TAG} -t ${IMAGE_INTERCEPTOR_SHA_TAG} -f interceptor/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 publish-scaler-multiarch:
-	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_SCALER_VERSION} -t ${IMAGE_SCALER_SHA} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_SCALER_VERSIONED_TAG} -t ${IMAGE_SCALER_SHA_TAG} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publish-scaler-multiarch
 
@@ -117,13 +117,13 @@ protoc-gen-go: ## Download protoc-gen-go
 
 deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/config.
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSION}
+	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
 
 	cd config/scaler && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSION}
+	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
 
 	cd config/operator && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSION}
+	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
 
 	@sed -i".out" -e 's@version:[ ].*@version: $(VERSION)@g' config/default/kustomize-config/metadataLabelTransformer.yaml
 	rm -rf config/default/kustomize-config/metadataLabelTransformer.yaml.out
