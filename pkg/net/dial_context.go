@@ -29,6 +29,10 @@ type DialContextFunc func(ctx context.Context, network, addr string) (net.Conn, 
 func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialContextFunc {
 	numDialTries := backoff.Steps
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// We need to copy the backoff struct because Step() mutates it but the
+		// number of steps is never reset.
+		backoff := backoff
+
 		// note that we could test for backoff.Steps >= 0 here, but every call to backoff.Step()
 		// (below) decrements the backoff.Steps value. If you accidentally call that function
 		// more than once inside the loop, you will reduce the number of times the loop
