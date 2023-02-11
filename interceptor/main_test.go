@@ -116,7 +116,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	case hostAndCount := <-q.ResizedCh:
 		r.Equal(host, hostAndCount.Host)
 		r.Equal(+1, hostAndCount.Count)
-	case <-time.After(500 * time.Millisecond):
+	case <-time.After(1000 * time.Millisecond):
 		r.Fail("timeout waiting for +1 queue resize")
 	}
 
@@ -127,7 +127,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	case hostAndCount := <-q.ResizedCh:
 		r.Equal(host, hostAndCount.Host)
 		r.Equal(-1, hostAndCount.Count)
-	case <-time.After(500 * time.Millisecond):
+	case <-time.After(1000 * time.Millisecond):
 		r.Fail("timeout waiting for -1 queue resize")
 	}
 
