@@ -25,7 +25,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Routing**: Lookup host without port ([#608](https://github.com/kedacore/http-add-on/issues/608))
 
 ### Deprecations
 
