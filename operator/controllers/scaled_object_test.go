@@ -2,18 +2,16 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
+	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/config"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 func TestCreateOrUpdateScaledObject(t *testing.T) {
@@ -49,35 +47,41 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 	)
 	r.NoError(err)
 
-	metadata, err := getKeyAsMap(retSO.Object, "metadata")
-	r.NoError(err)
-	spec, err := getKeyAsMap(retSO.Object, "spec")
-	r.NoError(err)
+	metadata := retSO.ObjectMeta
+	spec := retSO.Spec
 
-	r.Equal(testInfra.ns, metadata["namespace"])
+	r.Equal(testInfra.ns, metadata.Namespace)
 	r.Equal(
 		config.AppScaledObjectName(&testInfra.httpso),
-		metadata["name"],
+		metadata.Name,
 	)
 
-	// HTTPScaledObject min/max replicas are int32s,
-	// but the ScaledObject's spec is decoded into
-	// an *unsructured.Unstructured (basically a map[string]interface{})
-	// which is an int64. we need to convert the
-	// HTTPScaledObject's values into int64s before we compare
-	r.Equal(
-		int64(testInfra.httpso.Spec.Replicas.Min),
-		spec["minReplicaCount"],
+	var minReplicaCount *int32
+	var maxReplicaCount *int32
+	if replicas := testInfra.httpso.Spec.Replicas; replicas != nil {
+		minReplicaCount = replicas.Min
+		maxReplicaCount = replicas.Max
+	}
+
+	r.EqualValues(
+		minReplicaCount,
+		spec.MinReplicaCount,
 	)
-	r.Equal(
-		int64(testInfra.httpso.Spec.Replicas.Max),
-		spec["maxReplicaCount"],
+	r.EqualValues(
+		maxReplicaCount,
+		spec.MaxReplicaCount,
 	)
 
 	// now update the min and max replicas on the httpso
 	// and call createOrUpdateScaledObject again
-	testInfra.httpso.Spec.Replicas.Min++
-	testInfra.httpso.Spec.Replicas.Max++
+	if spec := &testInfra.httpso.Spec; spec.Replicas == nil {
+		spec.Replicas = &v1alpha1.ReplicaStruct{
+			Min: new(int32),
+			Max: new(int32),
+		}
+	}
+	*testInfra.httpso.Spec.Replicas.Min++
+	*testInfra.httpso.Spec.Replicas.Max++
 	r.NoError(createOrUpdateScaledObject(
 		testInfra.ctx,
 		testInfra.cl,
@@ -94,15 +98,14 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 		testInfra.httpso,
 	)
 	r.NoError(err)
-	spec, err = getKeyAsMap(retSO.Object, "spec")
-	r.NoError(err)
+	spec = retSO.Spec
 	r.Equal(
-		int64(testInfra.httpso.Spec.Replicas.Min),
-		spec["minReplicaCount"],
+		*testInfra.httpso.Spec.Replicas.Min,
+		*spec.MinReplicaCount,
 	)
 	r.Equal(
-		int64(testInfra.httpso.Spec.Replicas.Max),
-		spec["maxReplicaCount"],
+		*testInfra.httpso.Spec.Replicas.Max,
+		*spec.MaxReplicaCount,
 	)
 }
 
@@ -110,23 +113,11 @@ func getSO(
 	ctx context.Context,
 	cl client.Client,
 	httpso v1alpha1.HTTPScaledObject,
-) (*unstructured.Unstructured, error) {
-	retSO := k8s.NewEmptyScaledObject()
+) (*kedav1alpha1.ScaledObject, error) {
+	var retSO kedav1alpha1.ScaledObject
 	err := cl.Get(ctx, client.ObjectKey{
 		Namespace: httpso.GetNamespace(),
 		Name:      config.AppScaledObjectName(&httpso),
-	}, retSO)
-	return retSO, err
-}
-
-func getKeyAsMap(m map[string]interface{}, key string) (map[string]interface{}, error) {
-	iface, ok := m[key]
-	if !ok {
-		return nil, fmt.Errorf("key %s not found in map", key)
-	}
-	val, ok := iface.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("key %s was not a map[string]interface{}", key)
-	}
-	return val, nil
+	}, &retSO)
+	return &retSO, err
 }
