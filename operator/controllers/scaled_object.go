@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,19 +27,23 @@ func createOrUpdateScaledObject(
 ) error {
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
 
-	appScaledObject, appErr := k8s.NewScaledObject(
+	var minReplicaCount *int32
+	var maxReplicaCount *int32
+	if replicas := httpso.Spec.Replicas; replicas != nil {
+		minReplicaCount = replicas.Min
+		maxReplicaCount = replicas.Max
+	}
+
+	appScaledObject := k8s.NewScaledObject(
 		httpso.GetNamespace(),
 		fmt.Sprintf("%s-app", httpso.GetName()), // HTTPScaledObject name is the same as the ScaledObject name
 		httpso.Spec.ScaleTargetRef.Deployment,
 		externalScalerHostName,
 		httpso.Spec.Host,
-		httpso.Spec.Replicas.Min,
-		httpso.Spec.Replicas.Max,
+		minReplicaCount,
+		maxReplicaCount,
 		httpso.Spec.CooldownPeriod,
 	)
-	if appErr != nil {
-		return appErr
-	}
 
 	logger.Info("Creating App ScaledObject", "ScaledObject", *appScaledObject)
 	if err := cl.Create(ctx, appScaledObject); err != nil {
@@ -47,8 +52,8 @@ func createOrUpdateScaledObject(
 				Namespace: httpso.GetNamespace(),
 				Name:      appScaledObject.GetName(),
 			}
-			fetchedSO := k8s.NewEmptyScaledObject()
-			if err := cl.Get(ctx, existingSOKey, fetchedSO); err != nil {
+			var fetchedSO kedav1alpha1.ScaledObject
+			if err := cl.Get(ctx, existingSOKey, &fetchedSO); err != nil {
 				logger.Error(
 					err,
 					"failed to fetch existing ScaledObject for patching",

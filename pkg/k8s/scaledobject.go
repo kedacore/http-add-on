@@ -1,99 +1,63 @@
 package k8s
 
 import (
-	"bytes"
-	"context"
-	"embed"
-	"text/template"
-
-	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/yaml"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
-//go:embed templates
-var scaledObjectTemplateFS embed.FS
+const (
+	soPollingInterval = 1
+	soTriggerType     = "external-push"
 
-// DeleteScaledObject deletes a scaled object with the given name
-func DeleteScaledObject(ctx context.Context, name string, namespace string, cl client.Client) error {
-	scaledObj := &unstructured.Unstructured{}
-	scaledObj.SetName(name)
-	scaledObj.SetNamespace(namespace)
-	scaledObj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "keda.sh/v1alpha1",
-		Kind:    "ScaledObject",
-		Version: "v1alpha1",
-	})
-
-	if err := cl.Delete(ctx, scaledObj, &client.DeleteOptions{}); err != nil {
-		return err
-	}
-	return nil
-}
-
-func NewEmptyScaledObject() *unstructured.Unstructured {
-	ret := &unstructured.Unstructured{}
-	ret.SetGroupVersionKind(
-		schema.GroupVersionKind{
-			Group:   "keda.sh",
-			Version: "v1alpha1",
-			Kind:    "ScaledObject",
-		},
-	)
-	return ret
-}
+	mkScalerAddress = "scalerAddress"
+	mkHost          = "host"
+)
 
 // NewScaledObject creates a new ScaledObject in memory
 func NewScaledObject(
-	namespace,
-	name,
-	deploymentName,
-	scalerAddress,
+	namespace string,
+	name string,
+	deploymentName string,
+	scalerAddress string,
 	host string,
-	minReplicas,
-	maxReplicas int32,
-	cooldownPeriod int32,
-) (*unstructured.Unstructured, error) {
-	// https://keda.sh/docs/1.5/faq/
-	// https://github.com/kedacore/keda/blob/aa0ea79450a1c7549133aab46f5b916efa2364ab/api/v1alpha1/scaledobject_types.go
-	//
-	// unstructured.Unstructured only supports specific types in it. see here for the list:
-	// https://github.com/kubernetes/apimachinery/blob/v0.17.12/pkg/runtime/converter.go#L449-L476
-	typedLabels := Labels(name)
-	labels := map[string]interface{}{}
-	for k, v := range typedLabels {
-		var vIface interface{} = v
-		labels[k] = vIface
+	minReplicas *int32,
+	maxReplicas *int32,
+	cooldownPeriod *int32,
+) *kedav1alpha1.ScaledObject {
+	return &kedav1alpha1.ScaledObject{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: kedav1alpha1.SchemeGroupVersion.Identifier(),
+			Kind:       ObjectKind(&kedav1alpha1.ScaledObject{}),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			Labels:    Labels(name),
+		},
+		Spec: kedav1alpha1.ScaledObjectSpec{
+			ScaleTargetRef: &kedav1alpha1.ScaleTarget{
+				APIVersion: appsv1.SchemeGroupVersion.Identifier(),
+				Kind:       ObjectKind(&appsv1.Deployment{}),
+				Name:       deploymentName,
+			},
+			PollingInterval: pointer.Int32(soPollingInterval),
+			CooldownPeriod:  cooldownPeriod,
+			MinReplicaCount: minReplicas,
+			MaxReplicaCount: maxReplicas,
+			Advanced: &kedav1alpha1.AdvancedConfig{
+				RestoreToOriginalReplicaCount: true,
+			},
+			Triggers: []kedav1alpha1.ScaleTriggers{
+				{
+					Type: soTriggerType,
+					Metadata: map[string]string{
+						mkScalerAddress: scalerAddress,
+						mkHost:          host,
+					},
+				},
+			},
+		},
 	}
-
-	tpl, err := template.ParseFS(scaledObjectTemplateFS, "templates/scaledobject.yaml")
-	if err != nil {
-		return nil, err
-	}
-
-	var scaledObjectTemplateBuffer bytes.Buffer
-	if tplErr := tpl.Execute(&scaledObjectTemplateBuffer, map[string]interface{}{
-		"Name":           name,
-		"Namespace":      namespace,
-		"Labels":         labels,
-		"MinReplicas":    minReplicas,
-		"MaxReplicas":    maxReplicas,
-		"DeploymentName": deploymentName,
-		"ScalerAddress":  scalerAddress,
-		"Host":           host,
-		"CooldownPeriod": cooldownPeriod,
-	}); tplErr != nil {
-		return nil, tplErr
-	}
-
-	var decodedYaml map[string]interface{}
-	decodeErr := yaml.Unmarshal(scaledObjectTemplateBuffer.Bytes(), &decodedYaml)
-	if decodeErr != nil {
-		return nil, decodeErr
-	}
-
-	return &unstructured.Unstructured{
-		Object: decodedYaml,
-	}, nil
 }

@@ -26,6 +26,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **Routing**: Lookup host without port ([#608](https://github.com/kedacore/http-add-on/issues/608))
+- **Controller**: Use kedav1alpha1.ScaledObject default values ([#607](https://github.com/kedacore/http-add-on/issues/607))
 
 ### Deprecations
 
