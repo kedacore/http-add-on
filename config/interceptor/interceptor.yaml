@@ -26,7 +26,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: keda-http-add-on
+      serviceAccountName: keda-http-add-on-interceptor
       containers:
         - name: interceptor
           image: ghcr.io/kedacore/http-add-on-interceptor:latest

@@ -87,6 +87,7 @@ func main() {
 		lggr,
 		k8sCl,
 		cfg.ConfigMapCacheRsyncPeriod,
+		cfg.TargetNamespace,
 	)
 	// create the deployment informer
 	deployInformer := k8s.NewInformerBackedDeploymentCache(

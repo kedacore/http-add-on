@@ -26,6 +26,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **Routing**: Lookup host without port ([#608](https://github.com/kedacore/http-add-on/issues/608))
+- **RBAC**: Introduce fine-grained permissions per component and reduce required permissions ([#612](https://github.com/kedacore/http-add-on/issues/612))
 
 ### Deprecations
 

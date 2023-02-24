@@ -25,11 +25,13 @@ import (
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
@@ -53,6 +55,10 @@ func init() {
 	_ = httpv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
+
+// +kubebuilder:rbac:groups="",namespace=keda,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=coordination.k8s.io,namespace=keda,resources=leases,verbs=get;list;watch;create;update;patch;delete
 
 func main() {
 	ctx := ctrl.SetupSignalHandler()
@@ -115,6 +121,12 @@ func main() {
 		LeaderElectionID:   "f8508ff1.keda.sh",
 		// will be empty to indicate all namespaces
 		Namespace: baseConfig.WatchNamespace,
+		// TODO(pedrotorres): remove this when we stop relying on ConfigMaps for the routing table
+		// workaround for using the same K8s client for both the routing table and the HTTPScaledObject
+		// this was already broken if the operator was running only for a single namespace
+		ClientDisableCacheFor: []client.Object{
+			&corev1.ConfigMap{},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

@@ -90,6 +90,7 @@ func main() {
 		lggr,
 		cl,
 		servingCfg.ConfigMapCacheRsyncPeriod,
+		servingCfg.CurrentNamespace,
 	)
 
 	lggr.Info(

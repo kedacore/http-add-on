@@ -26,7 +26,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: keda-http-add-on
+      serviceAccountName: keda-http-add-on-scaler
       containers:
         - name: external-scaler
           image: ghcr.io/kedacore/http-add-on-scaler:latest

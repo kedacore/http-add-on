@@ -2,6 +2,9 @@ resources:
 - interceptor.yaml
 - service-admin.yaml
 - service-proxy.yaml
+- role.yaml
+- role_binding.yaml
+- service_account.yaml
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
