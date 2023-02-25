@@ -58,7 +58,7 @@ func TestRoutingTable(t *testing.T) {
 
 	retTarget, err := table.Lookup(host)
 	r.NoError(err)
-	r.Equal(target, retTarget)
+	r.Equal(&target, retTarget)
 
 	r.NoError(removeAndUpdateRoutingTable(
 		ctx,

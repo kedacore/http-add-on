@@ -92,7 +92,7 @@ func newForwardingHandler(
 			}
 			return
 		}
-		targetSvcURL, err := targetSvcURL(routingTarget)
+		targetSvcURL, err := targetSvcURL(*routingTarget)
 		if err != nil {
 			lggr.Error(err, "forwarding failed")
 			w.WriteHeader(500)

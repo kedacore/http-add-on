@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 )
 
 type TableReader interface {
-	Lookup(string) (Target, error)
+	Lookup(string) (*Target, error)
 	Hosts() []string
 	HasHost(string) bool
 }
@@ -70,14 +71,22 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 	return json.NewDecoder(b).Decode(&t.m)
 }
 
-func (t *Table) Lookup(host string) (Target, error) {
+func (t *Table) Lookup(host string) (*Target, error) {
 	t.l.RLock()
 	defer t.l.RUnlock()
-	ret, ok := t.m[host]
-	if !ok {
-		return Target{}, ErrTargetNotFound
+
+	keys := []string{host}
+	if i := strings.LastIndex(host, ":"); i != -1 {
+		keys = append(keys, host[:i])
 	}
-	return ret, nil
+
+	for _, key := range keys {
+		if target, ok := t.m[key]; ok {
+			return &target, nil
+		}
+	}
+
+	return nil, ErrTargetNotFound
 }
 
 // AddTarget registers target for host in the routing table t

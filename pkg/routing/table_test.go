@@ -2,8 +2,13 @@ package routing
 
 import (
 	"encoding/json"
+	"math"
+	"math/rand"
+	"strconv"
 	"testing"
 
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,13 +60,13 @@ func TestTableRemove(t *testing.T) {
 	// add the target to the table and ensure that you can look it up
 	r.NoError(tbl.AddTarget(host, tgt))
 	retTgt, err := tbl.Lookup(host)
-	r.Equal(tgt, retTgt)
+	r.Equal(&tgt, retTgt)
 	r.NoError(err)
 
 	// remove the target and ensure that you can't look it up
 	r.NoError(tbl.RemoveTarget(host))
 	retTgt, err = tbl.Lookup(host)
-	r.Equal(Target{}, retTgt)
+	r.Equal((*Target)(nil), retTgt)
 	r.Equal(ErrTargetNotFound, err)
 }
 
@@ -95,4 +100,117 @@ func TestTableReplace(t *testing.T) {
 	tbl2.Replace(tbl1)
 
 	r.Equal(tbl1, tbl2)
+}
+
+var _ = Describe("Table", func() {
+	Describe("Lookup", func() {
+		var (
+			tltcs = newTableLookupTestCases(5)
+			table = NewTable()
+		)
+
+		Context("with new port-agnostic configuration", func() {
+			BeforeEach(func() {
+				for _, tltc := range tltcs {
+					err := table.AddTarget(tltc.HostWithoutPort(), tltc.Target())
+					Expect(err).NotTo(HaveOccurred())
+				}
+			})
+
+			AfterEach(func() {
+				for _, tltc := range tltcs {
+					err := table.RemoveTarget(tltc.HostWithoutPort())
+					Expect(err).NotTo(HaveOccurred())
+				}
+			})
+
+			It("should return correct target for host without port", func() {
+				for _, tltc := range tltcs {
+					target, err := table.Lookup(tltc.HostWithoutPort())
+					Expect(err).NotTo(HaveOccurred())
+					Expect(target).To(HaveValue(Equal(tltc.Target())))
+				}
+			})
+
+			It("should return correct target for host with port", func() {
+				for _, tltc := range tltcs {
+					target, err := table.Lookup(tltc.HostWithPort())
+					Expect(err).NotTo(HaveOccurred())
+					Expect(target).To(HaveValue(Equal(tltc.Target())))
+				}
+			})
+		})
+
+		Context("with legacy port-specific configuration", func() {
+			BeforeEach(func() {
+				for _, tltc := range tltcs {
+					err := table.AddTarget(tltc.HostWithPort(), tltc.Target())
+					Expect(err).NotTo(HaveOccurred())
+				}
+			})
+
+			AfterEach(func() {
+				for _, tltc := range tltcs {
+					err := table.RemoveTarget(tltc.HostWithPort())
+					Expect(err).NotTo(HaveOccurred())
+				}
+			})
+
+			It("should error for host without port", func() {
+				for _, tltc := range tltcs {
+					target, err := table.Lookup(tltc.HostWithoutPort())
+					Expect(err).To(MatchError(ErrTargetNotFound))
+					Expect(target).To(BeNil())
+				}
+			})
+
+			It("should return correct target for host with port", func() {
+				for _, tltc := range tltcs {
+					target, err := table.Lookup(tltc.HostWithPort())
+					Expect(err).NotTo(HaveOccurred())
+					Expect(target).To(HaveValue(Equal(tltc.Target())))
+				}
+			})
+		})
+	})
+})
+
+type tableLookupTestCase struct {
+	target Target
+}
+
+func newTableLookupTestCase() tableLookupTestCase {
+	target := NewTarget(
+		strconv.Itoa(rand.Int()),
+		strconv.Itoa(rand.Int()),
+		rand.Intn(math.MaxUint16),
+		strconv.Itoa(rand.Int()),
+		int32(rand.Intn(math.MaxUint8)),
+	)
+
+	return tableLookupTestCase{
+		target: target,
+	}
+}
+
+func (tltc tableLookupTestCase) Target() Target {
+	return tltc.target
+}
+
+func (tltc tableLookupTestCase) HostWithoutPort() string {
+	return tltc.target.Service + "." + tltc.target.Namespace + ".svc.cluster.local"
+}
+
+func (tltc tableLookupTestCase) HostWithPort() string {
+	return tltc.HostWithoutPort() + ":" + strconv.Itoa(tltc.target.Port)
+}
+
+type tableLookupTestCases []tableLookupTestCase
+
+func newTableLookupTestCases(count uint) tableLookupTestCases {
+	tltcs := make(tableLookupTestCases, count)
+	for i := uint(0); i < count; i++ {
+		tltcs[i] = newTableLookupTestCase()
+	}
+	return tltcs
 }
