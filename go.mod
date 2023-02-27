@@ -10,7 +10,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.27.1
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.53.0
