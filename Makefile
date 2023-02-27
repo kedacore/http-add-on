@@ -86,7 +86,9 @@ publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publ
 # Development
 
 manifests: controller-gen ## Generate ClusterRole and CustomResourceDefinition objects for core componenets.
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=keda-http-add-on paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=keda-http-add-on paths="./operator/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=keda-http-add-on-scaler paths="./scaler/..." output:rbac:artifacts:config=config/scaler
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=keda-http-add-on-interceptor paths="./interceptor/..." output:rbac:artifacts:config=config/interceptor
 
 verify-manifests:
 	./hack/verify-manifests.sh
