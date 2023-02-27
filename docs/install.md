@@ -71,6 +71,12 @@ $ helm upgrade kedahttp ./charts/keda-add-ons-http \
     --set images.interceptor=localhost:32000/keda-http-interceptor
 ```
 
+## Compatibility Table
+
+| HTTP Add-On version | KEDA version | Kubernetes version |
+|---------------------|--------------|--------------------|
+| 0.5.0               | v2.9         | v1.23 - v1.25      |
+
 ## Next Steps
 
 Now that you're finished installing KEDA and the HTTP Add-on, please proceed to the [walkthrough](./walkthrough.md) to test out your new installation.
