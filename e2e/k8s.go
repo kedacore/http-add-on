@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/codeskyblue/go-sh"
+	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,27 +33,7 @@ func deleteNS(ns string) error {
 	return sh.Command("kubectl", "delete", "namespace", ns).Run()
 }
 
-func getScaledObject(
-	ctx context.Context,
-	cl client.Client,
-	ns,
-	name string,
-) error {
-	scaledObject, err := k8s.NewScaledObject(
-		ns,
-		name,
-		"",
-		"",
-		"",
-		1,
-		2,
-		30,
-	)
-	if err != nil {
-		return err
-	}
-	if err := cl.Get(ctx, k8s.ObjKey(ns, name), scaledObject); err != nil {
-		return err
-	}
-	return nil
+func getScaledObject(ctx context.Context, cl client.Client, ns string, name string) error {
+	var scaledObject kedav1alpha1.ScaledObject
+	return cl.Get(ctx, k8s.ObjKey(ns, name), &scaledObject)
 }

@@ -24,6 +24,7 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
+	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,6 +54,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = httpv1alpha1.AddToScheme(scheme)
+	_ = kedav1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

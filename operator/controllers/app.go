@@ -122,9 +122,9 @@ func createOrUpdateApplicationResources(
 		return err
 	}
 
-	targetPendingReqs := httpso.Spec.TargetPendingRequests
-	if targetPendingReqs == 0 {
-		targetPendingReqs = baseConfig.TargetPendingRequests
+	targetPendingReqs := baseConfig.TargetPendingRequests
+	if tpr := httpso.Spec.TargetPendingRequests; tpr != nil {
+		targetPendingReqs = *tpr
 	}
 
 	if err := addAndUpdateRoutingTable(

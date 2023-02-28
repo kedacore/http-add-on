@@ -20,18 +20,32 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
+
+var (
+	scheme = runtime.NewScheme()
+)
+
+func init() {
+	_ = clientgoscheme.AddToScheme(scheme)
+
+	_ = httpv1alpha1.AddToScheme(scheme)
+	_ = kedav1alpha1.AddToScheme(scheme)
+	// +kubebuilder:scaffold:scheme
+}
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
@@ -52,28 +66,24 @@ type commonTestInfra struct {
 	ctx     context.Context
 	cl      client.Client
 	logger  logr.Logger
-	httpso  v1alpha1.HTTPScaledObject
+	httpso  httpv1alpha1.HTTPScaledObject
 }
 
 func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 	ctx := context.Background()
-	cl := fake.NewClientBuilder().Build()
+	cl := fake.NewClientBuilder().WithScheme(scheme).Build()
 	logger := logr.Discard()
 
-	httpso := v1alpha1.HTTPScaledObject{
+	httpso := httpv1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      appName,
 		},
-		Spec: v1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: &v1alpha1.ScaleTargetRef{
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
 				Deployment: appName,
 				Service:    appName,
 				Port:       8081,
-			},
-			Replicas: v1alpha1.ReplicaStruct{
-				Min: 0,
-				Max: 20,
 			},
 		},
 	}
@@ -107,7 +117,7 @@ var _ = BeforeSuite(func(done Done) {
 	// Expect(err).ToNot(HaveOccurred())
 	// Expect(cfg).ToNot(BeNil())
 
-	err := v1alpha1.AddToScheme(scheme.Scheme)
+	err := httpv1alpha1.AddToScheme(clientgoscheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme

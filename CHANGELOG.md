@@ -22,11 +22,12 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Improvements
 
 - **General**: Automatically tag Docker image with commit SHA ([#567](https://github.com/kedacore/http-add-on/issues/567))
+- **RBAC**: Introduce fine-grained permissions per component and reduce required permissions ([#612](https://github.com/kedacore/http-add-on/issues/612))
 
 ### Fixes
 
 - **Routing**: Lookup host without port ([#608](https://github.com/kedacore/http-add-on/issues/608))
-- **RBAC**: Introduce fine-grained permissions per component and reduce required permissions ([#612](https://github.com/kedacore/http-add-on/issues/612))
+- **Controller**: Use kedav1alpha1.ScaledObject default values ([#607](https://github.com/kedacore/http-add-on/issues/607))
 
 ### Deprecations
 
