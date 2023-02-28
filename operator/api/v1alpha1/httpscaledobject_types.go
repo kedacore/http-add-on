@@ -81,9 +81,9 @@ type HTTPScaledObjectCondition struct {
 
 type ReplicaStruct struct {
 	// Minimum amount of replicas to have in the deployment (Default 0)
-	Min int32 `json:"min,omitempty" description:"Minimum amount of replicas to have in the deployment (Default 0)"`
+	Min *int32 `json:"min,omitempty" description:"Minimum amount of replicas to have in the deployment (Default 0)"`
 	// Maximum amount of replicas to have in the deployment (Default 100)
-	Max int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
+	Max *int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
 }
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
@@ -97,13 +97,13 @@ type HTTPScaledObjectSpec struct {
 	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`
 	// (optional) Replica information
 	// +optional
-	Replicas ReplicaStruct `json:"replicas,omitempty"`
+	Replicas *ReplicaStruct `json:"replicas,omitempty"`
 	// (optional) Target metric value
 	// +optional
-	TargetPendingRequests int32 `json:"targetPendingRequests,omitempty" description:"The target metric value for the HPA (Default 100)"`
+	TargetPendingRequests *int32 `json:"targetPendingRequests,omitempty" description:"The target metric value for the HPA (Default 100)"`
 	// (optional) Cooldown period value
 	// +optional
-	CooldownPeriod int32 `json:"scaledownPeriod,omitempty" description:"Cooldown period (seconds) for resources to scale down(Default x)"`
+	CooldownPeriod *int32 `json:"scaledownPeriod,omitempty" description:"Cooldown period (seconds) for resources to scale down (Default 300)"`
 }
 
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to
