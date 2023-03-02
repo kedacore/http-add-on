@@ -27,6 +27,10 @@ import (
 	externalscaler "github.com/kedacore/http-add-on/proto"
 )
 
+// +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+
 func main() {
 	lggr, err := pkglog.NewZapr()
 	if err != nil {
@@ -87,6 +91,7 @@ func main() {
 		lggr,
 		k8sCl,
 		cfg.ConfigMapCacheRsyncPeriod,
+		cfg.TargetNamespace,
 	)
 	// create the deployment informer
 	deployInformer := k8s.NewInformerBackedDeploymentCache(

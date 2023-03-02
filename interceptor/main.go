@@ -28,6 +28,9 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+// +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+
 func main() {
 	lggr, err := pkglog.NewZapr()
 	if err != nil {
@@ -90,6 +93,7 @@ func main() {
 		lggr,
 		cl,
 		servingCfg.ConfigMapCacheRsyncPeriod,
+		servingCfg.CurrentNamespace,
 	)
 
 	lggr.Info(

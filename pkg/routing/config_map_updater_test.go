@@ -88,6 +88,7 @@ func TestStartUpdateLoop(t *testing.T) {
 		lggr,
 		fakeGetter,
 		time.Second*1,
+		ns,
 	)
 
 	grp, ctx := errgroup.WithContext(ctx)

@@ -6,42 +6,6 @@ metadata:
   name: keda-http-add-on
 rules:
 - apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - configmaps/status
-  - endpoint
-  - endpoints
-  - events
-  - pods
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - watch
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-- apiGroups:
   - http.keda.sh
   resources:
   - httpscaledobjects
@@ -53,6 +17,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - httpscaledobjects/finalizers
+  verbs:
+  - update
 - apiGroups:
   - http.keda.sh
   resources:
@@ -73,16 +43,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - networking
-  resources:
-  - ingresses
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -96,4 +56,29 @@ rules:
   resources:
   - configmaps
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

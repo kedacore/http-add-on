@@ -125,10 +125,12 @@ func NewInformerConfigMapUpdater(
 	lggr logr.Logger,
 	cl kubernetes.Interface,
 	defaultResync time.Duration,
+	namespace string,
 ) *InformerConfigMapUpdater {
-	factory := informers.NewSharedInformerFactory(
+	factory := informers.NewSharedInformerFactoryWithOptions(
 		cl,
 		defaultResync,
+		informers.WithNamespace(namespace),
 	)
 	cmInformer := factory.Core().V1().ConfigMaps()
 	ret := &InformerConfigMapUpdater{

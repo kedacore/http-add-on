@@ -15,8 +15,6 @@ import (
 	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
-// +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs="*"
-
 func removeApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
