@@ -1,7 +1,20 @@
 domain: keda.sh
-repo: github.com/kedacore/http-add-on
+layout:
+- go.kubebuilder.io/v3
+multigroup: true
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: http-addon
+repo: github.com/kedacore/http-add-on/operator
 resources:
-- group: http
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: keda.sh
+  group: http
   kind: HTTPScaledObject
+  path: github.com/kedacore/http-add-on/operator/apis/http/v1alpha1
   version: v1alpha1
-version: "2"
+version: "3"

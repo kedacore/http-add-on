@@ -85,13 +85,24 @@ publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publ
 
 # Development
 
-manifests: controller-gen ## Generate ClusterRole and CustomResourceDefinition objects for core componenets.
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=keda-http-add-on paths="./operator/..." output:crd:artifacts:config=config/crd/bases
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=keda-http-add-on-scaler paths="./scaler/..." output:rbac:artifacts:config=config/scaler
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=keda-http-add-on-interceptor paths="./interceptor/..." output:rbac:artifacts:config=config/interceptor
+generate: codegen manifests ## Generate code and manifests.
 
-verify-manifests:
-	./hack/verify-manifests.sh
+verify: verify-codegen verify-manifests ## Verify code and manifests.
+
+codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
+	./hack/update-codegen.sh
+
+verify-codegen: ## Verify code is up to date.
+	./hack/verify-codegen.sh
+
+manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) crd rbac:roleName='keda-http-add-on' webhook paths='./operator/...' output:crd:artifacts:config='config/crd/bases'
+	$(CONTROLLER_GEN) crd rbac:roleName='keda-http-add-on-scaler' webhook paths='./scaler/...' output:rbac:artifacts:config='config/scaler'
+	$(CONTROLLER_GEN) crd rbac:roleName='keda-http-add-on-interceptor' webhook paths='./interceptor/...' output:rbac:artifacts:config='config/interceptor'
+
+verify-manifests: ## Verify manifests are up to date.
+	./hack/verify-codegen.sh
 
 fmt: ## Run go fmt against code.
 	go fmt ./...
@@ -127,8 +138,7 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 	cd config/operator && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
 
-	@sed -i".out" -e 's@version:[ ].*@version: $(VERSION)@g' config/default/kustomize-config/metadataLabelTransformer.yaml
-	rm -rf config/default/kustomize-config/metadataLabelTransformer.yaml.out
+	cat <<< $$(sed -E 's|(^[[:space:]]+app\.kubernetes\.io/version:).*|\1 $(VERSION)|g' config/default/kustomization.yaml) > config/default/kustomization.yaml
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 undeploy:

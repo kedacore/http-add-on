@@ -42,6 +42,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
+        description: HTTPScaledObject is the Schema for the httpscaledobjects API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -113,16 +114,15 @@ spec:
             description: HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
             properties:
               conditions:
-                description: List of auditable conditions of the operator
+                description: Conditions of the operator
                 items:
-                  description: Condition to store the condition state
+                  description: HTTPScaledObjectCondition stores the condition state
                   properties:
                     message:
-                      description: A human readable message indicating details about
-                        the transition.
+                      description: Message indicating details about the transition.
                       type: string
                     reason:
-                      description: The reason for the condition's last transition.
+                      description: Reason for the condition's last transition.
                       enum:
                       - ErrorCreatingAppScaledObject
                       - AppScaledObjectCreated
@@ -142,11 +142,11 @@ spec:
                       description: Type of condition
                       enum:
                       - Created
+                      - Terminated
                       - Error
                       - Pending
-                      - Unknown
                       - Terminating
-                      - Terminated
+                      - Unknown
                       - Ready
                       type: string
                   required:

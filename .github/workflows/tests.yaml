@@ -26,9 +26,6 @@ jobs:
     - name: Check go version
       run: go version
 
-    - name: Manifests
-      run: make verify-manifests
-
     - name: Set Go paths
       id: go-paths
       run: |
@@ -46,6 +43,15 @@ jobs:
       with:
         path: ${{ steps.go-paths.outputs.build_cache }}
         key: ${{ runner.os }}-go-build-cache-${{ hashFiles('**/go.sum') }}
+
+    - name: Download Go Modules
+      run: go mod download
+
+    - name: Codegen
+      run: make verify-codegen
+
+    - name: Manifests
+      run: make verify-manifests
 
     - name: Build
       run: ARCH=${{ matrix.name }} make build
