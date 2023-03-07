@@ -3,7 +3,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: keda-http-add-on
+  name: operator
 rules:
 - apiGroups:
   - http.keda.sh
@@ -48,7 +48,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   creationTimestamp: null
-  name: keda-http-add-on
+  name: operator
   namespace: keda
 rules:
 - apiGroups:

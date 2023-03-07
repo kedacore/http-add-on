@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: interceptor
+spec:
+  replicas: 3
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: interceptor
+        image: ghcr.io/kedacore/http-add-on-interceptor
+        env:
+        - name: KEDA_HTTP_ROUTING_TABLE_UPDATE_DURATION_MS
+          value: "500"
+        - name: KEDA_HTTP_CURRENT_NAMESPACE
+          value: "keda"
+        - name: KEDA_HTTP_PROXY_PORT
+          value: "8080"
+        - name: KEDA_HTTP_ADMIN_PORT
+          value: "9090"
+        - name: KEDA_HTTP_CONNECT_TIMEOUT
+          value: "500ms"
+        - name: KEDA_HTTP_KEEP_ALIVE
+          value: "1s"
+        - name: KEDA_RESPONSE_HEADER_TIMEOUT
+          value: "500ms"
+        - name: KEDA_CONDITION_WAIT_TIMEOUT
+          value: "20s"
+        - name: KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS
+          value: "1000"
+        - name: KEDA_HTTP_FORCE_HTTP2
+          value: "false"
+        - name: KEDA_HTTP_MAX_IDLE_CONNS
+          value: "100"
+        - name: KEDA_HTTP_IDLE_CONN_TIMEOUT
+          value: "90s"
+        - name: KEDA_HTTP_TLS_HANDSHAKE_TIMEOUT
+          value: "10s"
+        - name: KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT
+          value: "1s"
+        ports:
+        # TODO(pedrotorres): remove after implementing new routing table
+        - name: admin
+          containerPort: 9090
+        - name: proxy
+          containerPort: 8080
+        # TODO(pedrotorres): set better default values avoiding overcommitment
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+      serviceAccountName: interceptor
+      terminationGracePeriodSeconds: 10

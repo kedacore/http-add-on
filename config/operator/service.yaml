@@ -1,0 +1,12 @@
+# TODO(pedrotorres): remove after implementing new routing table
+apiVersion: v1
+kind: Service
+metadata:
+  name: operator-admin
+spec:
+  type: ClusterIP
+  ports:
+  - name: admin
+    protocol: TCP
+    port: 9090
+    targetPort: admin

@@ -97,9 +97,9 @@ verify-codegen: ## Verify code is up to date.
 	./hack/verify-codegen.sh
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) crd rbac:roleName='keda-http-add-on' webhook paths='./operator/...' output:crd:artifacts:config='config/crd/bases'
-	$(CONTROLLER_GEN) crd rbac:roleName='keda-http-add-on-scaler' webhook paths='./scaler/...' output:rbac:artifacts:config='config/scaler'
-	$(CONTROLLER_GEN) crd rbac:roleName='keda-http-add-on-interceptor' webhook paths='./interceptor/...' output:rbac:artifacts:config='config/interceptor'
+	$(CONTROLLER_GEN) crd rbac:roleName='operator' webhook paths='./operator/...' output:crd:artifacts:config='config/crd/bases' output:rbac:artifacts:config='config/operator'
+	$(CONTROLLER_GEN) crd rbac:roleName='scaler' webhook paths='./scaler/...' output:rbac:artifacts:config='config/scaler'
+	$(CONTROLLER_GEN) crd rbac:roleName='interceptor' webhook paths='./interceptor/...' output:rbac:artifacts:config='config/interceptor'
 
 verify-manifests: ## Verify manifests are up to date.
 	./hack/verify-codegen.sh

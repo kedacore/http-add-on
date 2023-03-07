@@ -3,7 +3,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: keda-http-add-on-interceptor
+  name: interceptor
 rules:
 - apiGroups:
   - apps
@@ -18,7 +18,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   creationTimestamp: null
-  name: keda-http-add-on-interceptor
+  name: interceptor
   namespace: keda
 rules:
 - apiGroups:

@@ -74,10 +74,6 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	// TODO(pedrotorres): remove this on vNEXT
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
 	// TODO(pedrotorres): remove after implementing new routing table
 	flag.IntVar(
 		&adminPort,
