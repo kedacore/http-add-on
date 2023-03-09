@@ -31,6 +31,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
@@ -84,6 +85,11 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 				Deployment: appName,
 				Service:    appName,
 				Port:       8081,
+			},
+			Replicas: v1alpha1.ReplicaStruct{
+				Min:  0,
+				Max:  20,
+				Idle: 0,
 			},
 		},
 	}

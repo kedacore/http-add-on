@@ -83,7 +83,9 @@ type ReplicaStruct struct {
 	// Minimum amount of replicas to have in the deployment (Default 0)
 	Min *int32 `json:"min,omitempty" description:"Minimum amount of replicas to have in the deployment (Default 0)"`
 	// Maximum amount of replicas to have in the deployment (Default 100)
-	Max *int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
+	Max int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
+	// Amount of replicas to have in the deployment while being idle
+	Idle int32 `json:"idle,omitempty" description:"Amount of replicas to have in the deployment while being idle"`
 }
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
@@ -133,6 +135,7 @@ type HTTPScaledObjectStatus struct {
 // +kubebuilder:printcolumn:name="ScaleTargetPort",type="integer",JSONPath=".spec.scaleTargetRef"
 // +kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.replicas.min"
 // +kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.replicas.max"
+// +kubebuilder:printcolumn:name="IdleReplicas",type="integer",JSONPath=".spec.replicas.idle"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="Active",type="string",JSONPath=".status.conditions[?(@.type==\"HTTPScaledObjectIsReady\")].status"
 
