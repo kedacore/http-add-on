@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operator
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: operator
+        image: ghcr.io/kedacore/http-add-on-operator
+        args:
+        - --leader-elect
+        # TODO(pedrotorres): remove after implementing new routing table
+        - --admin-port=9090
+        env:
+        # TODO(pedrotorres): remove after implementing new routing table
+        - name: KEDAHTTP_INTERCEPTOR_SERVICE
+          value: "keda-http-add-on-interceptor-admin"
+        - name: KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE
+          value: "keda-http-add-on-external-scaler"
+        - name: KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT
+          value: "9090"
+        - name: KEDAHTTP_INTERCEPTOR_ADMIN_PORT
+          value: "9090"
+        - name: KEDAHTTP_INTERCEPTOR_PROXY_PORT
+          value: "8080"
+        - name: KEDA_HTTP_OPERATOR_NAMESPACE
+          value: "keda"
+        - name: KEDA_HTTP_OPERATOR_WATCH_NAMESPACE
+          value: ""
+        # TODO(pedrotorres): remove after implementing new routing table
+        ports:
+        - name: admin
+          containerPort: 9090
+        # TODO(pedrotorres): set better default values avoiding overcommitment
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+      serviceAccountName: operator
+      terminationGracePeriodSeconds: 10

@@ -1,13 +1,8 @@
-resources:
-- scaler.yaml
-- service.yaml
-- role.yaml
-- role_binding.yaml
-- service_account.yaml
-
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-images:
-- name: ghcr.io/kedacore/http-add-on-scaler
-  newName: ghcr.io/kedacore/http-add-on-scaler
-  newTag: main
+resources:
+- deployment.yaml
+- role.yaml
+- role_binding.yaml
+- service.yaml
+- service_account.yaml

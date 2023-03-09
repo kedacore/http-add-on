@@ -15,7 +15,7 @@ import (
 
 const (
 	// the name of the ConfigMap that stores the routing table
-	ConfigMapRoutingTableName = "keda-http-routing-table"
+	ConfigMapRoutingTableName = "keda-http-add-on-routing-table"
 	// the key in the ConfigMap data that stores the JSON routing table
 	configMapRoutingTableKey = "routing-table"
 )

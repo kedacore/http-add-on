@@ -1,13 +1,14 @@
-resources:
-- auth_proxy_role_binding.yaml
-- auth_proxy_role.yaml
-- operator.yaml
-- service-admin.yaml
-- service-metrics.yaml
-
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-images:
-- name: ghcr.io/kedacore/http-add-on-operator
-  newName: ghcr.io/kedacore/http-add-on-operator
-  newTag: main
+resources:
+- config_map.yaml
+- deployment.yaml
+- role.yaml
+- role_binding.yaml
+- service.yaml
+- service_account.yaml
+labels:
+- includeSelectors: true
+  includeTemplates: true
+  pairs:
+    app.kubernetes.io/instance: operator

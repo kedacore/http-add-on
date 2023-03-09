@@ -1,14 +1,14 @@
-resources:
-- interceptor.yaml
-- service-admin.yaml
-- service-proxy.yaml
-- role.yaml
-- role_binding.yaml
-- service_account.yaml
-
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-images:
-- name: ghcr.io/kedacore/http-add-on-interceptor
-  newName: ghcr.io/kedacore/http-add-on-interceptor
-  newTag: main
+resources:
+- deployment.yaml
+- role.yaml
+- role_binding.yaml
+- admin.service.yaml
+- proxy.service.yaml
+- service_account.yaml
+labels:
+- includeSelectors: true
+  includeTemplates: true
+  pairs:
+    app.kubernetes.io/instance: interceptor

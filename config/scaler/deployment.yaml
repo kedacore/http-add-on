@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scaler
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: scaler
+        image: ghcr.io/kedacore/http-add-on-scaler
+        env:
+        # TODO(pedrotorres): remove after implementing new routing table
+        - name: KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT
+          value: "keda-http-add-on-interceptor"
+        - name: KEDA_HTTP_SCALER_PORT
+          value: "9090"
+        - name: KEDA_HTTP_HEALTH_PORT
+          value: "9091"
+        - name: KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE
+          value: "keda"
+          # TODO(pedrotorres): remove after implementing new routing table
+        - name: KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE
+          value: "keda-http-add-on-interceptor-admin"
+          # TODO(pedrotorres): remove after implementing new routing table
+        - name: KEDA_HTTP_SCALER_TARGET_ADMIN_PORT
+          value: "9090"
+        - name: KEDA_HTTP_SCALER_TARGET_PENDING_REQUESTS_INTERCEPTOR
+          value: "200"
+        ports:
+        - name: grpc
+          containerPort: 9090
+        - name: health
+          containerPort: 9091
+        # TODO(pedrotorres): set better default values avoiding overcommitment
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+      serviceAccountName: scaler
+      terminationGracePeriodSeconds: 10

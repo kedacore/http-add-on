@@ -1,0 +1,11 @@
+# TODO(pedrotorres): remove after implementing new routing table
+apiVersion: v1
+kind: Service
+metadata:
+  name: interceptor-admin
+spec:
+  ports:
+  - name: admin
+    protocol: TCP
+    port: 9090
+    targetPort: admin
