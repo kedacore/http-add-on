@@ -9,7 +9,7 @@ require (
 	github.com/kedacore/keda/v2 v2.10.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo/v2 v2.9.1
-	github.com/onsi/gomega v1.27.3
+	github.com/onsi/gomega v1.27.4
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.2
 	go.uber.org/zap v1.24.0
