@@ -8,7 +8,8 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   rules:
-  - host: {{ .Values.host }}
+  {{- with .Values.hosts }}
+  - host: {{ . | toString }}
     http:
       paths:
       - path: /
@@ -18,3 +19,4 @@ spec:
             name: keda-add-ons-http-interceptor-proxy
             port:
               number: 8080
+  {{- end }}
