@@ -21,7 +21,7 @@ spec:
         scalerAddress: {{ .ScalerAddress }}
         {{- with .Values.Hosts }}
         hosts:
-          {{- . }}
+          - {{- . | toString }}
         {{- end }}
   advanced:
     restoreToOriginalReplicaCount: true

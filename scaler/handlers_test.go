@@ -499,6 +499,7 @@ func TestGetMetrics(t *testing.T) {
 	t2Hosts, _ := json.Marshal([]string{"missingHostInQueue"})
 	t4Hosts, _ := json.Marshal([]string{"interceptor"})
 	t5Hosts, _ := json.Marshal([]string{"myhost.com"})
+	t6Hosts, _ := json.Marshal([]string{"validHost"})
 	testCases := []testCase{
 		{
 			name:           "no 'hosts' field in the scaler metadata field",
@@ -557,7 +558,7 @@ func TestGetMetrics(t *testing.T) {
 		{
 			name: "valid host",
 			scalerMetadata: map[string]string{
-				"hosts": "validHost",
+				"hosts": string(t6Hosts),
 			},
 			setupFn: func(
 				ctx context.Context,
