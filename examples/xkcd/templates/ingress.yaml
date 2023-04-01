@@ -8,7 +8,7 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   rules:
-  {{- with .Values.hosts }}
+  {{- range .Values.hosts }}
   - host: {{ . | toString }}
     http:
       paths:
