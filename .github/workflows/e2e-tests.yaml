@@ -21,6 +21,11 @@ jobs:
         - kubernetesVersion: v1.24
           kindImage: kindest/node:v1.24.4@sha256:adfaebada924a26c2c9308edd53c6e33b3d4e453782c0063dc0028bdebaddf98
     steps:
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.19
+
       - name: Install prerequisites
         run: |
           sudo apt update
@@ -96,6 +101,11 @@ jobs:
           kindImage: kindest/node:v1.24.4@sha256:adfaebada924a26c2c9308edd53c6e33b3d4e453782c0063dc0028bdebaddf98
     steps:
       - uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.19
 
       - name: Helm install
         uses: Azure/setup-helm@v3
