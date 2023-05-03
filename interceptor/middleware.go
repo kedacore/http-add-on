@@ -40,11 +40,14 @@ func countMiddleware(
 			}
 			return
 		}
-		if err := q.Resize(host, +1); err != nil {
+
+		host_and_path_str := fmt.Sprintf("%s%s", host, r.URL.Path)
+
+		if err := q.Resize(host_and_path_str, +1); err != nil {
 			log.Printf("Error incrementing queue for %q (%s)", r.RequestURI, err)
 		}
 		defer func() {
-			if err := q.Resize(host, -1); err != nil {
+			if err := q.Resize(host_and_path_str, -1); err != nil {
 				log.Printf("Error decrementing queue for %q (%s)", r.RequestURI, err)
 			}
 		}()
