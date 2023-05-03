@@ -77,7 +77,7 @@ func (t *Table) Lookup(host string) (*Target, error) {
 
 	keys := []string{host}
 	if i := strings.LastIndex(host, ":"); i != -1 {
-		keys = append(keys, host[:i])
+		// keys = append(keys, host[:i])
 	}
 
 	for _, key := range keys {

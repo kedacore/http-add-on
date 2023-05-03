@@ -60,7 +60,7 @@ func newForwardingHandler(
 		ResponseHeaderTimeout: fwdCfg.respHeaderTimeout,
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host, err := getHost(r)
+		hostAndPath, err := getHostAndPath(r)
 		if err != nil {
 			w.WriteHeader(400)
 			if _, err := w.Write([]byte("Host not found in request")); err != nil {
@@ -68,7 +68,7 @@ func newForwardingHandler(
 			}
 			return
 		}
-		routingTarget, err := routingTable.Lookup(host)
+		routingTarget, err := routingTable.Lookup(hostAndPath)
 		if err != nil {
 			w.WriteHeader(404)
 			if _, err := w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host))); err != nil {

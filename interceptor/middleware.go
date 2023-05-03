@@ -23,6 +23,16 @@ func getHost(r *http.Request) (string, error) {
 	return "", fmt.Errorf("host not found")
 }
 
+func getHostAndPath(r *http.Request) (string, error) {
+	if r.Header.Get("Host") != "" {
+		return fmt.Sprintf("%s%s", r.Header.Get("Host"), r.URL.Path), nil
+	}
+	if r.Host != "" {
+		return fmt.Sprintf("%s%s", r.Host, r.URL.Path), nil
+	}
+	return "", fmt.Errorf("host not found")
+}
+
 // countMiddleware adds 1 to the given queue counter, executes next
 // (by calling ServeHTTP on it), then decrements the queue counter
 func countMiddleware(

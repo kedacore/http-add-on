@@ -58,7 +58,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	// host that points to the (above) fake origin
 	// server.
 	r.NoError(routingTable.AddTarget(
-		host,
+		hostWithPath,
 		targetFromURL(
 			originURL,
 			originPort,
