@@ -24,12 +24,22 @@ func getHost(r *http.Request) (string, error) {
 }
 
 func getHostAndPath(r *http.Request) (string, error) {
+	var host string
 	if r.Header.Get("Host") != "" {
-		return fmt.Sprintf("%s%s", r.Header.Get("Host"), r.URL.Path), nil
+		host = r.Header.Get("Host")
 	}
 	if r.Host != "" {
-		return fmt.Sprintf("%s%s", r.Host, r.URL.Path), nil
+		host = r.Host
 	}
+	// Avoid appending empty ("/") Path
+	if host != "" {
+		if r.URL.Path != "/" {
+			return host + r.URL.Path, nil
+		} else {
+			return host, nil
+		}
+	}
+
 	return "", fmt.Errorf("host not found")
 }
 
