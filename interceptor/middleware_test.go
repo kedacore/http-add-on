@@ -14,11 +14,13 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/kedacore/http-add-on/pkg/queue"
+	httputil "github.com/kedacore/http-add-on/pkg/http"
+
 )
 
 func TestCountMiddleware(t *testing.T) {
 	ctx := context.Background()
-	const host = "testingkeda.com"
+	const hostWithPath = "testingkeda.com/path"
 	r := require.New(t)
 	queueCounter := queue.NewFakeCounter()
 	middleware := countMiddleware(
@@ -30,9 +32,10 @@ func TestCountMiddleware(t *testing.T) {
 			r.NoError(err)
 		}),
 	)
-
+	urlHostWithPath := httputil.GetUrlFromHostAndPath(hostWithPath)
+	path := urlHostWithPath.Path
 	// no host in the request
-	req, err := http.NewRequest("GET", "/something", nil)
+	req, err := http.NewRequest("GET", path, nil)
 	r.NoError(err)
 	agg, respRecorder := expectResizes(
 		ctx,
@@ -48,9 +51,9 @@ func TestCountMiddleware(t *testing.T) {
 	r.Equal(0, agg)
 
 	// run middleware with the host in the request
-	req, err = http.NewRequest("GET", "/something", nil)
+	req, err = http.NewRequest("GET", path, nil)
 	r.NoError(err)
-	req.Host = host
+	req.Host = urlHostWithPath.Host
 	// for a valid request, we expect the queue to be resized twice.
 	// once to mark a pending HTTP request, then a second time to remove it.
 	// by the end of both sends, resize1 + resize2 should be 0,
@@ -66,7 +69,7 @@ func TestCountMiddleware(t *testing.T) {
 			t.Helper()
 			r := require.New(t)
 			r.Equal(float64(1), math.Abs(float64(hostAndCount.Count)))
-			r.Equal(host, hostAndCount.Host)
+			r.Equal(hostWithPath, hostAndCount.Host)
 		},
 	)
 	r.Equal(200, respRecorder.Code)
