@@ -3,13 +3,19 @@
 ##################################################
 SHELL           = /bin/bash
 
-IMAGE_REGISTRY 	?= ghcr.io
-IMAGE_REPO     	?= kedacore
+# IMAGE_REGISTRY 	?= ghcr.io
+# IMAGE_REPO     	?= kedacore
+#DEBUG
+IMAGE_REPO     	?= swtrasformer
 VERSION 		?= main
 
-IMAGE_OPERATOR 		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
-IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
-IMAGE_SCALER		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-scaler
+# IMAGE_OPERATOR 	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
+# IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
+# IMAGE_SCALER		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-scaler
+# DEBUG
+IMAGE_OPERATOR 		?= ${IMAGE_REPO}/http-add-on-operator
+IMAGE_INTERCEPTOR	?= ${IMAGE_REPO}/http-add-on-interceptor
+IMAGE_SCALER		?= ${IMAGE_REPO}/http-add-on-scaler
 
 IMAGE_OPERATOR_VERSIONED_TAG	?= ${IMAGE_OPERATOR}:$(VERSION)
 IMAGE_INTERCEPTOR_VERSIONED_TAG	?= ${IMAGE_INTERCEPTOR}:$(VERSION)
@@ -62,7 +68,18 @@ docker-build-interceptor:
 docker-build-scaler:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_SCALER_VERSIONED_TAG} -t ${IMAGE_SCALER_SHA_TAG} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
+#DEBUG
+docker-build-operator-debug:
+	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_OPERATOR_VERSIONED_TAG}-debug -f operator/Dockerfile.debug --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+
+docker-build-interceptor-debug:
+	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_INTERCEPTOR_VERSIONED_TAG}-debug -f interceptor/Dockerfile.debug --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+
+docker-build-scaler-debug:
+	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_SCALER_VERSIONED_TAG}-debug -f scaler/Dockerfile.debug --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+
 docker-build: docker-build-operator docker-build-interceptor docker-build-scaler
+docker-build-debug: docker-build-operator-debug docker-build-interceptor-debug docker-build-scaler-debug
 
 docker-publish: docker-build ## Push images on to Container Registry (default: ghcr.io).
 	docker push $(IMAGE_OPERATOR_VERSIONED_TAG)
