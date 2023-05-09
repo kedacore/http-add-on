@@ -18,17 +18,17 @@ function print_logs {
   printf "##############################################\n"
 
   echo ">>> HTTP Add-on Operator log <<<"
-  kubectl logs -n keda -l control-plane=controller-manager -c operator --tail 5000
+  kubectl logs -n keda -l app.kubernetes.io/instance=operator -c operator --tail 5000
   printf "##############################################\n"
   printf "##############################################\n"
 
   echo ">>> HTTP Add-on Interceptor log <<<"
-  kubectl logs -n keda -l control-plane=interceptor --tail 5000
+  kubectl logs -n keda -l app.kubernetes.io/instance=interceptor --tail 5000
   printf "##############################################\n"
   printf "##############################################\n"
 
     echo ">>> HTTP Add-on Scaler log <<<"
-  kubectl logs -n keda -l control-plane=external-scaler --tail 5000
+  kubectl logs -n keda -l app.kubernetes.io/instance=external-scaler --tail 5000
   printf "##############################################\n"
   printf "##############################################\n"
 }
