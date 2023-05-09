@@ -2,11 +2,12 @@ package routing
 
 import (
 	"context"
-
 	"github.com/go-logr/logr"
+	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
+	nethttp "net/http"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 )
@@ -27,6 +28,8 @@ func StartConfigMapRoutingTableUpdater(
 	cmInformer *k8s.InformerConfigMapUpdater,
 	ns string,
 	table *Table,
+	router *httprouter.Router,
+	handler nethttp.Handler,
 	cbFunc func() error,
 ) error {
 	lggr = lggr.WithName("pkg.routing.StartConfigMapRoutingTableUpdater")
@@ -59,7 +62,7 @@ func StartConfigMapRoutingTableUpdater(
 					)
 					continue
 				}
-				newTable, err := FetchTableFromConfigMap(cm)
+				newTable, err := FetchTableFromConfigMap(cm, router, handler)
 				if err != nil {
 					return err
 				}

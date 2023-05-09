@@ -2,8 +2,8 @@ package http
 
 import (
 	nethttp "net/http"
-	url "net/url"
 	"net/http/httptest"
+	url "net/url"
 	"strings"
 )
 
@@ -35,14 +35,4 @@ func CleanPath(path string) string {
 func GetHostFromHostAndPath(hostAndPath string) string {
 	slices := strings.Split(hostAndPath, "/")
 	return slices[0]
-}
-
-func GetPathFromHostAndPath(hostAndPath string) string {
-	url, err := url.Parse(hostAndPath)
-	if err != nil {
-		return ""
-	}
-	
-	path := strings.Split(hostAndPath, "/")[0] + url.Path
-	return path
 }

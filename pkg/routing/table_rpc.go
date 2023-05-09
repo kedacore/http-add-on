@@ -5,9 +5,6 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
-
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 const (
@@ -31,44 +28,44 @@ func AddFetchRoute(
 // fetch the current state of the routing table from the standard routing
 // table ConfigMap (ConfigMapRoutingTableName), save it to local memory, and
 // return the contents of the routing table to the client.
-func AddPingRoute(
-	lggr logr.Logger,
-	mux *http.ServeMux,
-	getter k8s.ConfigMapGetter,
-	table *Table,
-	q queue.Counter,
-) {
-	lggr = lggr.WithName("pkg.routing.AddPingRoute")
-	lggr.Info("adding interceptor routing ping route", "path", routingPingPath)
-	mux.HandleFunc(routingPingPath, func(w http.ResponseWriter, r *http.Request) {
-		err := GetTable(
-			r.Context(),
-			lggr,
-			getter,
-			table,
-			q,
-		)
-		if err != nil {
-			lggr.Error(err, "fetching new routing table")
-			w.WriteHeader(500)
-			if _, err := w.Write([]byte(
-				"error fetching routing table",
-			)); err != nil {
-				lggr.Error(
-					err,
-					"could not write error response to client",
-				)
-			}
-			return
-		}
-		w.WriteHeader(200)
-		if err := json.NewEncoder(w).Encode(table); err != nil {
-			w.WriteHeader(500)
-			lggr.Error(err, "writing new routing table to the client")
-			return
-		}
-	})
-}
+//func AddPingRoute(
+//	lggr logr.Logger,
+//	mux *http.ServeMux,
+//	getter k8s.ConfigMapGetter,
+//	table *Table,
+//	q queue.Counter,
+//) {
+//	lggr = lggr.WithName("pkg.routing.AddPingRoute")
+//	lggr.Info("adding interceptor routing ping route", "path", routingPingPath)
+//	mux.HandleFunc(routingPingPath, func(w http.ResponseWriter, r *http.Request) {
+//		err := GetTable(
+//			r.Context(),
+//			lggr,
+//			getter,
+//			table,
+//			q,
+//		)
+//		if err != nil {
+//			lggr.Error(err, "fetching new routing table")
+//			w.WriteHeader(500)
+//			if _, err := w.Write([]byte(
+//				"error fetching routing table",
+//			)); err != nil {
+//				lggr.Error(
+//					err,
+//					"could not write error response to client",
+//				)
+//			}
+//			return
+//		}
+//		w.WriteHeader(200)
+//		if err := json.NewEncoder(w).Encode(table); err != nil {
+//			w.WriteHeader(500)
+//			lggr.Error(err, "writing new routing table to the client")
+//			return
+//		}
+//	})
+//}
 
 func newTableHandler(
 	lggr logr.Logger,

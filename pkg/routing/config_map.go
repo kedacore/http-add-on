@@ -3,6 +3,8 @@ package routing
 import (
 	"context"
 	"fmt"
+	"github.com/julienschmidt/httprouter"
+	nethttp "net/http"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -33,7 +35,7 @@ func SaveTableToConfigMap(table *Table, configMap *corev1.ConfigMap) error {
 
 // FetchTableFromConfigMap fetches the Data field from configMap, converts it
 // to a routing table, and returns it
-func FetchTableFromConfigMap(configMap *corev1.ConfigMap) (*Table, error) {
+func FetchTableFromConfigMap(configMap *corev1.ConfigMap, router *httprouter.Router, handler nethttp.Handler) (*Table, error) {
 	data, found := configMap.Data[configMapRoutingTableKey]
 	if !found {
 		return nil, fmt.Errorf(
@@ -54,6 +56,7 @@ func FetchTableFromConfigMap(configMap *corev1.ConfigMap) (*Table, error) {
 		)
 		return nil, retErr
 	}
+	ret.SyncHostSwitch(router, handler)
 	return ret, nil
 }
 
@@ -71,6 +74,8 @@ func GetTable(
 	getter k8s.ConfigMapGetter,
 	table *Table,
 	q queue.Counter,
+	router *httprouter.Router,
+	handler nethttp.Handler,
 ) error {
 	lggr = lggr.WithName("pkg.routing.GetTable")
 
@@ -94,7 +99,7 @@ func GetTable(
 			),
 		)
 	}
-	newTable, err := FetchTableFromConfigMap(cm)
+	newTable, err := FetchTableFromConfigMap(cm, router, handler)
 	if err != nil {
 		lggr.Error(
 			err,
