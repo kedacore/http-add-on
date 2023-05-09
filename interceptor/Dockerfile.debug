@@ -1,0 +1,32 @@
+# Build the adapter binary
+FROM --platform=$BUILDPLATFORM ghcr.io/kedacore/build-tools:1.19.5 as builder
+
+ARG VERSION=main
+ARG GIT_COMMIT=HEAD
+
+WORKDIR /workspace
+
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
+
+COPY . .
+
+# Build
+# https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
+ARG TARGETOS
+ARG TARGETARCH
+RUN VERSION=${VERSION} GIT_COMMIT=${GIT_COMMIT} TARGET_OS=$TARGETOS ARCH=$TARGETARCH make build-interceptor
+RUN CGO_ENABLED=0 go install -ldflags "-s -w -extldflags '-static'" github.com/go-delve/delve/cmd/dlv@latest
+
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/bin/interceptor .
+COPY --from=builder /go/bin/dlv /go/bin/dlv
+# 65532 is numeric for nonroot
+USER 65532:65532
+EXPOSE 8080 4000
+
+# ENTRYPOINT ["/interceptor"]
+ENTRYPOINT [ "/go/bin/dlv", "--listen=:4000", "--headless=true", "--log=true", "--accept-multiclient", "--api-version=2", "exec", "/interceptor", "--"]
