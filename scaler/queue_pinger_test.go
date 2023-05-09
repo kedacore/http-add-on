@@ -1,16 +1,19 @@
 package main
 
 import (
-	context "context"
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
@@ -217,48 +220,73 @@ func TestFetchCounts(t *testing.T) {
 	r.Equal(expectedCounts, cts)
 }
 
-func TestMergeCountsWithRoutingTable(t *testing.T) {
-	r := require.New(t)
-	for _, tc := range cases(r) {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			grp, ctx := errgroup.WithContext(ctx)
-			r := require.New(t)
-			const C = 100
-			tickr, q, err := newFakeQueuePinger(
-				ctx,
-				logr.Discard(),
-			)
-			r.NoError(err)
-			defer tickr.Stop()
-			q.allCounts = tc.counts
-
-			retCh := make(chan map[string]int)
-			for i := 0; i < C; i++ {
-				grp.Go(func() error {
-					retCh <- q.mergeCountsWithRoutingTable(tc.table)
-					return nil
-				})
-			}
-
-			// ensure we receive from retCh C times
-			allRets := map[int]map[string]int{}
-			for i := 0; i < C; i++ {
-				allRets[i] = <-retCh
-			}
-
-			r.NoError(grp.Wait())
-
-			// ensure that all returned maps are the
-			// same
-			prev := allRets[0]
-			for i := 1; i < C; i++ {
-				r.Equal(prev, allRets[i])
-				prev = allRets[i]
-			}
-			// ensure that all the returned maps are
-			// equal to what we expected
-			r.Equal(tc.retCounts, prev)
-		})
+// startFakeQueuePinger starts a fake server that simulates
+// an interceptor with its /queue endpoint, then returns a
+// *v1.Endpoints object that contains the URL of the new fake
+// server. also returns the *httptest.Server that runs the
+// endpoint along with its URL. the caller is responsible for
+// calling testServer.Close() when done.
+//
+// returns nil for the first 3 return value and a non-nil error in
+// case of a failure.
+func startFakeQueueEndpointServer(
+	svcName string,
+	q queue.CountReader,
+	numEndpoints int,
+) (*httptest.Server, *url.URL, *v1.Endpoints, error) {
+	hdl := http.NewServeMux()
+	queue.AddCountsRoute(logr.Discard(), hdl, q)
+	srv, srvURL, err := kedanet.StartTestServer(hdl)
+	if err != nil {
+		return nil, nil, nil, err
 	}
+	endpoints, err := k8s.FakeEndpointsForURL(srvURL, "testns", svcName, numEndpoints)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return srv, srvURL, endpoints, nil
+}
+
+type fakeQueuePingerOpts struct {
+	endpoints *v1.Endpoints
+	tickDur   time.Duration
+	port      string
+}
+
+type optsFunc func(*fakeQueuePingerOpts)
+
+// newFakeQueuePinger creates the machinery required for a fake
+// queuePinger implementation, including a time.Ticker, then returns
+// the ticker and the pinger. it is the caller's responsibility to
+// call ticker.Stop() on the returned ticker.
+func newFakeQueuePinger(
+	ctx context.Context,
+	lggr logr.Logger,
+	optsFuncs ...optsFunc,
+) (*time.Ticker, *queuePinger, error) {
+	opts := &fakeQueuePingerOpts{
+		endpoints: &v1.Endpoints{},
+		tickDur:   time.Second,
+		port:      "8080",
+	}
+	for _, optsFunc := range optsFuncs {
+		optsFunc(opts)
+	}
+	ticker := time.NewTicker(opts.tickDur)
+
+	pinger, err := newQueuePinger(
+		ctx,
+		lggr,
+		func(context.Context, string, string) (*v1.Endpoints, error) {
+			return opts.endpoints, nil
+		},
+		"testns",
+		"testsvc",
+		"testdepl",
+		opts.port,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	return ticker, pinger, nil
 }

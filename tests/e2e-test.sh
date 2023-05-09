@@ -41,6 +41,9 @@ helm upgrade --install keda kedacore/keda --namespace keda --create-namespace --
 # Install Http-add-on
 make deploy
 
+# Give a minute for pods to become ready
+sleep 60
+
 # Show Kubernetes resources in keda namespace
 kubectl get all --namespace keda
 
@@ -48,15 +51,18 @@ kubectl get all --namespace keda
 kubectl create ns app
 helm upgrade --install xkcd ./examples/xkcd -n app --wait
 
+# Give a minute for resources to be created
+sleep 60
+
 # Show Kubernetes resources in app namespace
-kubectl get all --namespace app
+kubectl get all,httpso,so --namespace app
 
 # Check http-add-on generated ScaledObject
 n=0
 max=5
 until [ "$n" -ge "$max" ]
 do
-  ready=$(kubectl get so xkcd-app -n app -o jsonpath="{.status.conditions[0].status}")
+  ready=$(kubectl get so xkcd -n app -o jsonpath="{.status.conditions[0].status}")
   echo "ready: $ready"
   if [ "$ready" == "True" ]; then
     break

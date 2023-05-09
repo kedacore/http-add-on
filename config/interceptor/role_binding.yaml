@@ -10,15 +10,3 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: interceptor
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: interceptor
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: interceptor
-subjects:
-- kind: ServiceAccount
-  name: interceptor

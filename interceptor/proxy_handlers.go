@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -43,10 +45,9 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts) forwardingConfig {
 // create a URL with url.Parse("https://...")
 func newForwardingHandler(
 	lggr logr.Logger,
-	routingTable *routing.Table,
+	routingTable routing.Table,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
-	targetSvcURL routing.ServiceURLFunc,
 	fwdCfg forwardingConfig,
 ) http.Handler {
 	roundTripper := &http.Transport{
@@ -60,20 +61,18 @@ func newForwardingHandler(
 		ResponseHeaderTimeout: fwdCfg.respHeaderTimeout,
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host, err := getHost(r)
-		if err != nil {
-			w.WriteHeader(400)
-			if _, err := w.Write([]byte("Host not found in request")); err != nil {
-				lggr.Error(err, "could not write error response to client")
+		routingTarget := routingTable.Route(r)
+		if routingTarget == nil {
+			// return 200 for kube-probe
+			if ua := r.UserAgent(); strings.HasPrefix(ua, "kube-probe/") {
+				return
 			}
-			return
-		}
-		routingTarget, err := routingTable.Lookup(host)
-		if err != nil {
-			w.WriteHeader(404)
+
+			w.WriteHeader(http.StatusNotFound)
 			if _, err := w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host))); err != nil {
 				lggr.Error(err, "could not send error message to client")
 			}
+
 			return
 		}
 
@@ -82,20 +81,26 @@ func newForwardingHandler(
 		replicas, err := waitFunc(
 			waitFuncCtx,
 			routingTarget.Namespace,
-			routingTarget.Deployment,
+			routingTarget.Spec.ScaleTargetRef.Deployment,
 		)
 		if err != nil {
 			lggr.Error(err, "wait function failed, not forwarding request")
-			w.WriteHeader(502)
+			w.WriteHeader(http.StatusBadGateway)
 			if _, err := w.Write([]byte(fmt.Sprintf("error on backend (%s)", err))); err != nil {
 				lggr.Error(err, "could not write error response to client")
 			}
 			return
 		}
-		targetSvcURL, err := targetSvcURL(*routingTarget)
+		//goland:noinspection HttpUrlsUsage
+		targetSvcURL, err := url.Parse(fmt.Sprintf(
+			"http://%s.%s:%d",
+			routingTarget.Spec.ScaleTargetRef.Service,
+			routingTarget.Namespace,
+			routingTarget.Spec.ScaleTargetRef.Port,
+		))
 		if err != nil {
 			lggr.Error(err, "forwarding failed")
-			w.WriteHeader(500)
+			w.WriteHeader(http.StatusInternalServerError)
 			if _, err := w.Write([]byte("error getting backend service URL")); err != nil {
 				lggr.Error(err, "could not write error response to client")
 			}

@@ -85,9 +85,9 @@ publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publ
 
 # Development
 
-generate: codegen manifests ## Generate code and manifests.
+generate: codegen manifests mockgen ## Generate code, manifests, and mocks.
 
-verify: verify-codegen verify-manifests ## Verify code and manifests.
+verify: verify-codegen verify-manifests verify-mockgen ## Verify code, manifests, and mocks.
 
 codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
@@ -103,6 +103,12 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 verify-manifests: ## Verify manifests are up to date.
 	./hack/verify-codegen.sh
+
+mockgen: ## Generate mock implementations of Go interfaces.
+	./hack/update-mockgen.sh
+
+verify-mockgen: ## Verify mocks are up to date.
+	./hack/verify-mockgen.sh
 
 fmt: ## Run go fmt against code.
 	go fmt ./...

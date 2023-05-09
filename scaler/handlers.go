@@ -5,15 +5,16 @@
 package main
 
 import (
-	context "context"
+	"context"
 	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/go-logr/logr"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"k8s.io/utils/pointer"
 
-	"github.com/kedacore/http-add-on/pkg/routing"
+	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 )
 
@@ -28,7 +29,7 @@ const (
 type impl struct {
 	lggr                    logr.Logger
 	pinger                  *queuePinger
-	routingTable            routing.TableReader
+	httpsoInformer          informershttpv1alpha1.HTTPScaledObjectInformer
 	targetMetric            int64
 	targetMetricInterceptor int64
 	externalscaler.UnimplementedExternalScalerServer
@@ -37,14 +38,14 @@ type impl struct {
 func newImpl(
 	lggr logr.Logger,
 	pinger *queuePinger,
-	routingTable routing.TableReader,
+	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer,
 	defaultTargetMetric int64,
 	defaultTargetMetricInterceptor int64,
 ) *impl {
 	return &impl{
 		lggr:                    lggr,
 		pinger:                  pinger,
-		routingTable:            routingTable,
+		httpsoInformer:          httpsoInformer,
 		targetMetric:            defaultTargetMetric,
 		targetMetricInterceptor: defaultTargetMetricInterceptor,
 	}
@@ -55,7 +56,7 @@ func (e *impl) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 }
 
 func (e *impl) IsActive(
-	ctx context.Context,
+	_ context.Context,
 	scaledObject *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
 	lggr := e.lggr.WithName("IsActive")
@@ -71,19 +72,7 @@ func (e *impl) IsActive(
 		}, nil
 	}
 
-	hostCount, ok := getHostCount(
-		host,
-		e.pinger.counts(),
-		e.routingTable,
-	)
-	if !ok {
-		err := fmt.Errorf("host '%s' not found in counts", host)
-		allCounts := e.pinger.mergeCountsWithRoutingTable(
-			e.routingTable,
-		)
-		lggr.Error(err, "Given host was not found in queue count map", "host", host, "allCounts", allCounts)
-		return nil, err
-	}
+	hostCount := e.pinger.counts()[host]
 	active := hostCount > 0
 	return &externalscaler.IsActiveResponse{
 		Result: active,
@@ -137,21 +126,15 @@ func (e *impl) GetMetricSpec(
 		lggr.Error(err, "no 'host' found in ScaledObject metadata")
 		return nil, err
 	}
-	var targetPendingRequests int64
-	if host == interceptor {
-		targetPendingRequests = e.targetMetricInterceptor
-	} else {
-		target, err := e.routingTable.Lookup(host)
+	targetPendingRequests := e.targetMetricInterceptor
+	if host != interceptor {
+		httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
 		if err != nil {
-			lggr.Error(
-				err,
-				"error getting target for host",
-				"host",
-				host,
-			)
+			lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 			return nil, err
 		}
-		targetPendingRequests = int64(target.TargetPendingRequests)
+
+		targetPendingRequests = int64(pointer.Int32Deref(httpso.Spec.TargetPendingRequests, 100))
 	}
 	metricSpecs := []*externalscaler.MetricSpec{
 		{
@@ -177,20 +160,9 @@ func (e *impl) GetMetrics(
 		return nil, err
 	}
 
-	hostCount, ok := getHostCount(
-		host,
-		e.pinger.counts(),
-		e.routingTable,
-	)
-	if !ok {
-		if host == interceptor {
-			hostCount = e.pinger.aggregate()
-		} else {
-			err := fmt.Errorf("host '%s' not found in counts", host)
-			allCounts := e.pinger.mergeCountsWithRoutingTable(e.routingTable)
-			lggr.Error(err, "allCounts", allCounts)
-			return nil, err
-		}
+	hostCount, ok := e.pinger.counts()[host]
+	if !ok && host == interceptor {
+		hostCount = e.pinger.aggregate()
 	}
 	metricValues := []*externalscaler.MetricValue{
 		{

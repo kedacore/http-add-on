@@ -53,11 +53,18 @@ spec:
         - name: KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT
           value: "1s"
         ports:
-        # TODO(pedrotorres): remove after implementing new routing table
         - name: admin
           containerPort: 9090
         - name: proxy
           containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: proxy
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: proxy
         # TODO(pedrotorres): set better default values avoiding overcommitment
         resources:
           requests:
@@ -69,11 +76,12 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-          runAsNonRoot: true
           capabilities:
             drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
+              - ALL
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: interceptor
       terminationGracePeriodSeconds: 10

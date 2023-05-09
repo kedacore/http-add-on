@@ -1,135 +1,226 @@
 package routing
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"strings"
+	"context"
+	"net/http"
 	"sync"
+
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
+
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
+	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
+	listershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1"
 )
 
-type TableReader interface {
-	Lookup(string) (*Target, error)
-	Hosts() []string
-	HasHost(string) bool
-}
-type Table struct {
-	fmt.Stringer
-	m map[string]Target
-	l *sync.RWMutex
+var (
+	errUnknownSharedIndexInformer = errors.New("The informer is not cache.sharedIndexInformer")
+	errStartedSharedIndexInformer = errors.New("The sharedIndexInformer has started, run more than once is not allowed")
+	errStoppedSharedIndexInformer = errors.New("The sharedIndexInformer has stopped")
+)
+
+type Table interface {
+	Start(ctx context.Context) error
+	Route(req *http.Request) *httpv1alpha1.HTTPScaledObject
+	HasSynced() bool
 }
 
-func NewTable() *Table {
-	return &Table{
-		m: make(map[string]Target),
-		l: new(sync.RWMutex),
+type table struct {
+	// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
+	httpScaledObjectLister                   listershttpv1alpha1.HTTPScaledObjectLister
+	httpScaledObjectInformer                 sharedIndexInformer
+	httpScaledObjectEventHandlerRegistration cache.ResourceEventHandlerRegistration
+	httpScaledObjects                        map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject
+	httpScaledObjectsMutex                   sync.RWMutex
+	memoryHolder                             AtomicValue[TableMemory]
+	memorySignaler                           Signaler
+}
+
+func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string) (Table, error) {
+	httpScaledObjects := informershttpv1alpha1.New(sharedInformerFactory, namespace, nil).HTTPScaledObjects()
+
+	t := table{
+		// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
+		httpScaledObjectLister: httpScaledObjects.Lister(),
+		httpScaledObjects:      make(map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject),
+		memorySignaler:         NewSignaler(),
 	}
-}
 
-// Hosts is the TableReader implementation for t.
-// This function returns all hosts that are currently
-// in t.
-func (t Table) Hosts() []string {
-	t.l.RLock()
-	defer t.l.RUnlock()
-	ret := make([]string, 0, len(t.m))
-	for host := range t.m {
-		ret = append(ret, host)
+	informer, ok := httpScaledObjects.Informer().(sharedIndexInformer)
+	if !ok {
+		return nil, errUnknownSharedIndexInformer
 	}
-	return ret
-}
+	t.httpScaledObjectInformer = informer
 
-func (t Table) HasHost(host string) bool {
-	t.l.RLock()
-	defer t.l.RUnlock()
-	_, exists := t.m[host]
-	return exists
-}
-
-func (t *Table) String() string {
-	t.l.RLock()
-	defer t.l.RUnlock()
-	return fmt.Sprintf("%v", t.m)
-}
-
-func (t *Table) MarshalJSON() ([]byte, error) {
-	t.l.RLock()
-	defer t.l.RUnlock()
-	var b bytes.Buffer
-	err := json.NewEncoder(&b).Encode(t.m)
+	registration, err := informer.AddEventHandler(&t)
 	if err != nil {
 		return nil, err
 	}
-	return b.Bytes(), nil
+	t.httpScaledObjectEventHandlerRegistration = registration
+
+	return &t, nil
 }
 
-func (t *Table) UnmarshalJSON(data []byte) error {
-	t.l.Lock()
-	defer t.l.Unlock()
-	t.m = map[string]Target{}
-	b := bytes.NewBuffer(data)
-	return json.NewDecoder(b).Decode(&t.m)
-}
-
-func (t *Table) Lookup(host string) (*Target, error) {
-	t.l.RLock()
-	defer t.l.RUnlock()
-
-	keys := []string{host}
-	if i := strings.LastIndex(host, ":"); i != -1 {
-		keys = append(keys, host[:i])
+// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
+func (t *table) init() error {
+	httpScaledObjects, err := t.httpScaledObjectLister.List(labels.Everything())
+	if err != nil {
+		return err
 	}
 
-	for _, key := range keys {
-		if target, ok := t.m[key]; ok {
-			return &target, nil
+	for _, httpScaledObject := range httpScaledObjects {
+		t.OnAdd(httpScaledObject)
+	}
+
+	return nil
+}
+
+func (t *table) runInformer(ctx context.Context) error {
+	if t.httpScaledObjectInformer.HasStarted() {
+		return errStartedSharedIndexInformer
+	}
+
+	t.httpScaledObjectInformer.Run(ctx.Done())
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return errStoppedSharedIndexInformer
+	}
+}
+
+func (t *table) refreshMemory(ctx context.Context) error {
+	// TODO(pedrotorres): uncomment after upgrading k8s.io/client-go to v0.27.0
+	// // wait for event handler to be synced before first computation of routes
+	// for !t.httpScaledObjectEventHandlerRegistration.HasSynced() {
+	// 	select {
+	// 	case <-ctx.Done():
+	// 		return ctx.Err()
+	// 	case <-time.After(time.Second):
+	// 		continue
+	// 	}
+	// }
+
+	for {
+		m := t.newMemoryFromHTTPSOs()
+		t.memoryHolder.Set(m)
+
+		if err := t.memorySignaler.Wait(ctx); err != nil {
+			return err
 		}
 	}
-
-	return nil, ErrTargetNotFound
 }
 
-// AddTarget registers target for host in the routing table t
-// if it didn't already exist.
-//
-// returns a non-nil error if it did already exist
-func (t *Table) AddTarget(
-	host string,
-	target Target,
-) error {
-	t.l.Lock()
-	defer t.l.Unlock()
-	_, ok := t.m[host]
-	if ok {
-		return fmt.Errorf(
-			"host %s is already registered in the routing table",
-			host,
-		)
+func (t *table) newMemoryFromHTTPSOs() TableMemory {
+	t.httpScaledObjectsMutex.RLock()
+	defer t.httpScaledObjectsMutex.RUnlock()
+
+	tm := NewTableMemory()
+	for _, newHTTPSO := range t.httpScaledObjects {
+		if oldHTTPSO := tm.Recall(newHTTPSO); oldHTTPSO != nil {
+			// oldest HTTPScaledObject has precedence
+			if newHTTPSO.CreationTimestamp.After(oldHTTPSO.CreationTimestamp.Time) {
+				continue
+			}
+		}
+
+		tm = tm.Remember(newHTTPSO)
 	}
-	t.m[host] = target
-	return nil
+
+	return tm
 }
 
-// RemoveTarget removes host, if it exists, and its corresponding Target entry in
-// the routing table. If it does not exist, returns a non-nil error
-func (t *Table) RemoveTarget(host string) error {
-	t.l.Lock()
-	defer t.l.Unlock()
-	_, ok := t.m[host]
+var _ Table = (*table)(nil)
+
+func (t *table) Start(ctx context.Context) error {
+	// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
+	if err := t.init(); err != nil {
+		return err
+	}
+
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(applyContext(t.runInformer, ctx))
+	eg.Go(applyContext(t.refreshMemory, ctx))
+	return eg.Wait()
+}
+
+func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
+	if req == nil {
+		return nil
+	}
+
+	url := *req.URL
+	url.Host = req.Host
+
+	tm := t.memoryHolder.Get()
+	return tm.Route(&url)
+}
+
+func (t *table) HasSynced() bool {
+	tm := t.memoryHolder.Get()
+	return tm != nil
+}
+
+var _ cache.ResourceEventHandler = (*table)(nil)
+
+func (t *table) OnAdd(obj interface{}) {
+	httpScaledObject, ok := obj.(*httpv1alpha1.HTTPScaledObject)
 	if !ok {
-		return fmt.Errorf("host %s did not exist in the routing table", host)
+		return
 	}
-	delete(t.m, host)
-	return nil
+	key := toNamespacedName(httpScaledObject)
+
+	defer t.memorySignaler.Signal()
+
+	t.httpScaledObjectsMutex.Lock()
+	defer t.httpScaledObjectsMutex.Unlock()
+
+	t.httpScaledObjects[key] = httpScaledObject
 }
 
-// Replace replaces t's routing table with newTable's.
-//
-// This function is concurrency safe for t, but not for newTable.
-// The caller must ensure that no other goroutine is writing to
-// newTable at the time at which they call this function.
-func (t *Table) Replace(newTable *Table) {
-	t.l.Lock()
-	defer t.l.Unlock()
-	t.m = newTable.m
+func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
+	oldHTTPSO, ok := oldObj.(*httpv1alpha1.HTTPScaledObject)
+	if !ok {
+		return
+	}
+	oldKey := toNamespacedName(oldHTTPSO)
+
+	newHTTPSO, ok := newObj.(*httpv1alpha1.HTTPScaledObject)
+	if !ok {
+		return
+	}
+	newKey := toNamespacedName(newHTTPSO)
+
+	mustDelete := oldKey != newKey
+
+	defer t.memorySignaler.Signal()
+
+	t.httpScaledObjectsMutex.Lock()
+	defer t.httpScaledObjectsMutex.Unlock()
+
+	t.httpScaledObjects[newKey] = newHTTPSO
+
+	if mustDelete {
+		delete(t.httpScaledObjects, oldKey)
+	}
+}
+
+func (t *table) OnDelete(obj interface{}) {
+	httpScaledObject, ok := obj.(*httpv1alpha1.HTTPScaledObject)
+	if !ok {
+		return
+	}
+	key := toNamespacedName(httpScaledObject)
+
+	defer t.memorySignaler.Signal()
+
+	t.httpScaledObjectsMutex.Lock()
+	defer t.httpScaledObjectsMutex.Unlock()
+
+	delete(t.httpScaledObjects, key)
 }

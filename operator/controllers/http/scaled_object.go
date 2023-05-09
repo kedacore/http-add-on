@@ -10,7 +10,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
@@ -23,7 +23,7 @@ func createOrUpdateScaledObject(
 	cl client.Client,
 	logger logr.Logger,
 	externalScalerHostName string,
-	httpso *v1alpha1.HTTPScaledObject,
+	httpso *httpv1alpha1.HTTPScaledObject,
 ) error {
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
 
@@ -36,7 +36,7 @@ func createOrUpdateScaledObject(
 
 	appScaledObject := k8s.NewScaledObject(
 		httpso.GetNamespace(),
-		fmt.Sprintf("%s-app", httpso.GetName()), // HTTPScaledObject name is the same as the ScaledObject name
+		httpso.GetName(), // HTTPScaledObject name is the same as the ScaledObject name
 		httpso.Spec.ScaleTargetRef.Deployment,
 		externalScalerHostName,
 		httpso.Spec.Host,
@@ -72,9 +72,9 @@ func createOrUpdateScaledObject(
 				httpso,
 				*SetMessage(
 					CreateCondition(
-						v1alpha1.Error,
+						httpv1alpha1.Error,
 						v1.ConditionFalse,
-						v1alpha1.ErrorCreatingAppScaledObject,
+						httpv1alpha1.ErrorCreatingAppScaledObject,
 					),
 					err.Error(),
 				),
@@ -89,13 +89,50 @@ func createOrUpdateScaledObject(
 		httpso,
 		*SetMessage(
 			CreateCondition(
-				v1alpha1.Created,
+				httpv1alpha1.Created,
 				v1.ConditionTrue,
-				v1alpha1.AppScaledObjectCreated,
+				httpv1alpha1.AppScaledObjectCreated,
 			),
 			"App ScaledObject created",
 		),
 	)
+
+	return purgeLegacySO(ctx, cl, logger, httpso)
+}
+
+// TODO(pedrotorres): delete this on v0.6.0
+func purgeLegacySO(
+	ctx context.Context,
+	cl client.Client,
+	logger logr.Logger,
+	httpso *httpv1alpha1.HTTPScaledObject,
+) error {
+	legacyName := fmt.Sprintf("%s-app", httpso.GetName())
+	legacyKey := client.ObjectKey{
+		Namespace: httpso.GetNamespace(),
+		Name:      legacyName,
+	}
+
+	var legacySO kedav1alpha1.ScaledObject
+	if err := cl.Get(ctx, legacyKey, &legacySO); err != nil {
+		if errors.IsNotFound(err) {
+			logger.Info("legacy ScaledObject not found")
+			return nil
+		}
+
+		logger.Error(err, "failed getting legacy ScaledObject")
+		return err
+	}
+
+	if err := cl.Delete(ctx, &legacySO); err != nil {
+		if errors.IsNotFound(err) {
+			logger.Info("legacy ScaledObject not found")
+			return nil
+		}
+
+		logger.Error(err, "failed deleting legacy ScaledObject")
+		return err
+	}
 
 	return nil
 }

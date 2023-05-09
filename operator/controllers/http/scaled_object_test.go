@@ -11,7 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 )
 
 func TestCreateOrUpdateScaledObject(t *testing.T) {
@@ -52,7 +51,7 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 
 	r.Equal(testInfra.ns, metadata.Namespace)
 	r.Equal(
-		config.AppScaledObjectName(&testInfra.httpso),
+		testInfra.httpso.GetName(),
 		metadata.Name,
 	)
 
@@ -117,7 +116,7 @@ func getSO(
 	var retSO kedav1alpha1.ScaledObject
 	err := cl.Get(ctx, client.ObjectKey{
 		Namespace: httpso.GetNamespace(),
-		Name:      config.AppScaledObjectName(&httpso),
+		Name:      httpso.GetName(),
 	}, &retSO)
 	return &retSO, err
 }

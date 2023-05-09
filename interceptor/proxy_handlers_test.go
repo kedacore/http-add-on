@@ -12,9 +12,11 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
-	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 // the proxy should successfully forward a request to a running server
@@ -32,7 +34,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
 	r.NoError(err)
 	defer srv.Close()
-	routingTable := routing.NewTable()
+	routingTable := newTestRoutingTable()
 	originPort, err := strconv.Atoi(originURL.Port())
 	r.NoError(err)
 	target := targetFromURL(
@@ -40,7 +42,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		originPort,
 		"testdepl",
 	)
-	r.NoError(routingTable.AddTarget(host, target))
+	routingTable.memory[host] = target
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
@@ -52,9 +54,6 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		func(routing.Target) (*url.URL, error) {
-			return originURL, nil
-		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -88,23 +87,26 @@ func TestWaitFailedConnection(t *testing.T) {
 	waitFunc := func(context.Context, string, string) (int, error) {
 		return 1, nil
 	}
-	routingTable := routing.NewTable()
-	r.NoError(routingTable.AddTarget(host, routing.NewTarget(
-		"testns",
-		"nosuchdepl",
-		8081,
-		"nosuchdepl",
-		1234,
-	)))
+	routingTable := newTestRoutingTable()
+	routingTable.memory[host] = &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "testns",
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
+				Deployment: "nosuchdepl",
+				Service:    "nosuchdepl",
+				Port:       8081,
+			},
+			TargetPendingRequests: pointer.Int32(1234),
+		},
+	}
 
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		func(routing.Target) (*url.URL, error) {
-			return url.Parse("http://nosuchhost:8081")
-		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -135,22 +137,25 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	defer finishWaitFunc()
 	noSuchHost := fmt.Sprintf("%s.testing", t.Name())
 
-	routingTable := routing.NewTable()
-	r.NoError(routingTable.AddTarget(noSuchHost, routing.NewTarget(
-		"testns",
-		"nosuchsvc",
-		9091,
-		"nosuchdepl",
-		1234,
-	)))
+	routingTable := newTestRoutingTable()
+	routingTable.memory[noSuchHost] = &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "testns",
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
+				Deployment: "nosuchdepl",
+				Service:    "nosuchsvc",
+				Port:       9091,
+			},
+			TargetPendingRequests: pointer.Int32(1234),
+		},
+	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		func(routing.Target) (*url.URL, error) {
-			return url.Parse("http://nosuchhost:9091")
-		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -203,7 +208,6 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	const (
 		noSuchHost     = "TestWaitsForWaitFunc.test"
 		originRespCode = 201
-		namespace      = "testns"
 	)
 	testSrv, testSrvURL, err := kedanet.StartTestServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -212,24 +216,19 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	)
 	r.NoError(err)
 	defer testSrv.Close()
-	originHost, originPort, err := splitHostPort(testSrvURL.Host)
+	_, originPort, err := splitHostPort(testSrvURL.Host)
 	r.NoError(err)
-	routingTable := routing.NewTable()
-	r.NoError(routingTable.AddTarget(noSuchHost, routing.NewTarget(
-		namespace,
-		originHost,
+	routingTable := newTestRoutingTable()
+	routingTable.memory[noSuchHost] = targetFromURL(
+		testSrvURL,
 		originPort,
 		"nosuchdepl",
-		1234,
-	)))
+	)
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		func(routing.Target) (*url.URL, error) {
-			return testSrvURL, nil
-		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -288,23 +287,26 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	waitFunc := func(context.Context, string, string) (int, error) {
 		return 1, nil
 	}
-	routingTable := routing.NewTable()
-	target := routing.NewTarget(
-		"testns",
-		"testsvc",
-		9094,
-		"testdepl",
-		1234,
-	)
-	r.NoError(routingTable.AddTarget(originURL.Host, target))
+	routingTable := newTestRoutingTable()
+	target := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "testns",
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
+				Deployment: "nosuchdepl",
+				Service:    "testsvc",
+				Port:       9094,
+			},
+			TargetPendingRequests: pointer.Int32(1234),
+		},
+	}
+	routingTable.memory[originURL.Host] = target
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		routingTable,
 		dialCtxFunc,
 		waitFunc,
-		func(routing.Target) (*url.URL, error) {
-			return originURL, nil
-		},
 		forwardingConfig{
 			waitTimeout:       timeouts.DeploymentReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
@@ -376,13 +378,19 @@ func targetFromURL(
 	u *url.URL,
 	port int,
 	deployment string,
-) routing.Target {
-	svc := strings.Split(u.Host, ":")[0]
-	return routing.NewTarget(
-		"testns",
-		svc,
-		port,
-		deployment,
-		123,
-	)
+) *httpv1alpha1.HTTPScaledObject {
+	host := strings.Split(u.Host, ":")[0]
+	return &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "@" + host,
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
+				Deployment: deployment,
+				Service:    ":" + host,
+				Port:       int32(port),
+			},
+			TargetPendingRequests: pointer.Int32(123),
+		},
+	}
 }

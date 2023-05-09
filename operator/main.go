@@ -17,17 +17,11 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
-	"net/http"
 	"os"
 
-	"github.com/go-logr/logr"
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -40,10 +34,6 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
-	"github.com/kedacore/http-add-on/pkg/build"
-	kedahttp "github.com/kedacore/http-add-on/pkg/http"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/routing"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -89,11 +79,6 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	interceptorCfg, err := config.NewInterceptorFromEnv()
-	if err != nil {
-		setupLog.Error(err, "unable to get interceptor configuration")
-		os.Exit(1)
-	}
 	externalScalerCfg, err := config.NewExternalScalerFromEnv()
 	if err != nil {
 		setupLog.Error(err, "unable to get external scaler configuration")
@@ -131,15 +116,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	routingTable := routing.NewTable()
 	if err = (&httpcontrollers.HTTPScaledObjectReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		InterceptorConfig:    *interceptorCfg,
 		ExternalScalerConfig: *externalScalerCfg,
 		BaseConfig:           *baseConfig,
-		RoutingTable:         routingTable,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
 		os.Exit(1)
@@ -155,134 +137,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO(pedrotorres): uncomment after implementing new routing table
-	// setupLog.Info("starting manager")
-	// if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-	// 	setupLog.Error(err, "problem running manager")
-	// 	os.Exit(1)
-	// }
-
-	// TODO(pedrotorres): remove everything beyond this line after implementing
-	// new routing table
-	ctx := ctrl.SetupSignalHandler()
-	if err := ensureConfigMap(
-		ctx,
-		setupLog,
-		baseConfig.CurrentNamespace,
-		routing.ConfigMapRoutingTableName,
-	); err != nil {
-		setupLog.Error(
-			err,
-			"unable to find routing table ConfigMap",
-			"namespace",
-			baseConfig.CurrentNamespace,
-			"name",
-			routing.ConfigMapRoutingTableName,
-		)
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-
-	errGrp, ctx := errgroup.WithContext(ctx)
-	ctx, done := context.WithCancel(ctx)
-
-	// start the control loop
-	errGrp.Go(func() error {
-		defer done()
-		setupLog.Info("starting manager")
-		return mgr.Start(ctx)
-	})
-
-	// start the admin server to serve routing table information
-	// to the interceptors
-	errGrp.Go(func() error {
-		defer done()
-		return runAdminServer(
-			ctx,
-			ctrl.Log,
-			routingTable,
-			adminPort,
-			baseConfig,
-			interceptorCfg,
-			externalScalerCfg,
-		)
-	})
-	build.PrintComponentInfo(setupLog, "Operator")
-	setupLog.Error(errGrp.Wait(), "running the operator")
-}
-
-func runAdminServer(
-	ctx context.Context,
-	lggr logr.Logger,
-	routingTable *routing.Table,
-	port int,
-	baseCfg *config.Base,
-	interceptorCfg *config.Interceptor,
-	externalScalerCfg *config.ExternalScaler,
-
-) error {
-	mux := http.NewServeMux()
-	routing.AddFetchRoute(setupLog, mux, routingTable)
-	kedahttp.AddConfigEndpoint(
-		lggr.WithName("operatorAdmin"),
-		mux,
-		baseCfg,
-		interceptorCfg,
-		externalScalerCfg,
-	)
-	kedahttp.AddVersionEndpoint(lggr.WithName("operatorAdmin"), mux)
-	addr := fmt.Sprintf(":%d", port)
-	lggr.Info(
-		"starting admin RPC server",
-		"port",
-		port,
-	)
-	return kedahttp.ServeContext(ctx, addr, mux)
-}
-
-// ensureConfigMap returns a non-nil error if the config
-// map in the given namespace with the given name
-// does not exist, or there was an error finding it.
-//
-// it returns a nil error if it could be fetched.
-// this function works with its own Kubernetes client and
-// is intended for use on operator startup, and should
-// not be used with the controller library's client,
-// since that is not usable until after the controller
-// has started up.
-func ensureConfigMap(
-	ctx context.Context,
-	lggr logr.Logger,
-	ns,
-	name string,
-) error {
-	// we need to get our own Kubernetes clientset
-	// here, rather than using the client.Client from
-	// the manager because the client will not
-	// be instantiated by the time we call this.
-	// You need to start the manager before that client
-	// is usable.
-	clset, _, err := k8s.NewClientset()
-	if err != nil {
-		lggr.Error(
-			err,
-			"couldn't get new clientset",
-		)
-		return err
-	}
-	if _, err := clset.CoreV1().ConfigMaps(ns).Get(
-		ctx,
-		name,
-		metav1.GetOptions{},
-	); err != nil {
-		lggr.Error(
-			err,
-			"couldn't find config map",
-			"namespace",
-			ns,
-			"name",
-			name,
-		)
-		return err
-	}
-	return nil
 }

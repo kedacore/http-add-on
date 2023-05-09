@@ -1,4 +1,3 @@
-# TODO(pedrotorres): remove after implementing new routing table
 apiVersion: v1
 kind: Service
 metadata:

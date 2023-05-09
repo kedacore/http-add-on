@@ -31,7 +31,6 @@ import (
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
-	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
@@ -42,10 +41,8 @@ type HTTPScaledObjectReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	InterceptorConfig    config.Interceptor
 	ExternalScalerConfig config.ExternalScaler
 	BaseConfig           config.Base
-	RoutingTable         *routing.Table
 }
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch;create;update;patch;delete
@@ -87,8 +84,6 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			ctx,
 			logger,
 			r.Client,
-			r.RoutingTable,
-			r.BaseConfig,
 			httpso,
 		)
 		if removeErr != nil {
@@ -122,7 +117,6 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		ctx,
 		logger,
 		r.Client,
-		r.RoutingTable,
 		r.BaseConfig,
 		r.ExternalScalerConfig,
 		httpso,
@@ -133,8 +127,6 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			ctx,
 			logger,
 			r.Client,
-			r.RoutingTable,
-			r.BaseConfig,
 			httpso,
 		); removeErr != nil {
 			logger.Error(removeErr, "Removing previously created resources")

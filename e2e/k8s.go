@@ -9,8 +9,6 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	clientconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
-
-	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 func getClient() (
@@ -35,5 +33,5 @@ func deleteNS(ns string) error {
 
 func getScaledObject(ctx context.Context, cl client.Client, ns string, name string) error {
 	var scaledObject kedav1alpha1.ScaledObject
-	return cl.Get(ctx, k8s.ObjKey(ns, name), &scaledObject)
+	return cl.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, &scaledObject)
 }

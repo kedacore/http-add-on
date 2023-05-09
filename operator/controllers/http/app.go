@@ -12,15 +12,12 @@ import (
 
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
-	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 func removeApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
 	cl client.Client,
-	routingTable *routing.Table,
-	baseConfig config.Base,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	defer SaveStatus(context.Background(), logger, cl, httpso)
@@ -49,7 +46,7 @@ func removeApplicationResources(
 	// Delete App ScaledObject
 	scaledObject := &unstructured.Unstructured{}
 	scaledObject.SetNamespace(httpso.Namespace)
-	scaledObject.SetName(config.AppScaledObjectName(httpso))
+	scaledObject.SetName(httpso.Name)
 	scaledObject.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "keda.sh",
 		Kind:    "ScaledObject",
@@ -80,17 +77,6 @@ func removeApplicationResources(
 		v1alpha1.AppScaledObjectTerminated,
 	))
 
-	if err := removeAndUpdateRoutingTable(
-		ctx,
-		logger,
-		cl,
-		routingTable,
-		httpso.Spec.Host,
-		baseConfig.CurrentNamespace,
-	); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -98,7 +84,6 @@ func createOrUpdateApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
 	cl client.Client,
-	routingTable *routing.Table,
 	baseConfig config.Base,
 	externalScalerConfig config.ExternalScaler,
 	httpso *v1alpha1.HTTPScaledObject,
@@ -129,37 +114,11 @@ func createOrUpdateApplicationResources(
 	// the app deployment and the interceptor deployment.
 	// this needs to be submitted so that KEDA will scale both the app and
 	// interceptor
-	if err := createOrUpdateScaledObject(
+	return createOrUpdateScaledObject(
 		ctx,
 		cl,
 		logger,
 		externalScalerConfig.HostName(baseConfig.CurrentNamespace),
 		httpso,
-	); err != nil {
-		return err
-	}
-
-	targetPendingReqs := baseConfig.TargetPendingRequests
-	if tpr := httpso.Spec.TargetPendingRequests; tpr != nil {
-		targetPendingReqs = *tpr
-	}
-
-	if err := addAndUpdateRoutingTable(
-		ctx,
-		logger,
-		cl,
-		routingTable,
-		httpso.Spec.Host,
-		routing.NewTarget(
-			httpso.GetNamespace(),
-			httpso.Spec.ScaleTargetRef.Service,
-			int(httpso.Spec.ScaleTargetRef.Port),
-			httpso.Spec.ScaleTargetRef.Deployment,
-			targetPendingReqs,
-		),
-		baseConfig.CurrentNamespace,
-	); err != nil {
-		return err
-	}
-	return nil
+	)
 }

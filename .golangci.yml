@@ -49,6 +49,14 @@ issues:
         - gomnd
         - dupl
         - unparam
+  # Exclude gci check for //+kubebuilder:scaffold:imports comments. Waiting to
+  # resolve https://github.com/kedacore/keda/issues/4379
+    - path: operator/controllers/http/suite_test.go
+      linters:
+        - gci
+    - path: operator/main.go
+      linters:
+        - gci
 linters-settings:
   funlen:
     lines: 80

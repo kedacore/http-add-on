@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -61,8 +60,6 @@ func newSizeHandler(
 // from the given hostAndPort. Note that the hostAndPort should
 // not end with a "/" and shouldn't include a path.
 func GetCounts(
-	ctx context.Context,
-	lggr logr.Logger,
 	httpCl *http.Client,
 	interceptorURL url.URL,
 ) (*Counts, error) {

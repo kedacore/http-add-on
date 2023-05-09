@@ -14,7 +14,6 @@ import (
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
-	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 // queuePinger has functionality to ping all interceptors
@@ -128,23 +127,6 @@ func (q *queuePinger) counts() map[string]int {
 	return q.allCounts
 }
 
-// mergeCountsWithRoutingTable ensures that all hosts in routing table
-// are present in combined counts, if count is not present value is set to 0
-func (q *queuePinger) mergeCountsWithRoutingTable(
-	table routing.TableReader,
-) map[string]int {
-	q.pingMut.RLock()
-	defer q.pingMut.RUnlock()
-	mergedCounts := make(map[string]int)
-	for _, host := range table.Hosts() {
-		mergedCounts[host] = 0
-	}
-	for key, value := range q.allCounts {
-		mergedCounts[key] = value
-	}
-	return mergedCounts
-}
-
 func (q *queuePinger) aggregate() int {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
@@ -207,7 +189,7 @@ func fetchCounts(
 
 	countsCh := make(chan *queue.Counts)
 	var wg sync.WaitGroup
-	fetchGrp, ctx := errgroup.WithContext(ctx)
+	fetchGrp, _ := errgroup.WithContext(ctx)
 	for _, endpoint := range endpointURLs {
 		// capture the endpoint in a loop-local
 		// variable so that the goroutine can
@@ -220,8 +202,6 @@ func fetchCounts(
 		wg.Add(1)
 		fetchGrp.Go(func() error {
 			counts, err := queue.GetCounts(
-				ctx,
-				lggr,
 				http.DefaultClient,
 				*u,
 			)
