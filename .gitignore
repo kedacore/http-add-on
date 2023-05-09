@@ -355,3 +355,5 @@ admin/Cargo.lock
 
 /target
 .envrc
+
+chart/
