@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
@@ -32,6 +33,10 @@ func init() {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
 
 func main() {
+	httpRouter := httprouter.New()
+	hs := make(kedahttp.HostSwitch)
+	//hs["samplehost/path"] = httpRouter
+
 	lggr, err := pkglog.NewZapr()
 	if err != nil {
 		fmt.Println("Error building logger", err)
@@ -131,6 +136,7 @@ func main() {
 			configMapInformer,
 			servingCfg.CurrentNamespace,
 			routingTable,
+			httpRouter,
 			nil,
 		)
 		lggr.Error(err, "config map routing table updater failed")
@@ -246,6 +252,8 @@ func runProxyServer(
 	timeouts *config.Timeouts,
 	port int,
 ) error {
+	router := httprouter.New()
+
 	lggr = lggr.WithName("runProxyServer")
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
@@ -261,8 +269,45 @@ func runProxyServer(
 			newForwardingConfigFromTimeouts(timeouts),
 		),
 	)
+	router.Handler("GET", "/path/*extra", proxyHdl)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("proxy server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, proxyHdl)
+	return kedahttp.ServeContext(ctx, addr, router)
+}
+
+func runProxyServerWithHdl(
+	ctx context.Context,
+	lggr logr.Logger,
+	router *httprouter.Router,
+	port int,
+) error {
+	lggr = lggr.WithName("runProxyServer")
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	lggr.Info("proxy server starting", "address", addr)
+	return kedahttp.ServeContext(ctx, addr, router)
+}
+
+func createProxyRequestHandler(
+	lggr logr.Logger,
+	q queue.Counter,
+	waitFunc forwardWaitFunc,
+	routingTable *routing.Table,
+	timeouts *config.Timeouts,
+) nethttp.Handler {
+	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
+	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
+	proxyHdl := countMiddleware(
+		lggr,
+		q,
+		newForwardingHandler(
+			lggr,
+			routingTable,
+			dialContextFunc,
+			waitFunc,
+			routing.ServiceURL,
+			newForwardingConfigFromTimeouts(timeouts),
+		),
+	)
+	return proxyHdl
 }
