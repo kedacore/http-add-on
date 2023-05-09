@@ -18,20 +18,20 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	httputil "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/test"
-	httputil "github.com/kedacore/http-add-on/pkg/http"
 )
 
 func TestRunProxyServerCountMiddleware(t *testing.T) {
 	const (
-		ns            = "testns"
-		port          = 8080
-		host          = "samplehost"
-		hostWithPath = "samplehost/1337"
+		ns           = "testns"
+		port         = 8080
+		host         = "samplehost"
+		hostWithPath = "samplehost/path/something"
 	)
 	r := require.New(t)
 	ctx, done := context.WithCancel(
