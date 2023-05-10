@@ -6,3 +6,8 @@ resources:
 - role_binding.yaml
 - service.yaml
 - service_account.yaml
+labels:
+- includeSelectors: true
+  includeTemplates: true
+  pairs:
+    app.kubernetes.io/instance: external-scaler
