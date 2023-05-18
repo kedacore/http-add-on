@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -13,16 +14,31 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 func TestCountMiddleware(t *testing.T) {
-	ctx := context.Background()
-	const host = "testingkeda.com"
 	r := require.New(t)
+
+	uri, err := url.Parse("https://testingkeda.com")
+	r.NoError(err)
+
+	httpso := targetFromURL(
+		uri,
+		8080,
+		"testdepl",
+	)
+	namespacedName := k8s.NamespacedNameFromObject(httpso).String()
+
+	routingTable := newTestRoutingTable()
+	routingTable.memory[uri.Host] = httpso
+
 	queueCounter := queue.NewFakeCounter()
+
 	middleware := countMiddleware(
 		logr.Discard(),
+		routingTable,
 		queueCounter,
 		http.HandlerFunc(func(wr http.ResponseWriter, req *http.Request) {
 			wr.WriteHeader(200)
@@ -30,6 +46,13 @@ func TestCountMiddleware(t *testing.T) {
 			r.NoError(err)
 		}),
 	)
+
+	ctx := context.Background()
+
+	// for a valid request, we expect the queue to be resized twice.
+	// once to mark a pending HTTP request, then a second time to remove it.
+	// by the end of both sends, resize1 + resize2 should be 0,
+	// or in other words, the queue size should be back to zero
 
 	// no host in the request
 	req, err := http.NewRequest("GET", "/something", nil)
@@ -50,11 +73,7 @@ func TestCountMiddleware(t *testing.T) {
 	// run middleware with the host in the request
 	req, err = http.NewRequest("GET", "/something", nil)
 	r.NoError(err)
-	req.Host = host
-	// for a valid request, we expect the queue to be resized twice.
-	// once to mark a pending HTTP request, then a second time to remove it.
-	// by the end of both sends, resize1 + resize2 should be 0,
-	// or in other words, the queue size should be back to zero
+	req.Host = uri.Host
 	agg, respRecorder = expectResizes(
 		ctx,
 		t,
@@ -66,7 +85,7 @@ func TestCountMiddleware(t *testing.T) {
 			t.Helper()
 			r := require.New(t)
 			r.Equal(float64(1), math.Abs(float64(hostAndCount.Count)))
-			r.Equal(host, hostAndCount.Host)
+			r.Equal(namespacedName, hostAndCount.Host)
 		},
 	)
 	r.Equal(200, respRecorder.Code)

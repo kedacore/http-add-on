@@ -198,6 +198,7 @@ func runProxyServer(
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
 	proxyHdl := countMiddleware(
 		lggr,
+		routingTable,
 		q,
 		newForwardingHandler(
 			lggr,

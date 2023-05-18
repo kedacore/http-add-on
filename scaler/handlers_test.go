@@ -21,6 +21,7 @@ import (
 	informersexternalversionshttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1/mock"
 	listershttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1/mock"
 	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/kedacore/http-add-on/pkg/routing"
 	externalscaler "github.com/kedacore/http-add-on/proto"
 )
 
@@ -42,7 +43,8 @@ func TestStreamIsActive(t *testing.T) {
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 
-				q.allCounts[t.Name()] = 0
+				key := routing.NewKey(t.Name(), "").String()
+				q.allCounts[key] = 0
 			},
 		},
 		{
@@ -61,7 +63,8 @@ func TestStreamIsActive(t *testing.T) {
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 
-				q.allCounts[t.Name()] = 1
+				key := routing.NewKey(t.Name(), "").String()
+				q.allCounts[key] = 1
 			},
 		},
 		{
@@ -174,7 +177,8 @@ func TestIsActive(t *testing.T) {
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 
-				q.allCounts[t.Name()] = 0
+				key := routing.NewKey(t.Name(), "").String()
+				q.allCounts[key] = 0
 			},
 		},
 		{
@@ -193,7 +197,8 @@ func TestIsActive(t *testing.T) {
 				q.pingMut.Lock()
 				defer q.pingMut.Unlock()
 
-				q.allCounts[t.Name()] = 1
+				key := routing.NewKey(t.Name(), "").String()
+				q.allCounts[key] = 1
 			},
 		},
 		{
@@ -302,7 +307,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricSpecs))
 				spec := res.MetricSpecs[0]
-				r.Equal("validHost", spec.MetricName)
+				r.Equal("http-_002F_002FvalidHost_002F", spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
 			},
 		},
@@ -325,7 +330,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricSpecs))
 				spec := res.MetricSpecs[0]
-				r.Equal("interceptor", spec.MetricName)
+				r.Equal("http-_002F_002Finterceptor_002F", spec.MetricName)
 				r.Equal(int64(2000), spec.TargetSize)
 			},
 		},
@@ -486,7 +491,7 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal("missingHostInQueue", metricVal.MetricName)
+				r.Equal("http-_002F_002FmissingHostInQueue_002F", metricVal.MetricName)
 				r.Equal(int64(0), metricVal.MetricValue)
 			},
 			defaultTargetMetric:            int64(200),
@@ -505,7 +510,7 @@ func TestGetMetrics(t *testing.T) {
 				informer, _, _ := newMocks(ctrl)
 
 				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
-					"validHost": 201,
+					"//validHost/": 201,
 				}, 2*time.Millisecond)
 				if err != nil {
 					return nil, nil, nil, err
@@ -520,7 +525,7 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal("validHost", metricVal.MetricName)
+				r.Equal("http-_002F_002FvalidHost_002F", metricVal.MetricName)
 				r.Equal(int64(201), metricVal.MetricValue)
 			},
 			defaultTargetMetric:            int64(200),
@@ -539,8 +544,8 @@ func TestGetMetrics(t *testing.T) {
 				informer, _, _ := newMocks(ctrl)
 
 				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
-					"host1": 201,
-					"host2": 202,
+					"//host1/": 201,
+					"//host2/": 202,
 				}, 2*time.Millisecond)
 				if err != nil {
 					return nil, nil, nil, err
@@ -555,7 +560,7 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal("interceptor", metricVal.MetricName)
+				r.Equal("http-_002F_002Finterceptor_002F", metricVal.MetricName)
 				// the value here needs to be the same thing as
 				// the sum of the values in the fake queue created
 				// in the setup function
@@ -577,8 +582,8 @@ func TestGetMetrics(t *testing.T) {
 				informer, _, _ := newMocks(ctrl)
 
 				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
-					"host1": 201,
-					"host2": 202,
+					"//host1/": 201,
+					"//host2/": 202,
 				}, 2*time.Millisecond)
 				if err != nil {
 					return nil, nil, nil, err
@@ -593,7 +598,7 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal("myhost.com", metricVal.MetricName)
+				r.Equal("http-_002F_002Fmyhost.com_002F", metricVal.MetricName)
 				// the value here needs to be the same thing as
 				// the sum of the values in the fake queue created
 				// in the setup function

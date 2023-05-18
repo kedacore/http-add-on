@@ -15,6 +15,7 @@ import (
 	clientsetmock "github.com/kedacore/http-add-on/operator/generated/clientset/versioned/mock"
 	clientsethttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/clientset/versioned/typed/http/v1alpha1/mock"
 	informersexternalversions "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 var _ = Describe("Table", func() {
@@ -147,7 +148,7 @@ var _ = Describe("Table", func() {
 			cache := t.httpScaledObjects
 			Expect(cache).To(HaveLen(len(items)))
 			for _, httpso := range items {
-				key := toNamespacedName(&httpso)
+				key := *k8s.NamespacedNameFromObject(&httpso)
 				Expect(cache).To(HaveKeyWithValue(key, &httpso))
 			}
 		})
@@ -215,7 +216,7 @@ var _ = Describe("Table", func() {
 			for _, httpso := range httpsoList.Items {
 				httpso := httpso
 
-				key := toNamespacedName(&httpso)
+				key := *k8s.NamespacedNameFromObject(&httpso)
 				t.httpScaledObjects[key] = &httpso
 			}
 
@@ -227,7 +228,8 @@ var _ = Describe("Table", func() {
 			Expect(tm).NotTo(BeNil())
 
 			for _, httpso := range httpsoList.Items {
-				ret := tm.Recall(&httpso)
+				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+				ret := tm.Recall(namespacedName)
 				Expect(ret).To(Equal(&httpso))
 			}
 		})
@@ -239,7 +241,7 @@ var _ = Describe("Table", func() {
 			for _, httpso := range httpsoList.Items {
 				httpso := httpso
 
-				key := toNamespacedName(&httpso)
+				key := *k8s.NamespacedNameFromObject(&httpso)
 				t.httpScaledObjects[key] = &httpso
 			}
 
@@ -259,10 +261,10 @@ var _ = Describe("Table", func() {
 					},
 				},
 			}
-			t.httpScaledObjects[toNamespacedName(&httpso)] = &httpso
+			t.httpScaledObjects[*k8s.NamespacedNameFromObject(&httpso)] = &httpso
 
 			first := httpsoList.Items[0]
-			delete(t.httpScaledObjects, toNamespacedName(&first))
+			delete(t.httpScaledObjects, *k8s.NamespacedNameFromObject(&first))
 
 			t.memorySignaler.Signal()
 
@@ -272,11 +274,13 @@ var _ = Describe("Table", func() {
 			Expect(tm).NotTo(BeNil())
 
 			for _, httpso := range append(httpsoList.Items[1:], httpso) {
-				ret := tm.Recall(&httpso)
+				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+				ret := tm.Recall(namespacedName)
 				Expect(ret).To(Equal(&httpso))
 			}
 
-			ret := tm.Recall(&first)
+			namespacedName := k8s.NamespacedNameFromObject(&first)
+			ret := tm.Recall(namespacedName)
 			Expect(ret).To(BeNil())
 		})
 

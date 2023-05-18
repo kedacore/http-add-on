@@ -15,6 +15,7 @@ import (
 	"github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	listershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 var (
@@ -122,7 +123,8 @@ func (t *table) newMemoryFromHTTPSOs() TableMemory {
 
 	tm := NewTableMemory()
 	for _, newHTTPSO := range t.httpScaledObjects {
-		if oldHTTPSO := tm.Recall(newHTTPSO); oldHTTPSO != nil {
+		namespacedName := k8s.NamespacedNameFromObject(newHTTPSO)
+		if oldHTTPSO := tm.Recall(namespacedName); oldHTTPSO != nil {
 			// oldest HTTPScaledObject has precedence
 			if newHTTPSO.CreationTimestamp.After(oldHTTPSO.CreationTimestamp.Time) {
 				continue
@@ -154,11 +156,10 @@ func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
 		return nil
 	}
 
-	url := *req.URL
-	url.Host = req.Host
+	key := NewKeyFromRequest(req)
 
 	tm := t.memoryHolder.Get()
-	return tm.Route(&url)
+	return tm.Route(key)
 }
 
 func (t *table) HasSynced() bool {
@@ -173,7 +174,7 @@ func (t *table) OnAdd(obj interface{}) {
 	if !ok {
 		return
 	}
-	key := toNamespacedName(httpScaledObject)
+	key := *k8s.NamespacedNameFromObject(httpScaledObject)
 
 	defer t.memorySignaler.Signal()
 
@@ -188,13 +189,13 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 	if !ok {
 		return
 	}
-	oldKey := toNamespacedName(oldHTTPSO)
+	oldKey := *k8s.NamespacedNameFromObject(oldHTTPSO)
 
 	newHTTPSO, ok := newObj.(*httpv1alpha1.HTTPScaledObject)
 	if !ok {
 		return
 	}
-	newKey := toNamespacedName(newHTTPSO)
+	newKey := *k8s.NamespacedNameFromObject(newHTTPSO)
 
 	mustDelete := oldKey != newKey
 
@@ -215,7 +216,7 @@ func (t *table) OnDelete(obj interface{}) {
 	if !ok {
 		return
 	}
-	key := toNamespacedName(httpScaledObject)
+	key := *k8s.NamespacedNameFromObject(httpScaledObject)
 
 	defer t.memorySignaler.Signal()
 

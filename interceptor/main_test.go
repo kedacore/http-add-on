@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
@@ -41,17 +42,20 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	g, ctx := errgroup.WithContext(ctx)
 	q := queue.NewFakeCounter()
 
+	httpso := targetFromURL(
+		originURL,
+		originPort,
+		"testdepl",
+	)
+	namespacedName := k8s.NamespacedNameFromObject(httpso).String()
+
 	// set up a fake host that we can spoof
 	// when we later send request to the proxy,
 	// so that the proxy calculates a URL for that
 	// host that points to the (above) fake origin
 	// server
 	routingTable := newTestRoutingTable()
-	routingTable.memory[host] = targetFromURL(
-		originURL,
-		originPort,
-		"testdepl",
-	)
+	routingTable.memory[host] = httpso
 
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
@@ -104,18 +108,22 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	select {
 	case hostAndCount := <-q.ResizedCh:
-		r.Equal(host, hostAndCount.Host)
+		r.Equal(namespacedName, hostAndCount.Host)
 		r.Equal(+1, hostAndCount.Count)
 	case <-time.After(500 * time.Millisecond):
 		r.Fail("timeout waiting for +1 queue resize")
 	}
 
 	// tell the wait func to proceed
-	waiterCh <- struct{}{}
+	select {
+	case waiterCh <- struct{}{}:
+	case <-time.After(5 * time.Second):
+		r.Fail("timeout producing on waiterCh")
+	}
 
 	select {
 	case hostAndCount := <-q.ResizedCh:
-		r.Equal(host, hostAndCount.Host)
+		r.Equal(namespacedName, hostAndCount.Host)
 		r.Equal(-1, hostAndCount.Count)
 	case <-time.After(2 * time.Second):
 		r.Fail("timeout waiting for -1 queue resize")
@@ -126,13 +134,13 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	r.NoError(err)
 	counts := countsPtr.Counts
 	r.Equal(1, len(counts))
-	_, foundHost := counts[host]
+	_, foundHost := counts[namespacedName]
 	r.True(
 		foundHost,
 		"couldn't find host %s in the queue",
 		host,
 	)
-	r.Equal(0, counts[host])
+	r.Equal(0, counts[namespacedName])
 
 	done()
 	r.Error(g.Wait())

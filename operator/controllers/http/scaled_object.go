@@ -40,6 +40,10 @@ func createOrUpdateScaledObject(
 		httpso.Spec.ScaleTargetRef.Deployment,
 		externalScalerHostName,
 		httpso.Spec.Host,
+		// TODO(pedrotorres): delete this when we support path prefix
+		"",
+		// TODO(pedrotorres): uncomment this when we support path prefix
+		// httpso.Spec.PathPrefix,
 		minReplicaCount,
 		maxReplicaCount,
 		httpso.Spec.CooldownPeriod,
