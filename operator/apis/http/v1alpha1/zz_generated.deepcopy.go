@@ -112,6 +112,11 @@ func (in *HTTPScaledObjectSpec) DeepCopyInto(out *HTTPScaledObjectSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.PathPrefixes != nil {
+		in, out := &in.PathPrefixes, &out.PathPrefixes
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	out.ScaleTargetRef = in.ScaleTargetRef
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas

@@ -48,47 +48,62 @@ var _ = Describe("TableMemory", func() {
 
 		httpso1NamespacedName = *k8s.NamespacedNameFromObject(&httpso1)
 
-		// TODO(pedrotorres): uncomment this when we support path prefix
-		// httpsoList = httpv1alpha1.HTTPScaledObjectList{
-		// 	Items: []httpv1alpha1.HTTPScaledObject{
-		// 		{
-		// 			ObjectMeta: metav1.ObjectMeta{
-		// 				Name: "/",
-		// 			},
-		// 			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-		// 				Host: "localhost",
-		// 				PathPrefix: "/",
-		// 			},
-		// 		},
-		// 		{
-		// 			ObjectMeta: metav1.ObjectMeta{
-		// 				Name: "/f",
-		// 			},
-		// 			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-		// 				Host: "localhost",
-		// 				PathPrefix: "/f",
-		// 			},
-		// 		},
-		// 		{
-		// 			ObjectMeta: metav1.ObjectMeta{
-		// 				Name: "fo",
-		// 			},
-		// 			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-		// 				Host: "localhost",
-		// 				PathPrefix: "fo",
-		// 			},
-		// 		},
-		// 		{
-		// 			ObjectMeta: metav1.ObjectMeta{
-		// 				Name: "foo/",
-		// 			},
-		// 			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-		// 				Host: "localhost",
-		// 				PathPrefix: "foo/",
-		// 			},
-		// 		},
-		// 	},
-		// }
+		httpsoList = httpv1alpha1.HTTPScaledObjectList{
+			Items: []httpv1alpha1.HTTPScaledObject{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "/",
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						Hosts: []string{
+							"localhost",
+						},
+						PathPrefixes: []string{
+							"/",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "/f",
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						Hosts: []string{
+							"localhost",
+						},
+						PathPrefixes: []string{
+							"/f",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "fo",
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						Hosts: []string{
+							"localhost",
+						},
+						PathPrefixes: []string{
+							"fo",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo/",
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						Hosts: []string{
+							"localhost",
+						},
+						PathPrefixes: []string{
+							"foo/",
+						},
+					},
+				},
+			},
+		}
 
 		assertIndex = func(tm tableMemory, input *httpv1alpha1.HTTPScaledObject, expected *httpv1alpha1.HTTPScaledObject) {
 			okMatcher := BeTrue()
@@ -321,6 +336,7 @@ var _ = Describe("TableMemory", func() {
 				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
 				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
 			}
+			tm = insertTrees(tm, &httpso0)
 
 			t0 := time.Now()
 
@@ -441,60 +457,58 @@ var _ = Describe("TableMemory", func() {
 			Expect(ret1).To(Equal(&httpso1))
 		})
 
-		// TODO(pedrotorres): uncomment this when we support path prefix
-		//
-		// It("returns nil when no matching pathPrefix for URL", func() {
-		// 	var (
-		// 		httpsoFoo = httpsoList.Items[3]
-		// 	)
-		//
-		// 	tm := tableMemory{
-		// 		index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-		// 		store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-		// 	}
-		// 	tm = insertTrees(tm, &httpsoFoo)
-		//
-		// 	//goland:noinspection HttpUrlsUsage
-		// 	url, err := url.Parse(fmt.Sprintf("http://%s/bar%s", httpsoFoo.Spec.Host, httpsoFoo.Spec.PathPrefix))
-		// 	Expect(err).NotTo(HaveOccurred())
-		// 	Expect(url).NotTo(BeNil())
-		// 	urlKey := NewKeyFromURL(url)
-		// 	Expect(urlKey).NotTo(BeNil())
-		// 	httpso := tm.Route(urlKey)
-		// 	Expect(httpso).To(BeNil())
-		// })
-		//
-		// It("returns expected object with matching pathPrefix for URL", func() {
-		// 	tm := tableMemory{
-		// 		index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-		// 		store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-		// 	}
-		// 	for _, httpso := range httpsoList.Items {
-		// 		httpso := httpso
-		//
-		// 		tm = insertTrees(tm, &httpso)
-		// 	}
-		//
-		// 	for _, httpso := range httpsoList.Items {
-		// 		url, err := url.Parse(fmt.Sprintf("https://%s/%s", httpso.Spec.Host, httpso.Spec.PathPrefix))
-		// 		Expect(err).NotTo(HaveOccurred())
-		// 		Expect(url).NotTo(BeNil())
-		// 		urlKey := NewKeyFromURL(url)
-		// 		Expect(urlKey).NotTo(BeNil())
-		// 		ret := tm.Route(urlKey)
-		// 		Expect(ret).To(Equal(&httpso))
-		// 	}
-		//
-		// 	for _, httpso := range httpsoList.Items {
-		// 		url, err := url.Parse(fmt.Sprintf("https://%s/%s/bar", httpso.Spec.Host, httpso.Spec.PathPrefix))
-		// 		Expect(err).NotTo(HaveOccurred())
-		// 		Expect(url).NotTo(BeNil())
-		// 		urlKey := NewKeyFromURL(url)
-		// 		Expect(urlKey).NotTo(BeNil())
-		// 		ret := tm.Route(urlKey)
-		// 		Expect(ret).To(Equal(&httpso))
-		// 	}
-		// })
+		It("returns nil when no matching pathPrefix for URL", func() {
+			var (
+				httpsoFoo = httpsoList.Items[3]
+			)
+
+			tm := tableMemory{
+				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+			}
+			tm = insertTrees(tm, &httpsoFoo)
+
+			//goland:noinspection HttpUrlsUsage
+			url, err := url.Parse(fmt.Sprintf("http://%s/bar%s", httpsoFoo.Spec.Hosts[0], httpsoFoo.Spec.PathPrefixes[0]))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(url).NotTo(BeNil())
+			urlKey := NewKeyFromURL(url)
+			Expect(urlKey).NotTo(BeNil())
+			httpso := tm.Route(urlKey)
+			Expect(httpso).To(BeNil())
+		})
+
+		It("returns expected object with matching pathPrefix for URL", func() {
+			tm := tableMemory{
+				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+			}
+			for _, httpso := range httpsoList.Items {
+				httpso := httpso
+
+				tm = insertTrees(tm, &httpso)
+			}
+
+			for _, httpso := range httpsoList.Items {
+				url, err := url.Parse(fmt.Sprintf("https://%s/%s", httpso.Spec.Hosts[0], httpso.Spec.PathPrefixes[0]))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(url).NotTo(BeNil())
+				urlKey := NewKeyFromURL(url)
+				Expect(urlKey).NotTo(BeNil())
+				ret := tm.Route(urlKey)
+				Expect(ret).To(Equal(&httpso))
+			}
+
+			for _, httpso := range httpsoList.Items {
+				url, err := url.Parse(fmt.Sprintf("https://%s/%s/bar", httpso.Spec.Hosts[0], httpso.Spec.PathPrefixes[0]))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(url).NotTo(BeNil())
+				urlKey := NewKeyFromURL(url)
+				Expect(urlKey).NotTo(BeNil())
+				ret := tm.Route(urlKey)
+				Expect(ret).To(Equal(&httpso))
+			}
+		})
 	})
 
 	Context("E2E", func() {

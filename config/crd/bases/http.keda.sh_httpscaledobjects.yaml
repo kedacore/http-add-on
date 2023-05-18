@@ -60,15 +60,27 @@ spec:
             properties:
               host:
                 description: (optional) (deprecated) The host to route. All requests
-                  with these hosts in the "Host" header will be routed to the Service
-                  and Port specified in the scaleTargetRef. The host field is mutually
-                  exclusive of the hosts field
+                  which the "Host" header matches .spec.host and the Request Target
+                  matches any .spec.pathPrefixes will be routed to the Service and
+                  Port specified in the scaleTargetRef. The .spec.host field is mutually
+                  exclusive with the .spec.hosts field.
                 type: string
               hosts:
-                description: (optional) The hosts to route. All requests with these
-                  hosts in the "Host" header will be routed to the Service and Port
-                  specified in the scaleTargetRef. The hosts field is mutually exclusive
-                  of the host field.
+                description: (optional) The hosts to route. All requests which the
+                  "Host" header matches any .spec.hosts and the Request Target matches
+                  any .spec.pathPrefixes will be routed to the Service and Port specified
+                  in the scaleTargetRef. The .spec.hosts field is mutually exclusive
+                  with the .spec.host field.
+                items:
+                  type: string
+                type: array
+              pathPrefixes:
+                description: (optional) The paths to route. All requests which the
+                  Request Target matches any .spec.pathPrefixes and the "Host" header
+                  matches any .spec.hosts will be routed to the Service and Port specified
+                  in the scaleTargetRef. The .spec.hosts field is mutually exclusive
+                  with the .spec.host field. When this field is null, any path is
+                  matched.
                 items:
                   type: string
                 type: array
