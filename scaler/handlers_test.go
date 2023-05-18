@@ -322,7 +322,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricSpecs))
 				spec := res.MetricSpecs[0]
-				r.Equal("validHost", spec.MetricName)
+				r.Equal(httpRequests, spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
 			},
 		},
@@ -348,7 +348,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 					"testsrv",
 					8080,
 					"testdepl",
-					456,
+					123,
 				)))
 				return ret
 			},
@@ -357,13 +357,10 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r := require.New(t)
 				r.NoError(err)
 				r.NotNil(res)
-				r.Equal(2, len(res.MetricSpecs))
+				r.Equal(1, len(res.MetricSpecs))
 				spec := res.MetricSpecs[0]
-				r.Equal("validHost1", spec.MetricName)
+				r.Equal(httpRequests, spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
-				spec = res.MetricSpecs[1]
-				r.Equal("validHost2", spec.MetricName)
-				r.Equal(int64(456), spec.TargetSize)
 			},
 		},
 		{
@@ -392,7 +389,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricSpecs))
 				spec := res.MetricSpecs[0]
-				r.Equal("interceptor", spec.MetricName)
+				r.Equal(interceptor, spec.MetricName)
 				r.Equal(int64(2000), spec.TargetSize)
 			},
 		},
@@ -571,7 +568,7 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal("validHost", metricVal.MetricName)
+				r.Equal(httpRequests, metricVal.MetricName)
 				r.Equal(int64(201), metricVal.MetricValue)
 			},
 			defaultTargetMetric:            int64(200),
@@ -603,7 +600,7 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal("interceptor", metricVal.MetricName)
+				r.Equal(interceptor, metricVal.MetricName)
 				// the value here needs to be the same thing as
 				// the sum of the values in the fake queue created
 				// in the setup function
@@ -643,7 +640,7 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal("myhost.com", metricVal.MetricName)
+				r.Equal(httpRequests, metricVal.MetricName)
 				// the value here needs to be the same thing as
 				// the sum of the values in the fake queue created
 				// in the setup function
@@ -651,6 +648,42 @@ func TestGetMetrics(t *testing.T) {
 			},
 			defaultTargetMetric:            int64(200),
 			defaultTargetMetricInterceptor: int64(300),
+		},
+		{
+			name: "multiple validHosts add MetricValues",
+			scalerMetadata: map[string]string{
+				"hosts": "validHost1,validHost2",
+			},
+			setupFn: func(
+				ctx context.Context,
+				lggr logr.Logger,
+			) (*routing.Table, *queuePinger, func(), error) {
+				table := routing.NewTable()
+				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
+					"validHost1": 123,
+					"validHost2": 456,
+				}, 2*time.Millisecond)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				return table, pinger, done, nil
+			},
+			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricValues))
+				metricVal := res.MetricValues[0]
+				r.Equal(httpRequests, metricVal.MetricName)
+				// the value here needs to be the same thing as
+				// the sum of the values in the fake queue created
+				// in the setup function
+				r.Equal(int64(579), metricVal.MetricValue)
+			},
+			defaultTargetMetric:            int64(500),
+			defaultTargetMetricInterceptor: int64(600),
 		},
 	}
 

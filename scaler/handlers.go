@@ -22,7 +22,8 @@ func init() {
 }
 
 const (
-	interceptor = "interceptor"
+	interceptor  = "interceptor"
+	httpRequests = "http-requests"
 )
 
 type impl struct {
@@ -144,32 +145,33 @@ func (e *impl) GetMetricSpec(
 	}
 
 	var targetPendingRequests int64
-	var hostMetricSpec []*externalscaler.MetricSpec
-	for _, host := range hosts {
-		if host == interceptor {
-			targetPendingRequests = e.targetMetricInterceptor
-		} else {
-			target, err := e.routingTable.Lookup(host)
-			if err != nil {
-				lggr.Error(
-					err,
-					"error getting target for host",
-					"host",
-					host,
-				)
-				return nil, err
-			}
-			targetPendingRequests = int64(target.TargetPendingRequests)
-		}
+	var host = hosts[0] // We are only interested in the first host to get the targetPendingRequests
 
-		hostMetricSpec = append(hostMetricSpec, &externalscaler.MetricSpec{
-			MetricName: host,
-			TargetSize: targetPendingRequests,
-		})
+	if host == interceptor {
+		targetPendingRequests = e.targetMetricInterceptor
+	} else {
+		target, err := e.routingTable.Lookup(host)
+		if err != nil {
+			lggr.Error(
+				err,
+				"error getting target for host",
+				"host",
+				host,
+			)
+			return nil, err
+		}
+		host = httpRequests
+		targetPendingRequests = int64(target.TargetPendingRequests)
 	}
 
+	metricSpecs := []*externalscaler.MetricSpec{
+		{
+			MetricName: host,
+			TargetSize: targetPendingRequests,
+		},
+	}
 	return &externalscaler.GetMetricSpecResponse{
-		MetricSpecs: hostMetricSpec,
+		MetricSpecs: metricSpecs,
 	}, nil
 }
 
@@ -184,7 +186,8 @@ func (e *impl) GetMetrics(
 		return nil, err
 	}
 
-	var hostMetricValues []*externalscaler.MetricValue
+	var totalCount int64
+	var metricName = httpRequests
 	for _, host := range hosts {
 		hostCount, ok := getHostCount(
 			host,
@@ -194,6 +197,7 @@ func (e *impl) GetMetrics(
 		if !ok {
 			if host == interceptor {
 				hostCount = e.pinger.aggregate()
+				metricName = interceptor
 			} else {
 				err := fmt.Errorf("host '%s' not found in counts", host)
 				allCounts := e.pinger.mergeCountsWithRoutingTable(e.routingTable)
@@ -201,13 +205,17 @@ func (e *impl) GetMetrics(
 				return nil, err
 			}
 		}
-		hostMetricValues = append(hostMetricValues, &externalscaler.MetricValue{
-			MetricName:  host,
-			MetricValue: int64(hostCount),
-		})
+		totalCount += int64(hostCount)
+	}
+
+	metricValues := []*externalscaler.MetricValue{
+		{
+			MetricName:  metricName,
+			MetricValue: totalCount,
+		},
 	}
 
 	return &externalscaler.GetMetricsResponse{
-		MetricValues: hostMetricValues,
+		MetricValues: metricValues,
 	}, nil
 }
