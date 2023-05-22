@@ -195,15 +195,14 @@ func (e *impl) GetMetrics(
 			e.routingTable,
 		)
 		if !ok {
-			if host == interceptor {
-				hostCount = e.pinger.aggregate()
-				metricName = interceptor
-			} else {
+			if host != interceptor {
 				err := fmt.Errorf("host '%s' not found in counts", host)
 				allCounts := e.pinger.mergeCountsWithRoutingTable(e.routingTable)
 				lggr.Error(err, "allCounts", allCounts)
 				return nil, err
 			}
+			hostCount = e.pinger.aggregate()
+			metricName = interceptor
 		}
 		totalCount += int64(hostCount)
 	}

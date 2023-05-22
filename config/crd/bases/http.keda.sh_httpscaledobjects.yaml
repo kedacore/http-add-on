@@ -59,10 +59,17 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
+              host:
+                description: (optional) (deprecated) The host to route. All requests
+                  with these hosts in the "Host" header will be routed to the Service
+                  and Port specified in the scaleTargetRef. The host field is mutually
+                  exclusive of the hosts field
+                type: string
               hosts:
-                description: The host to route. All requests with this host in the
-                  "Host" header will be routed to the Service and Port specified in
-                  the scaleTargetRef
+                description: (optional) The hosts to route. All requests with these
+                  hosts in the "Host" header will be routed to the Service and Port
+                  specified in the scaleTargetRef. The hosts field is mutually exclusive
+                  of the host field.
                 items:
                   type: string
                 type: array
@@ -109,7 +116,6 @@ spec:
                 format: int32
                 type: integer
             required:
-            - hosts
             - scaleTargetRef
             type: object
           status:
