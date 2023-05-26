@@ -18,9 +18,11 @@ package http
 
 import (
 	"context"
+	"errors"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/go-logr/logr"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -61,7 +63,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	httpso := &httpv1alpha1.HTTPScaledObject{}
 	if err := r.Client.Get(ctx, req.NamespacedName, httpso); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			// If the HTTPScaledObject wasn't found, it might have
 			// been deleted between the reconcile and the get.
 			// It'll automatically get garbage collected, so don't
@@ -105,6 +107,12 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// ensure finalizer is set on this resource
 	if err := ensureFinalizer(ctx, logger, r.Client, httpso); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// ensure only host or hosts is set and if host is set that
+	// it is converted to hosts
+	if err := sanitizeHosts(logger, httpso); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -170,4 +178,29 @@ func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&httpv1alpha1.HTTPScaledObject{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
+}
+
+// sanitize hosts by converting the host definition to hosts are erroring
+// when both fields are set
+func sanitizeHosts(
+	logger logr.Logger,
+	httpso *httpv1alpha1.HTTPScaledObject,
+) error {
+	switch {
+	case httpso.Spec.Hosts != nil && httpso.Spec.Host != nil:
+		err := errors.New("mutually exclusive fields Error")
+		logger.Error(err, "Only one of 'hosts' or 'host' field can be defined")
+		return err
+	case httpso.Spec.Hosts == nil && httpso.Spec.Host == nil:
+		err := errors.New("no host specified Error")
+		logger.Error(err, "At least one of 'hosts' or 'host' field must be defined")
+		return err
+	case httpso.Spec.Hosts == nil:
+		httpso.Spec.Hosts = []string{*httpso.Spec.Host}
+		httpso.Spec.Host = nil
+		logger.Info("Using the 'host' field is deprecated. Please consider switching to the 'hosts' field")
+		return nil
+	default:
+		return nil
+	}
 }
