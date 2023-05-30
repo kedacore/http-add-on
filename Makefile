@@ -5,7 +5,7 @@ SHELL           = /bin/bash
 
 IMAGE_REGISTRY 	?= ghcr.io
 IMAGE_REPO     	?= kedacore
-VERSION 		?= main
+VERSION 		?= canary
 
 IMAGE_OPERATOR 		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
 IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
@@ -50,7 +50,7 @@ test: fmt vet
 	go test ./...
 
 e2e-test:
-	./tests/e2e-test.sh
+	go run -tags e2e ./tests/run-all.go
 
 # Docker targets
 docker-build-operator:
@@ -118,11 +118,11 @@ proto-gen: protoc-gen-go ## Scaler protobuffers
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.12.0
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v4@v4.5.7
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v5@v5.0.3
 
 protoc-gen-go: ## Download protoc-gen-go
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
@@ -138,7 +138,6 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 	cd config/operator && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
 
-	cat <<< $$(sed -E 's|(^[[:space:]]+app\.kubernetes\.io/version:).*|\1 $(VERSION)|g' config/default/kustomization.yaml) > config/default/kustomization.yaml
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 undeploy:
