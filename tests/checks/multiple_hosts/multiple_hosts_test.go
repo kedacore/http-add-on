@@ -79,7 +79,7 @@ spec:
     spec:
       containers:
         - name: {{.DeploymentName}}
-          image: arschles/xkcd
+          image: ghcr.io/kedacore/http-add-on-demo-server
           ports:
             - name: http
               containerPort: 8080

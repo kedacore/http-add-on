@@ -9,7 +9,7 @@ targetPendingRequests: 200
 # chart release namespace
 ingressNamespace:
 image:
-  repository: arschles/xkcd
+  repository: ghcr.io/kedacore/http-add-on-demo-server
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
