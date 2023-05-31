@@ -5,7 +5,7 @@ SHELL           = /bin/bash
 
 IMAGE_REGISTRY 	?= ghcr.io
 IMAGE_REPO     	?= kedacore
-VERSION 		?= canary
+VERSION 		?= main
 
 IMAGE_OPERATOR 		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
 IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
