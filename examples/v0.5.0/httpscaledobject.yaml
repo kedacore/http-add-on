@@ -3,7 +3,7 @@ apiVersion: http.keda.sh/v1alpha1
 metadata:
     name: xkcd
 spec:
-    hosts: 
+    hosts:
     - myhost.com
     scaleTargetRef:
         deployment: xkcd
