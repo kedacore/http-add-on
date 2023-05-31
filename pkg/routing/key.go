@@ -65,23 +65,18 @@ func NewKeysFromHTTPSO(httpso *httpv1alpha1.HTTPScaledObject) Keys {
 	}
 	spec := httpso.Spec
 
-	// TODO(pedrotorres): delete this when we support multiple hosts
-	return []Key{
+	size := len(spec.Hosts)
+	keys := make([]Key, size)
+	for i := 0; i < size; i++ {
+		host := spec.Hosts[i]
+
 		// TODO(pedrotorres): delete this when we support path prefix
-		NewKey(spec.Host, ""),
+		path := ""
 		// TODO(pedrotorres): uncomment this when we support path prefix
-		// NewKey(spec.Host, spec.PathPrefix),
+		// path := spec.Paths[i]
+
+		keys[i] = NewKey(host, path)
 	}
 
-	// TODO(pedrotorres): uncomment this when we support multiple hosts
-	//
-	// size := len(spec.Hosts)
-	// keys := make([]Key, size)
-	// for i := 0; i < size; i++ {
-	// 	host := spec.Hosts[i]
-	// 	path := spec.Paths[i]
-	// 	keys[i] = NewKey(host, path)
-	// }
-	//
-	// return keys
+	return keys
 }

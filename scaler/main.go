@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -27,7 +28,6 @@ import (
 	"github.com/kedacore/http-add-on/pkg/build"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
-	externalscaler "github.com/kedacore/http-add-on/proto"
 )
 
 // +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs=get;list;watch

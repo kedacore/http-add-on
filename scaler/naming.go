@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/kedacore/http-add-on/pkg/routing"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var (
@@ -19,8 +19,7 @@ func escapeString(s string) string {
 	return unsafeChars.ReplaceAllStringFunc(s, escapeRune)
 }
 
-func MetricName(host string, pathPrefix string) string {
-	rk := routing.NewKey(host, pathPrefix)
-	mn := fmt.Sprintf("http-%v", rk)
+func MetricName(namespacedName *types.NamespacedName) string {
+	mn := fmt.Sprintf("http-%v", namespacedName)
 	return escapeString(mn)
 }

@@ -6,26 +6,21 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"k8s.io/utils/pointer"
 
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/routing"
-	externalscaler "github.com/kedacore/http-add-on/proto"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
-
-const (
-	interceptor = "interceptor"
-)
 
 type impl struct {
 	lggr                    logr.Logger
@@ -60,27 +55,9 @@ func (e *impl) IsActive(
 	_ context.Context,
 	scaledObject *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
-	lggr := e.lggr.WithName("IsActive")
+	namespacedName := k8s.NamespacedNameFromScaledObjectRef(scaledObject)
 
-	host, ok := scaledObject.ScalerMetadata["host"]
-	if !ok {
-		err := fmt.Errorf("no 'host' field found in ScaledObject metadata")
-		lggr.Error(err, "returning immediately from IsActive RPC call", "ScaledObject", scaledObject)
-		return nil, err
-	}
-	if host == interceptor {
-		res := externalscaler.IsActiveResponse{
-			Result: true,
-		}
-		return &res, nil
-	}
-
-	pathPrefix, ok := scaledObject.ScalerMetadata["pathPrefix"]
-	if !ok {
-		lggr.Info("pathPrefix not found on ScalerMetadata, using zero value for backwards compatibility")
-	}
-
-	key := routing.NewKey(host, pathPrefix).String()
+	key := namespacedName.String()
 	count := e.pinger.counts()[key]
 
 	active := count > 0
@@ -132,35 +109,20 @@ func (e *impl) GetMetricSpec(
 ) (*externalscaler.GetMetricSpecResponse, error) {
 	lggr := e.lggr.WithName("GetMetricSpec")
 
-	host, ok := sor.ScalerMetadata["host"]
-	if !ok {
-		err := fmt.Errorf("'host' not found in ScaledObject metadata")
-		lggr.Error(err, "no 'host' found in ScaledObject metadata")
+	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
+	metricName := MetricName(namespacedName)
+
+	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
+	if err != nil {
+		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 		return nil, err
 	}
-
-	pathPrefix, ok := sor.ScalerMetadata["pathPrefix"]
-	if !ok {
-		lggr.Info("pathPrefix not found on ScalerMetadata, using zero value for backwards compatibility")
-	}
-
-	name := MetricName(host, pathPrefix)
-
-	targetPendingRequests := e.targetMetricInterceptor
-	if host != interceptor {
-		httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
-		if err != nil {
-			lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
-			return nil, err
-		}
-
-		targetPendingRequests = int64(pointer.Int32Deref(httpso.Spec.TargetPendingRequests, 100))
-	}
+	targetPendingRequests := int64(pointer.Int32Deref(httpso.Spec.TargetPendingRequests, 100))
 
 	res := &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{
-				MetricName: name,
+				MetricName: metricName,
 				TargetSize: targetPendingRequests,
 			},
 		},
@@ -172,27 +134,13 @@ func (e *impl) GetMetrics(
 	_ context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
 ) (*externalscaler.GetMetricsResponse, error) {
-	lggr := e.lggr.WithName("GetMetrics")
+	sor := metricRequest.ScaledObjectRef
 
-	host, ok := metricRequest.ScaledObjectRef.ScalerMetadata["host"]
-	if !ok {
-		err := fmt.Errorf("no 'host' field found in ScaledObject metadata")
-		lggr.Error(err, "ScaledObjectRef", metricRequest.ScaledObjectRef)
-		return nil, err
-	}
+	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
+	metricName := MetricName(namespacedName)
 
-	pathPrefix, ok := metricRequest.ScaledObjectRef.ScalerMetadata["pathPrefix"]
-	if !ok {
-		lggr.Info("pathPrefix not found on ScalerMetadata, using zero value for backwards compatibility")
-	}
-
-	metricName := MetricName(host, pathPrefix)
-
-	key := routing.NewKey(host, pathPrefix).String()
-	count, ok := e.pinger.counts()[key]
-	if !ok && host == interceptor {
-		count = e.pinger.aggregate()
-	}
+	key := namespacedName.String()
+	count := e.pinger.counts()[key]
 
 	res := &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
