@@ -21,7 +21,9 @@ var _ = Describe("TableMemory", func() {
 				Name: "keda-sh",
 			},
 			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-				Host: "keda.sh",
+				Hosts: []string{
+					"keda.sh",
+				},
 			},
 		}
 
@@ -32,7 +34,9 @@ var _ = Describe("TableMemory", func() {
 				Name: "one-one-one-one",
 			},
 			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-				Host: "1.1.1.1",
+				Hosts: []string{
+					"1.1.1.1",
+				},
 			},
 		}
 
@@ -187,7 +191,7 @@ var _ = Describe("TableMemory", func() {
 			}
 			tm = tm.Remember(&httpso0).(tableMemory)
 
-			httpso1 := httpso0
+			httpso1 := *httpso0.DeepCopy()
 			httpso1.Spec.TargetPendingRequests = pointer.Int32(1)
 			tm = tm.Remember(&httpso1).(tableMemory)
 
@@ -202,7 +206,7 @@ var _ = Describe("TableMemory", func() {
 			tm = tm.Remember(&httpso0).(tableMemory)
 			tm = tm.Remember(&httpso1).(tableMemory)
 
-			httpso2 := httpso1
+			httpso2 := *httpso1.DeepCopy()
 			httpso2.Spec.TargetPendingRequests = pointer.Int32(1)
 			tm = tm.Remember(&httpso2).(tableMemory)
 
@@ -216,10 +220,10 @@ var _ = Describe("TableMemory", func() {
 				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
 			}
 
-			httpso := httpso0
+			httpso := *httpso0.DeepCopy()
 			tm = tm.Remember(&httpso).(tableMemory)
 
-			httpso.Spec.Host += ".br"
+			httpso.Spec.Hosts[0] += ".br"
 			assertTrees(tm, &httpso0, &httpso0)
 		})
 	})
@@ -301,7 +305,7 @@ var _ = Describe("TableMemory", func() {
 			httpso := tm.Recall(&httpso0NamespacedName)
 			Expect(httpso).To(Equal(&httpso0))
 
-			httpso.Spec.Host += ".br"
+			httpso.Spec.Hosts[0] += ".br"
 
 			assertTrees(tm, &httpso0, &httpso0)
 		})
@@ -315,7 +319,7 @@ var _ = Describe("TableMemory", func() {
 			}
 			tm = insertTrees(tm, &httpso0)
 
-			url, err := url.Parse(fmt.Sprintf("https://%s.br", httpso0.Spec.Host))
+			url, err := url.Parse(fmt.Sprintf("https://%s.br", httpso0.Spec.Hosts[0]))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(url).NotTo(BeNil())
 			urlKey := NewKeyFromURL(url)
@@ -333,7 +337,7 @@ var _ = Describe("TableMemory", func() {
 			tm = insertTrees(tm, &httpso1)
 
 			//goland:noinspection HttpUrlsUsage
-			url0, err := url.Parse(fmt.Sprintf("http://%s", httpso0.Spec.Host))
+			url0, err := url.Parse(fmt.Sprintf("http://%s", httpso0.Spec.Hosts[0]))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(url0).NotTo(BeNil())
 			url0Key := NewKeyFromURL(url0)
@@ -341,7 +345,7 @@ var _ = Describe("TableMemory", func() {
 			ret0 := tm.Route(url0Key)
 			Expect(ret0).To(Equal(&httpso0))
 
-			url1, err := url.Parse(fmt.Sprintf("https://%s:443/abc/def?123=456#789", httpso1.Spec.Host))
+			url1, err := url.Parse(fmt.Sprintf("https://%s:443/abc/def?123=456#789", httpso1.Spec.Hosts[0]))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(url1).NotTo(BeNil())
 			url1Key := NewKeyFromURL(url1)
@@ -433,7 +437,7 @@ var _ = Describe("TableMemory", func() {
 			Expect(ret4).To(Equal(&httpso1))
 
 			//goland:noinspection HttpUrlsUsage
-			url0, err := url.Parse(fmt.Sprintf("http://%s:80?123=456#789", httpso0.Spec.Host))
+			url0, err := url.Parse(fmt.Sprintf("http://%s:80?123=456#789", httpso0.Spec.Hosts[0]))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(url0).NotTo(BeNil())
 
@@ -443,7 +447,7 @@ var _ = Describe("TableMemory", func() {
 			ret5 := tm.Route(url0Key)
 			Expect(ret5).To(Equal(&httpso0))
 
-			url1, err := url.Parse(fmt.Sprintf("https://user:pass@%s:443/abc/def", httpso1.Spec.Host))
+			url1, err := url.Parse(fmt.Sprintf("https://user:pass@%s:443/abc/def", httpso1.Spec.Hosts[0]))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(url1).NotTo(BeNil())
 
@@ -468,7 +472,7 @@ var _ = Describe("TableMemory", func() {
 			ret8 := tm.Route(url0Key)
 			Expect(ret8).To(BeNil())
 
-			httpso := httpso1
+			httpso := *httpso1.DeepCopy()
 			httpso.Spec.TargetPendingRequests = pointer.Int32(1)
 
 			tm = tm.Remember(&httpso)

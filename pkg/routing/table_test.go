@@ -38,7 +38,9 @@ var _ = Describe("Table", func() {
 						Name:      "keda-sh",
 					},
 					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						Host: "keda.sh",
+						Hosts: []string{
+							"keda.sh",
+						},
 					},
 				},
 				{
@@ -47,7 +49,9 @@ var _ = Describe("Table", func() {
 						Name:      "kubernetes-io",
 					},
 					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						Host:                  "kubernetes.io",
+						Hosts: []string{
+							"kubernetes.io",
+						},
 						TargetPendingRequests: pointer.Int32(1),
 					},
 				},
@@ -57,7 +61,9 @@ var _ = Describe("Table", func() {
 						Name:      "github-com",
 					},
 					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						Host: "github.com",
+						Hosts: []string{
+							"github.com",
+						},
 						Replicas: &httpv1alpha1.ReplicaStruct{
 							Min: pointer.Int32(3),
 						},
@@ -255,7 +261,9 @@ var _ = Describe("Table", func() {
 					Name:      "azure-com",
 				},
 				Spec: httpv1alpha1.HTTPScaledObjectSpec{
-					Host: "azure.com",
+					Hosts: []string{
+						"azure.com",
+					},
 					Replicas: &httpv1alpha1.ReplicaStruct{
 						Min: pointer.Int32(3),
 					},

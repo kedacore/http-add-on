@@ -160,12 +160,46 @@ var _ = Describe("Keys", func() {
 
 			keys := NewKeysFromHTTPSO(&httpv1alpha1.HTTPScaledObject{
 				Spec: httpv1alpha1.HTTPScaledObjectSpec{
-					Host: host,
+					Hosts: []string{
+						host,
+					},
 					// TODO(pedrotorres): uncomment this when we support path prefix
 					// PathPrefix: path,
 				},
 			})
-			Expect(keys).To(ConsistOf(Keys{Key(norm)}))
+			Expect(keys).To(ConsistOf(Keys{
+				Key(norm),
+			}))
+		})
+
+		It("returns expected keys for HTTPSO", func() {
+			const (
+				host0 = "keda.sh"
+				host1 = "kubernetes.io"
+				// TODO(pedrotorres): delete this when we support path prefix
+				norm0 = "//keda.sh/"
+				norm1 = "//kubernetes.io/"
+				// TODO(pedrotorres): uncomment this when we support path prefix
+				// path0 = "abc/def"
+				// path1 = "123/456"
+				// norm0 = "//kubernetes.io/abc/def/"
+				// norm1 = "//keda.sh/123/456/"
+			)
+
+			keys := NewKeysFromHTTPSO(&httpv1alpha1.HTTPScaledObject{
+				Spec: httpv1alpha1.HTTPScaledObjectSpec{
+					Hosts: []string{
+						host0,
+						host1,
+					},
+					// TODO(pedrotorres): uncomment this when we support path prefix
+					// PathPrefix: path,
+				},
+			})
+			Expect(keys).To(ConsistOf(Keys{
+				Key(norm0),
+				Key(norm1),
+			}))
 		})
 
 		It("returns nil for nil HTTPSO", func() {
