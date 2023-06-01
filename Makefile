@@ -34,13 +34,13 @@ GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
 
 # Build targets
 
-build-operator: proto-gen
+build-operator:
 	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/operator ./operator
 
-build-interceptor: proto-gen
+build-interceptor:
 	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/interceptor ./interceptor
 
-build-scaler: proto-gen
+build-scaler:
 	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/scaler ./scaler
 
 build: build-operator build-interceptor build-scaler
@@ -119,9 +119,6 @@ vet: ## Run go vet against code.
 pre-commit: ## Run static-checks.
 	pre-commit run --all-files
 
-proto-gen: protoc-gen-go ## Scaler protobuffers
-	protoc --proto_path=proto scaler.proto --go_out=proto --go-grpc_out=proto
-
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.12.0
@@ -129,10 +126,6 @@ controller-gen: ## Download controller-gen locally if necessary.
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v5@v5.0.3
-
-protoc-gen-go: ## Download protoc-gen-go
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/config.
 	cd config/interceptor && \
