@@ -16,6 +16,7 @@ import (
 	clientsethttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/clientset/versioned/typed/http/v1alpha1/mock"
 	informersexternalversions "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 var _ = Describe("Table", func() {
@@ -174,7 +175,7 @@ var _ = Describe("Table", func() {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			go ignoringError(applyContext(t.runInformer, ctx))
+			go util.IgnoringError(util.ApplyContext(t.runInformer, ctx))
 
 			time.Sleep(time.Second)
 
@@ -186,7 +187,7 @@ var _ = Describe("Table", func() {
 			ctx, cancel := context.WithCancel(ctx)
 			cancel()
 
-			err := withTimeout(time.Second, applyContext(t.runInformer, ctx))
+			err := util.WithTimeout(time.Second, util.ApplyContext(t.runInformer, ctx))
 			Expect(err).To(MatchError(context.Canceled))
 		})
 
@@ -198,7 +199,7 @@ var _ = Describe("Table", func() {
 
 			time.Sleep(time.Second)
 
-			err := withTimeout(time.Second, applyContext(t.runInformer, ctx))
+			err := util.WithTimeout(time.Second, util.ApplyContext(t.runInformer, ctx))
 			Expect(err).To(MatchError(errStartedSharedIndexInformer))
 		})
 
@@ -226,7 +227,7 @@ var _ = Describe("Table", func() {
 				t.httpScaledObjects[key] = &httpso
 			}
 
-			go ignoringError(applyContext(t.refreshMemory, ctx))
+			go util.IgnoringError(util.ApplyContext(t.refreshMemory, ctx))
 
 			time.Sleep(time.Second)
 
@@ -251,7 +252,7 @@ var _ = Describe("Table", func() {
 				t.httpScaledObjects[key] = &httpso
 			}
 
-			go ignoringError(applyContext(t.refreshMemory, ctx))
+			go util.IgnoringError(util.ApplyContext(t.refreshMemory, ctx))
 
 			time.Sleep(time.Second)
 
@@ -296,7 +297,7 @@ var _ = Describe("Table", func() {
 			ctx, cancel := context.WithCancel(ctx)
 			cancel()
 
-			err := withTimeout(time.Second, applyContext(t.refreshMemory, ctx))
+			err := util.WithTimeout(time.Second, util.ApplyContext(t.refreshMemory, ctx))
 			Expect(err).To(MatchError(context.Canceled))
 		})
 	})

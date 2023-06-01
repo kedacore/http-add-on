@@ -147,8 +147,8 @@ func (t *table) Start(ctx context.Context) error {
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(applyContext(t.runInformer, ctx))
-	eg.Go(applyContext(t.refreshMemory, ctx))
+	eg.Go(util.ApplyContext(t.runInformer, ctx))
+	eg.Go(util.ApplyContext(t.refreshMemory, ctx))
 	return eg.Wait()
 }
 
