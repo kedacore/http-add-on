@@ -102,7 +102,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	$(CONTROLLER_GEN) crd rbac:roleName='interceptor' webhook paths='./interceptor/...' output:rbac:artifacts:config='config/interceptor'
 
 verify-manifests: ## Verify manifests are up to date.
-	./hack/verify-codegen.sh
+	./hack/verify-manifests.sh
 
 mockgen: ## Generate mock implementations of Go interfaces.
 	./hack/update-mockgen.sh

@@ -36,7 +36,7 @@ mkdir -p "${TMP_DIFFROOT}"
 cp -a "${DIFFROOT}"/* "${TMP_DIFFROOT}"
 
 make manifests
-echo "diffing ${DIFFROOT} against freshly generated codegen"
+echo "diffing ${DIFFROOT} against freshly generated manifests"
 ret=0
 diff -Naupr "${DIFFROOT}" "${TMP_DIFFROOT}" || ret=$?
 cp -a "${TMP_DIFFROOT}"/* "${DIFFROOT}"
