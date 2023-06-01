@@ -47,4 +47,4 @@ Previously announced deprecation(s):
 
 ### Other
 
-- TODO
+- **e2e tests**: Use the same e2e system as in core ([#686]https://github.com/kedacore/http-add-on/pull/686)
