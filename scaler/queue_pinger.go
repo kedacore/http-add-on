@@ -127,12 +127,6 @@ func (q *queuePinger) counts() map[string]int {
 	return q.allCounts
 }
 
-func (q *queuePinger) aggregate() int {
-	q.pingMut.RLock()
-	defer q.pingMut.RUnlock()
-	return q.aggregateCount
-}
-
 // fetchAndSaveCounts calls fetchCounts, and then
 // saves them to internal state in q
 func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {

@@ -116,6 +116,9 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+lint: ## Run golangci-lint against code.
+	golangci-lint run
+
 pre-commit: ## Run static-checks.
 	pre-commit run --all-files
 

@@ -28,7 +28,6 @@ import (
 func TestStreamIsActive(t *testing.T) {
 	type testCase struct {
 		name        string
-		hosts       string
 		expected    bool
 		expectedErr bool
 		setup       func(t *testing.T, qp *queuePinger)
