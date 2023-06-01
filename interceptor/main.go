@@ -58,11 +58,8 @@ func main() {
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
 
-	cfg, err := ctrl.GetConfig()
-	if err != nil {
-		lggr.Error(err, "Kubernetes client config not found")
-		os.Exit(1)
-	}
+	cfg := ctrl.GetConfigOrDie()
+
 	cl, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		lggr.Error(err, "creating new Kubernetes ClientSet")
@@ -77,12 +74,7 @@ func main() {
 		lggr.Error(err, "creating new deployment cache")
 		os.Exit(1)
 	}
-
 	waitFunc := newDeployReplicasForwardWaitFunc(lggr, deployCache)
-
-	lggr.Info("Interceptor starting")
-
-	q := queue.NewMemory()
 
 	httpCl, err := clientset.NewForConfig(cfg)
 	if err != nil {
@@ -95,6 +87,10 @@ func main() {
 		lggr.Error(err, "fetching routing table")
 		os.Exit(1)
 	}
+
+	q := queue.NewMemory()
+
+	lggr.Info("Interceptor starting")
 
 	errGrp, ctx := errgroup.WithContext(ctx)
 

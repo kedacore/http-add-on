@@ -47,10 +47,10 @@ func (ph *ProbeHandler) Start(ctx context.Context, logger logr.Logger) {
 		ph.check(logger)
 
 		select {
+		case <-ctx.Done():
+			break
 		case <-time.After(time.Second):
 			continue
-		case <-ctx.Done():
-			return
 		}
 	}
 }
