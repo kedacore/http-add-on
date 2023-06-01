@@ -16,6 +16,7 @@ import (
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	listershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 var (
@@ -37,8 +38,8 @@ type table struct {
 	httpScaledObjectEventHandlerRegistration cache.ResourceEventHandlerRegistration
 	httpScaledObjects                        map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject
 	httpScaledObjectsMutex                   sync.RWMutex
-	memoryHolder                             AtomicValue[TableMemory]
-	memorySignaler                           Signaler
+	memoryHolder                             util.AtomicValue[TableMemory]
+	memorySignaler                           util.Signaler
 }
 
 func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string) (Table, error) {
@@ -48,7 +49,7 @@ func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, name
 		// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
 		httpScaledObjectLister: httpScaledObjects.Lister(),
 		httpScaledObjects:      make(map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject),
-		memorySignaler:         NewSignaler(),
+		memorySignaler:         util.NewSignaler(),
 	}
 
 	informer, ok := httpScaledObjects.Informer().(sharedIndexInformer)

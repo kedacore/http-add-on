@@ -21,7 +21,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -105,10 +104,10 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	// ensure only host or hosts is set and if host is set that
-	// it is converted to hosts
-	if err := sanitizeHosts(logger, httpso); err != nil {
-		return ctrl.Result{}, err
+	// TODO(pedrotorres): delete this on v0.6.0
+	if httpso.Spec.Host != nil {
+		logger.Info(".spec.host is deprecated, performing automated migration to .spec.hosts")
+		return ctrl.Result{}, r.migrateHost(ctx, httpso)
 	}
 
 	// httpso is updated now
@@ -172,27 +171,16 @@ func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// sanitize hosts by converting the host definition to hosts are erroring
-// when both fields are set
-func sanitizeHosts(
-	logger logr.Logger,
-	httpso *httpv1alpha1.HTTPScaledObject,
-) error {
-	switch {
-	case httpso.Spec.Hosts != nil && httpso.Spec.Host != nil:
-		err := errors.New("mutually exclusive fields Error")
-		logger.Error(err, "Only one of 'hosts' or 'host' field can be defined")
-		return err
-	case httpso.Spec.Hosts == nil && httpso.Spec.Host == nil:
-		err := errors.New("no host specified Error")
-		logger.Error(err, "At least one of 'hosts' or 'host' field must be defined")
-		return err
-	case httpso.Spec.Hosts == nil:
-		httpso.Spec.Hosts = []string{*httpso.Spec.Host}
-		httpso.Spec.Host = nil
-		logger.Info("Using the 'host' field is deprecated. Please consider switching to the 'hosts' field")
-		return nil
-	default:
-		return nil
+// TODO(pedrotorres): delete this on v0.6.0
+func (r *HTTPScaledObjectReconciler) migrateHost(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject) error {
+	if (httpso.Spec.Hosts != nil) == (httpso.Spec.Host != nil) {
+		return errors.New("exactly one of .spec.host and .spec.hosts must be set")
 	}
+
+	httpso.Spec.Hosts = []string{
+		*httpso.Spec.Host,
+	}
+	httpso.Spec.Host = nil
+
+	return r.Client.Update(ctx, httpso)
 }

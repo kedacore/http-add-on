@@ -1,4 +1,4 @@
-package routing
+package util
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 var _ = Describe("Signaler", func() {
@@ -25,7 +27,7 @@ var _ = Describe("Signaler", func() {
 		It("produces on channel", func() {
 			s := make(signaler, 1)
 
-			err := withTimeout(time.Second, deapplyError(s.Signal, nil))
+			err := routing.withTimeout(time.Second, routing.deapplyError(s.Signal, nil))
 			Expect(err).NotTo(HaveOccurred())
 
 			select {
@@ -39,7 +41,7 @@ var _ = Describe("Signaler", func() {
 			s := make(signaler, 1)
 			s <- struct{}{}
 
-			err := withTimeout(time.Second, deapplyError(s.Signal, nil))
+			err := routing.withTimeout(time.Second, routing.deapplyError(s.Signal, nil))
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -51,7 +53,7 @@ var _ = Describe("Signaler", func() {
 			s := make(signaler, 1)
 			s <- struct{}{}
 
-			err := withTimeout(time.Second, applyContext(s.Wait, ctx))
+			err := routing.withTimeout(time.Second, routing.applyContext(s.Wait, ctx))
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -61,7 +63,7 @@ var _ = Describe("Signaler", func() {
 
 			s := make(signaler, 1)
 
-			err := withTimeout(time.Second, applyContext(s.Wait, ctx))
+			err := routing.withTimeout(time.Second, routing.applyContext(s.Wait, ctx))
 			Expect(err).To(MatchError(context.Canceled))
 		})
 	})
@@ -73,18 +75,18 @@ var _ = Describe("Signaler", func() {
 
 			s := NewSignaler()
 
-			err0 := withTimeout(time.Second, deapplyError(s.Signal, nil))
+			err0 := routing.withTimeout(time.Second, routing.deapplyError(s.Signal, nil))
 			Expect(err0).NotTo(HaveOccurred())
 
-			err1 := withTimeout(time.Second, deapplyError(s.Signal, nil))
+			err1 := routing.withTimeout(time.Second, routing.deapplyError(s.Signal, nil))
 			Expect(err1).NotTo(HaveOccurred())
 
-			err2 := withTimeout(time.Second, applyContext(s.Wait, ctx))
+			err2 := routing.withTimeout(time.Second, routing.applyContext(s.Wait, ctx))
 			Expect(err2).NotTo(HaveOccurred())
 
 			cancel()
 
-			err3 := withTimeout(time.Second, applyContext(s.Wait, ctx))
+			err3 := routing.withTimeout(time.Second, routing.applyContext(s.Wait, ctx))
 			Expect(err3).To(MatchError(context.Canceled))
 		})
 	})

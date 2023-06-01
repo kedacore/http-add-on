@@ -31,14 +31,9 @@ func TestCountMiddleware(t *testing.T) {
 	)
 	namespacedName := k8s.NamespacedNameFromObject(httpso).String()
 
-	routingTable := newTestRoutingTable()
-	routingTable.memory[uri.Host] = httpso
-
 	queueCounter := queue.NewFakeCounter()
 
-	middleware := countMiddleware(
-		logr.Discard(),
-		routingTable,
+	middleware := NewCountingMiddleware(
 		queueCounter,
 		http.HandlerFunc(func(wr http.ResponseWriter, req *http.Request) {
 			wr.WriteHeader(200)
@@ -54,27 +49,16 @@ func TestCountMiddleware(t *testing.T) {
 	// by the end of both sends, resize1 + resize2 should be 0,
 	// or in other words, the queue size should be back to zero
 
-	// no host in the request
+	// run middleware with the host in the request
 	req, err := http.NewRequest("GET", "/something", nil)
 	r.NoError(err)
-	agg, respRecorder := expectResizes(
-		ctx,
-		t,
-		0,
-		middleware,
-		req,
-		queueCounter,
-		func(t *testing.T, hostAndCount queue.HostAndCount) {},
-	)
-	r.Equal(400, respRecorder.Code)
-	r.Equal("Host not found, not forwarding request", respRecorder.Body.String())
-	r.Equal(0, agg)
-
-	// run middleware with the host in the request
-	req, err = http.NewRequest("GET", "/something", nil)
-	r.NoError(err)
+	reqCtx := req.Context()
+	reqCtx = context.WithValue(reqCtx, LoggerContextKey, logr.Discard())
+	reqCtx = context.WithValue(reqCtx, HTTPSOContextKey, httpso)
+	req = req.WithContext(reqCtx)
 	req.Host = uri.Host
-	agg, respRecorder = expectResizes(
+
+	agg, respRecorder := expectResizes(
 		ctx,
 		t,
 		2,
@@ -88,8 +72,8 @@ func TestCountMiddleware(t *testing.T) {
 			r.Equal(namespacedName, hostAndCount.Host)
 		},
 	)
-	r.Equal(200, respRecorder.Code)
-	r.Equal("OK", respRecorder.Body.String())
+	r.Equal(http.StatusOK, respRecorder.Code)
+	r.Equal(http.StatusText(respRecorder.Code), respRecorder.Body.String())
 	r.Equal(0, agg)
 }
 
@@ -114,7 +98,7 @@ func expectResizes(
 	t.Helper()
 	r := require.New(t)
 	const timeout = 1 * time.Second
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	grp, ctx := errgroup.WithContext(ctx)
 	agg := 0

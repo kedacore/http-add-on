@@ -186,30 +186,44 @@ func runAdminServer(
 
 func runProxyServer(
 	ctx context.Context,
-	lggr logr.Logger,
+	logger logr.Logger,
 	q queue.Counter,
 	waitFunc forwardWaitFunc,
 	routingTable routing.Table,
 	timeouts *config.Timeouts,
 	port int,
 ) error {
-	lggr = lggr.WithName("runProxyServer")
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
-	proxyHdl := countMiddleware(
-		lggr,
+
+	probeHandler := NewProbeHandler(nil)
+	go probeHandler.Start(ctx, logger)
+
+	var upstreamHandler http.Handler
+	upstreamHandler = newForwardingHandler(
+		logger,
 		routingTable,
+		dialContextFunc,
+		waitFunc,
+		newForwardingConfigFromTimeouts(timeouts),
+	)
+	upstreamHandler = NewCountingMiddleware(
 		q,
-		newForwardingHandler(
-			lggr,
-			routingTable,
-			dialContextFunc,
-			waitFunc,
-			newForwardingConfigFromTimeouts(timeouts),
-		),
+		upstreamHandler,
+	)
+
+	var handler http.Handler
+	handler = NewRoutingMiddleware(
+		routingTable,
+		probeHandler,
+		upstreamHandler,
+	)
+	handler = NewLoggingMiddleware(
+		logger,
+		handler,
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	lggr.Info("proxy server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, proxyHdl)
+	logger.Info("proxy server starting", "address", addr)
+	return kedahttp.ServeContext(ctx, addr, handler)
 }

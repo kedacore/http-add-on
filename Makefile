@@ -35,13 +35,13 @@ GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
 # Build targets
 
 build-operator:
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/operator ./operator
+	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/operator ./operator
 
 build-interceptor:
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/interceptor ./interceptor
+	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/interceptor ./interceptor
 
 build-scaler:
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/scaler ./scaler
+	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/scaler ./scaler
 
 build: build-operator build-interceptor build-scaler
 
@@ -144,3 +144,8 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 
 undeploy:
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
+
+kind-load:
+	kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION}
+	kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION}
+	kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION}

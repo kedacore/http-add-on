@@ -11,3 +11,7 @@ labels:
   includeTemplates: true
   pairs:
     app.kubernetes.io/instance: external-scaler
+images:
+- name: ghcr.io/kedacore/http-add-on-scaler
+  newName: ghcr.io/kedacore/http-add-on-scaler
+  newTag: main
