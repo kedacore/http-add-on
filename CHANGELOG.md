@@ -46,4 +46,5 @@ Previously announced deprecation(s):
 
 ### Other
 
+- **General**: Use kubernetes e2e images for e2e test and samples ([#665]https://github.com/kedacore/http-add-on/issues/665)
 - **e2e tests**: Use the same e2e system as in core ([#686]https://github.com/kedacore/http-add-on/pull/686)
