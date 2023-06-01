@@ -79,7 +79,9 @@ spec:
     spec:
       containers:
         - name: {{.DeploymentName}}
-          image: ghcr.io/kedacore/http-add-on-demo-server
+          image: registry.k8s.io/e2e-test-images/agnhost:2.45
+          args:
+          - netexec
           ports:
             - name: http
               containerPort: 8080

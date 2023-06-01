@@ -9,10 +9,13 @@ targetPendingRequests: 200
 # chart release namespace
 ingressNamespace:
 image:
-  repository: ghcr.io/kedacore/http-add-on-demo-server
+  repository: registry.k8s.io/e2e-test-images/agnhost
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: "2.45"
+
+args:
+  - netexec
 
 imagePullSecrets: []
 nameOverride: ""

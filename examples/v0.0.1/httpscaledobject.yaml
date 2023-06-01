@@ -4,5 +4,5 @@ metadata:
     name: xkcd
 spec:
     app_name: xkcd
-    app_image: ghcr.io/kedacore/http-add-on-demo-server
+    app_image: arschles/xkcd
     port: 8080
