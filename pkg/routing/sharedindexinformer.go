@@ -7,5 +7,4 @@ import (
 type sharedIndexInformer interface {
 	cache.SharedIndexInformer
 	HasStarted() bool
-	HandleDeltas(obj interface{}) error
 }

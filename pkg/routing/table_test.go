@@ -116,7 +116,6 @@ var _ = Describe("Table", func() {
 
 			t, ok := i.(*table)
 			Expect(ok).To(BeTrue())
-			Expect(t.httpScaledObjectLister).NotTo(BeNil())
 			Expect(t.httpScaledObjectInformer).NotTo(BeNil())
 			Expect(t.httpScaledObjectEventHandlerRegistration).NotTo(BeNil())
 			Expect(t.httpScaledObjects).NotTo(BeNil())
@@ -128,37 +127,6 @@ var _ = Describe("Table", func() {
 
 		// TODO(pedrotorres): test code path where informer is not sharedIndexInformer
 		// TODO(pedrotorres): test code path where informer#AddEventHandler fails
-	})
-
-	Context("init", func() {
-		var (
-			t *table
-		)
-
-		BeforeEach(func() {
-			i, _ := NewTable(sharedInformerFactory, namespace)
-			t = i.(*table)
-		})
-
-		It("sets initial state of the HTTPSO cache", func() {
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
-
-			go t.httpScaledObjectInformer.Run(ctx.Done())
-
-			time.Sleep(time.Second)
-
-			err := t.init()
-			Expect(err).NotTo(HaveOccurred())
-
-			items := httpsoList.Items
-			cache := t.httpScaledObjects
-			Expect(cache).To(HaveLen(len(items)))
-			for _, httpso := range items {
-				key := *k8s.NamespacedNameFromObject(&httpso)
-				Expect(cache).To(HaveKeyWithValue(key, &httpso))
-			}
-		})
 	})
 
 	Context("runInformer", func() {
@@ -227,9 +195,10 @@ var _ = Describe("Table", func() {
 				t.httpScaledObjects[key] = &httpso
 			}
 
+			go util.IgnoringError(util.ApplyContext(t.runInformer, ctx))
 			go util.IgnoringError(util.ApplyContext(t.refreshMemory, ctx))
 
-			time.Sleep(time.Second)
+			time.Sleep(2 * time.Second)
 
 			tm := t.memoryHolder.Get()
 			Expect(tm).NotTo(BeNil())
@@ -252,9 +221,10 @@ var _ = Describe("Table", func() {
 				t.httpScaledObjects[key] = &httpso
 			}
 
+			go util.IgnoringError(util.ApplyContext(t.runInformer, ctx))
 			go util.IgnoringError(util.ApplyContext(t.refreshMemory, ctx))
 
-			time.Sleep(time.Second)
+			time.Sleep(2 * time.Second)
 
 			httpso := httpv1alpha1.HTTPScaledObject{
 				ObjectMeta: metav1.ObjectMeta{

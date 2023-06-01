@@ -4,17 +4,16 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
-	listershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -32,8 +31,6 @@ type Table interface {
 }
 
 type table struct {
-	// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
-	httpScaledObjectLister                   listershttpv1alpha1.HTTPScaledObjectLister
 	httpScaledObjectInformer                 sharedIndexInformer
 	httpScaledObjectEventHandlerRegistration cache.ResourceEventHandlerRegistration
 	httpScaledObjects                        map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject
@@ -46,10 +43,8 @@ func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, name
 	httpScaledObjects := informershttpv1alpha1.New(sharedInformerFactory, namespace, nil).HTTPScaledObjects()
 
 	t := table{
-		// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
-		httpScaledObjectLister: httpScaledObjects.Lister(),
-		httpScaledObjects:      make(map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject),
-		memorySignaler:         util.NewSignaler(),
+		httpScaledObjects: make(map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject),
+		memorySignaler:    util.NewSignaler(),
 	}
 
 	informer, ok := httpScaledObjects.Informer().(sharedIndexInformer)
@@ -65,20 +60,6 @@ func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, name
 	t.httpScaledObjectEventHandlerRegistration = registration
 
 	return &t, nil
-}
-
-// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
-func (t *table) init() error {
-	httpScaledObjects, err := t.httpScaledObjectLister.List(labels.Everything())
-	if err != nil {
-		return err
-	}
-
-	for _, httpScaledObject := range httpScaledObjects {
-		t.OnAdd(httpScaledObject)
-	}
-
-	return nil
 }
 
 func (t *table) runInformer(ctx context.Context) error {
@@ -97,16 +78,15 @@ func (t *table) runInformer(ctx context.Context) error {
 }
 
 func (t *table) refreshMemory(ctx context.Context) error {
-	// TODO(pedrotorres): uncomment after upgrading k8s.io/client-go to v0.27.0
-	// // wait for event handler to be synced before first computation of routes
-	// for !t.httpScaledObjectEventHandlerRegistration.HasSynced() {
-	// 	select {
-	// 	case <-ctx.Done():
-	// 		return ctx.Err()
-	// 	case <-time.After(time.Second):
-	// 		continue
-	// 	}
-	// }
+	// wait for event handler to be synced before first computation of routes
+	for !t.httpScaledObjectEventHandlerRegistration.HasSynced() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+			continue
+		}
+	}
 
 	for {
 		m := t.newMemoryFromHTTPSOs()
@@ -141,11 +121,6 @@ func (t *table) newMemoryFromHTTPSOs() TableMemory {
 var _ Table = (*table)(nil)
 
 func (t *table) Start(ctx context.Context) error {
-	// TODO(pedrotorres): remove after upgrading k8s.io/client-go to v0.27.0
-	if err := t.init(); err != nil {
-		return err
-	}
-
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(util.ApplyContext(t.runInformer, ctx))
 	eg.Go(util.ApplyContext(t.refreshMemory, ctx))
@@ -170,7 +145,7 @@ func (t *table) HasSynced() bool {
 
 var _ cache.ResourceEventHandler = (*table)(nil)
 
-func (t *table) OnAdd(obj interface{}) {
+func (t *table) OnAdd(obj interface{}, _ bool) {
 	httpScaledObject, ok := obj.(*httpv1alpha1.HTTPScaledObject)
 	if !ok {
 		return
