@@ -129,8 +129,8 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	timeouts.DeploymentReplicas = 10 * time.Millisecond
-	timeouts.ResponseHeader = 10 * time.Millisecond
+	timeouts.DeploymentReplicas = 25 * time.Millisecond
+	timeouts.ResponseHeader = 25 * time.Millisecond
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
