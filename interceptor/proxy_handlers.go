@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -63,11 +62,6 @@ func newForwardingHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		routingTarget := routingTable.Route(r)
 		if routingTarget == nil {
-			// return 200 for kube-probe
-			if ua := r.UserAgent(); strings.HasPrefix(ua, "kube-probe/") {
-				return
-			}
-
 			w.WriteHeader(http.StatusNotFound)
 			if _, err := w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host))); err != nil {
 				lggr.Error(err, "could not send error message to client")
