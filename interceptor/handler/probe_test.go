@@ -1,4 +1,4 @@
-package main
+package handler
 
 import (
 	"context"
@@ -24,7 +24,7 @@ var _ = Describe("ProbeHandler", func() {
 			)
 
 			var b bool
-			healthChecks := []HealthCheck{
+			healthChecks := []ProbeHealthCheck{
 				func(_ context.Context) error {
 					b = true
 
@@ -32,7 +32,7 @@ var _ = Describe("ProbeHandler", func() {
 				},
 			}
 
-			ph := NewProbeHandler(healthChecks)
+			ph := NewProbe(healthChecks)
 			Expect(ph).NotTo(BeNil())
 
 			h := ph.healthy.Load()
@@ -76,7 +76,7 @@ var _ = Describe("ProbeHandler", func() {
 					st = http.StatusText(sc)
 				)
 
-				var ph ProbeHandler
+				var ph Probe
 				ph.healthy.Store(true)
 
 				ph.ServeHTTP(w, r)
@@ -93,7 +93,7 @@ var _ = Describe("ProbeHandler", func() {
 					st = http.StatusText(sc)
 				)
 
-				var ph ProbeHandler
+				var ph Probe
 				ph.healthy.Store(false)
 
 				ph.ServeHTTP(w, r)
@@ -109,7 +109,7 @@ var _ = Describe("ProbeHandler", func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
 
-			var ph ProbeHandler
+			var ph Probe
 			err := util.WithTimeout(time.Second, func() error {
 				ph.Start(ctx)
 
@@ -127,8 +127,8 @@ var _ = Describe("ProbeHandler", func() {
 			defer cancel()
 
 			var i int
-			ph := ProbeHandler{
-				healthChecks: []HealthCheck{
+			ph := Probe{
+				healthChecks: []ProbeHealthCheck{
 					func(_ context.Context) error {
 						i++
 
@@ -153,8 +153,8 @@ var _ = Describe("ProbeHandler", func() {
 				)
 
 				var bs []bool
-				ph := ProbeHandler{
-					healthChecks: []HealthCheck{
+				ph := Probe{
+					healthChecks: []ProbeHealthCheck{
 						func(_ context.Context) error {
 							bs = append(bs, true)
 							return nil
@@ -186,8 +186,8 @@ var _ = Describe("ProbeHandler", func() {
 					ctx = context.Background()
 				)
 
-				ph := ProbeHandler{
-					healthChecks: []HealthCheck{
+				ph := Probe{
+					healthChecks: []ProbeHealthCheck{
 						func(_ context.Context) error {
 							return nil
 						},
@@ -218,7 +218,7 @@ var _ = Describe("ProbeHandler", func() {
 				)
 
 				var b bool
-				ctx = context.WithValue(ctx, ContextKeyLogger, funcr.NewJSON(
+				ctx = util.ContextWithLogger(ctx, funcr.NewJSON(
 					func(obj string) {
 						var m map[string]interface{}
 
@@ -233,8 +233,8 @@ var _ = Describe("ProbeHandler", func() {
 					funcr.Options{},
 				))
 
-				ph := ProbeHandler{
-					healthChecks: []HealthCheck{
+				ph := Probe{
+					healthChecks: []ProbeHealthCheck{
 						func(_ context.Context) error {
 							return ret
 						},

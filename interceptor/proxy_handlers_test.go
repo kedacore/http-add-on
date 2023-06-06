@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -13,10 +14,13 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
 
+	"github.com/kedacore/http-add-on/interceptor/config"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 // the proxy should successfully forward a request to a running server
@@ -34,15 +38,8 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
 	r.NoError(err)
 	defer srv.Close()
-	routingTable := newTestRoutingTable()
 	originPort, err := strconv.Atoi(originURL.Port())
 	r.NoError(err)
-	target := targetFromURL(
-		originURL,
-		originPort,
-		"testdepl",
-	)
-	routingTable.memory[host] = target
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
@@ -51,7 +48,6 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
@@ -61,8 +57,14 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
-	req.Host = host
 	r.NoError(err)
+	req = util.RequestWithHTTPSO(req, targetFromURL(
+		originURL,
+		originPort,
+		"testdepl",
+	))
+	req = util.RequestWithStream(req, originURL)
+	req.Host = host
 
 	hdl.ServeHTTP(res, req)
 
@@ -87,24 +89,8 @@ func TestWaitFailedConnection(t *testing.T) {
 	waitFunc := func(context.Context, string, string) (int, error) {
 		return 1, nil
 	}
-	routingTable := newTestRoutingTable()
-	routingTable.memory[host] = &httpv1alpha1.HTTPScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "testns",
-		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "nosuchdepl",
-				Port:       8081,
-			},
-			TargetPendingRequests: pointer.Int32(1234),
-		},
-	}
-
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
@@ -112,10 +98,26 @@ func TestWaitFailedConnection(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 	)
+	stream, err := url.Parse("http://0.0.0.0:0")
+	r.NoError(err)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
-	req.Host = host
 	r.NoError(err)
+	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "testns",
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+				Deployment: "nosuchdepl",
+				Service:    "nosuchdepl",
+				Port:       8081,
+			},
+			TargetPendingRequests: pointer.Int32(1234),
+		},
+	})
+	req = util.RequestWithStream(req, stream)
+	req.Host = host
 
 	hdl.ServeHTTP(res, req)
 
@@ -137,23 +139,8 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	defer finishWaitFunc()
 	noSuchHost := fmt.Sprintf("%s.testing", t.Name())
 
-	routingTable := newTestRoutingTable()
-	routingTable.memory[noSuchHost] = &httpv1alpha1.HTTPScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "testns",
-		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "nosuchsvc",
-				Port:       9091,
-			},
-			TargetPendingRequests: pointer.Int32(1234),
-		},
-	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
@@ -161,9 +148,25 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 	)
+	stream, err := url.Parse("http://1.1.1.1")
+	r.NoError(err)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
+	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "testns",
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+				Deployment: "nosuchdepl",
+				Service:    "nosuchsvc",
+				Port:       9091,
+			},
+			TargetPendingRequests: pointer.Int32(1234),
+		},
+	})
+	req = util.RequestWithStream(req, stream)
 	req.Host = noSuchHost
 
 	start := time.Now()
@@ -218,15 +221,8 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	defer testSrv.Close()
 	_, originPort, err := splitHostPort(testSrvURL.Host)
 	r.NoError(err)
-	routingTable := newTestRoutingTable()
-	routingTable.memory[noSuchHost] = targetFromURL(
-		testSrvURL,
-		originPort,
-		"nosuchdepl",
-	)
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
@@ -237,6 +233,12 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
+	req = util.RequestWithHTTPSO(req, targetFromURL(
+		testSrvURL,
+		originPort,
+		"nosuchdepl",
+	))
+	req = util.RequestWithStream(req, testSrvURL)
 	req.Host = noSuchHost
 
 	// make the wait function finish after a short duration
@@ -287,24 +289,8 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	waitFunc := func(context.Context, string, string) (int, error) {
 		return 1, nil
 	}
-	routingTable := newTestRoutingTable()
-	target := &httpv1alpha1.HTTPScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "testns",
-		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "testsvc",
-				Port:       9094,
-			},
-			TargetPendingRequests: pointer.Int32(1234),
-		},
-	}
-	routingTable.memory[originURL.Host] = target
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		routingTable,
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
@@ -315,6 +301,20 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
+	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "testns",
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+				Deployment: "nosuchdepl",
+				Service:    "testsvc",
+				Port:       9094,
+			},
+			TargetPendingRequests: pointer.Int32(1234),
+		},
+	})
+	req = util.RequestWithStream(req, originURL)
 	req.Host = originURL.Host
 
 	hdl.ServeHTTP(res, req)
@@ -322,19 +322,6 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	r.Equal("false", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start false")
 	r.Equal(502, res.Code, "response code was unexpected")
 	close(originHdlCh)
-}
-
-// ensureSignalAfter returns true if signalCh receives before timeout, false otherwise.
-// it blocks for timeout at most
-func ensureSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) bool {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return false
-	case <-signalCh:
-		return true
-	}
 }
 
 func waitForSignal(sig <-chan struct{}, waitDur time.Duration) error {
@@ -385,7 +372,7 @@ func targetFromURL(
 			Namespace: "@" + host,
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
+			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
 				Deployment: deployment,
 				Service:    ":" + host,
 				Port:       int32(port),
@@ -393,4 +380,37 @@ func targetFromURL(
 			TargetPendingRequests: pointer.Int32(123),
 		},
 	}
+}
+
+func defaultTimeouts() config.Timeouts {
+	return config.Timeouts{
+		Connect:            100 * time.Millisecond,
+		KeepAlive:          100 * time.Millisecond,
+		ResponseHeader:     500 * time.Millisecond,
+		DeploymentReplicas: 1 * time.Second,
+	}
+}
+
+// returns a kedanet.DialContextFunc by calling kedanet.DialContextWithRetry. if you pass nil for the
+// timeoutConfig, it uses standard values. otherwise it uses the one you passed.
+//
+// the returned config.Timeouts is what was passed to the DialContextWithRetry function
+func retryDialContextFunc(
+	timeouts config.Timeouts,
+	backoff wait.Backoff,
+) kedanet.DialContextFunc {
+	dialer := kedanet.NewNetDialer(
+		timeouts.Connect,
+		timeouts.KeepAlive,
+	)
+	return kedanet.DialContextWithRetry(dialer, backoff)
+}
+
+func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {
+	req, err := http.NewRequest("GET", path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	resRecorder := httptest.NewRecorder()
+	return resRecorder, req, nil
 }

@@ -14,6 +14,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/interceptor/handler"
+	"github.com/kedacore/http-add-on/interceptor/middleware"
 	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
 	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	"github.com/kedacore/http-add-on/pkg/build"
@@ -23,6 +25,7 @@ import (
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 func init() {
@@ -44,7 +47,8 @@ func main() {
 		lggr.Error(err, "invalid configuration")
 		os.Exit(1)
 	}
-	ctx, ctxDone := context.WithCancel(context.WithValue(context.Background(), ContextKeyLogger, lggr))
+	ctx := util.ContextWithLogger(context.Background(), lggr)
+	ctx, ctxDone := context.WithCancel(ctx)
 	lggr.Info(
 		"starting interceptor",
 		"timeoutConfig",
@@ -190,34 +194,33 @@ func runProxyServer(
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
 
-	probeHandler := NewProbeHandler(nil)
+	probeHandler := handler.NewProbe(nil)
 	go probeHandler.Start(ctx)
 
 	var upstreamHandler http.Handler
 	upstreamHandler = newForwardingHandler(
 		logger,
-		routingTable,
 		dialContextFunc,
 		waitFunc,
 		newForwardingConfigFromTimeouts(timeouts),
 	)
-	upstreamHandler = NewCountingMiddleware(
+	upstreamHandler = middleware.NewCountingMiddleware(
 		q,
 		upstreamHandler,
 	)
 
-	var handler http.Handler
-	handler = NewRoutingMiddleware(
+	var rootHandler http.Handler
+	rootHandler = middleware.NewRouting(
 		routingTable,
 		probeHandler,
 		upstreamHandler,
 	)
-	handler = NewLoggingMiddleware(
+	rootHandler = middleware.NewLogging(
 		logger,
-		handler,
+		rootHandler,
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	logger.Info("proxy server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, handler)
+	return kedahttp.ServeContext(ctx, addr, rootHandler)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
+	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
 
 func TestRunProxyServerCountMiddleware(t *testing.T) {
@@ -54,8 +55,8 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	// so that the proxy calculates a URL for that
 	// host that points to the (above) fake origin
 	// server
-	routingTable := newTestRoutingTable()
-	routingTable.memory[host] = httpso
+	routingTable := routingtest.NewTable()
+	routingTable.Memory[host] = httpso
 
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})

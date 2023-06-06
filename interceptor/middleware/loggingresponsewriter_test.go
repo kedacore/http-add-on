@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"net/http"
@@ -8,14 +8,14 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("LoggingResponseWriter", func() {
+var _ = Describe("loggingResponseWriter", func() {
 	Context("New", func() {
 		It("returns new object with expected field values set", func() {
 			var (
 				w = httptest.NewRecorder()
 			)
 
-			lrw := NewLoggingResponseWriter(w)
+			lrw := newLoggingResponseWriter(w)
 			Expect(lrw).NotTo(BeNil())
 			Expect(lrw.downstreamResponseWriter).To(Equal(w))
 			Expect(lrw.bytesWritten).To(Equal(0))
@@ -29,7 +29,7 @@ var _ = Describe("LoggingResponseWriter", func() {
 				bw = 128
 			)
 
-			lrw := &LoggingResponseWriter{
+			lrw := &loggingResponseWriter{
 				bytesWritten: bw,
 			}
 
@@ -44,7 +44,7 @@ var _ = Describe("LoggingResponseWriter", func() {
 				sc = http.StatusTeapot
 			)
 
-			lrw := &LoggingResponseWriter{
+			lrw := &loggingResponseWriter{
 				statusCode: sc,
 			}
 
@@ -59,7 +59,7 @@ var _ = Describe("LoggingResponseWriter", func() {
 				w = httptest.NewRecorder()
 			)
 
-			lrw := &LoggingResponseWriter{
+			lrw := &loggingResponseWriter{
 				downstreamResponseWriter: w,
 			}
 
@@ -83,7 +83,7 @@ var _ = Describe("LoggingResponseWriter", func() {
 				w = httptest.NewRecorder()
 			)
 
-			lrw := &LoggingResponseWriter{
+			lrw := &loggingResponseWriter{
 				bytesWritten:             initialBW,
 				downstreamResponseWriter: w,
 			}
@@ -108,7 +108,7 @@ var _ = Describe("LoggingResponseWriter", func() {
 				w = httptest.NewRecorder()
 			)
 
-			lrw := &LoggingResponseWriter{
+			lrw := &loggingResponseWriter{
 				statusCode:               http.StatusOK,
 				downstreamResponseWriter: w,
 			}

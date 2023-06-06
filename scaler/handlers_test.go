@@ -312,7 +312,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 						Name:      t.Name(),
 					},
 					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
+						ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
 							Deployment: "testdepl",
 							Service:    "testsrv",
 							Port:       8080,
@@ -354,7 +354,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 							"validHost1",
 							"validHost2",
 						},
-						ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
+						ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
 							Deployment: "testdepl",
 							Service:    "testsrv",
 							Port:       8080,

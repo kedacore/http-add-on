@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"context"
@@ -13,9 +13,13 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 func TestCountMiddleware(t *testing.T) {
@@ -24,11 +28,19 @@ func TestCountMiddleware(t *testing.T) {
 	uri, err := url.Parse("https://testingkeda.com")
 	r.NoError(err)
 
-	httpso := targetFromURL(
-		uri,
-		8080,
-		"testdepl",
-	)
+	httpso := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "@",
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+				Deployment: "testdepl",
+				Service:    ":",
+				Port:       8080,
+			},
+			TargetPendingRequests: pointer.Int32(123),
+		},
+	}
 	namespacedName := k8s.NamespacedNameFromObject(httpso).String()
 
 	queueCounter := queue.NewFakeCounter()
@@ -53,8 +65,8 @@ func TestCountMiddleware(t *testing.T) {
 	req, err := http.NewRequest("GET", "/something", nil)
 	r.NoError(err)
 	reqCtx := req.Context()
-	reqCtx = context.WithValue(reqCtx, ContextKeyLogger, logr.Discard())
-	reqCtx = context.WithValue(reqCtx, ContextKeyHTTPSO, httpso)
+	reqCtx = util.ContextWithLogger(reqCtx, logr.Discard())
+	reqCtx = util.ContextWithHTTPSO(reqCtx, httpso)
 	req = req.WithContext(reqCtx)
 	req.Host = uri.Host
 

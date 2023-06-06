@@ -1,31 +1,28 @@
-package main
+package middleware
 
 import (
-	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/go-logr/logr/funcr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/routing"
+	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
 
 var _ = Describe("RoutingMiddleware", func() {
 	Context("New", func() {
 		It("returns new object with expected fields", func() {
 			var (
-				routingTable    = newTestRoutingTable()
+				routingTable    = routingtest.NewTable()
 				probeHandler    = http.NewServeMux()
 				upstreamHandler = http.NewServeMux()
 			)
 			probeHandler.Handle("/probe", http.HandlerFunc(nil))
 			upstreamHandler.Handle("/upstream", http.HandlerFunc(nil))
 
-			rm := NewRoutingMiddleware(routingTable, probeHandler, upstreamHandler)
+			rm := NewRouting(routingTable, probeHandler, upstreamHandler)
 			Expect(rm).NotTo(BeNil())
 			Expect(rm.routingTable).To(Equal(routingTable))
 			Expect(rm.probeHandler).To(Equal(probeHandler))
@@ -42,8 +39,8 @@ var _ = Describe("RoutingMiddleware", func() {
 		var (
 			upstreamHandler   *http.ServeMux
 			probeHandler      *http.ServeMux
-			routingTable      *testRoutingTable
-			routingMiddleware *RoutingMiddleware
+			routingTable      *routingtest.Table
+			routingMiddleware *Routing
 			w                 *httptest.ResponseRecorder
 			r                 *http.Request
 
@@ -59,8 +56,8 @@ var _ = Describe("RoutingMiddleware", func() {
 		BeforeEach(func() {
 			upstreamHandler = http.NewServeMux()
 			probeHandler = http.NewServeMux()
-			routingTable = newTestRoutingTable()
-			routingMiddleware = NewRoutingMiddleware(routingTable, probeHandler, upstreamHandler)
+			routingTable = routingtest.NewTable()
+			routingMiddleware = NewRouting(routingTable, probeHandler, upstreamHandler)
 
 			w = httptest.NewRecorder()
 
@@ -90,7 +87,7 @@ var _ = Describe("RoutingMiddleware", func() {
 					ph = true
 				}))
 
-				routingTable.memory[host] = &httpso
+				routingTable.Memory[host] = &httpso
 
 				routingMiddleware.ServeHTTP(w, r)
 
@@ -184,7 +181,7 @@ var _ = Describe("RoutingMiddleware", func() {
 
 			r.Header.Set(uaKey, uaVal)
 
-			var rm RoutingMiddleware
+			var rm Routing
 			b := rm.isKubeProbe(r)
 			Expect(b).To(BeTrue())
 		})
@@ -196,56 +193,9 @@ var _ = Describe("RoutingMiddleware", func() {
 
 			r.Header.Set(uaKey, uaVal)
 
-			var rm RoutingMiddleware
+			var rm Routing
 			b := rm.isKubeProbe(r)
 			Expect(b).To(BeFalse())
-		})
-	})
-
-	Context("serveNotFound", func() {
-		var (
-			w *httptest.ResponseRecorder
-			r *http.Request
-
-			sc = http.StatusNotFound
-			st = http.StatusText(sc)
-		)
-
-		BeforeEach(func() {
-			w = httptest.NewRecorder()
-			r = httptest.NewRequest(http.MethodGet, "/", nil)
-		})
-
-		It("serves a 404 response", func() {
-			var rm RoutingMiddleware
-			rm.serveNotFound(w, r)
-
-			Expect(w.Code).To(Equal(sc))
-			Expect(w.Body.String()).To(Equal(st))
-		})
-
-		It("logs the failed request", func() {
-			var b bool
-			r = r.WithContext(context.WithValue(r.Context(), ContextKeyLogger, funcr.NewJSON(
-				func(obj string) {
-					var m map[string]interface{}
-
-					err := json.Unmarshal([]byte(obj), &m)
-					Expect(err).NotTo(HaveOccurred())
-
-					rk := routing.NewKeyFromRequest(r)
-					Expect(m).To(HaveKeyWithValue("msg", http.StatusText(http.StatusNotFound)))
-					Expect(m).To(HaveKeyWithValue("routingKey", rk.String()))
-
-					b = true
-				},
-				funcr.Options{},
-			)))
-
-			var rm RoutingMiddleware
-			rm.serveNotFound(w, r)
-
-			Expect(b).To(BeTrue())
 		})
 	})
 })

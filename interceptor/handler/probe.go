@@ -1,4 +1,4 @@
-package main
+package handler
 
 import (
 	"context"
@@ -6,29 +6,25 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-logr/logr"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-type HealthCheck func(ctx context.Context) error
-
-type ProbeHandler struct {
-	healthChecks []HealthCheck
+type Probe struct {
+	healthChecks []ProbeHealthCheck
 	healthy      atomic.Bool
 }
 
-func NewProbeHandler(healthChecks []HealthCheck) *ProbeHandler {
-	return &ProbeHandler{
+func NewProbe(healthChecks []ProbeHealthCheck) *Probe {
+	return &Probe{
 		healthChecks: healthChecks,
 	}
 }
 
-var _ http.Handler = (*ProbeHandler)(nil)
+var _ http.Handler = (*Probe)(nil)
 
-func (ph *ProbeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (ph *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	r = util.RequestWithLoggerWithName(r, "ProbeHandler")
 	ctx := r.Context()
-
-	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
-	logger = logger.WithName("ProbeHandler")
 
 	sc := http.StatusOK
 	if !ph.healthy.Load() {
@@ -38,11 +34,12 @@ func (ph *ProbeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	st := http.StatusText(sc)
 	if _, err := w.Write([]byte(st)); err != nil {
+		logger := util.LoggerFromContext(ctx)
 		logger.Error(err, "write failed")
 	}
 }
 
-func (ph *ProbeHandler) Start(ctx context.Context) {
+func (ph *Probe) Start(ctx context.Context) {
 	for {
 		ph.check(ctx)
 
@@ -55,9 +52,9 @@ func (ph *ProbeHandler) Start(ctx context.Context) {
 	}
 }
 
-func (ph *ProbeHandler) check(ctx context.Context) {
-	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
-	logger = logger.WithName("ProbeHandler")
+func (ph *Probe) check(ctx context.Context) {
+	logger := util.LoggerFromContext(ctx)
+	logger = logger.WithName("Probe")
 
 	for _, hc := range ph.healthChecks {
 		if err := hc(ctx); err != nil {

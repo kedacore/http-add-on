@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"context"
@@ -6,27 +6,27 @@ import (
 
 	"github.com/go-logr/logr"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-type CountingMiddleware struct {
+type Counting struct {
 	queueCounter    queue.Counter
 	upstreamHandler http.Handler
 }
 
-func NewCountingMiddleware(queueCounter queue.Counter, upstreamHandler http.Handler) *CountingMiddleware {
-	return &CountingMiddleware{
+func NewCountingMiddleware(queueCounter queue.Counter, upstreamHandler http.Handler) *Counting {
+	return &Counting{
 		queueCounter:    queueCounter,
 		upstreamHandler: upstreamHandler,
 	}
 }
 
-var _ http.Handler = (*CountingMiddleware)(nil)
+var _ http.Handler = (*Counting)(nil)
 
-func (cm *CountingMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (cm *Counting) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	r = util.RequestWithLoggerWithName(r, "CountingMiddleware")
 	ctx := r.Context()
 
 	defer cm.countAsync(ctx)()
@@ -34,7 +34,7 @@ func (cm *CountingMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	cm.upstreamHandler.ServeHTTP(w, r)
 }
 
-func (cm *CountingMiddleware) countAsync(ctx context.Context) func() {
+func (cm *Counting) countAsync(ctx context.Context) func() {
 	signaler := util.NewSignaler()
 
 	go cm.count(ctx, signaler)
@@ -44,11 +44,10 @@ func (cm *CountingMiddleware) countAsync(ctx context.Context) func() {
 	}
 }
 
-func (cm *CountingMiddleware) count(ctx context.Context, signaler util.Signaler) {
-	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
-	logger = logger.WithName("CountingMiddleware")
+func (cm *Counting) count(ctx context.Context, signaler util.Signaler) {
+	logger := util.LoggerFromContext(ctx)
+	httpso := util.HTTPSOFromContext(ctx)
 
-	httpso := ctx.Value(ContextKeyHTTPSO).(*httpv1alpha1.HTTPScaledObject)
 	key := k8s.NamespacedNameFromObject(httpso).String()
 
 	if !cm.inc(logger, key) {
@@ -62,7 +61,7 @@ func (cm *CountingMiddleware) count(ctx context.Context, signaler util.Signaler)
 	cm.dec(logger, key)
 }
 
-func (cm *CountingMiddleware) inc(logger logr.Logger, key string) bool {
+func (cm *Counting) inc(logger logr.Logger, key string) bool {
 	if err := cm.queueCounter.Resize(key, +1); err != nil {
 		logger.Error(err, "error incrementing queue counter", "key", key)
 
@@ -72,7 +71,7 @@ func (cm *CountingMiddleware) inc(logger logr.Logger, key string) bool {
 	return true
 }
 
-func (cm *CountingMiddleware) dec(logger logr.Logger, key string) bool {
+func (cm *Counting) dec(logger logr.Logger, key string) bool {
 	if err := cm.queueCounter.Resize(key, -1); err != nil {
 		logger.Error(err, "error decrementing queue counter", "key", key)
 

@@ -49,8 +49,7 @@ type HTTPScaledObjectSpec struct {
 	// +optional
 	Hosts []string `json:"hosts,omitempty"`
 	// The name of the deployment to route HTTP requests to (and to autoscale).
-	// Either this or Image must be set
-	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`
+	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
 	// (optional) Replica information
 	// +optional
 	Replicas *ReplicaStruct `json:"replicas,omitempty"`

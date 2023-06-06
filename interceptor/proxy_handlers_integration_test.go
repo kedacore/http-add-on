@@ -21,17 +21,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	"github.com/kedacore/http-add-on/interceptor/middleware"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
-	"github.com/kedacore/http-add-on/pkg/routing"
+	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
 
 // happy path - deployment is scaled to 1 and host in routing table
 func TestIntegrationHappyPath(t *testing.T) {
 	const (
 		deploymentReplicasTimeout = 200 * time.Millisecond
-		responseHeaderTimeout     = 1 * time.Second
 		deplName                  = "testdeployment"
 	)
 	r := require.New(t)
@@ -51,7 +50,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 		originPort,
 		deplName,
 	)
-	h.routingTable.(*testRoutingTable).memory[hostForTest(t)] = target
+	h.routingTable.Memory[hostForTest(t)] = target
 
 	h.deplCache.Set(target.GetNamespace(), deplName, appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: deplName},
@@ -121,7 +120,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 		originPort,
 		deployName,
 	)
-	h.routingTable.(*testRoutingTable).memory[hostForTest(t)] = target
+	h.routingTable.Memory[hostForTest(t)] = target
 
 	// 0 replicas
 	h.deplCache.Set(target.GetNamespace(), deployName, appsv1.Deployment{
@@ -168,7 +167,7 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 		originPort,
 		deployName,
 	)
-	h.routingTable.(*testRoutingTable).memory[hostForTest(t)] = target
+	h.routingTable.Memory[hostForTest(t)] = target
 
 	// set up a deployment with zero replicas and create
 	// a watcher we can use later to fake-send a deployment
@@ -256,7 +255,7 @@ type harness struct {
 	originHdl    http.Handler
 	originSrv    *httptest.Server
 	originURL    *url.URL
-	routingTable routing.Table
+	routingTable *routingtest.Table
 	dialCtxFunc  kedanet.DialContextFunc
 	deplCache    *k8s.FakeDeploymentCache
 	waitFunc     forwardWaitFunc
@@ -268,7 +267,7 @@ func newHarness(
 ) (*harness, error) {
 	t.Helper()
 	lggr := logr.Discard()
-	routingTable := newTestRoutingTable()
+	routingTable := routingtest.NewTable()
 	dialContextFunc := kedanet.DialContextWithRetry(
 		&net.Dialer{
 			Timeout: 2 * time.Second,
@@ -297,16 +296,15 @@ func newHarness(
 		return nil, err
 	}
 
-	proxyHdl := newForwardingHandler(
+	proxyHdl := middleware.NewRouting(routingTable, nil, newForwardingHandler(
 		lggr,
-		routingTable,
 		dialContextFunc,
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:       deployReplicasTimeout,
 			respHeaderTimeout: time.Second,
 		},
-	)
+	))
 
 	proxySrv, proxySrvURL, err := kedanet.StartTestServer(proxyHdl)
 	if err != nil {
@@ -365,28 +363,4 @@ func splitHostPort(hostPortStr string) (string, int, error) {
 		return "", 0, errors.Wrap(err, "port was invalid")
 	}
 	return host, port, nil
-}
-
-type testRoutingTable struct {
-	memory map[string]*httpv1alpha1.HTTPScaledObject
-}
-
-func newTestRoutingTable() *testRoutingTable {
-	return &testRoutingTable{
-		memory: make(map[string]*httpv1alpha1.HTTPScaledObject),
-	}
-}
-
-var _ routing.Table = (*testRoutingTable)(nil)
-
-func (t testRoutingTable) Start(_ context.Context) error {
-	return nil
-}
-
-func (t testRoutingTable) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
-	return t.memory[req.Host]
-}
-
-func (t testRoutingTable) HasSynced() bool {
-	return true
 }

@@ -88,7 +88,7 @@ spec:
                 type: object
               scaleTargetRef:
                 description: The name of the deployment to route HTTP requests to
-                  (and to autoscale). Either this or Image must be set
+                  (and to autoscale).
                 properties:
                   deployment:
                     description: The name of the deployment to scale according to

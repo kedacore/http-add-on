@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"context"
@@ -16,30 +16,25 @@ const (
 	CombinedLogBlankValue = "-"
 )
 
-type LoggingMiddleware struct {
+type Logging struct {
 	logger          logr.Logger
 	upstreamHandler http.Handler
 }
 
-func NewLoggingMiddleware(logger logr.Logger, upstreamHandler http.Handler) *LoggingMiddleware {
-	return &LoggingMiddleware{
+func NewLogging(logger logr.Logger, upstreamHandler http.Handler) *Logging {
+	return &Logging{
 		logger:          logger,
 		upstreamHandler: upstreamHandler,
 	}
 }
 
-var _ http.Handler = (*LoggingMiddleware)(nil)
+var _ http.Handler = (*Logging)(nil)
 
-func (lm *LoggingMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var sw Stopwatch
+func (lm *Logging) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	r = util.RequestWithLogger(r, lm.logger.WithName("LoggingMiddleware"))
+	w = newLoggingResponseWriter(w)
 
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, ContextKeyLogger, lm.logger)
-	r = r.WithContext(ctx)
-
-	w = NewLoggingResponseWriter(w)
-
+	var sw util.Stopwatch
 	defer lm.logAsync(w, r, &sw)()
 
 	sw.Start()
@@ -48,7 +43,7 @@ func (lm *LoggingMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	lm.upstreamHandler.ServeHTTP(w, r)
 }
 
-func (lm *LoggingMiddleware) logAsync(w http.ResponseWriter, r *http.Request, sw *Stopwatch) func() {
+func (lm *Logging) logAsync(w http.ResponseWriter, r *http.Request, sw *util.Stopwatch) func() {
 	signaler := util.NewSignaler()
 
 	go lm.log(w, r, sw, signaler)
@@ -58,13 +53,14 @@ func (lm *LoggingMiddleware) logAsync(w http.ResponseWriter, r *http.Request, sw
 	}
 }
 
-func (lm *LoggingMiddleware) log(w http.ResponseWriter, r *http.Request, sw *Stopwatch, signaler util.Signaler) {
+func (lm *Logging) log(w http.ResponseWriter, r *http.Request, sw *util.Stopwatch, signaler util.Signaler) {
 	ctx := r.Context()
+	logger := util.LoggerFromContext(ctx)
 
-	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
-	logger = logger.WithName("LoggingMiddleware")
-
-	lrw := w.(*LoggingResponseWriter)
+	lrw := w.(*loggingResponseWriter)
+	if lrw == nil {
+		lrw = newLoggingResponseWriter(w)
+	}
 
 	if err := signaler.Wait(ctx); err != nil && err != context.Canceled {
 		logger.Error(err, "failed to wait signal")

@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/go-logr/logr"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/interceptor/handler"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
-	"github.com/kedacore/http-add-on/pkg/routing"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 type forwardingConfig struct {
@@ -44,7 +44,6 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts) forwardingConfig {
 // create a URL with url.Parse("https://...")
 func newForwardingHandler(
 	lggr logr.Logger,
-	routingTable routing.Table,
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
 	fwdCfg forwardingConfig,
@@ -60,22 +59,15 @@ func newForwardingHandler(
 		ResponseHeaderTimeout: fwdCfg.respHeaderTimeout,
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		routingTarget := routingTable.Route(r)
-		if routingTarget == nil {
-			w.WriteHeader(http.StatusNotFound)
-			if _, err := w.Write([]byte(fmt.Sprintf("Host %s not found", r.Host))); err != nil {
-				lggr.Error(err, "could not send error message to client")
-			}
-
-			return
-		}
+		ctx := r.Context()
+		httpso := util.HTTPSOFromContext(ctx)
 
 		waitFuncCtx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
 		defer done()
 		replicas, err := waitFunc(
 			waitFuncCtx,
-			routingTarget.Namespace,
-			routingTarget.Spec.ScaleTargetRef.Deployment,
+			httpso.GetNamespace(),
+			httpso.Spec.ScaleTargetRef.Deployment,
 		)
 		if err != nil {
 			lggr.Error(err, "wait function failed, not forwarding request")
@@ -85,26 +77,13 @@ func newForwardingHandler(
 			}
 			return
 		}
-		//goland:noinspection HttpUrlsUsage
-		targetSvcURL, err := url.Parse(fmt.Sprintf(
-			"http://%s.%s:%d",
-			routingTarget.Spec.ScaleTargetRef.Service,
-			routingTarget.Namespace,
-			routingTarget.Spec.ScaleTargetRef.Port,
-		))
-		if err != nil {
-			lggr.Error(err, "forwarding failed")
-			w.WriteHeader(http.StatusInternalServerError)
-			if _, err := w.Write([]byte("error getting backend service URL")); err != nil {
-				lggr.Error(err, "could not write error response to client")
-			}
-			return
-		}
 		isColdStart := "false"
 		if replicas == 0 {
 			isColdStart = "true"
 		}
 		w.Header().Add("X-KEDA-HTTP-Cold-Start", isColdStart)
-		forwardRequest(lggr, w, r, roundTripper, targetSvcURL)
+
+		uh := handler.NewUpstream(roundTripper)
+		uh.ServeHTTP(w, r)
 	})
 }

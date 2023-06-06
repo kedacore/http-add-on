@@ -70,7 +70,7 @@ var _ = BeforeSuite(func() {
 	err = kedav1alpha1.AddToScheme(clientgoscheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 
 	// k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	// Expect(err).NotTo(HaveOccurred())
@@ -108,7 +108,7 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 			Name:      appName,
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: &httpv1alpha1.ScaleTargetRef{
+			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
 				Deployment: appName,
 				Service:    appName,
 				Port:       8081,
