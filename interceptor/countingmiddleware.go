@@ -45,10 +45,10 @@ func (cm *CountingMiddleware) countAsync(ctx context.Context) func() {
 }
 
 func (cm *CountingMiddleware) count(ctx context.Context, signaler util.Signaler) {
-	logger := ctx.Value(LoggerContextKey).(logr.Logger)
+	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
 	logger = logger.WithName("CountingMiddleware")
 
-	httpso := ctx.Value(HTTPSOContextKey).(*httpv1alpha1.HTTPScaledObject)
+	httpso := ctx.Value(ContextKeyHTTPSO).(*httpv1alpha1.HTTPScaledObject)
 	key := k8s.NamespacedNameFromObject(httpso).String()
 
 	if !cm.inc(logger, key) {

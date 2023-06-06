@@ -35,7 +35,7 @@ func (lm *LoggingMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	ctx = context.WithValue(ctx, LoggerContextKey, lm.logger)
+	ctx = context.WithValue(ctx, ContextKeyLogger, lm.logger)
 	r = r.WithContext(ctx)
 
 	w = NewLoggingResponseWriter(w)
@@ -61,7 +61,7 @@ func (lm *LoggingMiddleware) logAsync(w http.ResponseWriter, r *http.Request, sw
 func (lm *LoggingMiddleware) log(w http.ResponseWriter, r *http.Request, sw *Stopwatch, signaler util.Signaler) {
 	ctx := r.Context()
 
-	logger := ctx.Value(LoggerContextKey).(logr.Logger)
+	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
 	logger = logger.WithName("LoggingMiddleware")
 
 	lrw := w.(*LoggingResponseWriter)

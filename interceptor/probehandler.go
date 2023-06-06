@@ -9,7 +9,7 @@ import (
 	"github.com/go-logr/logr"
 )
 
-type HealthCheck func() error
+type HealthCheck func(ctx context.Context) error
 
 type ProbeHandler struct {
 	healthChecks []HealthCheck
@@ -27,7 +27,7 @@ var _ http.Handler = (*ProbeHandler)(nil)
 func (ph *ProbeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	logger := ctx.Value(LoggerContextKey).(logr.Logger)
+	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
 	logger = logger.WithName("ProbeHandler")
 
 	sc := http.StatusOK
@@ -42,22 +42,25 @@ func (ph *ProbeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ph *ProbeHandler) Start(ctx context.Context, logger logr.Logger) {
+func (ph *ProbeHandler) Start(ctx context.Context) {
 	for {
-		ph.check(logger)
+		ph.check(ctx)
 
 		select {
 		case <-ctx.Done():
-			break
+			return
 		case <-time.After(time.Second):
 			continue
 		}
 	}
 }
 
-func (ph *ProbeHandler) check(logger logr.Logger) {
+func (ph *ProbeHandler) check(ctx context.Context) {
+	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
+	logger = logger.WithName("ProbeHandler")
+
 	for _, hc := range ph.healthChecks {
-		if err := hc(); err != nil {
+		if err := hc(ctx); err != nil {
 			ph.healthy.Store(false)
 
 			logger.Error(err, "health check function failed")

@@ -44,7 +44,7 @@ func (rm *RoutingMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx = context.WithValue(ctx, HTTPSOContextKey, httpso)
+	ctx = context.WithValue(ctx, ContextKeyHTTPSO, httpso)
 	r = r.WithContext(ctx)
 
 	rm.upstreamHandler.ServeHTTP(w, r)
@@ -57,7 +57,7 @@ func (rm *RoutingMiddleware) isKubeProbe(r *http.Request) bool {
 
 func (rm *RoutingMiddleware) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	logger := ctx.Value(LoggerContextKey).(logr.Logger)
+	logger, _ := ctx.Value(ContextKeyLogger).(logr.Logger)
 
 	sc := http.StatusNotFound
 	st := http.StatusText(sc)

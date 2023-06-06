@@ -53,8 +53,8 @@ func TestCountMiddleware(t *testing.T) {
 	req, err := http.NewRequest("GET", "/something", nil)
 	r.NoError(err)
 	reqCtx := req.Context()
-	reqCtx = context.WithValue(reqCtx, LoggerContextKey, logr.Discard())
-	reqCtx = context.WithValue(reqCtx, HTTPSOContextKey, httpso)
+	reqCtx = context.WithValue(reqCtx, ContextKeyLogger, logr.Discard())
+	reqCtx = context.WithValue(reqCtx, ContextKeyHTTPSO, httpso)
 	req = req.WithContext(reqCtx)
 	req.Host = uri.Host
 

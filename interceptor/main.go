@@ -44,9 +44,7 @@ func main() {
 		lggr.Error(err, "invalid configuration")
 		os.Exit(1)
 	}
-	ctx, ctxDone := context.WithCancel(
-		context.Background(),
-	)
+	ctx, ctxDone := context.WithCancel(context.WithValue(context.Background(), ContextKeyLogger, lggr))
 	lggr.Info(
 		"starting interceptor",
 		"timeoutConfig",
@@ -193,7 +191,7 @@ func runProxyServer(
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
 
 	probeHandler := NewProbeHandler(nil)
-	go probeHandler.Start(ctx, logger)
+	go probeHandler.Start(ctx)
 
 	var upstreamHandler http.Handler
 	upstreamHandler = newForwardingHandler(
