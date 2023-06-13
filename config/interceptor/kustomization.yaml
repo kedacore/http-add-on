@@ -12,7 +12,3 @@ labels:
   includeTemplates: true
   pairs:
     app.kubernetes.io/instance: interceptor
-images:
-- name: ghcr.io/kedacore/http-add-on-interceptor
-  newName: ghcr.io/kedacore/http-add-on-interceptor
-  newTag: main
