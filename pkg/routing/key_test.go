@@ -2,6 +2,7 @@ package routing
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -101,7 +102,7 @@ var _ = Describe("Key", func() {
 		})
 	})
 
-	Context("NewForURL", func() {
+	Context("NewFromURL", func() {
 		It("returns expected key for URL", func() {
 			const (
 				host = "kubernetes.io"
@@ -119,6 +120,28 @@ var _ = Describe("Key", func() {
 
 		It("returns nil for nil URL", func() {
 			key := NewKeyFromURL(nil)
+			Expect(key).To(BeNil())
+		})
+	})
+
+	Context("NewFromRequest", func() {
+		It("returns expected key for Request", func() {
+			const (
+				host = "kubernetes.io"
+				path = "abc/def"
+				norm = "//kubernetes.io/abc/def/"
+			)
+
+			r, err := http.NewRequest("GET", fmt.Sprintf("https://%s:443/%s?123=456#789", host, path), nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(r).NotTo(BeNil())
+
+			key := NewKeyFromRequest(r)
+			Expect(key).To(Equal(Key(norm)))
+		})
+
+		It("returns nil for nil Request", func() {
+			key := NewKeyFromRequest(nil)
 			Expect(key).To(BeNil())
 		})
 	})
