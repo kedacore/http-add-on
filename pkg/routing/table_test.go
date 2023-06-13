@@ -271,4 +271,33 @@ var _ = Describe("Table", func() {
 			Expect(err).To(MatchError(context.Canceled))
 		})
 	})
+
+	Context("newMemoryFromHTTPSOs", func() {
+		var (
+			t *table
+		)
+
+		BeforeEach(func() {
+			i, _ := NewTable(sharedInformerFactory, namespace)
+			t = i.(*table)
+		})
+
+		It("returns new memory based on HTTPSOs", func() {
+			for _, httpso := range httpsoList.Items {
+				httpso := httpso
+
+				key := *k8s.NamespacedNameFromObject(&httpso)
+				t.httpScaledObjects[key] = &httpso
+			}
+
+			tm := t.newMemoryFromHTTPSOs()
+
+			for _, httpso := range httpsoList.Items {
+				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+
+				ret := tm.Recall(namespacedName)
+				Expect(ret).To(Equal(&httpso))
+			}
+		})
+	})
 })

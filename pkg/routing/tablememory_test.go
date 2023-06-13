@@ -3,6 +3,7 @@ package routing
 import (
 	"fmt"
 	"net/url"
+	"time"
 
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	. "github.com/onsi/ginkgo/v2"
@@ -226,6 +227,45 @@ var _ = Describe("TableMemory", func() {
 			httpso.Spec.Hosts[0] += ".br"
 			assertTrees(tm, &httpso0, &httpso0)
 		})
+
+		It("gives precedence to the oldest object on conflict", func() {
+			tm := tableMemory{
+				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+			}
+
+			t0 := time.Now()
+
+			httpso00 := *httpso0.DeepCopy()
+			httpso00.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
+			tm = tm.Remember(&httpso00).(tableMemory)
+
+			httpso01 := *httpso0.DeepCopy()
+			httpso01.ObjectMeta.Name += "-br"
+			httpso01.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
+			tm = tm.Remember(&httpso01).(tableMemory)
+
+			httpso10 := *httpso1.DeepCopy()
+			httpso10.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
+			tm = tm.Remember(&httpso10).(tableMemory)
+
+			httpso11 := *httpso1.DeepCopy()
+			httpso11.ObjectMeta.Name += "-br"
+			httpso11.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(+time.Minute))
+			tm = tm.Remember(&httpso11).(tableMemory)
+
+			assertIndex(tm, &httpso00, &httpso00)
+			assertStore(tm, &httpso00, &httpso01)
+
+			assertIndex(tm, &httpso01, &httpso01)
+			assertStore(tm, &httpso01, &httpso01)
+
+			assertIndex(tm, &httpso10, &httpso10)
+			assertStore(tm, &httpso10, &httpso10)
+
+			assertIndex(tm, &httpso11, &httpso11)
+			assertStore(tm, &httpso11, &httpso10)
+		})
 	})
 
 	Context("Forget", func() {
@@ -269,6 +309,48 @@ var _ = Describe("TableMemory", func() {
 			store1 := *tm.store
 			Expect(index1).To(Equal(index0))
 			Expect(store1).To(Equal(store0))
+		})
+
+		It("forgets only when namespaced names match on conflict", func() {
+			tm := tableMemory{
+				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+			}
+
+			t0 := time.Now()
+
+			httpso00 := *httpso0.DeepCopy()
+			httpso00.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
+			tm = insertTrees(tm, &httpso00)
+
+			httpso01 := *httpso0.DeepCopy()
+			httpso01.ObjectMeta.Name += "-br"
+			httpso01.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
+			tm = insertTrees(tm, &httpso01)
+
+			httpso10 := *httpso1.DeepCopy()
+			httpso10.ObjectMeta.Name += "-br"
+			httpso10.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
+			tm = insertTrees(tm, &httpso10)
+
+			httpso11 := *httpso1.DeepCopy()
+			httpso11.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
+			tm = insertTrees(tm, &httpso11)
+
+			tm = tm.Forget(&httpso0NamespacedName).(tableMemory)
+			tm = tm.Forget(&httpso1NamespacedName).(tableMemory)
+
+			assertIndex(tm, &httpso00, nil)
+			assertStore(tm, &httpso00, &httpso01)
+
+			assertIndex(tm, &httpso01, &httpso01)
+			assertStore(tm, &httpso01, &httpso01)
+
+			assertIndex(tm, &httpso10, &httpso10)
+			assertStore(tm, &httpso10, nil)
+
+			assertIndex(tm, &httpso11, nil)
+			assertStore(tm, &httpso11, nil)
 		})
 	})
 

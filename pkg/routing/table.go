@@ -104,14 +104,6 @@ func (t *table) newMemoryFromHTTPSOs() TableMemory {
 
 	tm := NewTableMemory()
 	for _, newHTTPSO := range t.httpScaledObjects {
-		namespacedName := k8s.NamespacedNameFromObject(newHTTPSO)
-		if oldHTTPSO := tm.Recall(namespacedName); oldHTTPSO != nil {
-			// oldest HTTPScaledObject has precedence
-			if newHTTPSO.CreationTimestamp.After(oldHTTPSO.CreationTimestamp.Time) {
-				continue
-			}
-		}
-
 		tm = tm.Remember(newHTTPSO)
 	}
 

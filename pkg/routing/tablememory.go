@@ -41,7 +41,14 @@ func (tm tableMemory) Remember(httpso *httpv1alpha1.HTTPScaledObject) TableMemor
 	keys := NewKeysFromHTTPSO(httpso)
 	store := tm.store
 	for _, key := range keys {
-		store, _, _ = store.Insert(key, httpso)
+		newStore, oldHTTPSO, _ := store.Insert(key, httpso)
+
+		// oldest HTTPScaledObject has precedence
+		if oldHTTPSO != nil && httpso.GetCreationTimestamp().Time.After(oldHTTPSO.GetCreationTimestamp().Time) {
+			continue
+		}
+
+		store = newStore
 	}
 
 	return tableMemory{
@@ -78,7 +85,14 @@ func (tm tableMemory) Forget(namespacedName *types.NamespacedName) TableMemory {
 	keys := NewKeysFromHTTPSO(httpso)
 	store := tm.store
 	for _, key := range keys {
-		store, _, _ = store.Delete(key)
+		newStore, oldHTTPSO, _ := store.Delete(key)
+
+		// delete only if namespaced names match
+		if oldNamespacedName := k8s.NamespacedNameFromObject(oldHTTPSO); oldNamespacedName == nil || *oldNamespacedName != *namespacedName {
+			continue
+		}
+
+		store = newStore
 	}
 
 	return tableMemory{
