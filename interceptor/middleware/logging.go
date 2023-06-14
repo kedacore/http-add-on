@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -35,7 +34,7 @@ func (lm *Logging) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w = newLoggingResponseWriter(w)
 
 	var sw util.Stopwatch
-	defer lm.logAsync(w, r, &sw)()
+	defer lm.logAsync(w, r, &sw)
 
 	sw.Start()
 	defer sw.Stop()
@@ -43,27 +42,17 @@ func (lm *Logging) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	lm.upstreamHandler.ServeHTTP(w, r)
 }
 
-func (lm *Logging) logAsync(w http.ResponseWriter, r *http.Request, sw *util.Stopwatch) func() {
-	signaler := util.NewSignaler()
-
-	go lm.log(w, r, sw, signaler)
-
-	return func() {
-		go signaler.Signal()
-	}
+func (lm *Logging) logAsync(w http.ResponseWriter, r *http.Request, sw *util.Stopwatch) {
+	go lm.log(w, r, sw)
 }
 
-func (lm *Logging) log(w http.ResponseWriter, r *http.Request, sw *util.Stopwatch, signaler util.Signaler) {
+func (lm *Logging) log(w http.ResponseWriter, r *http.Request, sw *util.Stopwatch) {
 	ctx := r.Context()
 	logger := util.LoggerFromContext(ctx)
 
 	lrw := w.(*loggingResponseWriter)
 	if lrw == nil {
 		lrw = newLoggingResponseWriter(w)
-	}
-
-	if err := signaler.Wait(ctx); err != nil && err != context.Canceled {
-		logger.Error(err, "failed to wait signal")
 	}
 
 	timestamp := sw.StartTime().Format(CombinedLogTimeFormat)
