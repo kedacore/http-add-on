@@ -24,27 +24,27 @@ var _ = Describe("ProbeHandler", func() {
 			)
 
 			var b bool
-			healthChecks := []ProbeHealthCheck{
-				func(_ context.Context) error {
+			healthCheckers := []util.HealthChecker{
+				util.HealthCheckerFunc(func(_ context.Context) error {
 					b = true
 
 					return ret
-				},
+				}),
 			}
 
-			ph := NewProbe(healthChecks)
+			ph := NewProbe(healthCheckers)
 			Expect(ph).NotTo(BeNil())
 
 			h := ph.healthy.Load()
 			Expect(h).To(BeFalse())
 
-			hcs := ph.healthChecks
+			hcs := ph.healthCheckers
 			Expect(hcs).To(HaveLen(1))
 
 			hc := hcs[0]
 			Expect(hc).NotTo(BeNil())
 
-			err := hc(ctx)
+			err := hc.HealthCheck(ctx)
 			Expect(err).To(MatchError(ret))
 
 			Expect(b).To(BeTrue())
@@ -128,12 +128,12 @@ var _ = Describe("ProbeHandler", func() {
 
 			var i int
 			ph := Probe{
-				healthChecks: []ProbeHealthCheck{
-					func(_ context.Context) error {
+				healthCheckers: []util.HealthChecker{
+					util.HealthCheckerFunc(func(_ context.Context) error {
 						i++
 
 						return nil
-					},
+					}),
 				},
 			}
 
@@ -154,26 +154,26 @@ var _ = Describe("ProbeHandler", func() {
 
 				var bs []bool
 				ph := Probe{
-					healthChecks: []ProbeHealthCheck{
-						func(_ context.Context) error {
+					healthCheckers: []util.HealthChecker{
+						util.HealthCheckerFunc(func(_ context.Context) error {
 							bs = append(bs, true)
 							return nil
-						},
-						func(_ context.Context) error {
+						}),
+						util.HealthCheckerFunc(func(_ context.Context) error {
 							bs = append(bs, true)
 							return nil
-						},
-						func(_ context.Context) error {
+						}),
+						util.HealthCheckerFunc(func(_ context.Context) error {
 							bs = append(bs, true)
 							return nil
-						},
+						}),
 					},
 				}
 
 				ph.check(ctx)
 
-				healthChecksLen := len(ph.healthChecks)
-				Expect(bs).To(HaveLen(healthChecksLen))
+				healthCheckersLen := len(ph.healthCheckers)
+				Expect(bs).To(HaveLen(healthCheckersLen))
 
 				healthy := ph.healthy.Load()
 				Expect(healthy).To(BeTrue())
@@ -187,16 +187,16 @@ var _ = Describe("ProbeHandler", func() {
 				)
 
 				ph := Probe{
-					healthChecks: []ProbeHealthCheck{
-						func(_ context.Context) error {
+					healthCheckers: []util.HealthChecker{
+						util.HealthCheckerFunc(func(_ context.Context) error {
 							return nil
-						},
-						func(_ context.Context) error {
+						}),
+						util.HealthCheckerFunc(func(_ context.Context) error {
 							return context.Canceled
-						},
-						func(_ context.Context) error {
+						}),
+						util.HealthCheckerFunc(func(_ context.Context) error {
 							return nil
-						},
+						}),
 					},
 				}
 				ph.healthy.Store(true)
@@ -234,10 +234,10 @@ var _ = Describe("ProbeHandler", func() {
 				))
 
 				ph := Probe{
-					healthChecks: []ProbeHealthCheck{
-						func(_ context.Context) error {
+					healthCheckers: []util.HealthChecker{
+						util.HealthCheckerFunc(func(_ context.Context) error {
 							return ret
-						},
+						}),
 					},
 				}
 

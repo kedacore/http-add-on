@@ -19,12 +19,15 @@ import (
 )
 
 var (
-	errUnknownSharedIndexInformer = errors.New("The informer is not cache.sharedIndexInformer")
-	errStartedSharedIndexInformer = errors.New("The sharedIndexInformer has started, run more than once is not allowed")
-	errStoppedSharedIndexInformer = errors.New("The sharedIndexInformer has stopped")
+	errUnknownSharedIndexInformer = errors.New("informer is not cache.sharedIndexInformer")
+	errStartedSharedIndexInformer = errors.New("sharedIndexInformer has started, run more than once is not allowed")
+	errStoppedSharedIndexInformer = errors.New("sharedIndexInformer has stopped")
+	errNotSyncedTable             = errors.New("table has not synced")
 )
 
 type Table interface {
+	util.HealthChecker
+
 	Start(ctx context.Context) error
 	Route(req *http.Request) *httpv1alpha1.HTTPScaledObject
 	HasSynced() bool
@@ -124,9 +127,12 @@ func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
 		return nil
 	}
 
-	key := NewKeyFromRequest(req)
-
 	tm := t.memoryHolder.Get()
+	if tm == nil {
+		return nil
+	}
+
+	key := NewKeyFromRequest(req)
 	return tm.Route(key)
 }
 
@@ -192,4 +198,14 @@ func (t *table) OnDelete(obj interface{}) {
 	defer t.httpScaledObjectsMutex.Unlock()
 
 	delete(t.httpScaledObjects, key)
+}
+
+var _ util.HealthChecker = (*table)(nil)
+
+func (t *table) HealthCheck(_ context.Context) error {
+	if !t.HasSynced() {
+		return errNotSyncedTable
+	}
+
+	return nil
 }

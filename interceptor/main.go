@@ -194,7 +194,9 @@ func runProxyServer(
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
 
-	probeHandler := handler.NewProbe(nil)
+	probeHandler := handler.NewProbe([]util.HealthChecker{
+		routingTable,
+	})
 	go probeHandler.Start(ctx)
 
 	var upstreamHandler http.Handler

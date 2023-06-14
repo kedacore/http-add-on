@@ -16,6 +16,11 @@ import (
 )
 
 var _ = Describe("TableMemory", func() {
+	const (
+		nameSuffix = "-br"
+		hostSuffix = ".br"
+	)
+
 	var (
 		httpso0 = httpv1alpha1.HTTPScaledObject{
 			ObjectMeta: metav1.ObjectMeta{
@@ -224,7 +229,7 @@ var _ = Describe("TableMemory", func() {
 			httpso := *httpso0.DeepCopy()
 			tm = tm.Remember(&httpso).(tableMemory)
 
-			httpso.Spec.Hosts[0] += ".br"
+			httpso.Spec.Hosts[0] += hostSuffix
 			assertTrees(tm, &httpso0, &httpso0)
 		})
 
@@ -241,7 +246,7 @@ var _ = Describe("TableMemory", func() {
 			tm = tm.Remember(&httpso00).(tableMemory)
 
 			httpso01 := *httpso0.DeepCopy()
-			httpso01.ObjectMeta.Name += "-br"
+			httpso01.ObjectMeta.Name += nameSuffix
 			httpso01.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
 			tm = tm.Remember(&httpso01).(tableMemory)
 
@@ -250,7 +255,7 @@ var _ = Describe("TableMemory", func() {
 			tm = tm.Remember(&httpso10).(tableMemory)
 
 			httpso11 := *httpso1.DeepCopy()
-			httpso11.ObjectMeta.Name += "-br"
+			httpso11.ObjectMeta.Name += nameSuffix
 			httpso11.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(+time.Minute))
 			tm = tm.Remember(&httpso11).(tableMemory)
 
@@ -324,12 +329,12 @@ var _ = Describe("TableMemory", func() {
 			tm = insertTrees(tm, &httpso00)
 
 			httpso01 := *httpso0.DeepCopy()
-			httpso01.ObjectMeta.Name += "-br"
+			httpso01.ObjectMeta.Name += nameSuffix
 			httpso01.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
 			tm = insertTrees(tm, &httpso01)
 
 			httpso10 := *httpso1.DeepCopy()
-			httpso10.ObjectMeta.Name += "-br"
+			httpso10.ObjectMeta.Name += nameSuffix
 			httpso10.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
 			tm = insertTrees(tm, &httpso10)
 
@@ -387,7 +392,7 @@ var _ = Describe("TableMemory", func() {
 			httpso := tm.Recall(&httpso0NamespacedName)
 			Expect(httpso).To(Equal(&httpso0))
 
-			httpso.Spec.Hosts[0] += ".br"
+			httpso.Spec.Hosts[0] += hostSuffix
 
 			assertTrees(tm, &httpso0, &httpso0)
 		})

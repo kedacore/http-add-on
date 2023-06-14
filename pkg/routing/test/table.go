@@ -6,6 +6,7 @@ import (
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/routing"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 type Table struct {
@@ -30,4 +31,10 @@ func (t Table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
 
 func (t Table) HasSynced() bool {
 	return true
+}
+
+var _ util.HealthChecker = (*Table)(nil)
+
+func (t Table) HealthCheck(_ context.Context) error {
+	return nil
 }

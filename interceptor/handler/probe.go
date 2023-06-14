@@ -10,13 +10,13 @@ import (
 )
 
 type Probe struct {
-	healthChecks []ProbeHealthCheck
-	healthy      atomic.Bool
+	healthCheckers []util.HealthChecker
+	healthy        atomic.Bool
 }
 
-func NewProbe(healthChecks []ProbeHealthCheck) *Probe {
+func NewProbe(healthChecks []util.HealthChecker) *Probe {
 	return &Probe{
-		healthChecks: healthChecks,
+		healthCheckers: healthChecks,
 	}
 }
 
@@ -56,8 +56,8 @@ func (ph *Probe) check(ctx context.Context) {
 	logger := util.LoggerFromContext(ctx)
 	logger = logger.WithName("Probe")
 
-	for _, hc := range ph.healthChecks {
-		if err := hc(ctx); err != nil {
+	for _, hc := range ph.healthCheckers {
+		if err := hc.HealthCheck(ctx); err != nil {
 			ph.healthy.Store(false)
 
 			logger.Error(err, "health check function failed")
