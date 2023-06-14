@@ -1,216 +1,303 @@
 package routing
 
 import (
-	"encoding/json"
-	"math"
-	"math/rand"
-	"strconv"
-	"testing"
+	"context"
+	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/utils/pointer"
+
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	clientsetmock "github.com/kedacore/http-add-on/operator/generated/clientset/versioned/mock"
+	clientsethttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/clientset/versioned/typed/http/v1alpha1/mock"
+	informersexternalversions "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-func TestTableJSONRoundTrip(t *testing.T) {
-	const (
-		host = "testhost"
-		ns   = "testns"
-	)
-	r := require.New(t)
-	tbl := NewTable()
-	tgt := NewTarget(
-		ns,
-		"testsvc",
-		8082,
-		"testdepl",
-		1234,
-	)
-	r.NoError(tbl.AddTarget(host, tgt))
-
-	b, err := json.Marshal(&tbl)
-	r.NoError(err)
-
-	returnTbl := NewTable()
-	r.NoError(json.Unmarshal(b, returnTbl))
-	retTarget, err := returnTbl.Lookup(host)
-	r.NoError(err)
-	r.Equal(tgt.Service, retTarget.Service)
-	r.Equal(tgt.Port, retTarget.Port)
-	r.Equal(tgt.Deployment, retTarget.Deployment)
-}
-
-func TestTableRemove(t *testing.T) {
-	const (
-		host = "testrm"
-		ns   = "testns"
-	)
-
-	r := require.New(t)
-	tgt := NewTarget(
-		ns,
-		"testrm",
-		8084,
-		"testrmdepl",
-		1234,
-	)
-
-	tbl := NewTable()
-
-	// add the target to the table and ensure that you can look it up
-	r.NoError(tbl.AddTarget(host, tgt))
-	retTgt, err := tbl.Lookup(host)
-	r.Equal(&tgt, retTgt)
-	r.NoError(err)
-
-	// remove the target and ensure that you can't look it up
-	r.NoError(tbl.RemoveTarget(host))
-	retTgt, err = tbl.Lookup(host)
-	r.Equal((*Target)(nil), retTgt)
-	r.Equal(ErrTargetNotFound, err)
-}
-
-func TestTableReplace(t *testing.T) {
-	const ns = "testns"
-	r := require.New(t)
-	const host1 = "testreplhost1"
-	const host2 = "testreplhost2"
-	tgt1 := NewTarget(
-		ns,
-		"tgt1",
-		9090,
-		"depl1",
-		1234,
-	)
-	tgt2 := NewTarget(
-		ns,
-		"tgt2",
-		9091,
-		"depl2",
-		1234,
-	)
-	// create two routing tables, each with different targets
-	tbl1 := NewTable()
-	r.NoError(tbl1.AddTarget(host1, tgt1))
-	tbl2 := NewTable()
-	r.NoError(tbl2.AddTarget(host2, tgt2))
-
-	// replace the second table with the first and ensure that the tables
-	// are now equal
-	tbl2.Replace(tbl1)
-
-	r.Equal(tbl1, tbl2)
-}
-
 var _ = Describe("Table", func() {
-	Describe("Lookup", func() {
-		var (
-			tltcs = newTableLookupTestCases(5)
-			table = NewTable()
-		)
+	const (
+		namespace = "default"
+	)
 
-		Context("with new port-agnostic configuration", func() {
-			BeforeEach(func() {
-				for _, tltc := range tltcs {
-					err := table.AddTarget(tltc.HostWithoutPort(), tltc.Target())
-					Expect(err).NotTo(HaveOccurred())
-				}
-			})
+	var (
+		ctrl                  *gomock.Controller
+		watcher               *watch.FakeWatcher
+		httpsoCl              *clientsethttpv1alpha1mock.MockHTTPScaledObjectInterface
+		sharedInformerFactory informersexternalversions.SharedInformerFactory
 
-			AfterEach(func() {
-				for _, tltc := range tltcs {
-					err := table.RemoveTarget(tltc.HostWithoutPort())
-					Expect(err).NotTo(HaveOccurred())
-				}
-			})
+		ctx        = context.Background()
+		httpsoList = httpv1alpha1.HTTPScaledObjectList{
+			Items: []httpv1alpha1.HTTPScaledObject{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Name:      "keda-sh",
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						Hosts: []string{
+							"keda.sh",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Name:      "kubernetes-io",
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						Hosts: []string{
+							"kubernetes.io",
+						},
+						TargetPendingRequests: pointer.Int32(1),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Name:      "github-com",
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						Hosts: []string{
+							"github.com",
+						},
+						Replicas: &httpv1alpha1.ReplicaStruct{
+							Min: pointer.Int32(3),
+						},
+					},
+				},
+			},
+		}
+	)
 
-			It("should return correct target for host without port", func() {
-				for _, tltc := range tltcs {
-					target, err := table.Lookup(tltc.HostWithoutPort())
-					Expect(err).NotTo(HaveOccurred())
-					Expect(target).To(HaveValue(Equal(tltc.Target())))
-				}
-			})
+	BeforeEach(func() {
+		ctrl = gomock.NewController(GinkgoT())
 
-			It("should return correct target for host with port", func() {
-				for _, tltc := range tltcs {
-					target, err := table.Lookup(tltc.HostWithPort())
-					Expect(err).NotTo(HaveOccurred())
-					Expect(target).To(HaveValue(Equal(tltc.Target())))
-				}
-			})
+		watcher = watch.NewFake()
+
+		httpsoCl = clientsethttpv1alpha1mock.NewMockHTTPScaledObjectInterface(ctrl)
+		httpsoCl.EXPECT().
+			List(gomock.Any(), gomock.Any()).
+			Return(&httpsoList, nil).
+			AnyTimes()
+		httpsoCl.EXPECT().
+			Watch(gomock.Any(), gomock.Any()).
+			Return(watcher, nil).
+			AnyTimes()
+
+		httpv1alpha1 := clientsethttpv1alpha1mock.NewMockHttpV1alpha1Interface(ctrl)
+		httpv1alpha1.EXPECT().
+			HTTPScaledObjects(namespace).
+			Return(httpsoCl).
+			AnyTimes()
+
+		clientset := clientsetmock.NewMockInterface(ctrl)
+		clientset.EXPECT().
+			HttpV1alpha1().
+			Return(httpv1alpha1).
+			AnyTimes()
+
+		sharedInformerFactory = informersexternalversions.NewSharedInformerFactory(clientset, 0)
+	})
+
+	AfterEach(func() {
+		ctrl.Finish()
+	})
+
+	Context("New", func() {
+		It("returns a table with fields initialized", func() {
+			i, err := NewTable(sharedInformerFactory, namespace)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(i).NotTo(BeNil())
+
+			t, ok := i.(*table)
+			Expect(ok).To(BeTrue())
+			Expect(t.httpScaledObjectInformer).NotTo(BeNil())
+			Expect(t.httpScaledObjectEventHandlerRegistration).NotTo(BeNil())
+			Expect(t.httpScaledObjects).NotTo(BeNil())
+			Expect(t.memorySignaler).NotTo(BeNil())
+
+			// TODO(pedrotorres): mock to check registration
+			// TODO(pedrotorres): refactor to check namespace
 		})
 
-		Context("with legacy port-specific configuration", func() {
-			BeforeEach(func() {
-				for _, tltc := range tltcs {
-					err := table.AddTarget(tltc.HostWithPort(), tltc.Target())
-					Expect(err).NotTo(HaveOccurred())
-				}
-			})
+		// TODO(pedrotorres): test code path where informer is not sharedIndexInformer
+		// TODO(pedrotorres): test code path where informer#AddEventHandler fails
+	})
 
-			AfterEach(func() {
-				for _, tltc := range tltcs {
-					err := table.RemoveTarget(tltc.HostWithPort())
-					Expect(err).NotTo(HaveOccurred())
-				}
-			})
+	Context("runInformer", func() {
+		var (
+			t *table
+		)
 
-			It("should error for host without port", func() {
-				for _, tltc := range tltcs {
-					target, err := table.Lookup(tltc.HostWithoutPort())
-					Expect(err).To(MatchError(ErrTargetNotFound))
-					Expect(target).To(BeNil())
-				}
-			})
+		BeforeEach(func() {
+			i, _ := NewTable(sharedInformerFactory, namespace)
+			t = i.(*table)
+		})
 
-			It("should return correct target for host with port", func() {
-				for _, tltc := range tltcs {
-					target, err := table.Lookup(tltc.HostWithPort())
-					Expect(err).NotTo(HaveOccurred())
-					Expect(target).To(HaveValue(Equal(tltc.Target())))
-				}
-			})
+		It("starts shared informer factory", func() {
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			go util.IgnoringError(util.ApplyContext(t.runInformer, ctx))
+
+			time.Sleep(time.Second)
+
+			b := t.httpScaledObjectInformer.HasStarted()
+			Expect(b).To(BeTrue())
+		})
+
+		It("returns when context is done", func() {
+			ctx, cancel := context.WithCancel(ctx)
+			cancel()
+
+			err := util.WithTimeout(time.Second, util.ApplyContext(t.runInformer, ctx))
+			Expect(err).To(MatchError(context.Canceled))
+		})
+
+		It("returns when informer has already started", func() {
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			go t.httpScaledObjectInformer.Run(ctx.Done())
+
+			time.Sleep(time.Second)
+
+			err := util.WithTimeout(time.Second, util.ApplyContext(t.runInformer, ctx))
+			Expect(err).To(MatchError(errStartedSharedIndexInformer))
+		})
+
+		// TODO(pedrotorres): test code path where informer stops
+	})
+
+	Context("refreshMemory", func() {
+		var (
+			t *table
+		)
+
+		BeforeEach(func() {
+			i, _ := NewTable(sharedInformerFactory, namespace)
+			t = i.(*table)
+		})
+
+		It("refreshes memory on first iteration", func() {
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			for _, httpso := range httpsoList.Items {
+				httpso := httpso
+
+				key := *k8s.NamespacedNameFromObject(&httpso)
+				t.httpScaledObjects[key] = &httpso
+			}
+
+			go util.IgnoringError(util.ApplyContext(t.runInformer, ctx))
+			go util.IgnoringError(util.ApplyContext(t.refreshMemory, ctx))
+
+			time.Sleep(2 * time.Second)
+
+			tm := t.memoryHolder.Get()
+			Expect(tm).NotTo(BeNil())
+
+			for _, httpso := range httpsoList.Items {
+				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+				ret := tm.Recall(namespacedName)
+				Expect(ret).To(Equal(&httpso))
+			}
+		})
+
+		It("refreshes memory after signal", func() {
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			for _, httpso := range httpsoList.Items {
+				httpso := httpso
+
+				key := *k8s.NamespacedNameFromObject(&httpso)
+				t.httpScaledObjects[key] = &httpso
+			}
+
+			go util.IgnoringError(util.ApplyContext(t.runInformer, ctx))
+			go util.IgnoringError(util.ApplyContext(t.refreshMemory, ctx))
+
+			time.Sleep(2 * time.Second)
+
+			httpso := httpv1alpha1.HTTPScaledObject{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespace,
+					Name:      "azure-com",
+				},
+				Spec: httpv1alpha1.HTTPScaledObjectSpec{
+					Hosts: []string{
+						"azure.com",
+					},
+					Replicas: &httpv1alpha1.ReplicaStruct{
+						Min: pointer.Int32(3),
+					},
+				},
+			}
+			t.httpScaledObjects[*k8s.NamespacedNameFromObject(&httpso)] = &httpso
+
+			first := httpsoList.Items[0]
+			delete(t.httpScaledObjects, *k8s.NamespacedNameFromObject(&first))
+
+			t.memorySignaler.Signal()
+
+			time.Sleep(time.Second)
+
+			tm := t.memoryHolder.Get()
+			Expect(tm).NotTo(BeNil())
+
+			for _, httpso := range append(httpsoList.Items[1:], httpso) {
+				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+				ret := tm.Recall(namespacedName)
+				Expect(ret).To(Equal(&httpso))
+			}
+
+			namespacedName := k8s.NamespacedNameFromObject(&first)
+			ret := tm.Recall(namespacedName)
+			Expect(ret).To(BeNil())
+		})
+
+		It("returns when context is done", func() {
+			ctx, cancel := context.WithCancel(ctx)
+			cancel()
+
+			err := util.WithTimeout(time.Second, util.ApplyContext(t.refreshMemory, ctx))
+			Expect(err).To(MatchError(context.Canceled))
+		})
+	})
+
+	Context("newMemoryFromHTTPSOs", func() {
+		var (
+			t *table
+		)
+
+		BeforeEach(func() {
+			i, _ := NewTable(sharedInformerFactory, namespace)
+			t = i.(*table)
+		})
+
+		It("returns new memory based on HTTPSOs", func() {
+			for _, httpso := range httpsoList.Items {
+				httpso := httpso
+
+				key := *k8s.NamespacedNameFromObject(&httpso)
+				t.httpScaledObjects[key] = &httpso
+			}
+
+			tm := t.newMemoryFromHTTPSOs()
+
+			for _, httpso := range httpsoList.Items {
+				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+
+				ret := tm.Recall(namespacedName)
+				Expect(ret).To(Equal(&httpso))
+			}
 		})
 	})
 })
-
-type tableLookupTestCase struct {
-	target Target
-}
-
-func newTableLookupTestCase() tableLookupTestCase {
-	target := NewTarget(
-		strconv.Itoa(rand.Int()),
-		strconv.Itoa(rand.Int()),
-		rand.Intn(math.MaxUint16),
-		strconv.Itoa(rand.Int()),
-		int32(rand.Intn(math.MaxUint8)),
-	)
-
-	return tableLookupTestCase{
-		target: target,
-	}
-}
-
-func (tltc tableLookupTestCase) Target() Target {
-	return tltc.target
-}
-
-func (tltc tableLookupTestCase) HostWithoutPort() string {
-	return tltc.target.Service + "." + tltc.target.Namespace + ".svc.cluster.local"
-}
-
-func (tltc tableLookupTestCase) HostWithPort() string {
-	return tltc.HostWithoutPort() + ":" + strconv.Itoa(tltc.target.Port)
-}
-
-type tableLookupTestCases []tableLookupTestCase
-
-func newTableLookupTestCases(count uint) tableLookupTestCases {
-	tltcs := make(tableLookupTestCases, count)
-	for i := uint(0); i < count; i++ {
-		tltcs[i] = newTableLookupTestCase()
-	}
-	return tltcs
-}

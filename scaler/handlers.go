@@ -5,31 +5,27 @@
 package main
 
 import (
-	context "context"
-	"fmt"
+	"context"
 	"math/rand"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"k8s.io/utils/pointer"
 
-	"github.com/kedacore/http-add-on/pkg/routing"
-	externalscaler "github.com/kedacore/http-add-on/proto"
+	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-const (
-	interceptor  = "interceptor"
-	httpRequests = "http-requests"
-)
-
 type impl struct {
 	lggr                    logr.Logger
 	pinger                  *queuePinger
-	routingTable            routing.TableReader
+	httpsoInformer          informershttpv1alpha1.HTTPScaledObjectInformer
 	targetMetric            int64
 	targetMetricInterceptor int64
 	externalscaler.UnimplementedExternalScalerServer
@@ -38,14 +34,14 @@ type impl struct {
 func newImpl(
 	lggr logr.Logger,
 	pinger *queuePinger,
-	routingTable routing.TableReader,
+	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer,
 	defaultTargetMetric int64,
 	defaultTargetMetricInterceptor int64,
 ) *impl {
 	return &impl{
 		lggr:                    lggr,
 		pinger:                  pinger,
-		routingTable:            routingTable,
+		httpsoInformer:          httpsoInformer,
 		targetMetric:            defaultTargetMetric,
 		targetMetricInterceptor: defaultTargetMetricInterceptor,
 	}
@@ -56,45 +52,19 @@ func (e *impl) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 }
 
 func (e *impl) IsActive(
-	ctx context.Context,
+	_ context.Context,
 	scaledObject *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
-	lggr := e.lggr.WithName("IsActive")
+	namespacedName := k8s.NamespacedNameFromScaledObjectRef(scaledObject)
 
-	hosts, err := getHostsFromScaledObjectRef(lggr, scaledObject)
-	if err != nil {
-		return nil, err
-	}
+	key := namespacedName.String()
+	count := e.pinger.counts()[key]
 
-	totalHostCount := 0
-	for _, host := range hosts {
-		if host == interceptor {
-			return &externalscaler.IsActiveResponse{
-				Result: true,
-			}, nil
-		}
-
-		hostCount, ok := getHostCount(
-			host,
-			e.pinger.counts(),
-			e.routingTable,
-		)
-		if !ok {
-			err := fmt.Errorf("host '%s' not found in counts", host)
-			allCounts := e.pinger.mergeCountsWithRoutingTable(
-				e.routingTable,
-			)
-			lggr.Error(err, "Given host was not found in queue count map", "host", host, "allCounts", allCounts)
-			return nil, err
-		}
-
-		totalHostCount += hostCount
-	}
-
-	active := totalHostCount > 0
-	return &externalscaler.IsActiveResponse{
+	active := count > 0
+	res := &externalscaler.IsActiveResponse{
 		Result: active,
-	}, nil
+	}
+	return res, nil
 }
 
 func (e *impl) StreamIsActive(
@@ -139,82 +109,46 @@ func (e *impl) GetMetricSpec(
 ) (*externalscaler.GetMetricSpecResponse, error) {
 	lggr := e.lggr.WithName("GetMetricSpec")
 
-	hosts, err := getHostsFromScaledObjectRef(lggr, sor)
+	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
+	metricName := MetricName(namespacedName)
+
+	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
 	if err != nil {
+		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 		return nil, err
 	}
+	targetPendingRequests := int64(pointer.Int32Deref(httpso.Spec.TargetPendingRequests, 100))
 
-	var targetPendingRequests int64
-	var host = hosts[0] // We are only interested in the first host to get the targetPendingRequests
-
-	if host == interceptor {
-		targetPendingRequests = e.targetMetricInterceptor
-	} else {
-		target, err := e.routingTable.Lookup(host)
-		if err != nil {
-			lggr.Error(
-				err,
-				"error getting target for host",
-				"host",
-				host,
-			)
-			return nil, err
-		}
-		host = httpRequests
-		targetPendingRequests = int64(target.TargetPendingRequests)
-	}
-
-	metricSpecs := []*externalscaler.MetricSpec{
-		{
-			MetricName: host,
-			TargetSize: targetPendingRequests,
+	res := &externalscaler.GetMetricSpecResponse{
+		MetricSpecs: []*externalscaler.MetricSpec{
+			{
+				MetricName: metricName,
+				TargetSize: targetPendingRequests,
+			},
 		},
 	}
-	return &externalscaler.GetMetricSpecResponse{
-		MetricSpecs: metricSpecs,
-	}, nil
+	return res, nil
 }
 
 func (e *impl) GetMetrics(
 	_ context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
 ) (*externalscaler.GetMetricsResponse, error) {
-	lggr := e.lggr.WithName("GetMetrics")
+	sor := metricRequest.ScaledObjectRef
 
-	hosts, err := getHostsFromScaledObjectRef(lggr, metricRequest.ScaledObjectRef)
-	if err != nil {
-		return nil, err
-	}
+	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
+	metricName := MetricName(namespacedName)
 
-	var totalCount int64
-	var metricName = httpRequests
-	for _, host := range hosts {
-		hostCount, ok := getHostCount(
-			host,
-			e.pinger.counts(),
-			e.routingTable,
-		)
-		if !ok {
-			if host != interceptor {
-				err := fmt.Errorf("host '%s' not found in counts", host)
-				allCounts := e.pinger.mergeCountsWithRoutingTable(e.routingTable)
-				lggr.Error(err, "allCounts", allCounts)
-				return nil, err
-			}
-			hostCount = e.pinger.aggregate()
-			metricName = interceptor
-		}
-		totalCount += int64(hostCount)
-	}
+	key := namespacedName.String()
+	count := e.pinger.counts()[key]
 
-	metricValues := []*externalscaler.MetricValue{
-		{
-			MetricName:  metricName,
-			MetricValue: totalCount,
+	res := &externalscaler.GetMetricsResponse{
+		MetricValues: []*externalscaler.MetricValue{
+			{
+				MetricName:  metricName,
+				MetricValue: int64(count),
+			},
 		},
 	}
-
-	return &externalscaler.GetMetricsResponse{
-		MetricValues: metricValues,
-	}, nil
+	return res, nil
 }

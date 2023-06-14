@@ -27,25 +27,28 @@ spec:
         # TODO(pedrotorres): remove after implementing new routing table
         - --admin-port=9090
         env:
-        # TODO(pedrotorres): remove after implementing new routing table
-        - name: KEDAHTTP_INTERCEPTOR_SERVICE
-          value: "keda-http-add-on-interceptor-admin"
         - name: KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE
           value: "keda-http-add-on-external-scaler"
         - name: KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT
           value: "9090"
-        - name: KEDAHTTP_INTERCEPTOR_ADMIN_PORT
-          value: "9090"
-        - name: KEDAHTTP_INTERCEPTOR_PROXY_PORT
-          value: "8080"
         - name: KEDA_HTTP_OPERATOR_NAMESPACE
           value: "keda"
         - name: KEDA_HTTP_OPERATOR_WATCH_NAMESPACE
           value: ""
         # TODO(pedrotorres): remove after implementing new routing table
         ports:
-        - name: admin
-          containerPort: 9090
+        - name: metrics
+          containerPort: 8080
+        - name: probes
+          containerPort: 8081
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: probes
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: probes
         # TODO(pedrotorres): set better default values avoiding overcommitment
         resources:
           requests:
@@ -57,11 +60,12 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-          runAsNonRoot: true
           capabilities:
             drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
+              - ALL
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: operator
       terminationGracePeriodSeconds: 10

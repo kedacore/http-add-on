@@ -82,7 +82,7 @@ func (i *InformerBackedDeploymentCache) addEvtHandler(obj interface{}) {
 	}
 }
 
-func (i *InformerBackedDeploymentCache) updateEvtHandler(oldObj, newObj interface{}) {
+func (i *InformerBackedDeploymentCache) updateEvtHandler(_, newObj interface{}) {
 	depl, ok := newObj.(*appsv1.Deployment)
 	if !ok {
 		i.lggr.Error(

@@ -53,6 +53,9 @@ jobs:
     - name: Manifests
       run: make verify-manifests
 
+    - name: Mockgen
+      run: make verify-mockgen
+
     - name: Build
       run: ARCH=${{ matrix.name }} make build
 
@@ -71,5 +74,5 @@ jobs:
         with:
           go-version: 1.19
       - name: Get golangci
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.49.0
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.2
       - uses: pre-commit/action@v3.0.0

@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -54,7 +53,6 @@ func TestQueueSizeHandlerFail(t *testing.T) {
 }
 
 func TestQueueSizeHandlerIntegration(t *testing.T) {
-	ctx := context.Background()
 	lggr := logr.Discard()
 	r := require.New(t)
 	reader := &FakeCountReader{
@@ -67,7 +65,7 @@ func TestQueueSizeHandlerIntegration(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 	httpCl := srv.Client()
-	counts, err := GetCounts(ctx, lggr, httpCl, *url)
+	counts, err := GetCounts(httpCl, *url)
 	r.NoError(err)
 	r.Equal(1, len(counts.Counts))
 	for _, val := range counts.Counts {

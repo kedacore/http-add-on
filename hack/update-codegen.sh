@@ -24,8 +24,8 @@ SCRIPT_ROOT="$(dirname "${BASH_SOURCE[0]}")/.."
 OUTPUT_BASE="$(mktemp -d)"
 
 GO_PACKAGE='github.com/kedacore/http-add-on'
-GEN_SUFFIX="operator/generated"
-API_SUFFIX="operator/apis"
+GEN_SUFFIX='operator/generated'
+API_SUFFIX='operator/apis'
 
 . "${CODEGEN_PKG}/generate-groups.sh" \
   'client,informer,lister' \

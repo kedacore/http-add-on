@@ -12,6 +12,9 @@ type Serving struct {
 	// CurrentNamespace is the namespace that the interceptor is
 	// currently running in
 	CurrentNamespace string `envconfig:"KEDA_HTTP_CURRENT_NAMESPACE" required:"true"`
+	// WatchNamespace is the namespace to watch for new HTTPScaledObjects.
+	// Leave this empty to watch HTTPScaledObjects in all namespaces.
+	WatchNamespace string `envconfig:"KEDA_HTTP_WATCH_NAMESPACE" default:""`
 	// ProxyPort is the port that the public proxy should run on
 	ProxyPort int `envconfig:"KEDA_HTTP_PROXY_PORT" required:"true"`
 	// AdminPort is the port that the internal admin server should run on.

@@ -15,6 +15,7 @@ const (
 
 	mkScalerAddress = "scalerAddress"
 	mkHosts         = "hosts"
+	mkPathPrefixes  = "pathPrefixes"
 )
 
 // NewScaledObject creates a new ScaledObject in memory
@@ -24,6 +25,7 @@ func NewScaledObject(
 	deploymentName string,
 	scalerAddress string,
 	hosts []string,
+	pathPrefixes []string,
 	minReplicas *int32,
 	maxReplicas *int32,
 	cooldownPeriod *int32,
@@ -57,6 +59,7 @@ func NewScaledObject(
 					Metadata: map[string]string{
 						mkScalerAddress: scalerAddress,
 						mkHosts:         strings.Join(hosts, ","),
+						mkPathPrefixes:  strings.Join(pathPrefixes, ","),
 					},
 				},
 			},

@@ -34,14 +34,14 @@ GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
 
 # Build targets
 
-build-operator: proto-gen
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/operator ./operator
+build-operator:
+	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/operator ./operator
 
-build-interceptor: proto-gen
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/interceptor ./interceptor
+build-interceptor:
+	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/interceptor ./interceptor
 
-build-scaler: proto-gen
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -a -o bin/scaler ./scaler
+build-scaler:
+	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/scaler ./scaler
 
 build: build-operator build-interceptor build-scaler
 
@@ -85,9 +85,9 @@ publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publ
 
 # Development
 
-generate: codegen manifests ## Generate code and manifests.
+generate: codegen manifests mockgen ## Generate code, manifests, and mocks.
 
-verify: verify-codegen verify-manifests ## Verify code and manifests.
+verify: verify-codegen verify-manifests verify-mockgen ## Verify code, manifests, and mocks.
 
 codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
@@ -104,17 +104,23 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 verify-manifests: ## Verify manifests are up to date.
 	./hack/verify-manifests.sh
 
+mockgen: ## Generate mock implementations of Go interfaces.
+	./hack/update-mockgen.sh
+
+verify-mockgen: ## Verify mocks are up to date.
+	./hack/verify-mockgen.sh
+
 fmt: ## Run go fmt against code.
 	go fmt ./...
 
 vet: ## Run go vet against code.
 	go vet ./...
 
+lint: ## Run golangci-lint against code.
+	golangci-lint run
+
 pre-commit: ## Run static-checks.
 	pre-commit run --all-files
-
-proto-gen: protoc-gen-go ## Scaler protobuffers
-	protoc --proto_path=proto scaler.proto --go_out=proto --go-grpc_out=proto
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
@@ -123,10 +129,6 @@ controller-gen: ## Download controller-gen locally if necessary.
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v5@v5.0.3
-
-protoc-gen-go: ## Download protoc-gen-go
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/config.
 	cd config/interceptor && \
@@ -142,3 +144,8 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 
 undeploy:
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
+
+kind-load:
+	kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION}
+	kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION}
+	kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION}

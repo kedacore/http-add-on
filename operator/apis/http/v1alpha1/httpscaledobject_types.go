@@ -49,8 +49,7 @@ type HTTPScaledObjectSpec struct {
 	// +optional
 	Hosts []string `json:"hosts,omitempty"`
 	// The name of the deployment to route HTTP requests to (and to autoscale).
-	// Either this or Image must be set
-	ScaleTargetRef *ScaleTargetRef `json:"scaleTargetRef"`
+	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
 	// (optional) Replica information
 	// +optional
 	Replicas *ReplicaStruct `json:"replicas,omitempty"`
@@ -126,18 +125,18 @@ type HTTPScaledObjectStatus struct {
 	Conditions []HTTPScaledObjectCondition `json:"conditions,omitempty" description:"List of auditable conditions of the operator"`
 }
 
-//+genclient
-//+k8s:openapi-gen=true
-//+kubebuilder:object:root=true
-//+kubebuilder:printcolumn:name="ScaleTargetDeploymentName",type="string",JSONPath=".spec.scaleTargetRef.deploymentName"
-//+kubebuilder:printcolumn:name="ScaleTargetServiceName",type="string",JSONPath=".spec.scaleTargetRef"
-//+kubebuilder:printcolumn:name="ScaleTargetPort",type="integer",JSONPath=".spec.scaleTargetRef"
-//+kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.replicas.min"
-//+kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.replicas.max"
-//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-//+kubebuilder:printcolumn:name="Active",type="string",JSONPath=".status.conditions[?(@.type==\"HTTPScaledObjectIsReady\")].status"
-//+kubebuilder:resource:shortName=httpso
-//+kubebuilder:subresource:status
+// +genclient
+// +k8s:openapi-gen=true
+// +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="ScaleTargetDeploymentName",type="string",JSONPath=".spec.scaleTargetRef.deploymentName"
+// +kubebuilder:printcolumn:name="ScaleTargetServiceName",type="string",JSONPath=".spec.scaleTargetRef"
+// +kubebuilder:printcolumn:name="ScaleTargetPort",type="integer",JSONPath=".spec.scaleTargetRef"
+// +kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.replicas.min"
+// +kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.replicas.max"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Active",type="string",JSONPath=".status.conditions[?(@.type==\"HTTPScaledObjectIsReady\")].status"
+// +kubebuilder:resource:shortName=httpso
+// +kubebuilder:subresource:status
 
 // HTTPScaledObject is the Schema for the httpscaledobjects API
 type HTTPScaledObject struct {
@@ -148,7 +147,7 @@ type HTTPScaledObject struct {
 	Status HTTPScaledObjectStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // HTTPScaledObjectList contains a list of HTTPScaledObject
 type HTTPScaledObjectList struct {

@@ -1,120 +1,121 @@
 package main
 
 import (
-	context "context"
+	"context"
 	"fmt"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/golang/mock/gomock"
+	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	informersexternalversionshttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1/mock"
+	listershttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1/mock"
 	"github.com/kedacore/http-add-on/pkg/queue"
-	"github.com/kedacore/http-add-on/pkg/routing"
-	externalscaler "github.com/kedacore/http-add-on/proto"
 )
-
-func standardTarget() routing.Target {
-	return routing.NewTarget(
-		"testns",
-		"testsrv",
-		8080,
-		"testdepl",
-		123,
-	)
-}
 
 func TestStreamIsActive(t *testing.T) {
 	type testCase struct {
 		name        string
-		hosts       string
 		expected    bool
 		expectedErr bool
-		setup       func(*routing.Table, *queuePinger)
+		setup       func(t *testing.T, qp *queuePinger)
 	}
-	r := require.New(t)
 	testCases := []testCase{
 		{
 			name:        "Simple host inactive",
-			hosts:       t.Name(),
 			expected:    false,
 			expectedErr: false,
-			setup: func(table *routing.Table, q *queuePinger) {
-				r.NoError(table.AddTarget(t.Name(), standardTarget()))
-				q.pingMut.Lock()
-				defer q.pingMut.Unlock()
-				q.allCounts[t.Name()] = 0
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = 0
 			},
 		},
 		{
-			name:        "Host is 'interceptor'",
-			hosts:       "interceptor",
-			expected:    true,
-			expectedErr: false,
-			setup:       func(*routing.Table, *queuePinger) {},
-		},
-		{
 			name:        "Simple host active",
-			hosts:       t.Name(),
 			expected:    true,
 			expectedErr: false,
-			setup: func(table *routing.Table, q *queuePinger) {
-				r.NoError(table.AddTarget(t.Name(), standardTarget()))
-				q.pingMut.Lock()
-				defer q.pingMut.Unlock()
-				q.allCounts[t.Name()] = 1
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = 1
 			},
 		},
 		{
 			name:        "Simple multi host active",
-			hosts:       "host1,host2",
 			expected:    true,
 			expectedErr: false,
-			setup: func(table *routing.Table, q *queuePinger) {
-				r.NoError(table.AddTarget(t.Name(), standardTarget()))
-				q.pingMut.Lock()
-				defer q.pingMut.Unlock()
-				q.allCounts["host1"] = 1
-				q.allCounts["host2"] = 1
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = 2
 			},
 		},
 		{
 			name:        "No host present, but host in routing table",
-			hosts:       t.Name(),
 			expected:    false,
 			expectedErr: false,
-			setup: func(table *routing.Table, q *queuePinger) {
-				r.NoError(table.AddTarget(t.Name(), standardTarget()))
-			},
+			setup:       func(_ *testing.T, _ *queuePinger) {},
 		},
 		{
 			name:        "Host doesn't exist",
-			hosts:       t.Name(),
 			expected:    false,
 			expectedErr: true,
-			setup:       func(*routing.Table, *queuePinger) {},
+			setup:       func(_ *testing.T, _ *queuePinger) {},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			r := require.New(t)
 			ctx := context.Background()
 			lggr := logr.Discard()
-			table := routing.NewTable()
+			informer, _, _ := newMocks(ctrl)
 			ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
 			r.NoError(err)
 			defer ticker.Stop()
-			tc.setup(table, pinger)
+			tc.setup(t, pinger)
 
 			hdl := newImpl(
 				lggr,
 				pinger,
-				table,
+				informer,
 				123,
 				200,
 			)
@@ -144,9 +145,8 @@ func TestStreamIsActive(t *testing.T) {
 			client := externalscaler.NewExternalScalerClient(conn)
 
 			testRef := &externalscaler.ScaledObjectRef{
-				ScalerMetadata: map[string]string{
-					"hosts": tc.hosts,
-				},
+				Namespace: "default",
+				Name:      t.Name(),
 			}
 
 			// First will see if we can establish the stream and handle this
@@ -162,7 +162,8 @@ func TestStreamIsActive(t *testing.T) {
 
 			if tc.expectedErr && err != nil {
 				return
-			} else if err != nil {
+			}
+			if err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
 
@@ -176,89 +177,93 @@ func TestStreamIsActive(t *testing.T) {
 func TestIsActive(t *testing.T) {
 	type testCase struct {
 		name        string
-		hosts       string
 		expected    bool
 		expectedErr bool
-		setup       func(*routing.Table, *queuePinger)
+		setup       func(t *testing.T, qp *queuePinger)
 	}
-	r := require.New(t)
 	testCases := []testCase{
 		{
 			name:        "Simple host inactive",
-			hosts:       t.Name(),
 			expected:    false,
 			expectedErr: false,
-			setup: func(table *routing.Table, q *queuePinger) {
-				r.NoError(table.AddTarget(t.Name(), standardTarget()))
-				q.pingMut.Lock()
-				defer q.pingMut.Unlock()
-				q.allCounts[t.Name()] = 0
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = 0
 			},
 		},
 		{
-			name:        "Host is 'interceptor'",
-			hosts:       "interceptor",
-			expected:    true,
-			expectedErr: false,
-			setup:       func(*routing.Table, *queuePinger) {},
-		},
-		{
 			name:        "Simple host active",
-			hosts:       t.Name(),
 			expected:    true,
 			expectedErr: false,
-			setup: func(table *routing.Table, q *queuePinger) {
-				r.NoError(table.AddTarget(t.Name(), standardTarget()))
-				q.pingMut.Lock()
-				defer q.pingMut.Unlock()
-				q.allCounts[t.Name()] = 1
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = 1
 			},
 		},
 		{
 			name:        "Simple multi host active",
-			hosts:       "host1,host2",
 			expected:    true,
 			expectedErr: false,
-			setup: func(table *routing.Table, q *queuePinger) {
-				r.NoError(table.AddTarget(t.Name(), standardTarget()))
-				q.pingMut.Lock()
-				defer q.pingMut.Unlock()
-				q.allCounts["host1"] = 1
-				q.allCounts["host2"] = 1
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = 2
 			},
 		},
 		{
 			name:        "No host present, but host in routing table",
-			hosts:       t.Name(),
 			expected:    false,
 			expectedErr: false,
-			setup: func(table *routing.Table, q *queuePinger) {
-				r.NoError(table.AddTarget(t.Name(), standardTarget()))
-			},
+			setup:       func(_ *testing.T, _ *queuePinger) {},
 		},
 		{
 			name:        "Host doesn't exist",
-			hosts:       t.Name(),
 			expected:    false,
 			expectedErr: true,
-			setup:       func(*routing.Table, *queuePinger) {},
+			setup:       func(_ *testing.T, _ *queuePinger) {},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			r := require.New(t)
 			ctx := context.Background()
 			lggr := logr.Discard()
-			table := routing.NewTable()
+			informer, _, _ := newMocks(ctrl)
 			ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
 			r.NoError(err)
 			defer ticker.Stop()
-			tc.setup(table, pinger)
+			tc.setup(t, pinger)
 			hdl := newImpl(
 				lggr,
 				pinger,
-				table,
+				informer,
 				123,
 				200,
 			)
@@ -266,15 +271,15 @@ func TestIsActive(t *testing.T) {
 			res, err := hdl.IsActive(
 				ctx,
 				&externalscaler.ScaledObjectRef{
-					ScalerMetadata: map[string]string{
-						"hosts": tc.hosts,
-					},
+					Namespace: "default",
+					Name:      t.Name(),
 				},
 			)
 
 			if tc.expectedErr && err != nil {
 				return
-			} else if err != nil {
+			}
+			if err != nil {
 				t.Fatalf("expected no error but got: %v", err)
 			}
 			if tc.expected != res.Result {
@@ -290,30 +295,36 @@ func TestGetMetricSpecTable(t *testing.T) {
 		name                           string
 		defaultTargetMetric            int64
 		defaultTargetMetricInterceptor int64
-		scalerMetadata                 map[string]string
-		newRoutingTableFn              func() *routing.Table
+		newInformer                    func(*testing.T, *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer
 		checker                        func(*testing.T, *externalscaler.GetMetricSpecResponse, error)
 	}
-	r := require.New(t)
 	cases := []testCase{
 		{
 			name:                           "valid host as single host value in scaler metadata",
 			defaultTargetMetric:            0,
 			defaultTargetMetricInterceptor: 123,
-			scalerMetadata: map[string]string{
-				"hosts":                 "validHost",
-				"targetPendingRequests": "123",
-			},
-			newRoutingTableFn: func() *routing.Table {
-				ret := routing.NewTable()
-				r.NoError(ret.AddTarget("validHost", routing.NewTarget(
-					ns,
-					"testsrv",
-					8080,
-					"testdepl",
-					123,
-				)))
-				return ret
+			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
+				informer, _, namespaceLister := newMocks(ctrl)
+
+				httpso := &httpv1alpha1.HTTPScaledObject{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: ns,
+						Name:      t.Name(),
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+							Deployment: "testdepl",
+							Service:    "testsrv",
+							Port:       8080,
+						},
+						TargetPendingRequests: pointer.Int32(123),
+					},
+				}
+				namespaceLister.EXPECT().
+					Get(httpso.GetName()).
+					Return(httpso, nil)
+
+				return informer
 			},
 			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
 				t.Helper()
@@ -322,7 +333,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricSpecs))
 				spec := res.MetricSpecs[0]
-				r.Equal(httpRequests, spec.MetricName)
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
 			},
 		},
@@ -330,27 +341,32 @@ func TestGetMetricSpecTable(t *testing.T) {
 			name:                           "valid hosts as multiple hosts value in scaler metadata",
 			defaultTargetMetric:            0,
 			defaultTargetMetricInterceptor: 123,
-			scalerMetadata: map[string]string{
-				"hosts":                 "validHost1,validHost2",
-				"targetPendingRequests": "123",
-			},
-			newRoutingTableFn: func() *routing.Table {
-				ret := routing.NewTable()
-				r.NoError(ret.AddTarget("validHost1", routing.NewTarget(
-					ns,
-					"testsrv",
-					8080,
-					"testdepl",
-					123,
-				)))
-				r.NoError(ret.AddTarget("validHost2", routing.NewTarget(
-					ns,
-					"testsrv",
-					8080,
-					"testdepl",
-					123,
-				)))
-				return ret
+			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
+				informer, _, namespaceLister := newMocks(ctrl)
+
+				httpso := &httpv1alpha1.HTTPScaledObject{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: ns,
+						Name:      t.Name(),
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						Hosts: []string{
+							"validHost1",
+							"validHost2",
+						},
+						ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+							Deployment: "testdepl",
+							Service:    "testsrv",
+							Port:       8080,
+						},
+						TargetPendingRequests: pointer.Int32(123),
+					},
+				}
+				namespaceLister.EXPECT().
+					Get(httpso.GetName()).
+					Return(httpso, nil)
+
+				return informer
 			},
 			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
 				t.Helper()
@@ -359,38 +375,8 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricSpecs))
 				spec := res.MetricSpecs[0]
-				r.Equal(httpRequests, spec.MetricName)
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
-			},
-		},
-		{
-			name:                           "interceptor as host in scaler metadata",
-			defaultTargetMetric:            1000,
-			defaultTargetMetricInterceptor: 2000,
-			scalerMetadata: map[string]string{
-				"hosts":                 interceptor,
-				"targetPendingRequests": "123",
-			},
-			newRoutingTableFn: func() *routing.Table {
-				ret := routing.NewTable()
-				r.NoError(ret.AddTarget("validHost", routing.NewTarget(
-					ns,
-					"testsrv",
-					8080,
-					"testdepl",
-					123,
-				)))
-				return ret
-			},
-			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
-				t.Helper()
-				r := require.New(t)
-				r.NoError(err)
-				r.NotNil(res)
-				r.Equal(1, len(res.MetricSpecs))
-				spec := res.MetricSpecs[0]
-				r.Equal(interceptor, spec.MetricName)
-				r.Equal(int64(2000), spec.TargetSize)
 			},
 		},
 	}
@@ -401,10 +387,13 @@ func TestGetMetricSpecTable(t *testing.T) {
 		// in parallel
 		testCase := c
 		t.Run(testName, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			ctx := context.Background()
 			t.Parallel()
 			lggr := logr.Discard()
-			table := testCase.newRoutingTableFn()
+			informer := testCase.newInformer(t, ctrl)
 			ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
 			if err != nil {
 				t.Fatalf(
@@ -416,12 +405,13 @@ func TestGetMetricSpecTable(t *testing.T) {
 			hdl := newImpl(
 				lggr,
 				pinger,
-				table,
+				informer,
 				testCase.defaultTargetMetric,
 				testCase.defaultTargetMetricInterceptor,
 			)
 			scaledObjectRef := externalscaler.ScaledObjectRef{
-				ScalerMetadata: testCase.scalerMetadata,
+				Namespace: ns,
+				Name:      t.Name(),
 			}
 			ret, err := hdl.GetMetricSpec(ctx, &scaledObjectRef)
 			testCase.checker(t, ret, err)
@@ -430,13 +420,18 @@ func TestGetMetricSpecTable(t *testing.T) {
 }
 
 func TestGetMetrics(t *testing.T) {
+	const (
+		ns = "default"
+	)
+
 	type testCase struct {
-		name           string
-		scalerMetadata map[string]string
-		setupFn        func(
+		name    string
+		setupFn func(
+			*testing.T,
+			*gomock.Controller,
 			context.Context,
 			logr.Logger,
-		) (*routing.Table, *queuePinger, func(), error)
+		) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error)
 		checkFn                        func(*testing.T, *externalscaler.GetMetricsResponse, error)
 		defaultTargetMetric            int64
 		defaultTargetMetricInterceptor int64
@@ -489,77 +484,22 @@ func TestGetMetrics(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:           "no 'hosts' field in the scaler metadata field",
-			scalerMetadata: map[string]string{},
+			name: "HTTPSO missing in the queue pinger",
 			setupFn: func(
+				t *testing.T,
+				ctrl *gomock.Controller,
 				ctx context.Context,
 				lggr logr.Logger,
-			) (*routing.Table, *queuePinger, func(), error) {
-				table := routing.NewTable()
-				ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				return table, pinger, func() { ticker.Stop() }, nil
-			},
-			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
-				t.Helper()
-				r := require.New(t)
-				r.Error(err)
-				r.Nil(res)
-				r.Contains(
-					err.Error(),
-					"no 'hosts' field in the scaler metadata field",
-				)
-			},
-			defaultTargetMetric:            int64(200),
-			defaultTargetMetricInterceptor: int64(300),
-		},
-		{
-			name: "missing host value in the queue pinger",
-			scalerMetadata: map[string]string{
-				"hosts": "missingHostInQueue",
-			},
-			setupFn: func(
-				ctx context.Context,
-				lggr logr.Logger,
-			) (*routing.Table, *queuePinger, func(), error) {
-				table := routing.NewTable()
+			) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error) {
+				informer, _, _ := newMocks(ctrl)
+
 				// create queue and ticker without the host in it
 				ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				return table, pinger, func() { ticker.Stop() }, nil
-			},
-			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
-				t.Helper()
-				r := require.New(t)
-				r.Error(err)
-				r.Contains(err.Error(), "host 'missingHostInQueue' not found in counts")
-				r.Nil(res)
-			},
-			defaultTargetMetric:            int64(200),
-			defaultTargetMetricInterceptor: int64(300),
-		},
-		{
-			name: "valid host",
-			scalerMetadata: map[string]string{
-				"hosts": "validHost",
-			},
-			setupFn: func(
-				ctx context.Context,
-				lggr logr.Logger,
-			) (*routing.Table, *queuePinger, func(), error) {
-				table := routing.NewTable()
-				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
-					"validHost": 201,
-				}, 2*time.Millisecond)
-				if err != nil {
-					return nil, nil, nil, err
-				}
 
-				return table, pinger, done, nil
+				return informer, pinger, func() { ticker.Stop() }, nil
 			},
 			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
 				t.Helper()
@@ -568,106 +508,36 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal(httpRequests, metricVal.MetricName)
-				r.Equal(int64(201), metricVal.MetricValue)
-			},
-			defaultTargetMetric:            int64(200),
-			defaultTargetMetricInterceptor: int64(300),
-		},
-		{
-			name: "'interceptor' as host",
-			scalerMetadata: map[string]string{
-				"hosts": interceptor,
-			},
-			setupFn: func(
-				ctx context.Context,
-				lggr logr.Logger,
-			) (*routing.Table, *queuePinger, func(), error) {
-				table := routing.NewTable()
-				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
-					"host1": 201,
-					"host2": 202,
-				}, 2*time.Millisecond)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				return table, pinger, done, nil
-			},
-			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
-				t.Helper()
-				r := require.New(t)
-				r.NoError(err)
-				r.NotNil(res)
-				r.Equal(1, len(res.MetricValues))
-				metricVal := res.MetricValues[0]
-				r.Equal(interceptor, metricVal.MetricName)
-				// the value here needs to be the same thing as
-				// the sum of the values in the fake queue created
-				// in the setup function
-				r.Equal(int64(403), metricVal.MetricValue)
-			},
-			defaultTargetMetric:            int64(200),
-			defaultTargetMetricInterceptor: int64(300),
-		},
-		{
-			name: "host in routing table, missing in queue pinger",
-			scalerMetadata: map[string]string{
-				"hosts": "myhost.com",
-			},
-			setupFn: func(
-				ctx context.Context,
-				lggr logr.Logger,
-			) (*routing.Table, *queuePinger, func(), error) {
-				table := routing.NewTable()
-				r := require.New(t)
-				r.NoError(table.AddTarget(
-					"myhost.com",
-					standardTarget(),
-				))
-				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
-					"host1": 201,
-					"host2": 202,
-				}, 2*time.Millisecond)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				return table, pinger, done, nil
-			},
-			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
-				t.Helper()
-				r := require.New(t)
-				r.NoError(err)
-				r.NotNil(res)
-				r.Equal(1, len(res.MetricValues))
-				metricVal := res.MetricValues[0]
-				r.Equal(httpRequests, metricVal.MetricName)
-				// the value here needs to be the same thing as
-				// the sum of the values in the fake queue created
-				// in the setup function
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
 				r.Equal(int64(0), metricVal.MetricValue)
 			},
 			defaultTargetMetric:            int64(200),
 			defaultTargetMetricInterceptor: int64(300),
 		},
 		{
-			name: "multiple validHosts add MetricValues",
-			scalerMetadata: map[string]string{
-				"hosts": "validHost1,validHost2",
-			},
+			name: "HTTPSO present in the queue pinger",
 			setupFn: func(
+				t *testing.T,
+				ctrl *gomock.Controller,
 				ctx context.Context,
 				lggr logr.Logger,
-			) (*routing.Table, *queuePinger, func(), error) {
-				table := routing.NewTable()
+			) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error) {
+				informer, _, _ := newMocks(ctrl)
+
+				namespacedName := &types.NamespacedName{
+					Namespace: ns,
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
 				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
-					"validHost1": 123,
-					"validHost2": 456,
+					key: 201,
 				}, 2*time.Millisecond)
 				if err != nil {
 					return nil, nil, nil, err
 				}
 
-				return table, pinger, done, nil
+				return informer, pinger, done, nil
 			},
 			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
 				t.Helper()
@@ -676,7 +546,45 @@ func TestGetMetrics(t *testing.T) {
 				r.NotNil(res)
 				r.Equal(1, len(res.MetricValues))
 				metricVal := res.MetricValues[0]
-				r.Equal(httpRequests, metricVal.MetricName)
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
+				r.Equal(int64(201), metricVal.MetricValue)
+			},
+			defaultTargetMetric:            int64(200),
+			defaultTargetMetricInterceptor: int64(300),
+		},
+		{
+			name: "multiple validHosts add MetricValues",
+			setupFn: func(
+				t *testing.T,
+				ctrl *gomock.Controller,
+				ctx context.Context,
+				lggr logr.Logger,
+			) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error) {
+				informer, _, _ := newMocks(ctrl)
+
+				namespacedName := &types.NamespacedName{
+					Namespace: ns,
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				pinger, done, err := startFakeInterceptorServer(ctx, lggr, map[string]int{
+					key: 579,
+				}, 2*time.Millisecond)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				return informer, pinger, done, nil
+			},
+			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricValues))
+				metricVal := res.MetricValues[0]
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
 				// the value here needs to be the same thing as
 				// the sum of the values in the fake queue created
 				// in the setup function
@@ -691,28 +599,56 @@ func TestGetMetrics(t *testing.T) {
 		tc := c
 		name := fmt.Sprintf("test case %d: %s", i, tc.name)
 		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			r := require.New(t)
 			ctx, done := context.WithCancel(
 				context.Background(),
 			)
 			defer done()
 			lggr := logr.Discard()
-			table, pinger, cleanup, err := tc.setupFn(ctx, lggr)
+			informer, pinger, cleanup, err := tc.setupFn(t, ctrl, ctx, lggr)
 			r.NoError(err)
 			defer cleanup()
 			hdl := newImpl(
 				lggr,
 				pinger,
-				table,
+				informer,
 				tc.defaultTargetMetric,
 				tc.defaultTargetMetricInterceptor,
 			)
 			res, err := hdl.GetMetrics(ctx, &externalscaler.GetMetricsRequest{
 				ScaledObjectRef: &externalscaler.ScaledObjectRef{
-					ScalerMetadata: tc.scalerMetadata,
+					Namespace: ns,
+					Name:      t.Name(),
 				},
 			})
 			tc.checkFn(t, res, err)
 		})
 	}
+}
+
+func newMocks(ctrl *gomock.Controller) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *listershttpv1alpha1mock.MockHTTPScaledObjectLister, *listershttpv1alpha1mock.MockHTTPScaledObjectNamespaceLister) {
+	namespaceLister := listershttpv1alpha1mock.NewMockHTTPScaledObjectNamespaceLister(ctrl)
+	namespaceLister.EXPECT().
+		Get("").
+		DoAndReturn(func(name string) (*httpv1alpha1.HTTPScaledObject, error) {
+			return nil, errors.NewNotFound(httpv1alpha1.Resource("httpscaledobject"), name)
+		}).
+		AnyTimes()
+
+	lister := listershttpv1alpha1mock.NewMockHTTPScaledObjectLister(ctrl)
+	lister.EXPECT().
+		HTTPScaledObjects(gomock.Any()).
+		Return(namespaceLister).
+		AnyTimes()
+
+	informer := informersexternalversionshttpv1alpha1mock.NewMockHTTPScaledObjectInformer(ctrl)
+	informer.EXPECT().
+		Lister().
+		Return(lister).
+		AnyTimes()
+
+	return informer, lister, namespaceLister
 }

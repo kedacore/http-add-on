@@ -2,19 +2,22 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
-	nethttp "net/http"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/interceptor/handler"
+	"github.com/kedacore/http-add-on/interceptor/middleware"
+	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
+	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -22,14 +25,15 @@ import (
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-// +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 
 func main() {
 	lggr, err := pkglog.NewZapr()
@@ -43,9 +47,8 @@ func main() {
 		lggr.Error(err, "invalid configuration")
 		os.Exit(1)
 	}
-	ctx, ctxDone := context.WithCancel(
-		context.Background(),
-	)
+	ctx := util.ContextWithLogger(context.Background(), lggr)
+	ctx, ctxDone := context.WithCancel(ctx)
 	lggr.Info(
 		"starting interceptor",
 		"timeoutConfig",
@@ -57,11 +60,8 @@ func main() {
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
 
-	cfg, err := rest.InClusterConfig()
-	if err != nil {
-		lggr.Error(err, "Kubernetes client config not found")
-		os.Exit(1)
-	}
+	cfg := ctrl.GetConfigOrDie()
+
 	cl, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		lggr.Error(err, "creating new Kubernetes ClientSet")
@@ -76,39 +76,23 @@ func main() {
 		lggr.Error(err, "creating new deployment cache")
 		os.Exit(1)
 	}
-
-	configMapsInterface := cl.CoreV1().ConfigMaps(servingCfg.CurrentNamespace)
-
 	waitFunc := newDeployReplicasForwardWaitFunc(lggr, deployCache)
 
-	lggr.Info("Interceptor starting")
-
-	q := queue.NewMemory()
-	routingTable := routing.NewTable()
-
-	// Create the informer of ConfigMap resource,
-	// the resynchronization period of the informer should be not less than 1s,
-	// refer to: https://github.com/kubernetes/client-go/blob/v0.22.2/tools/cache/shared_informer.go#L475
-	configMapInformer := k8s.NewInformerConfigMapUpdater(
-		lggr,
-		cl,
-		servingCfg.ConfigMapCacheRsyncPeriod,
-		servingCfg.CurrentNamespace,
-	)
-
-	lggr.Info(
-		"Fetching initial routing table",
-	)
-	if err := routing.GetTable(
-		ctx,
-		lggr,
-		configMapsInterface,
-		routingTable,
-		q,
-	); err != nil {
+	httpCl, err := clientset.NewForConfig(cfg)
+	if err != nil {
+		lggr.Error(err, "creating new HTTP ClientSet")
+		os.Exit(1)
+	}
+	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, servingCfg.ConfigMapCacheRsyncPeriod)
+	routingTable, err := routing.NewTable(sharedInformerFactory, servingCfg.WatchNamespace)
+	if err != nil {
 		lggr.Error(err, "fetching routing table")
 		os.Exit(1)
 	}
+
+	q := queue.NewMemory()
+
+	lggr.Info("Interceptor starting")
 
 	errGrp, ctx := errgroup.WithContext(ctx)
 
@@ -125,14 +109,7 @@ func main() {
 	// enter and exit the system
 	errGrp.Go(func() error {
 		defer ctxDone()
-		err := routing.StartConfigMapRoutingTableUpdater(
-			ctx,
-			lggr,
-			configMapInformer,
-			servingCfg.CurrentNamespace,
-			routingTable,
-			nil,
-		)
+		err := routingTable.Start(ctx)
 		lggr.Error(err, "config map routing table updater failed")
 		return err
 	})
@@ -149,13 +126,8 @@ func main() {
 		err := runAdminServer(
 			ctx,
 			lggr,
-			configMapsInterface,
 			q,
-			routingTable,
-			deployCache,
 			adminPort,
-			servingCfg,
-			timeoutCfg,
 		)
 		lggr.Error(err, "admin server failed")
 		return err
@@ -194,43 +166,16 @@ func main() {
 func runAdminServer(
 	ctx context.Context,
 	lggr logr.Logger,
-	cmGetter k8s.ConfigMapGetter,
 	q queue.Counter,
-	routingTable *routing.Table,
-	deployCache k8s.DeploymentCache,
 	port int,
-	servingConfig *config.Serving,
-	timeoutConfig *config.Timeouts,
 ) error {
 	lggr = lggr.WithName("runAdminServer")
-	adminServer := nethttp.NewServeMux()
+	adminServer := http.NewServeMux()
 	queue.AddCountsRoute(
 		lggr,
 		adminServer,
 		q,
 	)
-	routing.AddFetchRoute(
-		lggr,
-		adminServer,
-		routingTable,
-	)
-	routing.AddPingRoute(
-		lggr,
-		adminServer,
-		cmGetter,
-		routingTable,
-		q,
-	)
-	adminServer.HandleFunc(
-		"/deployments",
-		func(w nethttp.ResponseWriter, r *nethttp.Request) {
-			if err := json.NewEncoder(w).Encode(deployCache); err != nil {
-				lggr.Error(err, "encoding deployment cache")
-			}
-		},
-	)
-	kedahttp.AddConfigEndpoint(lggr, adminServer, servingConfig, timeoutConfig)
-	kedahttp.AddVersionEndpoint(lggr.WithName("interceptorAdmin"), adminServer)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
@@ -239,30 +184,45 @@ func runAdminServer(
 
 func runProxyServer(
 	ctx context.Context,
-	lggr logr.Logger,
+	logger logr.Logger,
 	q queue.Counter,
 	waitFunc forwardWaitFunc,
-	routingTable *routing.Table,
+	routingTable routing.Table,
 	timeouts *config.Timeouts,
 	port int,
 ) error {
-	lggr = lggr.WithName("runProxyServer")
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
-	proxyHdl := countMiddleware(
-		lggr,
+
+	probeHandler := handler.NewProbe([]util.HealthChecker{
+		routingTable,
+	})
+	go probeHandler.Start(ctx)
+
+	var upstreamHandler http.Handler
+	upstreamHandler = newForwardingHandler(
+		logger,
+		dialContextFunc,
+		waitFunc,
+		newForwardingConfigFromTimeouts(timeouts),
+	)
+	upstreamHandler = middleware.NewCountingMiddleware(
 		q,
-		newForwardingHandler(
-			lggr,
-			routingTable,
-			dialContextFunc,
-			waitFunc,
-			routing.ServiceURL,
-			newForwardingConfigFromTimeouts(timeouts),
-		),
+		upstreamHandler,
+	)
+
+	var rootHandler http.Handler
+	rootHandler = middleware.NewRouting(
+		routingTable,
+		probeHandler,
+		upstreamHandler,
+	)
+	rootHandler = middleware.NewLogging(
+		logger,
+		rootHandler,
 	)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	lggr.Info("proxy server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, proxyHdl)
+	logger.Info("proxy server starting", "address", addr)
+	return kedahttp.ServeContext(ctx, addr, rootHandler)
 }
