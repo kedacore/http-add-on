@@ -156,7 +156,7 @@ func TestCheck(t *testing.T) {
 	testNotScale(t, kc, data, templates, notPathPrefix1)
 
 	// cleanup
-	DeleteKubernetesResources(t, testNamespace, data, templates)
+	DeleteNamespace(t, testNamespace)
 }
 
 func testScale(t *testing.T, kc *kubernetes.Clientset, data templateData, templates []Template, pathPrefix string) {
