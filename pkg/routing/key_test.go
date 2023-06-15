@@ -174,11 +174,8 @@ var _ = Describe("Keys", func() {
 		It("returns expected key for HTTPSO", func() {
 			const (
 				host = "kubernetes.io"
-				// TODO(pedrotorres): delete this when we support path prefix
-				norm = "//kubernetes.io/"
-				// TODO(pedrotorres): uncomment this when we support path prefix
-				// path = "abc/def"
-				// norm = "//kubernetes.io/abc/def/"
+				path = "abc/def"
+				norm = "//kubernetes.io/abc/def/"
 			)
 
 			keys := NewKeysFromHTTPSO(&httpv1alpha1.HTTPScaledObject{
@@ -186,8 +183,9 @@ var _ = Describe("Keys", func() {
 					Hosts: []string{
 						host,
 					},
-					// TODO(pedrotorres): uncomment this when we support path prefix
-					// PathPrefix: path,
+					PathPrefixes: []string{
+						path,
+					},
 				},
 			})
 			Expect(keys).To(ConsistOf(Keys{
@@ -197,16 +195,14 @@ var _ = Describe("Keys", func() {
 
 		It("returns expected keys for HTTPSO", func() {
 			const (
-				host0 = "keda.sh"
-				host1 = "kubernetes.io"
-				// TODO(pedrotorres): delete this when we support path prefix
-				norm0 = "//keda.sh/"
-				norm1 = "//kubernetes.io/"
-				// TODO(pedrotorres): uncomment this when we support path prefix
-				// path0 = "abc/def"
-				// path1 = "123/456"
-				// norm0 = "//kubernetes.io/abc/def/"
-				// norm1 = "//keda.sh/123/456/"
+				host0  = "keda.sh"
+				host1  = "kubernetes.io"
+				path0  = "abc/def"
+				path1  = "123/456"
+				norm00 = "//kubernetes.io/abc/def/"
+				norm01 = "//kubernetes.io/123/456/"
+				norm10 = "//keda.sh/abc/def/"
+				norm11 = "//keda.sh/123/456/"
 			)
 
 			keys := NewKeysFromHTTPSO(&httpv1alpha1.HTTPScaledObject{
@@ -215,13 +211,17 @@ var _ = Describe("Keys", func() {
 						host0,
 						host1,
 					},
-					// TODO(pedrotorres): uncomment this when we support path prefix
-					// PathPrefix: path,
+					PathPrefixes: []string{
+						path0,
+						path1,
+					},
 				},
 			})
 			Expect(keys).To(ConsistOf(Keys{
-				Key(norm0),
-				Key(norm1),
+				Key(norm00),
+				Key(norm01),
+				Key(norm10),
+				Key(norm11),
 			}))
 		})
 
