@@ -6,7 +6,6 @@ package path_prefix_test
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/tj/assert"
 	"k8s.io/client-go/kubernetes"
@@ -195,8 +194,7 @@ func testNotScale(t *testing.T, kc *kubernetes.Clientset, data templateData, tem
 
 	// not scale
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
-	assert.True(t, AssertDeploymentReplicaReadyCountForDuration(t, kc, deploymentName, testNamespace, minReplicaCount, 3*time.Minute),
-		"replica count should be %d for 3 minutes", minReplicaCount)
+	AssertReplicaCountNotChangeDuringTimePeriod(t, kc, deploymentName, testNamespace, minReplicaCount, 2*60)
 
 	// cleanup
 	template := Template{Name: "loadJobTemplate", Config: loadJobTemplate}
