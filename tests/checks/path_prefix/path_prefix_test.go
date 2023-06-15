@@ -194,7 +194,7 @@ func testNotScale(t *testing.T, kc *kubernetes.Clientset, data templateData, tem
 
 	// not scale
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
-	AssertReplicaCountNotChangeDuringTimePeriod(t, kc, deploymentName, testNamespace, minReplicaCount, 2*60)
+	AssertReplicaCountNotChangeDuringTimePeriod(t, kc, deploymentName, testNamespace, minReplicaCount, 3*60)
 
 	// cleanup
 	template := Template{Name: "loadJobTemplate", Config: loadJobTemplate}
