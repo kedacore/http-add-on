@@ -635,3 +635,29 @@ func WaitForPodsTerminated(t *testing.T, kc *kubernetes.Clientset, selector, nam
 
 	return false
 }
+
+// AssertDeploymentReplicaReadyCountForDuration asserts deployment ready replica count for the duration specified.
+func AssertDeploymentReplicaReadyCountForDuration(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
+	target int, duration time.Duration) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+
+	for {
+		deployment, _ := kc.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		replicas := deployment.Status.ReadyReplicas
+
+		t.Logf("Asserting deployment replicas. Deployment - %s, Current  - %d, Target - %d",
+			name, replicas, target)
+
+		if replicas != int32(target) {
+			return false
+		}
+
+		select {
+		case <-ctx.Done():
+			return true
+		default:
+			time.Sleep(time.Second)
+		}
+	}
+}
