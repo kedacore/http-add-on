@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -18,7 +19,7 @@ import (
 // according to the given parameters. If the create failed because the
 // ScaledObject already exists, attempts to patch the scaledobject.
 // otherwise, fails.
-func createOrUpdateScaledObject(
+func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 	ctx context.Context,
 	cl client.Client,
 	logger logr.Logger,
@@ -45,6 +46,11 @@ func createOrUpdateScaledObject(
 		maxReplicaCount,
 		httpso.Spec.CooldownPeriod,
 	)
+
+	// Set HTTPScaledObject instance as the owner and controller
+	if err := controllerutil.SetControllerReference(httpso, appScaledObject, r.Scheme); err != nil {
+		return err
+	}
 
 	logger.Info("Creating App ScaledObject", "ScaledObject", *appScaledObject)
 	if err := cl.Create(ctx, appScaledObject); err != nil {
@@ -98,11 +104,11 @@ func createOrUpdateScaledObject(
 		),
 	)
 
-	return purgeLegacySO(ctx, cl, logger, httpso)
+	return r.purgeLegacySO(ctx, cl, logger, httpso)
 }
 
 // TODO(pedrotorres): delete this on v0.6.0
-func purgeLegacySO(
+func (r *HTTPScaledObjectReconciler) purgeLegacySO(
 	ctx context.Context,
 	cl client.Client,
 	logger logr.Logger,

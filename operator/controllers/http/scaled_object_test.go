@@ -11,14 +11,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 )
+
+const externalScalerHostName = "mysvc.myns.svc.cluster.local:9090"
 
 func TestCreateOrUpdateScaledObject(t *testing.T) {
 	r := require.New(t)
-	const externalScalerHostName = "mysvc.myns.svc.cluster.local:9090"
-
 	testInfra := newCommonTestInfra("testns", "testapp")
-	r.NoError(createOrUpdateScaledObject(
+	reconciller := &HTTPScaledObjectReconciler{
+		Client:               testInfra.cl,
+		Scheme:               testInfra.cl.Scheme(),
+		ExternalScalerConfig: config.ExternalScaler{},
+		BaseConfig:           config.Base{},
+	}
+
+	r.NoError(reconciller.createOrUpdateScaledObject(
 		testInfra.ctx,
 		testInfra.cl,
 		testInfra.logger,
@@ -45,6 +53,9 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 		testInfra.httpso,
 	)
 	r.NoError(err)
+
+	// check that the app ScaledObject has the correct owner
+	r.Len(retSO.OwnerReferences, 1, "ScaledObject should have the owner reference")
 
 	metadata := retSO.ObjectMeta
 	spec := retSO.Spec
@@ -87,7 +98,7 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 	}
 	*testInfra.httpso.Spec.Replicas.Min++
 	*testInfra.httpso.Spec.Replicas.Max++
-	r.NoError(createOrUpdateScaledObject(
+	r.NoError(reconciller.createOrUpdateScaledObject(
 		testInfra.ctx,
 		testInfra.cl,
 		testInfra.logger,

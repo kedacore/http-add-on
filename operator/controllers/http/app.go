@@ -80,7 +80,7 @@ func removeApplicationResources(
 	return nil
 }
 
-func createOrUpdateApplicationResources(
+func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
 	cl client.Client,
@@ -114,7 +114,7 @@ func createOrUpdateApplicationResources(
 	// the app deployment and the interceptor deployment.
 	// this needs to be submitted so that KEDA will scale both the app and
 	// interceptor
-	return createOrUpdateScaledObject(
+	return r.createOrUpdateScaledObject(
 		ctx,
 		cl,
 		logger,

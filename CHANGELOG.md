@@ -32,6 +32,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
+- **General**: HTTPScaledObject is the owner of the underlying ScaledObject ([#703](https://github.com/kedacore/http-add-on/issues/703))
 - **Routing**: Lookup host without port ([#608](https://github.com/kedacore/http-add-on/issues/608))
 - **Controller**: Use kedav1alpha1.ScaledObject default values ([#607](https://github.com/kedacore/http-add-on/issues/607))
 - **General**: Changes to HTTPScaledObjects now take effect ([#605](https://github.com/kedacore/http-add-on/issues/605))
