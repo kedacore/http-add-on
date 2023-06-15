@@ -23,7 +23,7 @@ var (
 	serviceName          = fmt.Sprintf("%s-service", testName)
 	ingressName          = fmt.Sprintf("%s-ingress", testName)
 	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
-	ingressHost          = fmt.Sprintf("http://%s-controller.%s", IngressReleaseName, IngressNamespace)
+	ingressHost          = fmt.Sprintf("http://%s-controller.%s/", IngressReleaseName, IngressNamespace)
 	host                 = testName
 	initReplicaCount     = 0
 	minReplicaCount      = 1
@@ -141,10 +141,13 @@ spec:
   template:
     spec:
       containers:
-      - name: curl-client
-        image: curlimages/curl
+      - name: generate-request
+        image: alpine
         imagePullPolicy: Always
-        command: ["curl", "-H", "Host: {{.Host}}", "{{.IngressHost}}"]
+        command:
+		- sh
+		- -c
+		- 'apk add apache2-utils && ab -H "Host: {{.Host}}" -c 25 -n 1000000 "{{.IngressHost}}"'
       restartPolicy: Never
   activeDeadlineSeconds: 600
   backoffLimit: 5

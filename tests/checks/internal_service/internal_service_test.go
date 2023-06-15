@@ -101,10 +101,13 @@ spec:
   template:
     spec:
       containers:
-      - name: curl-client
-        image: curlimages/curl
+      - name: generate-request
+        image: alpine
         imagePullPolicy: Always
-        command: ["curl", "-H", "Host: {{.Host}}", "keda-http-add-on-interceptor-proxy.keda:8080"]
+        command:
+		- sh
+		- -c
+		- 'apk add apache2-utils && ab -H "Host: {{.Host}}" -c 25 -n 1000000 "http://keda-http-add-on-interceptor-proxy.keda:8080/"'
       restartPolicy: Never
   activeDeadlineSeconds: 600
   backoffLimit: 5
