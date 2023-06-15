@@ -25,8 +25,9 @@ var (
 	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
 	ingressHost          = fmt.Sprintf("http://%s-controller.%s", IngressReleaseName, IngressNamespace)
 	host                 = testName
-	minReplicaCount      = 0
-	maxReplicaCount      = 1
+	initReplicaCount     = 0
+	minReplicaCount      = 1
+	maxReplicaCount      = 2
 )
 
 type templateData struct {
@@ -38,6 +39,7 @@ type templateData struct {
 	IngressHost          string
 	HTTPScaledObjectName string
 	Host                 string
+	Replicas             int
 	MinReplicas          int
 	MaxReplicas          int
 }
@@ -105,7 +107,7 @@ metadata:
   labels:
     app: {{.DeploymentName}}
 spec:
-  replicas: 1
+  replicas: {{.Replicas}}
   selector:
     matchLabels:
       app: {{.DeploymentName}}
@@ -216,6 +218,7 @@ func getTemplateData() (templateData, []Template) {
 			HTTPScaledObjectName: httpScaledObjectName,
 			IngressHost:          ingressHost,
 			Host:                 host,
+			Replicas:             initReplicaCount,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{

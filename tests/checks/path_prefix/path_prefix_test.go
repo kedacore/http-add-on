@@ -27,8 +27,9 @@ var (
 	notPathPrefix0       = "/123/4567"
 	pathPrefix1          = "/qwe/rty"
 	notPathPrefix1       = "/qwe/rt"
-	minReplicaCount      = 0
-	maxReplicaCount      = 1
+	initReplicaCount     = 0
+	minReplicaCount      = 1
+	maxReplicaCount      = 2
 )
 
 type templateData struct {
@@ -42,6 +43,7 @@ type templateData struct {
 	PathPrefix1          string
 	MinReplicas          int
 	MaxReplicas          int
+	Replicas             int
 }
 
 const (
@@ -72,7 +74,7 @@ metadata:
   labels:
     app: {{.DeploymentName}}
 spec:
-  replicas: 1
+  replicas: {{.Replicas}}
   selector:
     matchLabels:
       app: {{.DeploymentName}}
@@ -210,6 +212,7 @@ func getTemplateData() (templateData, []Template) {
 			Host:                 host,
 			PathPrefix0:          pathPrefix0,
 			PathPrefix1:          pathPrefix1,
+			Replicas:             initReplicaCount,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{

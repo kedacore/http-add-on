@@ -23,8 +23,9 @@ var (
 	serviceName          = fmt.Sprintf("%s-service", testName)
 	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
 	host                 = testName
-	minReplicaCount      = 0
-	maxReplicaCount      = 1
+	initReplicaCount     = 0
+	minReplicaCount      = 1
+	maxReplicaCount      = 2
 )
 
 type templateData struct {
@@ -33,6 +34,7 @@ type templateData struct {
 	ServiceName          string
 	HTTPScaledObjectName string
 	Host                 string
+	Replicas             int
 	MinReplicas          int
 	MaxReplicas          int
 }
@@ -65,7 +67,7 @@ metadata:
   labels:
     app: {{.DeploymentName}}
 spec:
-  replicas: 1
+  replicas: {{.Replicas}}
   selector:
     matchLabels:
       app: {{.DeploymentName}}
@@ -170,6 +172,7 @@ func getTemplateData() (templateData, []Template) {
 			ServiceName:          serviceName,
 			HTTPScaledObjectName: httpScaledObjectName,
 			Host:                 host,
+			Replicas:             initReplicaCount,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
