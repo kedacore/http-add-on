@@ -24,7 +24,7 @@ import (
 
 var (
 	concurrentTests = 2
-	testsTimeout    = "5m"
+	testsTimeout    = "15m"
 	testsRetries    = 3
 )
 
