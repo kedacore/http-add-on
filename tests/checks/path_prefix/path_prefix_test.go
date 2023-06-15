@@ -125,8 +125,8 @@ metadata:
 spec:
   host: {{.Host}}
   pathPrefixes:
-	- {{.PathPrefix0}}
-	- {{.PathPrefix1}}
+  - {{.PathPrefix0}}
+  - {{.PathPrefix1}}
   targetPendingRequests: 100
   scaledownPeriod: 10
   scaleTargetRef:
