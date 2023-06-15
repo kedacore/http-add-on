@@ -19,7 +19,9 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: Add multi-host support to `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552))
+- **Routing**: Add multi-host support to `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552))
+- **Routing**: Support path-based routing ([#338](https://github.com/kedacore/http-add-on/issues/338))
+- **General**: Log incoming requests using the Combined Log Format ([#669](https://github.com/kedacore/http-add-on/pull/669))
 
 ### Improvements
 
@@ -32,6 +34,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **Routing**: Lookup host without port ([#608](https://github.com/kedacore/http-add-on/issues/608))
 - **Controller**: Use kedav1alpha1.ScaledObject default values ([#607](https://github.com/kedacore/http-add-on/issues/607))
+- **General**: Changes to HTTPScaledObjects now take effect ([#605](https://github.com/kedacore/http-add-on/issues/605))
 
 ### Deprecations
 
