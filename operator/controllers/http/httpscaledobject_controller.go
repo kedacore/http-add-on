@@ -76,26 +76,6 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if httpso.GetDeletionTimestamp() != nil {
-		logger.Info("Deletion timestamp found", "httpscaledobject", *httpso)
-		// if it was marked deleted, delete all the related objects
-		// and don't schedule for another reconcile. Kubernetes
-		// will finalize them
-		// TODO: move this function call into `finalizeScaledObject`
-		removeErr := removeApplicationResources(
-			ctx,
-			logger,
-			r.Client,
-			httpso,
-		)
-		if removeErr != nil {
-			// if we failed to remove app resources, reschedule a reconcile so we can try
-			// again
-			logger.Error(removeErr, "Removing application objects")
-			return ctrl.Result{
-				RequeueAfter: 1000 * time.Millisecond,
-			}, removeErr
-		}
-		// after we've deleted app objects, we can finalize
 		return ctrl.Result{}, finalizeScaledObject(ctx, logger, r.Client, httpso)
 	}
 
@@ -120,25 +100,15 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	)
 
 	// Create required app objects for the application defined by the CRD
-	if err := createOrUpdateApplicationResources(
+	err := r.createOrUpdateApplicationResources(
 		ctx,
 		logger,
 		r.Client,
 		r.BaseConfig,
 		r.ExternalScalerConfig,
 		httpso,
-	); err != nil {
-		// if we failed to create app resources, remove what we've created and exit
-		logger.Error(err, "Removing app resources")
-		if removeErr := removeApplicationResources(
-			ctx,
-			logger,
-			r.Client,
-			httpso,
-		); removeErr != nil {
-			logger.Error(removeErr, "Removing previously created resources")
-		}
-
+	)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
