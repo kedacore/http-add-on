@@ -10,7 +10,17 @@ Please go to the [releases page](https://github.com/kedacore/http-add-on/release
 
 To determine the new version, follow [SemVer guidelines](https://semver.org). Most releases will increment the PATCH or MINOR version number.
 
-## 2: Create a new GitHub release
+## 2. Changelog
+
+Add a new section in [CHANGELOG.md](CHANGELOG.md) for the new version that is being released along with the new features, patches and deprecations it introduces.
+
+It should not include every single change but solely what matters to our customers, for example issue template that has changed is not important.
+
+## 3. Add the new version to GitHub Bug report template
+
+Add the new released version to the list in `KEDA Version` dropdown in [2_bug_report.yml](https://github.com/kedacore/http-add-on/blob/main/.github/ISSUE_TEMPLATE/2_bug_report.yml).
+
+## 4: Create a new GitHub release
 
 [Create a new release](https://github.com/kedacore/http-add-on/releases/new) on the GitHub releases page, using your new release number.
 
@@ -20,7 +30,7 @@ The release description should be a short to medium length summary of what has c
 
 After you create the new release, automation in a GitHub action will build and deploy new container images.
 
-## 3: Submit a PR to the [Helm Charts Repository](https://github.com/kedacore/charts)
+## 5: Submit a PR to the [Helm Charts Repository](https://github.com/kedacore/charts)
 
 The scope of the changes you'll need to make to the Helm chart vary, but the below list is the minimum set of fields to change:
 
@@ -56,11 +66,11 @@ Once you've made changes to the chart, here's how to do submit the change to the
 
 After your PR is merged, you've completed the release. Congratulations! You can optionally write a blog post about it; see the next section if you're interested.
 
-## 4: Publish release on Artifact Hub
+## 6: Publish release on Artifact Hub
 
 Publish release on Artifact Hub by creating a new version in [kedacore/external-scalers](https://github.com/kedacore/external-scalers/tree/main/artifacthub/add-ons-http).
 
-## 5: Write a blog post on the documentation site (_optional_)
+## 7: Write a blog post on the documentation site (_optional_)
 
 If you believe that your release is large enough to warrant a blog post on the [keda.sh/blog](https://keda.sh/blog/) site, please go to [github.com/kedacore/keda-docs](https://github.com/kedacore/keda-docs) and submit a new PR with a blog article about the release.
 

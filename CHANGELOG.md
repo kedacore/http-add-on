@@ -10,12 +10,47 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.5.0](#v050)
 
 ## Unreleased
 
 ### Breaking Changes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### New
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Improvements
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Fixes
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+You can find all deprecations in [this overview](https://github.com/kedacore/http-add-on/labels/breaking-change) and [join the discussion here](https://github.com/kedacore/http-add-on/discussions/categories/deprecations).
+
+New deprecation(s):
+
+- **General**: `host` field deprecated in favor of `hosts` in `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552))
+
+Previously announced deprecation(s):
+
+- TODO
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.5.0
+
+### Breaking Changes
+
+None.
 
 ### New
 
@@ -47,9 +82,9 @@ New deprecation(s):
 
 Previously announced deprecation(s):
 
-- TODO
+- None.
 
 ### Other
 
-- **General**: Use kubernetes e2e images for e2e test and samples ([#665]https://github.com/kedacore/http-add-on/issues/665)
-- **e2e tests**: Use the same e2e system as in core ([#686]https://github.com/kedacore/http-add-on/pull/686)
+- **General**: Use kubernetes e2e images for e2e test and samples ([#665](https://github.com/kedacore/http-add-on/issues/665))
+- **e2e tests**: Use the same e2e system as in core ([#686](https://github.com/kedacore/http-add-on/pull/686))
