@@ -50,7 +50,7 @@ Previously announced deprecation(s):
 
 ### Breaking Changes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+None.
 
 ### New
 
