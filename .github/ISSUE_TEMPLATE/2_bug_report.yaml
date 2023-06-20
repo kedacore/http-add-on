@@ -58,7 +58,7 @@ body:
     - "<0.3.0"
     - "Other"
   validations:
-    required: true
+    required: false
 - type: dropdown
   id: kubernetes-version
   attributes:
