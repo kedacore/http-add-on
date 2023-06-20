@@ -46,10 +46,16 @@ body:
       ```
   validations:
     required: false
-- type: input
+- type: dropdown
   id: keda-http-version
   attributes:
-    label: What version of the KEDA HTTP Add-on are you running?
+    label: "HTTP Add-on Version"
+    description: "What version of the KEDA HTTP Add-on are you running?"
+    options:
+    - "0.5.0"
+    - "0.4.0"
+    - "0.3.0"
+    - "Other"
   validations:
     required: false
 - type: dropdown
