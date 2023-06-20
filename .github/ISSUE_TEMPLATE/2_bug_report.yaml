@@ -49,8 +49,8 @@ body:
 - type: dropdown
   id: keda-http-version
   attributes:
-    label: HTTP Add-on Version
-    description: What version of the KEDA HTTP Add-on are you running?
+    label: "HTTP Add-on Version"
+    description: "What version of the KEDA HTTP Add-on are you running?"
     options:
     - "0.5.0"
     - "0.4.0"
