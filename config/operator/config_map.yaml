@@ -1,7 +1,0 @@
-# TODO(pedrotorres): remove after implementing new routing table
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: routing-table
-data:
-  routing-table: "{}"
