@@ -27,10 +27,11 @@ import (
 
 func TestStreamIsActive(t *testing.T) {
 	type testCase struct {
-		name        string
-		expected    bool
-		expectedErr bool
-		setup       func(t *testing.T, qp *queuePinger)
+		name           string
+		expected       bool
+		expectedErr    bool
+		setup          func(t *testing.T, qp *queuePinger)
+		scalerMetadata map[string]string
 	}
 	testCases := []testCase{
 		{
@@ -96,6 +97,22 @@ func TestStreamIsActive(t *testing.T) {
 			expectedErr: true,
 			setup:       func(_ *testing.T, _ *queuePinger) {},
 		},
+		{
+			name:        "Interceptor",
+			expected:    true,
+			expectedErr: false,
+			setup: func(_ *testing.T, qp *queuePinger) {
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts["a"] = 1
+				qp.allCounts["b"] = 2
+				qp.allCounts["c"] = 3
+			},
+			scalerMetadata: map[string]string{
+				keyInterceptorTargetPendingRequests: "1000",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -117,7 +134,6 @@ func TestStreamIsActive(t *testing.T) {
 				pinger,
 				informer,
 				123,
-				200,
 			)
 
 			bufSize := 1024 * 1024
@@ -145,8 +161,9 @@ func TestStreamIsActive(t *testing.T) {
 			client := externalscaler.NewExternalScalerClient(conn)
 
 			testRef := &externalscaler.ScaledObjectRef{
-				Namespace: "default",
-				Name:      t.Name(),
+				Namespace:      "default",
+				Name:           t.Name(),
+				ScalerMetadata: tc.scalerMetadata,
 			}
 
 			// First will see if we can establish the stream and handle this
@@ -176,10 +193,11 @@ func TestStreamIsActive(t *testing.T) {
 
 func TestIsActive(t *testing.T) {
 	type testCase struct {
-		name        string
-		expected    bool
-		expectedErr bool
-		setup       func(t *testing.T, qp *queuePinger)
+		name           string
+		expected       bool
+		expectedErr    bool
+		setup          func(t *testing.T, qp *queuePinger)
+		scalerMetadata map[string]string
 	}
 	testCases := []testCase{
 		{
@@ -245,6 +263,22 @@ func TestIsActive(t *testing.T) {
 			expectedErr: true,
 			setup:       func(_ *testing.T, _ *queuePinger) {},
 		},
+		{
+			name:        "Interceptor",
+			expected:    true,
+			expectedErr: false,
+			setup: func(_ *testing.T, qp *queuePinger) {
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts["a"] = 1
+				qp.allCounts["b"] = 2
+				qp.allCounts["c"] = 3
+			},
+			scalerMetadata: map[string]string{
+				keyInterceptorTargetPendingRequests: "1000",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -265,14 +299,14 @@ func TestIsActive(t *testing.T) {
 				pinger,
 				informer,
 				123,
-				200,
 			)
 
 			res, err := hdl.IsActive(
 				ctx,
 				&externalscaler.ScaledObjectRef{
-					Namespace: "default",
-					Name:      t.Name(),
+					Namespace:      "default",
+					Name:           t.Name(),
+					ScalerMetadata: tc.scalerMetadata,
 				},
 			)
 
@@ -292,17 +326,16 @@ func TestIsActive(t *testing.T) {
 func TestGetMetricSpecTable(t *testing.T) {
 	const ns = "testns"
 	type testCase struct {
-		name                           string
-		defaultTargetMetric            int64
-		defaultTargetMetricInterceptor int64
-		newInformer                    func(*testing.T, *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer
-		checker                        func(*testing.T, *externalscaler.GetMetricSpecResponse, error)
+		name                string
+		defaultTargetMetric int64
+		newInformer         func(*testing.T, *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer
+		checker             func(*testing.T, *externalscaler.GetMetricSpecResponse, error)
+		scalerMetadata      map[string]string
 	}
 	cases := []testCase{
 		{
-			name:                           "valid host as single host value in scaler metadata",
-			defaultTargetMetric:            0,
-			defaultTargetMetricInterceptor: 123,
+			name:                "valid host as single host value in scaler metadata",
+			defaultTargetMetric: 0,
 			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
 				informer, _, namespaceLister := newMocks(ctrl)
 
@@ -338,9 +371,8 @@ func TestGetMetricSpecTable(t *testing.T) {
 			},
 		},
 		{
-			name:                           "valid hosts as multiple hosts value in scaler metadata",
-			defaultTargetMetric:            0,
-			defaultTargetMetricInterceptor: 123,
+			name:                "valid hosts as multiple hosts value in scaler metadata",
+			defaultTargetMetric: 0,
 			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
 				informer, _, namespaceLister := newMocks(ctrl)
 
@@ -379,6 +411,34 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.Equal(int64(123), spec.TargetSize)
 			},
 		},
+		{
+			name:                "interceptor",
+			defaultTargetMetric: 0,
+			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
+				informer, _, namespaceLister := newMocks(ctrl)
+
+				namespaceLister.EXPECT().
+					Get(gomock.Any()).
+					DoAndReturn(func(name string) (*httpv1alpha1.HTTPScaledObject, error) {
+						return nil, errors.NewNotFound(httpv1alpha1.Resource("httpscaledobject"), name)
+					})
+
+				return informer
+			},
+			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricSpecs))
+				spec := res.MetricSpecs[0]
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), spec.MetricName)
+				r.Equal(int64(1000), spec.TargetSize)
+			},
+			scalerMetadata: map[string]string{
+				keyInterceptorTargetPendingRequests: "1000",
+			},
+		},
 	}
 
 	for i, c := range cases {
@@ -407,11 +467,11 @@ func TestGetMetricSpecTable(t *testing.T) {
 				pinger,
 				informer,
 				testCase.defaultTargetMetric,
-				testCase.defaultTargetMetricInterceptor,
 			)
 			scaledObjectRef := externalscaler.ScaledObjectRef{
-				Namespace: ns,
-				Name:      t.Name(),
+				Namespace:      ns,
+				Name:           t.Name(),
+				ScalerMetadata: testCase.scalerMetadata,
 			}
 			ret, err := hdl.GetMetricSpec(ctx, &scaledObjectRef)
 			testCase.checker(t, ret, err)
@@ -432,9 +492,9 @@ func TestGetMetrics(t *testing.T) {
 			context.Context,
 			logr.Logger,
 		) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error)
-		checkFn                        func(*testing.T, *externalscaler.GetMetricsResponse, error)
-		defaultTargetMetric            int64
-		defaultTargetMetricInterceptor int64
+		checkFn             func(*testing.T, *externalscaler.GetMetricsResponse, error)
+		defaultTargetMetric int64
+		scalerMetadata      map[string]string
 	}
 
 	startFakeInterceptorServer := func(
@@ -511,8 +571,7 @@ func TestGetMetrics(t *testing.T) {
 				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
 				r.Equal(int64(0), metricVal.MetricValue)
 			},
-			defaultTargetMetric:            int64(200),
-			defaultTargetMetricInterceptor: int64(300),
+			defaultTargetMetric: int64(200),
 		},
 		{
 			name: "HTTPSO present in the queue pinger",
@@ -549,8 +608,7 @@ func TestGetMetrics(t *testing.T) {
 				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
 				r.Equal(int64(201), metricVal.MetricValue)
 			},
-			defaultTargetMetric:            int64(200),
-			defaultTargetMetricInterceptor: int64(300),
+			defaultTargetMetric: int64(200),
 		},
 		{
 			name: "multiple validHosts add MetricValues",
@@ -590,8 +648,47 @@ func TestGetMetrics(t *testing.T) {
 				// in the setup function
 				r.Equal(int64(579), metricVal.MetricValue)
 			},
-			defaultTargetMetric:            int64(500),
-			defaultTargetMetricInterceptor: int64(600),
+			defaultTargetMetric: int64(500),
+		},
+		{
+			name: "interceptor",
+			setupFn: func(
+				t *testing.T,
+				ctrl *gomock.Controller,
+				ctx context.Context,
+				lggr logr.Logger,
+			) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error) {
+				informer, _, _ := newMocks(ctrl)
+
+				memory := map[string]int{
+					"a": 1,
+					"b": 2,
+					"c": 3,
+				}
+				pinger, done, err := startFakeInterceptorServer(ctx, lggr, memory, 2*time.Millisecond)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+
+				return informer, pinger, done, nil
+			},
+			checkFn: func(t *testing.T, res *externalscaler.GetMetricsResponse, err error) {
+				t.Helper()
+				r := require.New(t)
+				r.NoError(err)
+				r.NotNil(res)
+				r.Equal(1, len(res.MetricValues))
+				metricVal := res.MetricValues[0]
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
+				// the value here needs to be the same thing as
+				// the sum of the values in the fake queue created
+				// in the setup function
+				r.Equal(int64(6), metricVal.MetricValue)
+			},
+			defaultTargetMetric: int64(500),
+			scalerMetadata: map[string]string{
+				keyInterceptorTargetPendingRequests: "1000",
+			},
 		},
 	}
 
@@ -616,12 +713,12 @@ func TestGetMetrics(t *testing.T) {
 				pinger,
 				informer,
 				tc.defaultTargetMetric,
-				tc.defaultTargetMetricInterceptor,
 			)
 			res, err := hdl.GetMetrics(ctx, &externalscaler.GetMetricsRequest{
 				ScaledObjectRef: &externalscaler.ScaledObjectRef{
-					Namespace: ns,
-					Name:      t.Name(),
+					Namespace:      ns,
+					Name:           t.Name(),
+					ScalerMetadata: tc.scalerMetadata,
 				},
 			})
 			tc.checkFn(t, res, err)

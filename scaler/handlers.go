@@ -6,7 +6,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,12 +24,15 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+const (
+	keyInterceptorTargetPendingRequests = "interceptorTargetPendingRequests"
+)
+
 type impl struct {
-	lggr                    logr.Logger
-	pinger                  *queuePinger
-	httpsoInformer          informershttpv1alpha1.HTTPScaledObjectInformer
-	targetMetric            int64
-	targetMetricInterceptor int64
+	lggr           logr.Logger
+	pinger         *queuePinger
+	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer
+	targetMetric   int64
 	externalscaler.UnimplementedExternalScalerServer
 }
 
@@ -36,14 +41,12 @@ func newImpl(
 	pinger *queuePinger,
 	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer,
 	defaultTargetMetric int64,
-	defaultTargetMetricInterceptor int64,
 ) *impl {
 	return &impl{
-		lggr:                    lggr,
-		pinger:                  pinger,
-		httpsoInformer:          httpsoInformer,
-		targetMetric:            defaultTargetMetric,
-		targetMetricInterceptor: defaultTargetMetricInterceptor,
+		lggr:           lggr,
+		pinger:         pinger,
+		httpsoInformer: httpsoInformer,
+		targetMetric:   defaultTargetMetric,
 	}
 }
 
@@ -52,15 +55,27 @@ func (e *impl) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 }
 
 func (e *impl) IsActive(
-	_ context.Context,
-	scaledObject *externalscaler.ScaledObjectRef,
+	ctx context.Context,
+	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
-	namespacedName := k8s.NamespacedNameFromScaledObjectRef(scaledObject)
+	lggr := e.lggr.WithName("IsActive")
 
-	key := namespacedName.String()
-	count := e.pinger.counts()[key]
+	gmr, err := e.GetMetrics(ctx, &externalscaler.GetMetricsRequest{
+		ScaledObjectRef: sor,
+	})
+	if err != nil {
+		lggr.Error(err, "GetMetrics failed", "scaledObjectRef", sor.String())
+		return nil, err
+	}
 
-	active := count > 0
+	metricValues := gmr.GetMetricValues()
+	if err := errors.New("len(metricValues) != 1"); len(metricValues) != 1 {
+		lggr.Error(err, "invalid GetMetricsResponse", "scaledObjectRef", sor.String(), "getMetricsResponse", gmr.String())
+		return nil, err
+	}
+	metricValue := metricValues[0].GetMetricValue()
+
+	active := metricValue > 0
 	res := &externalscaler.IsActiveResponse{
 		Result: active,
 	}
@@ -114,10 +129,36 @@ func (e *impl) GetMetricSpec(
 
 	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
 	if err != nil {
+		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
+			if interceptorTargetPendingRequests, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
+				return e.interceptorMetricSpec(metricName, interceptorTargetPendingRequests)
+			}
+		}
+
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 		return nil, err
 	}
 	targetPendingRequests := int64(pointer.Int32Deref(httpso.Spec.TargetPendingRequests, 100))
+
+	res := &externalscaler.GetMetricSpecResponse{
+		MetricSpecs: []*externalscaler.MetricSpec{
+			{
+				MetricName: metricName,
+				TargetSize: targetPendingRequests,
+			},
+		},
+	}
+	return res, nil
+}
+
+func (e *impl) interceptorMetricSpec(metricName string, interceptorTargetPendingRequests string) (*externalscaler.GetMetricSpecResponse, error) {
+	lggr := e.lggr.WithName("interceptorMetricSpec")
+
+	targetPendingRequests, err := strconv.ParseInt(interceptorTargetPendingRequests, 10, 64)
+	if err != nil {
+		lggr.Error(err, "unable to parse interceptorTargetPendingRequests", "value", interceptorTargetPendingRequests)
+		return nil, err
+	}
 
 	res := &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
@@ -140,13 +181,44 @@ func (e *impl) GetMetrics(
 	metricName := MetricName(namespacedName)
 
 	key := namespacedName.String()
-	count := e.pinger.counts()[key]
+	count := int64(e.pinger.counts()[key])
+
+	if count == 0 {
+		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
+			if _, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
+				return e.interceptorMetrics(metricName)
+			}
+		}
+	}
 
 	res := &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
 			{
 				MetricName:  metricName,
-				MetricValue: int64(count),
+				MetricValue: count,
+			},
+		},
+	}
+	return res, nil
+}
+
+func (e *impl) interceptorMetrics(metricName string) (*externalscaler.GetMetricsResponse, error) {
+	lggr := e.lggr.WithName("interceptorMetrics")
+
+	var count int64
+	for _, v := range e.pinger.counts() {
+		count += int64(v)
+	}
+	if err := strconv.ErrRange; count < 0 {
+		lggr.Error(err, "count overflowed", "value", count)
+		return nil, err
+	}
+
+	res := &externalscaler.GetMetricsResponse{
+		MetricValues: []*externalscaler.MetricValue{
+			{
+				MetricName:  metricName,
+				MetricValue: count,
 			},
 		},
 	}
