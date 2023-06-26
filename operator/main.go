@@ -58,19 +58,11 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var adminPort int
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	// TODO(pedrotorres): remove after implementing new routing table
-	flag.IntVar(
-		&adminPort,
-		"admin-port",
-		9090,
-		"The port on which to run the admin server. This is the port on which RPCs will be accepted to get the routing table",
-	)
 	opts := zap.Options{
 		Development: true,
 	}

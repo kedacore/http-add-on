@@ -24,8 +24,6 @@ spec:
         image: ghcr.io/kedacore/http-add-on-operator
         args:
         - --leader-elect
-        # TODO(pedrotorres): remove after implementing new routing table
-        - --admin-port=9090
         env:
         - name: KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE
           value: "keda-http-add-on-external-scaler"
@@ -35,7 +33,6 @@ spec:
           value: "keda"
         - name: KEDA_HTTP_OPERATOR_WATCH_NAMESPACE
           value: ""
-        # TODO(pedrotorres): remove after implementing new routing table
         ports:
         - name: metrics
           containerPort: 8080
