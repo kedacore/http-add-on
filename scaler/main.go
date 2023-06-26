@@ -48,7 +48,6 @@ func main() {
 	deplName := cfg.TargetDeployment
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
 	targetPendingRequests := cfg.TargetPendingRequests
-	targetPendingRequestsInterceptor := cfg.TargetPendingRequestsInterceptor
 
 	k8sCfg, err := ctrl.GetConfig()
 	if err != nil {
@@ -127,7 +126,6 @@ func main() {
 			pinger,
 			httpsoInformer,
 			int64(targetPendingRequests),
-			int64(targetPendingRequestsInterceptor),
 		)
 	})
 
@@ -142,7 +140,6 @@ func startGrpcServer(
 	pinger *queuePinger,
 	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer,
 	targetPendingRequests int64,
-	targetPendingRequestsInterceptor int64,
 ) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("starting grpc server", "address", addr)
@@ -170,7 +167,6 @@ func startGrpcServer(
 			pinger,
 			httpsoInformer,
 			targetPendingRequests,
-			targetPendingRequestsInterceptor,
 		),
 	)
 
