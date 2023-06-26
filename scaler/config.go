@@ -36,8 +36,6 @@ type config struct {
 	DeploymentCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_DEPLOYMENT_INFORMER_RSYNC_PERIOD" default:"60m"`
 	// QueueTickDuration is the duration between queue requests
 	QueueTickDuration time.Duration `envconfig:"KEDA_HTTP_QUEUE_TICK_DURATION" default:"500ms"`
-	// This will be the 'Target Pending Requests' for the interceptor
-	TargetPendingRequestsInterceptor int `envconfig:"KEDA_HTTP_SCALER_TARGET_PENDING_REQUESTS_INTERCEPTOR" default:"100"`
 }
 
 func mustParseConfig() *config {

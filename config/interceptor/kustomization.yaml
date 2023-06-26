@@ -7,6 +7,9 @@ resources:
 - admin.service.yaml
 - proxy.service.yaml
 - service_account.yaml
+- scaledobject.yaml
+configurations:
+- transformerconfig.yaml
 labels:
 - includeSelectors: true
   includeTemplates: true

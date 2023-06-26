@@ -1,0 +1,17 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: interceptor
+spec:
+  minReplicaCount: 3
+  maxReplicaCount: 50
+  pollingInterval: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: interceptor
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: external-scaler:9090
+        interceptorTargetPendingRequests: '200'
