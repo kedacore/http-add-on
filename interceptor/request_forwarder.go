@@ -18,14 +18,18 @@ func forwardRequest(
 ) {
 	proxy := httputil.NewSingleHostReverseProxy(fwdSvcURL)
 	proxy.Transport = roundTripper
+	superDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
+		superDirector(req)
 		req.URL = fwdSvcURL
-		req.Host = fwdSvcURL.Host
 		req.URL.Path = r.URL.Path
 		req.URL.RawQuery = r.URL.RawQuery
 		// delete the incoming X-Forwarded-For header so the proxy
 		// puts its own in. This is also important to prevent IP spoofing
-		req.Header.Del("X-Forwarded-For ")
+		req.Header.Del("Forwarded")
+		req.Header.Del("X-Forwarded-For")
+		req.Header.Del("X-Forwarded-Host")
+		req.Header.Del("X-Forwarded-Proto")
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		w.WriteHeader(502)
