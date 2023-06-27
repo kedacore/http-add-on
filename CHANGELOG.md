@@ -29,6 +29,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **Scaler**: remplement custom interceptor metrics ([#718](https://github.com/kedacore/http-add-on/issues/718))
+- **Operator**: Remove ScaledObject `name` & `app` custom labels ([#717](https://github.com/kedacore/http-add-on/issues/717))
 
 ### Deprecations
 
