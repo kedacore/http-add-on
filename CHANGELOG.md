@@ -30,6 +30,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **Scaler**: remplement custom interceptor metrics ([#718](https://github.com/kedacore/http-add-on/issues/718))
 - **Operator**: Remove ScaledObject `name` & `app` custom labels ([#717](https://github.com/kedacore/http-add-on/issues/717))
+- **Interceptor**: fatal error: concurrent map iteration and map write ([#726](https://github.com/kedacore/http-add-on/issues/726))
 
 ### Deprecations
 
