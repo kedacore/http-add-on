@@ -85,6 +85,8 @@ func (r *Memory) Current() (*Counts, error) {
 	r.mut.RLock()
 	defer r.mut.RUnlock()
 	cts := NewCounts()
-	cts.Counts = r.countMap
+	for key, val := range r.countMap {
+		cts.Counts[key] = val
+	}
 	return cts, nil
 }
