@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -360,7 +359,7 @@ func splitHostPort(hostPortStr string) (string, int, error) {
 	host := spl[0]
 	port, err := strconv.Atoi(spl[1])
 	if err != nil {
-		return "", 0, errors.Wrap(err, "port was invalid")
+		return "", 0, fmt.Errorf("port was invalid: %w", err)
 	}
 	return host, port, nil
 }

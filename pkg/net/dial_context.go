@@ -50,7 +50,7 @@ func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialCont
 			select {
 			case <-ctx.Done():
 				t.Stop()
-				return nil, fmt.Errorf("context timed out: %s", ctx.Err())
+				return nil, fmt.Errorf("context timed out: %w", ctx.Err())
 			case <-t.C:
 				t.Stop()
 			}

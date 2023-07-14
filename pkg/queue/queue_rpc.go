@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 )
 
 const countsPath = "/queue"
@@ -66,22 +65,12 @@ func GetCounts(
 	interceptorURL.Path = countsPath
 	resp, err := httpCl.Get(interceptorURL.String())
 	if err != nil {
-		errMsg := fmt.Sprintf(
-			"requesting the queue counts from %s",
-			interceptorURL.String(),
-		)
-		return nil, errors.Wrap(err, errMsg)
+		return nil, fmt.Errorf("requesting the queue counts from %s: %w", interceptorURL.String(), err)
 	}
 	defer resp.Body.Close()
 	counts := NewCounts()
 	if err := json.NewDecoder(resp.Body).Decode(counts); err != nil {
-		return nil, errors.Wrap(
-			err,
-			fmt.Sprintf(
-				"decoding response from the interceptor at %s",
-				interceptorURL.String(),
-			),
-		)
+		return nil, fmt.Errorf("decoding response from the interceptor at %s: %w", interceptorURL.String(), err)
 	}
 
 	return counts, nil

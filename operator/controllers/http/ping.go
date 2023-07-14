@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -28,7 +27,7 @@ func pingInterceptors(
 		k8s.EndpointsFuncForControllerClient(cl),
 	)
 	if err != nil {
-		return errors.Wrap(err, "pingInterceptors")
+		return fmt.Errorf("pingInterceptors: %w", err)
 	}
 	errGrp, _ := errgroup.WithContext(ctx)
 	for _, endpointURL := range endpointURLs {
