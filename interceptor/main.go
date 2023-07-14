@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -41,14 +42,14 @@ func main() {
 		fmt.Println("Error building logger", err)
 		os.Exit(1)
 	}
+
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
 	if err := config.Validate(*servingCfg, *timeoutCfg); err != nil {
 		lggr.Error(err, "invalid configuration")
 		os.Exit(1)
 	}
-	ctx := util.ContextWithLogger(context.Background(), lggr)
-	ctx, ctxDone := context.WithCancel(ctx)
+
 	lggr.Info(
 		"starting interceptor",
 		"timeoutConfig",
@@ -94,73 +95,67 @@ func main() {
 
 	lggr.Info("Interceptor starting")
 
-	errGrp, ctx := errgroup.WithContext(ctx)
+	ctx := ctrl.SetupSignalHandler()
+	ctx = util.ContextWithLogger(ctx, lggr)
+
+	eg, ctx := errgroup.WithContext(ctx)
 
 	// start the deployment cache updater
-	errGrp.Go(func() error {
-		defer ctxDone()
-		err := deployCache.Start(ctx)
-		lggr.Error(err, "deployment cache watcher failed")
-		return err
+	eg.Go(func() error {
+		lggr.Info("starting the deployment cache")
+
+		deployCache.Start(ctx)
+		return nil
 	})
 
 	// start the update loop that updates the routing table from
 	// the ConfigMap that the operator updates as HTTPScaledObjects
 	// enter and exit the system
-	errGrp.Go(func() error {
-		defer ctxDone()
-		err := routingTable.Start(ctx)
-		lggr.Error(err, "config map routing table updater failed")
-		return err
+	eg.Go(func() error {
+		lggr.Info("starting the routing table")
+
+		if err := routingTable.Start(ctx); !util.IsIgnoredErr(err) {
+			lggr.Error(err, "routing table failed")
+			return err
+		}
+
+		return nil
 	})
 
 	// start the administrative server. this is the server
 	// that serves the queue size API
-	errGrp.Go(func() error {
-		defer ctxDone()
-		lggr.Info(
-			"starting the admin server",
-			"port",
-			adminPort,
-		)
-		err := runAdminServer(
-			ctx,
-			lggr,
-			q,
-			adminPort,
-		)
-		lggr.Error(err, "admin server failed")
-		return err
+	eg.Go(func() error {
+		lggr.Info("starting the admin server", "port", adminPort)
+
+		if err := runAdminServer(ctx, lggr, q, adminPort); !util.IsIgnoredErr(err) {
+			lggr.Error(err, "admin server failed")
+			return err
+		}
+
+		return nil
 	})
 
 	// start the proxy server. this is the server that
 	// accepts, holds and forwards user requests
-	errGrp.Go(func() error {
-		defer ctxDone()
-		lggr.Info(
-			"starting the proxy server",
-			"port",
-			proxyPort,
-		)
-		err := runProxyServer(
-			ctx,
-			lggr,
-			q,
-			waitFunc,
-			routingTable,
-			timeoutCfg,
-			proxyPort,
-		)
-		lggr.Error(err, "proxy server failed")
-		return err
+	eg.Go(func() error {
+		lggr.Info("starting the proxy server", "port", proxyPort)
+
+		if err := runProxyServer(ctx, lggr, q, waitFunc, routingTable, timeoutCfg, proxyPort); !util.IsIgnoredErr(err) {
+			lggr.Error(err, "proxy server failed")
+			return err
+		}
+
+		return nil
 	})
+
 	build.PrintComponentInfo(lggr, "Interceptor")
 
-	// errGrp.Wait() should hang forever for healthy admin and proxy servers.
-	// if it returns an error, log and exit immediately.
-	waitErr := errGrp.Wait()
-	lggr.Error(waitErr, "error with interceptor")
-	os.Exit(1)
+	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		lggr.Error(err, "fatal error")
+		os.Exit(1)
+	}
+
+	lggr.Info("Bye!")
 }
 
 func runAdminServer(

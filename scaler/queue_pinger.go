@@ -4,12 +4,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -93,19 +93,13 @@ func (q *queuePinger) start(
 				ctx.Err(),
 				"context marked done. stopping queuePinger loop",
 			)
-			return errors.Wrap(
-				ctx.Err(),
-				"context marked done. stopping queuePinger loop",
-			)
+			return fmt.Errorf("context marked done. stopping queuePinger loop: %w", ctx.Err())
 		// do our regularly scheduled work
 		case <-ticker.C:
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts")
-				return errors.Wrap(
-					err,
-					"error getting request counts",
-				)
+				return fmt.Errorf("error getting request counts: %w", err)
 			}
 		// handle changes to the interceptor fleet
 		// Deployment

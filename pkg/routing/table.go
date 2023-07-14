@@ -2,11 +2,11 @@ package routing
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"

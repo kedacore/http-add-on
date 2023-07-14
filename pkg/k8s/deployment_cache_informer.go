@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
@@ -32,11 +31,8 @@ func (i *InformerBackedDeploymentCache) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&depls)
 }
 
-func (i *InformerBackedDeploymentCache) Start(ctx context.Context) error {
+func (i *InformerBackedDeploymentCache) Start(ctx context.Context) {
 	i.deplInformer.Informer().Run(ctx.Done())
-	return errors.Wrap(
-		ctx.Err(), "deployment cache informer was stopped",
-	)
 }
 
 func (i *InformerBackedDeploymentCache) Get(

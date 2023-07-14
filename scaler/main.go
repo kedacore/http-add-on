@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -28,6 +29,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/build"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	pkglog "github.com/kedacore/http-add-on/pkg/log"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 // +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs=get;list;watch
@@ -88,49 +90,57 @@ func main() {
 	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, cfg.ConfigMapCacheRsyncPeriod)
 	httpsoInformer := informershttpv1alpha1.New(sharedInformerFactory, "", nil).HTTPScaledObjects()
 
-	ctx, done := context.WithCancel(
-		context.Background(),
-	)
-	defer done()
+	ctx := ctrl.SetupSignalHandler()
+	ctx = util.ContextWithLogger(ctx, lggr)
 
-	grp, ctx := errgroup.WithContext(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
 
 	// start the deployment informer
-	grp.Go(func() error {
-		defer done()
-		return deployInformer.Start(ctx)
+	eg.Go(func() error {
+		lggr.Info("starting the deployment informer")
+
+		deployInformer.Start(ctx)
+		return nil
 	})
 
 	// start the httpso informer
-	grp.Go(func() error {
-		defer done()
+	eg.Go(func() error {
+		lggr.Info("starting the httpso informer")
+
 		httpsoInformer.Informer().Run(ctx.Done())
-		return ctx.Err()
+		return nil
 	})
 
-	grp.Go(func() error {
-		defer done()
-		return pinger.start(
-			ctx,
-			time.NewTicker(cfg.QueueTickDuration),
-			deployInformer,
-		)
+	eg.Go(func() error {
+		lggr.Info("starting the queue pinger")
+
+		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration), deployInformer); !util.IsIgnoredErr(err) {
+			lggr.Error(err, "queue pinger failed")
+			return err
+		}
+
+		return nil
 	})
 
-	grp.Go(func() error {
-		defer done()
-		return startGrpcServer(
-			ctx,
-			lggr,
-			grpcPort,
-			pinger,
-			httpsoInformer,
-			int64(targetPendingRequests),
-		)
+	eg.Go(func() error {
+		lggr.Info("starting the grpc server")
+
+		if err := startGrpcServer(ctx, lggr, grpcPort, pinger, httpsoInformer, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
+			lggr.Error(err, "grpc server failed")
+			return err
+		}
+
+		return nil
 	})
 
 	build.PrintComponentInfo(lggr, "Scaler")
-	lggr.Error(grp.Wait(), "one or more of the servers failed")
+
+	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		lggr.Error(err, "fatal error")
+		os.Exit(1)
+	}
+
+	lggr.Info("Bye!")
 }
 
 func startGrpcServer(
@@ -172,7 +182,7 @@ func startGrpcServer(
 
 	go func() {
 		<-ctx.Done()
-		lis.Close()
+		grpcServer.GracefulStop()
 	}()
 
 	return grpcServer.Serve(lis)

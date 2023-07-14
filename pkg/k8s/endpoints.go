@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -29,7 +28,7 @@ func EndpointsForService(
 ) ([]*url.URL, error) {
 	endpoints, err := endpointsFn(ctx, ns, serviceName)
 	if err != nil {
-		return nil, errors.Wrap(err, "pkg.k8s.EndpointsForService")
+		return nil, fmt.Errorf("pkg.k8s.EndpointsForService: %w", err)
 	}
 	ret := []*url.URL{}
 	for _, subset := range endpoints.Subsets {

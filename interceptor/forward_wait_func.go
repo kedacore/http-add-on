@@ -36,7 +36,7 @@ func newDeployReplicasForwardWaitFunc(
 		if err != nil {
 			// if we didn't get the initial deployment state, bail out
 			return 0, fmt.Errorf(
-				"error getting state for deployment %s/%s (%s)",
+				"error getting state for deployment %s/%s: %w",
 				deployNS,
 				deployName,
 				err,
@@ -62,7 +62,7 @@ func newDeployReplicasForwardWaitFunc(
 				// otherwise, if the context is marked done before
 				// we're done waiting, fail.
 				return 0, fmt.Errorf(
-					"context marked done while waiting for deployment %s to reach > 0 replicas (%w)",
+					"context marked done while waiting for deployment %s to reach > 0 replicas: %w",
 					deployName,
 					ctx.Err(),
 				)
