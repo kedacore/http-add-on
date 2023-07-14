@@ -31,8 +31,8 @@ This changelog keeps track of work items that have been completed and are ready 
 - **Scaler**: remplement custom interceptor metrics ([#718](https://github.com/kedacore/http-add-on/issues/718))
 - **Operator**: Remove ScaledObject `name` & `app` custom labels ([#717](https://github.com/kedacore/http-add-on/issues/717))
 - **Interceptor**: fatal error: concurrent map iteration and map write ([#726](https://github.com/kedacore/http-add-on/issues/726))
-- **Interceptor**: shutdown http servers gracefully on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
-- **Scaler**: shutdown grpc server gracefully on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
+- **Interceptor**: Provide graceful shutdown for http servers on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
+- **Scaler**: Provide graceful shutdown for grpc server on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
 
 ### Deprecations
 
