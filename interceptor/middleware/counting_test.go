@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -38,7 +38,7 @@ func TestCountMiddleware(t *testing.T) {
 				Service:    ":",
 				Port:       8080,
 			},
-			TargetPendingRequests: pointer.Int32(123),
+			TargetPendingRequests: ptr.To[int32](123),
 		},
 	}
 	namespacedName := k8s.NamespacedNameFromObject(httpso).String()
