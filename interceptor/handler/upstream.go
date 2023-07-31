@@ -37,10 +37,11 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(stream)
+	superDirector := proxy.Director
 	proxy.Transport = uh.roundTripper
 	proxy.Director = func(req *http.Request) {
+		superDirector(req)
 		req.URL = stream
-		req.Host = stream.Host
 		req.URL.Path = r.URL.Path
 		req.URL.RawQuery = r.URL.RawQuery
 		// delete the incoming X-Forwarded-For header so the proxy
