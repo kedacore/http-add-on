@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/zapr v1.2.4
 	github.com/golang/mock v1.7.0-rc.1.0.20220812172401-5b455625bd2c
 	github.com/hashicorp/go-immutable-radix/v2 v2.0.0
-	github.com/kedacore/keda/v2 v2.11.1
+	github.com/kedacore/keda/v2 v2.11.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
