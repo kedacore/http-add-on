@@ -22,7 +22,7 @@ require (
 	k8s.io/client-go v0.27.3
 	k8s.io/code-generator v0.27.3
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
-	sigs.k8s.io/controller-runtime v0.15.0
+	sigs.k8s.io/controller-runtime v0.15.1
 )
 
 require (
