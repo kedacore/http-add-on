@@ -13,7 +13,7 @@ require (
 	github.com/onsi/gomega v1.27.8
 	github.com/stretchr/testify v1.8.4
 	github.com/tj/assert v0.0.3
-	go.uber.org/zap v1.24.0
+	go.uber.org/zap v1.25.0
 	golang.org/x/sync v0.3.0
 	google.golang.org/grpc v1.56.1
 	google.golang.org/protobuf v1.30.0
@@ -62,7 +62,6 @@ require (
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.10.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.11.0 // indirect
