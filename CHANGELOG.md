@@ -49,7 +49,7 @@ Previously announced deprecation(s):
 
 ### Other
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Adding a changelog validating script to check for formatting and order ([#761](https://github.com/kedacore/http-add-on/pull/761))
 
 ## v0.5.0
 
