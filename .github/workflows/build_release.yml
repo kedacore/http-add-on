@@ -19,6 +19,11 @@ jobs:
         run: |
           echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
 
+      - name: Release Deployment YAML file
+        run: make release
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+
       - name: Login to GHCR
         uses: docker/login-action@v2
         with:
@@ -36,3 +41,34 @@ jobs:
         run: make publish-multiarch
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      # Get release information to determine id of the current release
+      - name: Get Release
+        id: get-release-info
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload deployment YAML file to GitHub release
+      - name: Upload Deployment YAML file
+        id: upload-deployment-yaml
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: https://uploads.github.com/repos/kedacore/keda/releases/${{ steps.get-release-info.outputs.id }}/assets?name=keda-http-add-on-${{ steps.get_version.outputs.VERSION }}.yaml
+          asset_path: keda-http-add-on-${{ steps.get_version.outputs.VERSION }}.yaml
+          asset_name: keda-http-add-on-${{ steps.get_version.outputs.VERSION }}.yaml
+          asset_content_type: application/x-yaml
+
+      # Upload CRD deployment YAML file to GitHub release
+      - name: Upload Deployment YAML file
+        id: upload-crd-deployment-yaml
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: https://uploads.github.com/repos/kedacore/keda/releases/${{ steps.get-release-info.outputs.id }}/assets?name=keda-http-add-on-${{ steps.get_version.outputs.VERSION }}-crds.yaml
+          asset_path: keda-http-add-on-${{ steps.get_version.outputs.VERSION }}-crds.yaml
+          asset_name: keda-http-add-on-${{ steps.get_version.outputs.VERSION }}-crds.yaml
+          asset_content_type: application/x-yaml
