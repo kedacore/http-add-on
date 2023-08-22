@@ -7,22 +7,17 @@ package main
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 const (
 	keyInterceptorTargetPendingRequests = "interceptorTargetPendingRequests"
@@ -138,7 +133,7 @@ func (e *impl) GetMetricSpec(
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 		return nil, err
 	}
-	targetPendingRequests := int64(pointer.Int32Deref(httpso.Spec.TargetPendingRequests, 100))
+	targetPendingRequests := int64(ptr.Deref(httpso.Spec.TargetPendingRequests, 100))
 
 	res := &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{

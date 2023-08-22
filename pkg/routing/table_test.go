@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	clientsetmock "github.com/kedacore/http-add-on/operator/generated/clientset/versioned/mock"
@@ -53,7 +53,7 @@ var _ = Describe("Table", func() {
 						Hosts: []string{
 							"kubernetes.io",
 						},
-						TargetPendingRequests: pointer.Int32(1),
+						TargetPendingRequests: ptr.To[int32](1),
 					},
 				},
 				{
@@ -66,7 +66,7 @@ var _ = Describe("Table", func() {
 							"github.com",
 						},
 						Replicas: &httpv1alpha1.ReplicaStruct{
-							Min: pointer.Int32(3),
+							Min: ptr.To[int32](3),
 						},
 					},
 				},
@@ -236,7 +236,7 @@ var _ = Describe("Table", func() {
 						"azure.com",
 					},
 					Replicas: &httpv1alpha1.ReplicaStruct{
-						Min: pointer.Int32(3),
+						Min: ptr.To[int32](3),
 					},
 				},
 			}
