@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
@@ -113,7 +113,7 @@ func TestWaitFailedConnection(t *testing.T) {
 				Service:    "nosuchdepl",
 				Port:       8081,
 			},
-			TargetPendingRequests: pointer.Int32(1234),
+			TargetPendingRequests: ptr.To[int32](1234),
 		},
 	})
 	req = util.RequestWithStream(req, stream)
@@ -163,7 +163,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 				Service:    "nosuchsvc",
 				Port:       9091,
 			},
-			TargetPendingRequests: pointer.Int32(1234),
+			TargetPendingRequests: ptr.To[int32](1234),
 		},
 	})
 	req = util.RequestWithStream(req, stream)
@@ -311,7 +311,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 				Service:    "testsvc",
 				Port:       9094,
 			},
-			TargetPendingRequests: pointer.Int32(1234),
+			TargetPendingRequests: ptr.To[int32](1234),
 		},
 	})
 	req = util.RequestWithStream(req, originURL)
@@ -377,7 +377,7 @@ func targetFromURL(
 				Service:    ":" + host,
 				Port:       int32(port),
 			},
-			TargetPendingRequests: pointer.Int32(123),
+			TargetPendingRequests: ptr.To[int32](123),
 		},
 	}
 }
