@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -213,7 +213,7 @@ var _ = Describe("TableMemory", func() {
 			tm = tm.Remember(&httpso0).(tableMemory)
 
 			httpso1 := *httpso0.DeepCopy()
-			httpso1.Spec.TargetPendingRequests = pointer.Int32(1)
+			httpso1.Spec.TargetPendingRequests = ptr.To[int32](1)
 			tm = tm.Remember(&httpso1).(tableMemory)
 
 			assertTrees(tm, &httpso0, &httpso1)
@@ -228,7 +228,7 @@ var _ = Describe("TableMemory", func() {
 			tm = tm.Remember(&httpso1).(tableMemory)
 
 			httpso2 := *httpso1.DeepCopy()
-			httpso2.Spec.TargetPendingRequests = pointer.Int32(1)
+			httpso2.Spec.TargetPendingRequests = ptr.To[int32](1)
 			tm = tm.Remember(&httpso2).(tableMemory)
 
 			assertTrees(tm, &httpso1, &httpso2)
@@ -574,7 +574,7 @@ var _ = Describe("TableMemory", func() {
 			Expect(ret8).To(BeNil())
 
 			httpso := *httpso1.DeepCopy()
-			httpso.Spec.TargetPendingRequests = pointer.Int32(1)
+			httpso.Spec.TargetPendingRequests = ptr.To[int32](1)
 
 			tm = tm.Remember(&httpso)
 

@@ -6,7 +6,7 @@ import (
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -45,7 +45,7 @@ func NewScaledObject(
 				Kind:       ObjectKind(&appsv1.Deployment{}),
 				Name:       deploymentName,
 			},
-			PollingInterval: pointer.Int32(soPollingInterval),
+			PollingInterval: ptr.To[int32](soPollingInterval),
 			CooldownPeriod:  cooldownPeriod,
 			MinReplicaCount: minReplicas,
 			MaxReplicaCount: maxReplicas,

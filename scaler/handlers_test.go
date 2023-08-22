@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	informersexternalversionshttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1/mock"
@@ -350,7 +350,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 							Service:    "testsrv",
 							Port:       8080,
 						},
-						TargetPendingRequests: pointer.Int32(123),
+						TargetPendingRequests: ptr.To[int32](123),
 					},
 				}
 				namespaceLister.EXPECT().
@@ -391,7 +391,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 							Service:    "testsrv",
 							Port:       8080,
 						},
-						TargetPendingRequests: pointer.Int32(123),
+						TargetPendingRequests: ptr.To[int32](123),
 					},
 				}
 				namespaceLister.EXPECT().
