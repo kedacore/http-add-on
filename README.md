@@ -75,7 +75,7 @@ This project follows the KEDA contributing guidelines, which are outlined in [CO
 If you would like to contribute code to this project, please see [docs/developing.md](./docs/developing.md).
 
 ---
-We are a Cloud Native Computing Foundation (CNCF) incubation project.
+We are a Cloud Native Computing Foundation (CNCF) graduated project.
 <p align="center"><img src="https://raw.githubusercontent.com/kedacore/keda/main/images/logo-cncf.svg" height="75px"></p>
 
 ## Code of Conduct
