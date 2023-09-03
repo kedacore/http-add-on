@@ -138,7 +138,7 @@ controller-gen: ## Download controller-gen locally if necessary.
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v5@v5.0.3
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v5
 
 deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/config.
 	cd config/interceptor && \

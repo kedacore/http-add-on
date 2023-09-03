@@ -26,10 +26,12 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
@@ -86,15 +88,20 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f8508ff1.keda.sh",
 		// TODO(pedrotorres): uncomment after implementing new routing table
 		// LeaderElectionReleaseOnCancel: true,
-		Namespace: baseConfig.WatchNamespace,
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				baseConfig.WatchNamespace: {},
+			},
+		},
 
 		// TODO(pedrotorres): remove this when we stop relying on ConfigMaps for the routing table
 		// workaround for using the same K8s client for both the routing table and the HTTPScaledObject
