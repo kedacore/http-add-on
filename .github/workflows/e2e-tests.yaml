@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-       kubernetesVersion: [v1.28, v1.27, v1.26, v1.25]
+        kubernetesVersion: [v1.28, v1.27, v1.26, v1.25]
         include:
         - kubernetesVersion: v1.28
           kindImage: kindest/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31
