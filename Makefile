@@ -95,9 +95,9 @@ release: manifests kustomize ## Produce new KEDA Http Add-on release in keda-htt
 
 # Development
 
-generate: codegen manifests mockgen ## Generate code, manifests, and mocks.
+generate: codegen mockgen manifests  ## Generate code, manifests, and mocks.
 
-verify: verify-codegen verify-manifests verify-mockgen ## Verify code, manifests, and mocks.
+verify: verify-codegen verify-mockgen verify-manifests ## Verify code, manifests, and mocks.
 
 codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
