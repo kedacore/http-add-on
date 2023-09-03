@@ -85,6 +85,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	var namespaces map[string]cache.Config
+	if baseConfig.WatchNamespace != "" {
+		namespaces = map[string]cache.Config{
+			baseConfig.WatchNamespace: {},
+		}
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: server.Options{
@@ -95,9 +102,7 @@ func main() {
 		LeaderElectionID:              "http-add-on.keda.sh",
 		LeaderElectionReleaseOnCancel: true,
 		Cache: cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				baseConfig.WatchNamespace: {},
-			},
+			DefaultNamespaces: namespaces,
 		},
 	})
 	if err != nil {
