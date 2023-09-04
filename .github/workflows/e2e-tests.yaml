@@ -28,7 +28,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Helm install
         uses: Azure/setup-helm@v3
@@ -68,7 +68,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Generate images
         run: |
@@ -94,7 +94,7 @@ jobs:
         - kubernetesVersion: v1.24
           kindImage: kindest/node:v1.24.4@sha256:adfaebada924a26c2c9308edd53c6e33b3d4e453782c0063dc0028bdebaddf98
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
