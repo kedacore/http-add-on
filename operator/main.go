@@ -21,15 +21,15 @@ import (
 	"os"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
@@ -85,22 +85,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "f8508ff1.keda.sh",
-		// TODO(pedrotorres): uncomment after implementing new routing table
-		// LeaderElectionReleaseOnCancel: true,
-		Namespace: baseConfig.WatchNamespace,
+	var namespaces map[string]cache.Config
+	if baseConfig.WatchNamespace != "" {
+		namespaces = map[string]cache.Config{
+			baseConfig.WatchNamespace: {},
+		}
+	}
 
-		// TODO(pedrotorres): remove this when we stop relying on ConfigMaps for the routing table
-		// workaround for using the same K8s client for both the routing table and the HTTPScaledObject
-		// this was already broken if the operator was running only for a single namespace
-		ClientDisableCacheFor: []client.Object{
-			&corev1.ConfigMap{},
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
+		HealthProbeBindAddress:        probeAddr,
+		LeaderElection:                enableLeaderElection,
+		LeaderElectionID:              "http-add-on.keda.sh",
+		LeaderElectionReleaseOnCancel: true,
+		Cache: cache.Options{
+			DefaultNamespaces: namespaces,
 		},
 	})
 	if err != nil {

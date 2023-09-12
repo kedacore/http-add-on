@@ -95,9 +95,9 @@ release: manifests kustomize ## Produce new KEDA Http Add-on release in keda-htt
 
 # Development
 
-generate: codegen manifests mockgen ## Generate code, manifests, and mocks.
+generate: codegen mockgen manifests  ## Generate code, manifests, and mocks.
 
-verify: verify-codegen verify-manifests verify-mockgen ## Verify code, manifests, and mocks.
+verify: verify-codegen verify-mockgen verify-manifests ## Verify code, manifests, and mocks.
 
 codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
@@ -138,7 +138,7 @@ controller-gen: ## Download controller-gen locally if necessary.
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v5@v5.0.3
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v5
 
 deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/config.
 	cd config/interceptor && \
