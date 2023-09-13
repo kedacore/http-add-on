@@ -41,7 +41,7 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts) forwardingConfig {
 // It's intended to be deployed and scaled alongside the application itself.
 //
 // fwdSvcURL must have a valid scheme in it. The best way to do this is
-// create a URL with url.Parse("https://...")
+// creating a URL with url.Parse("https://...")
 func newForwardingHandler(
 	lggr logr.Logger,
 	dialCtxFunc kedanet.DialContextFunc,
