@@ -25,7 +25,7 @@ jobs:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           # Username used to log in to a Docker registry. If not set then no login will occur
           username: ${{ github.repository_owner }}
