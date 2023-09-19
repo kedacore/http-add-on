@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ghcr.io/kedacore/keda-tools:1.20.5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4
 
       - name: Register workspace path
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -25,7 +25,7 @@ jobs:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           # Username used to log in to a Docker registry. If not set then no login will occur
           username: ${{ github.repository_owner }}
@@ -35,7 +35,7 @@ jobs:
           registry: ghcr.io
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
 
       - name: Publish on GitHub Container Registry
         run: make publish-multiarch
@@ -45,14 +45,14 @@ jobs:
       # Get release information to determine id of the current release
       - name: Get Release
         id: get-release-info
-        uses: bruceadams/get-release@v1.3.2
+        uses: bruceadams/get-release@74c3d60f5a28f358ccf241a00c9021ea16f0569f # v1.3.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Upload deployment YAML file to GitHub release
       - name: Upload Deployment YAML file
         id: upload-deployment-yaml
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -64,7 +64,7 @@ jobs:
       # Upload CRD deployment YAML file to GitHub release
       - name: Upload Deployment YAML file
         id: upload-crd-deployment-yaml
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
