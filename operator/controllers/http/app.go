@@ -50,6 +50,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		cl,
 		logger,
 		externalScalerConfig.HostName(baseConfig.CurrentNamespace),
+		baseConfig.ScaledObjectPatchStrategy,
 		httpso,
 	)
 }

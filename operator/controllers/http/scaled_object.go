@@ -24,6 +24,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 	cl client.Client,
 	logger logr.Logger,
 	externalScalerHostName string,
+	patchStrategy string,
 	httpso *httpv1alpha1.HTTPScaledObject,
 ) error {
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
@@ -67,7 +68,14 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 				)
 				return err
 			}
-			if err := cl.Patch(ctx, appScaledObject, client.Merge); err != nil {
+
+			var targetSo = appScaledObject
+			if patchStrategy == "APPEND" {
+				appendOrUpdateTriggers(&fetchedSO, appScaledObject)
+				targetSo = &fetchedSO
+			}
+
+			if err := cl.Patch(ctx, targetSo, client.Merge); err != nil {
 				logger.Error(
 					err,
 					"failed to patch existing ScaledObject",
@@ -105,6 +113,21 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 	)
 
 	return r.purgeLegacySO(ctx, cl, logger, httpso)
+}
+
+func appendOrUpdateTriggers(existingSO *kedav1alpha1.ScaledObject, appScaledObject *kedav1alpha1.ScaledObject) {
+	var triggerExists = false
+	var httpTrigger = appScaledObject.Spec.Triggers[0]
+	for _, trigger := range appScaledObject.Spec.Triggers {
+		if httpTrigger.Name == trigger.Name && httpTrigger.Type == trigger.Type {
+			triggerExists = true
+			trigger = httpTrigger
+			break
+		}
+	}
+	if !triggerExists {
+		existingSO.Spec.Triggers = append(existingSO.Spec.Triggers, httpTrigger)
+	}
 }
 
 // TODO(pedrotorres): delete this on v0.6.0

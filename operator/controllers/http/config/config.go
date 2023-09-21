@@ -29,6 +29,9 @@ type Base struct {
 	// The namespace the operator should watch. Leave blank to
 	// tell the operator to watch all namespaces.
 	WatchNamespace string `envconfig:"WATCH_NAMESPACE" default:""`
+	// The strategy to use when patching an existing scaled object.
+	// Leave blank to use default patch strategy, and use APPEND to append as a new trigger
+	ScaledObjectPatchStrategy string `envconfig:"SCALED_OBJECT_PATCH_STRATEGY" default:""`
 }
 
 func NewBaseFromEnv() (*Base, error) {
