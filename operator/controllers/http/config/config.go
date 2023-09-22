@@ -29,6 +29,9 @@ type Base struct {
 	// The namespace the operator should watch. Leave blank to
 	// tell the operator to watch all namespaces.
 	WatchNamespace string `envconfig:"WATCH_NAMESPACE" default:""`
+	// Set to true when you want to create scaled object by your self
+	// operator will skip the so creation. default false
+	SkipScaledObjectCreation bool `envconfig:"SKIP_SCALED_OBJECT_CREATION" default:"false"`
 }
 
 func NewBaseFromEnv() (*Base, error) {

@@ -41,6 +41,17 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 			"Identified HTTPScaledObject creation signal"),
 	)
 
+	// in some user scenario, we want to integrate http scaler with other
+	// scalers. when SkipScaledObjectCreation is set to true,
+	// reconciler will skip the KEDA core ScaledObjects creation.
+	// you can create your own so, and add http scaler as one of your triggers.
+	if baseConfig.SkipScaledObjectCreation {
+		logger.Info(
+			"Skip scaled objects creation with flag SkipScaledObjectCreation=true",
+			"HTTPScaledObject", httpso.Name)
+		return nil
+	}
+
 	// create the KEDA core ScaledObjects (not the HTTP one) for
 	// the app deployment and the interceptor deployment.
 	// this needs to be submitted so that KEDA will scale both the app and
