@@ -50,6 +50,7 @@ Previously announced deprecation(s):
 ### Other
 
 - **General**: Adding a changelog validating script to check for formatting and order ([#761](https://github.com/kedacore/http-add-on/pull/761))
+- **General**: Skip not required CI checks on PRs on new commits ([#801](https://github.com/kedacore/http-add-on/pull/801))
 
 ## v0.5.0
 
