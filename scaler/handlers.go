@@ -84,7 +84,7 @@ func (e *impl) StreamIsActive(
 	// this function communicates with KEDA via the 'server' parameter.
 	// we call server.Send (below) every 200ms, which tells it to immediately
 	// ping our IsActive RPC
-	ticker := time.NewTicker(5 * time.Millisecond)
+	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		select {
