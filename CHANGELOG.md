@@ -24,8 +24,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-- **Scaler**: Decrease memory usage by increasing stream interval from 5ms to 200ms.
+- **Scaler**: Decrease memory usage by allowing increasing stream interval configuration ([#745](https://github.com/kedacore/http-add-on/pull/745))
 
 ### Fixes
 
