@@ -94,7 +94,7 @@ func (e *impl) StreamIsActive(
 	server externalscaler.ExternalScaler_StreamIsActiveServer,
 ) error {
 	// this function communicates with KEDA via the 'server' parameter.
-	// we call server.Send (below) every 200ms, which tells it to immediately
+	// we call server.Send (below) every streamInterval, which tells it to immediately
 	// ping our IsActive RPC
 	ticker := time.NewTicker(streamInterval)
 	defer ticker.Stop()
