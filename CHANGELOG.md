@@ -28,13 +28,13 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **Interceptor**: fatal error: concurrent map iteration and map write ([#726](https://github.com/kedacore/http-add-on/issues/726))
+- **Interceptor**: Add support for streaming responses ([#743](https://github.com/kedacore/http-add-on/issues/743))
+- **Interceptor**: Fatal error: concurrent map iteration and map write ([#726](https://github.com/kedacore/http-add-on/issues/726))
 - **Interceptor**: Keep original Host in the Host header ([#331](https://github.com/kedacore/http-add-on/issues/331))
 - **Interceptor**: Provide graceful shutdown for http servers on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
 - **Operator**: Remove ScaledObject `name` & `app` custom labels ([#717](https://github.com/kedacore/http-add-on/issues/717))
 - **Scaler**: Provide graceful shutdown for grpc server on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
 - **Scaler**: remplement custom interceptor metrics ([#718](https://github.com/kedacore/http-add-on/issues/718))
-- **Interceptor**: Add support for streaming responses ([#743](https://github.com/kedacore/http-add-on/issues/742))
 
 ### Deprecations
 
