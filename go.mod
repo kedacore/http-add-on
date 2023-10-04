@@ -7,15 +7,15 @@ require (
 	github.com/go-logr/zapr v1.2.4
 	github.com/golang/mock v1.7.0-rc.1.0.20220812172401-5b455625bd2c
 	github.com/hashicorp/go-immutable-radix/v2 v2.0.0
-	github.com/kedacore/keda/v2 v2.11.2
+	github.com/kedacore/keda/v2 v2.12.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/onsi/ginkgo/v2 v2.12.0
-	github.com/onsi/gomega v1.27.10
+	github.com/onsi/ginkgo/v2 v2.12.1
+	github.com/onsi/gomega v1.28.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tj/assert v0.0.3
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.3.0
-	google.golang.org/grpc v1.58.1
+	google.golang.org/grpc v1.58.2
 	google.golang.org/protobuf v1.31.0
 	k8s.io/api v0.28.2
 	k8s.io/apimachinery v0.28.2
@@ -27,6 +27,7 @@ require (
 )
 
 require (
+	github.com/antonmedv/expr v1.15.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -91,7 +92,7 @@ require (
 	k8s.io/gengo v0.0.0-20230829151522-9cce18d56c01 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230918164632-68afd615200d // indirect
-	knative.dev/pkg v0.0.0-20230918163324-7fe699e4f743 // indirect
+	knative.dev/pkg v0.0.0-20230925085724-0efc1bce35a9 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.14.0 // indirect
 	sigs.k8s.io/kustomize/cmd/config v0.11.3 // indirect
