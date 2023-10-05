@@ -148,7 +148,7 @@ func TestCheck(t *testing.T) {
 		"replica count should be %d after 1 minutes", minReplicaCount)
 
 	testScaleOut(t, kc, data)
-	testScaleIn(t, kc, data)
+	testScaleIn(t, kc)
 
 	// cleanup
 	DeleteKubernetesResources(t, testNamespace, data, templates)
