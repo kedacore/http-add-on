@@ -102,12 +102,12 @@ spec:
       - name: apache-ab
         image: ghcr.io/kedacore/tests-apache-ab
         imagePullPolicy: Always
-        args: 
+        args:
           - "-n"
           - "2000000"
           - "-c"
           - "20"
-          - "-H" 
+          - "-H"
           - "Host: {{.Host}}"
           - "http://keda-http-add-on-interceptor-proxy.keda:8080/"
       restartPolicy: Never
