@@ -42,6 +42,7 @@ jobs:
         with:
           node_image: ${{ matrix.kindImage }}
           cluster_name: cluster
+          config: .github/kind.yaml
 
       - name: Generate images and push to the cluster
         run: |
@@ -81,7 +82,7 @@ jobs:
           VERSION: ${{ github.sha }}
 
   arm_e2e_tests:
-    runs-on: http-add-on-e2e
+    runs-on: ARM64
     needs: arm_image_generation
     name: Execute e2e test on ARM64 ${{ matrix.kubernetesVersion }}
     env:
@@ -112,6 +113,7 @@ jobs:
         with:
           node_image: ${{ matrix.kindImage }}
           cluster_name: ${{ runner.name }}
+          config: .github/kind.yaml
 
       - name: Push images to the cluster
         run: |
