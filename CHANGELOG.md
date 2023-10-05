@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.6.0](#v060)
 - [v0.5.0](#v050)
 
 ## Unreleased
@@ -17,6 +18,36 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Breaking Changes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### New
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Improvements
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Fixes
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+You can find all deprecations in [this overview](https://github.com/kedacore/http-add-on/labels/breaking-change) and [join the discussion here](https://github.com/kedacore/http-add-on/discussions/categories/deprecations).
+
+New deprecation(s):
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+Previously announced deprecation(s):
+
+- **General**: `host` field deprecated in favor of `hosts` in `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.6.0
 
 ### New
 
@@ -34,7 +65,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **Interceptor**: Provide graceful shutdown for http servers on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
 - **Operator**: Remove ScaledObject `name` & `app` custom labels ([#717](https://github.com/kedacore/http-add-on/issues/717))
 - **Scaler**: Provide graceful shutdown for grpc server on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
-- **Scaler**: remplement custom interceptor metrics ([#718](https://github.com/kedacore/http-add-on/issues/718))
+- **Scaler**: Reimplement custom interceptor metrics ([#718](https://github.com/kedacore/http-add-on/issues/718))
 
 ### Deprecations
 
@@ -43,10 +74,6 @@ You can find all deprecations in [this overview](https://github.com/kedacore/htt
 New deprecation(s):
 
 - **General**: `host` field deprecated in favor of `hosts` in `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552))
-
-Previously announced deprecation(s):
-
-- TODO
 
 ### Other
 

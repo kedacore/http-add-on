@@ -51,7 +51,6 @@ func init() {
 }
 
 // +kubebuilder:rbac:groups="",namespace=keda,resources=events,verbs=create;patch
-// +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,namespace=keda,resources=leases,verbs=get;list;watch;create;update;patch;delete
 
 func main() {
