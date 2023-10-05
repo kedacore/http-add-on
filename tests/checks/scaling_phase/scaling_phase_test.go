@@ -164,7 +164,7 @@ func testScaleOut(t *testing.T, kc *kubernetes.Clientset, data templateData) {
 	KubectlDeleteWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 }
 
-func testScaleIn(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+func testScaleIn(t *testing.T, kc *kubernetes.Clientset) {
 	t.Log("--- testing scale out ---")
 
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 12, 10),
