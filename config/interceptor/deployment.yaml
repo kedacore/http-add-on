@@ -24,8 +24,6 @@ spec:
       - name: interceptor
         image: ghcr.io/kedacore/http-add-on-interceptor
         env:
-        - name: KEDA_HTTP_ROUTING_TABLE_UPDATE_DURATION_MS
-          value: "500"
         - name: KEDA_HTTP_CURRENT_NAMESPACE
           value: "keda"
         - name: KEDA_HTTP_PROXY_PORT
