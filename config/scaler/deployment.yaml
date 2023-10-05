@@ -33,7 +33,7 @@ spec:
           value: "keda-http-add-on-interceptor-admin"
         - name: KEDA_HTTP_SCALER_TARGET_ADMIN_PORT
           value: "9090"
-        - name: KEDA_HTTP_SCALER_TARGET_PENDING_REQUESTS_INTERCEPTOR
+        - name: KEDA_HTTP_SCALER_STREAM_INTERVAL_MS
           value: "200"
         ports:
         - name: grpc

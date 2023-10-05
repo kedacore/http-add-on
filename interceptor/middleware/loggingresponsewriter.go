@@ -32,6 +32,9 @@ func (lrw *loggingResponseWriter) Header() http.Header {
 
 func (lrw *loggingResponseWriter) Write(bytes []byte) (int, error) {
 	n, err := lrw.downstreamResponseWriter.Write(bytes)
+	if f, ok := lrw.downstreamResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 
 	lrw.bytesWritten += n
 
