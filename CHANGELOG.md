@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.6.0](#v060)
 - [v0.5.0](#v050)
 
 ## Unreleased
@@ -20,7 +21,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: Add manifests to deploy the Add-on ([#716](https://github.com/kedacore/http-add-on/issues/716))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Improvements
 
@@ -28,12 +29,43 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **Interceptor**: fatal error: concurrent map iteration and map write ([#726](https://github.com/kedacore/http-add-on/issues/726))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+You can find all deprecations in [this overview](https://github.com/kedacore/http-add-on/labels/breaking-change) and [join the discussion here](https://github.com/kedacore/http-add-on/discussions/categories/deprecations).
+
+New deprecation(s):
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+Previously announced deprecation(s):
+
+- **General**: `host` field deprecated in favor of `hosts` in `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.6.0
+
+### New
+
+- **General**: Add manifests to deploy the Add-on ([#716](https://github.com/kedacore/http-add-on/issues/716))
+
+### Improvements
+
+- **Scaler**: Decrease memory usage by allowing increasing stream interval configuration ([#745](https://github.com/kedacore/http-add-on/pull/745))
+
+### Fixes
+
+- **Interceptor**: Add support for streaming responses ([#743](https://github.com/kedacore/http-add-on/issues/743))
+- **Interceptor**: Fatal error: concurrent map iteration and map write ([#726](https://github.com/kedacore/http-add-on/issues/726))
 - **Interceptor**: Keep original Host in the Host header ([#331](https://github.com/kedacore/http-add-on/issues/331))
 - **Interceptor**: Provide graceful shutdown for http servers on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
 - **Operator**: Remove ScaledObject `name` & `app` custom labels ([#717](https://github.com/kedacore/http-add-on/issues/717))
 - **Scaler**: Provide graceful shutdown for grpc server on SIGINT and SIGTERM ([#731](https://github.com/kedacore/http-add-on/issues/731))
-- **Scaler**: remplement custom interceptor metrics ([#718](https://github.com/kedacore/http-add-on/issues/718))
+- **Scaler**: Reimplement custom interceptor metrics ([#718](https://github.com/kedacore/http-add-on/issues/718))
 
 ### Deprecations
 
@@ -43,13 +75,10 @@ New deprecation(s):
 
 - **General**: `host` field deprecated in favor of `hosts` in `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552))
 
-Previously announced deprecation(s):
-
-- TODO
-
 ### Other
 
 - **General**: Adding a changelog validating script to check for formatting and order ([#761](https://github.com/kedacore/http-add-on/pull/761))
+- **General**: Skip not required CI checks on PRs on new commits ([#801](https://github.com/kedacore/http-add-on/pull/801))
 
 ## v0.5.0
 

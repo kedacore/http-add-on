@@ -3,12 +3,16 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   build_scaler:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.20.5
+    container: ghcr.io/kedacore/keda-tools:1.20.8
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
       - name: Register workspace path
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Scaler
@@ -18,9 +22,9 @@ jobs:
 
   build_operator:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.20.5
+    container: ghcr.io/kedacore/keda-tools:1.20.8
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
       - name: Register workspace path
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Operator
@@ -30,9 +34,9 @@ jobs:
 
   build_interceptor:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.20.5
+    container: ghcr.io/kedacore/keda-tools:1.20.8
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
       - name: Register workspace path
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Interceptor

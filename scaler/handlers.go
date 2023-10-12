@@ -17,11 +17,23 @@ import (
 
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 const (
 	keyInterceptorTargetPendingRequests = "interceptorTargetPendingRequests"
 )
+
+var streamInterval time.Duration
+
+func init() {
+	defaultMS := 200
+	timeoutMS, err := util.ResolveOsEnvInt("KEDA_HTTP_SCALER_STREAM_INTERVAL_MS", defaultMS)
+	if err != nil {
+		timeoutMS = defaultMS
+	}
+	streamInterval = time.Duration(timeoutMS) * time.Millisecond
+}
 
 type impl struct {
 	lggr           logr.Logger
@@ -82,9 +94,9 @@ func (e *impl) StreamIsActive(
 	server externalscaler.ExternalScaler_StreamIsActiveServer,
 ) error {
 	// this function communicates with KEDA via the 'server' parameter.
-	// we call server.Send (below) every 200ms, which tells it to immediately
+	// we call server.Send (below) every streamInterval, which tells it to immediately
 	// ping our IsActive RPC
-	ticker := time.NewTicker(5 * time.Millisecond)
+	ticker := time.NewTicker(streamInterval)
 	defer ticker.Stop()
 	for {
 		select {

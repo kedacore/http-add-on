@@ -32,7 +32,6 @@ import (
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-// +kubebuilder:rbac:groups="",namespace=keda,resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch

@@ -5,6 +5,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   e2e_tests:
     runs-on: ubuntu-latest
@@ -12,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetesVersion: [v1.28, v1.27, v1.26, v1.25]
+        kubernetesVersion: [v1.28, v1.27, v1.26]
         include:
         - kubernetesVersion: v1.28
           kindImage: kindest/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31
@@ -20,8 +24,6 @@ jobs:
           kindImage: kindest/node:v1.27.3@sha256:3966ac761ae0136263ffdb6cfd4db23ef8a83cba8a463690e98317add2c9ba72
         - kubernetesVersion: v1.26
           kindImage: kindest/node:v1.26.6@sha256:6e2d8b28a5b601defe327b98bd1c2d1930b49e5d8c512e1895099e4504007adb
-        - kubernetesVersion: v1.25
-          kindImage: kindest/node:v1.25.11@sha256:227fa11ce74ea76a0474eeefb84cb75d8dad1b08638371ecf0e86259b35be0c8
     steps:
       - name: Install prerequisites
         run: |
@@ -30,7 +32,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
 
       - name: Helm install
         uses: Azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3.5
@@ -40,6 +42,7 @@ jobs:
         with:
           node_image: ${{ matrix.kindImage }}
           cluster_name: cluster
+          config: .github/kind.yaml
 
       - name: Generate images and push to the cluster
         run: |
@@ -70,7 +73,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
 
       - name: Generate images
         run: |
@@ -79,7 +82,7 @@ jobs:
           VERSION: ${{ github.sha }}
 
   arm_e2e_tests:
-    runs-on: http-add-on-e2e
+    runs-on: ARM64
     needs: arm_image_generation
     name: Execute e2e test on ARM64 ${{ matrix.kubernetesVersion }}
     env:
@@ -87,7 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetesVersion: [v1.28, v1.27, v1.26, v1.25]
+        kubernetesVersion: [v1.28, v1.27, v1.26]
         include:
         - kubernetesVersion: v1.28
           kindImage: kindest/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31
@@ -95,10 +98,8 @@ jobs:
           kindImage: kindest/node:v1.27.3@sha256:3966ac761ae0136263ffdb6cfd4db23ef8a83cba8a463690e98317add2c9ba72
         - kubernetesVersion: v1.26
           kindImage: kindest/node:v1.26.6@sha256:6e2d8b28a5b601defe327b98bd1c2d1930b49e5d8c512e1895099e4504007adb
-        - kubernetesVersion: v1.25
-          kindImage: kindest/node:v1.25.11@sha256:227fa11ce74ea76a0474eeefb84cb75d8dad1b08638371ecf0e86259b35be0c8
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
 
       - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1
         with:
@@ -112,6 +113,7 @@ jobs:
         with:
           node_image: ${{ matrix.kindImage }}
           cluster_name: ${{ runner.name }}
+          config: .github/kind.yaml
 
       - name: Push images to the cluster
         run: |
