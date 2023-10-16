@@ -82,7 +82,7 @@ jobs:
           VERSION: ${{ github.sha }}
 
   arm_e2e_tests:
-    runs-on: ARM64
+    runs-on: http-add-on-e2e
     needs: arm_image_generation
     name: Execute e2e test on ARM64 ${{ matrix.kubernetesVersion }}
     env:
