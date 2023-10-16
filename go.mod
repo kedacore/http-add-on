@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-immutable-radix/v2 v2.0.0
 	github.com/kedacore/keda/v2 v2.12.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/onsi/ginkgo/v2 v2.12.1
+	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.28.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tj/assert v0.0.3
