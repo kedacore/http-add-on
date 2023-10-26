@@ -29,7 +29,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Increase ScaledObject polling interval to 15 seconds ([#799](https://github.com/kedacore/http-add-on/issues/799))
 
 ### Deprecations
 
