@@ -3,27 +3,27 @@ module github.com/kedacore/http-add-on
 go 1.20
 
 require (
-	github.com/go-logr/logr v1.2.4
+	github.com/go-logr/logr v1.3.0
 	github.com/go-logr/zapr v1.2.4
 	github.com/golang/mock v1.7.0-rc.1.0.20220812172401-5b455625bd2c
 	github.com/hashicorp/go-immutable-radix/v2 v2.0.0
 	github.com/kedacore/keda/v2 v2.12.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/onsi/ginkgo/v2 v2.12.1
-	github.com/onsi/gomega v1.28.0
+	github.com/onsi/ginkgo/v2 v2.13.0
+	github.com/onsi/gomega v1.29.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tj/assert v0.0.3
 	go.uber.org/zap v1.26.0
-	golang.org/x/sync v0.3.0
-	google.golang.org/grpc v1.58.3
+	golang.org/x/sync v0.4.0
+	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
-	k8s.io/api v0.28.2
-	k8s.io/apimachinery v0.28.2
-	k8s.io/client-go v0.28.2
-	k8s.io/code-generator v0.28.2
+	k8s.io/api v0.28.3
+	k8s.io/apimachinery v0.28.3
+	k8s.io/client-go v0.28.3
+	k8s.io/code-generator v0.28.3
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
-	sigs.k8s.io/controller-runtime v0.16.2
-	sigs.k8s.io/kustomize/kustomize/v5 v5.1.1
+	sigs.k8s.io/controller-runtime v0.16.3
+	sigs.k8s.io/kustomize/kustomize/v5 v5.2.1
 )
 
 require (
@@ -44,7 +44,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20230309165930-d61513b1440d // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -74,29 +74,30 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
-	golang.org/x/term v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230913181813-007df8e322eb // indirect
+	gopkg.in/evanphx/json-patch.v5 v5.6.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.28.2 // indirect
-	k8s.io/component-base v0.28.2 // indirect
+	k8s.io/apiextensions-apiserver v0.28.3 // indirect
+	k8s.io/component-base v0.28.3 // indirect
 	k8s.io/gengo v0.0.0-20230829151522-9cce18d56c01 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230918164632-68afd615200d // indirect
 	knative.dev/pkg v0.0.0-20230925085724-0efc1bce35a9 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/kustomize/api v0.14.0 // indirect
-	sigs.k8s.io/kustomize/cmd/config v0.11.3 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.14.3 // indirect
+	sigs.k8s.io/kustomize/api v0.15.0 // indirect
+	sigs.k8s.io/kustomize/cmd/config v0.12.0 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.15.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.3.0 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
