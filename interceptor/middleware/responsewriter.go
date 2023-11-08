@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"bufio"
+	"errors"
+	"net"
 	"net/http"
 )
 
@@ -45,4 +48,12 @@ func (rw *responseWriter) WriteHeader(statusCode int) {
 	rw.downstreamResponseWriter.WriteHeader(statusCode)
 
 	rw.statusCode = statusCode
+}
+
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := rw.downstreamResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+
+	return nil, nil, errors.New("http.Hijacker not implemented")
 }
