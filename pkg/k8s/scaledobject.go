@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	soPollingInterval = 1
+	soPollingInterval = 15
 	soTriggerType     = "external-push"
 
 	mkScalerAddress = "scalerAddress"
