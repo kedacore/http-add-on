@@ -13,7 +13,7 @@ jobs:
   validate:
     name: validate - ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
-    container: ghcr.io/kedacore/keda-tools:1.20.8
+    container: ghcr.io/kedacore/keda-tools:1.21.5
     strategy:
       matrix:
         include:
@@ -76,7 +76,7 @@ jobs:
           python-version: 3.x
       - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1
         with:
-          go-version: "1.20"
+          go-version: "1.21"
       - name: Get golangci
         run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
       - uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507 # v3.0.0
