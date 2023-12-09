@@ -86,7 +86,12 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	// TODO(jorturfer): delete this on v0.8.0
+	// TODO(pedrotorres): delete this on v0.6.0
+	if httpso.Spec.Host != nil {
+		logger.Info(".spec.host is deprecated, performing automated migration to .spec.hosts")
+		return ctrl.Result{}, r.migrateHost(ctx, httpso)
+	}
+	// TODO(jorturfer): delete this for v0.9.0
 	if httpso.Spec.ScaleTargetRef.Name == "" ||
 		httpso.Spec.ScaleTargetRef.Kind == "" ||
 		httpso.Spec.ScaleTargetRef.APIVersion == "" {
@@ -146,6 +151,18 @@ func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // TODO(pedrotorres): delete this on v0.6.0
+func (r *HTTPScaledObjectReconciler) migrateHost(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject) error {
+	if (httpso.Spec.Hosts != nil) == (httpso.Spec.Host != nil) {
+		return errors.New("exactly one of .spec.host and .spec.hosts must be set")
+	}
+	httpso.Spec.Hosts = []string{
+		*httpso.Spec.Host,
+	}
+	httpso.Spec.Host = nil
+	return r.Client.Update(ctx, httpso)
+}
+
+// TODO(jorturfer): delete this for v0.9.0
 func (r *HTTPScaledObjectReconciler) migrateTargetRef(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject) error {
 	if (httpso.Spec.ScaleTargetRef.Deployment != "") == (httpso.Spec.ScaleTargetRef.Name != "") {
 		return errors.New("exactly one of .spec.scaleTargetRef.deployment and .spec.scaleTargetRef.name must be set")

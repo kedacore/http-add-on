@@ -9,7 +9,7 @@ import (
 )
 
 func Validate(srvCfg *Serving, timeoutsCfg Timeouts, lggr logr.Logger) error {
-	// TODO(jorturfer): delete this on v0.8.0
+	// TODO(jorturfer): delete this for v0.9.0
 	_, deploymentEnvExist := os.LookupEnv("KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS")
 	_, endpointsEnvExist := os.LookupEnv("KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS")
 	if deploymentEnvExist && endpointsEnvExist {
@@ -22,7 +22,7 @@ func Validate(srvCfg *Serving, timeoutsCfg Timeouts, lggr logr.Logger) error {
 	if deploymentEnvExist && !endpointsEnvExist {
 		srvCfg.EndpointsCachePollIntervalMS = srvCfg.DeploymentCachePollIntervalMS
 		srvCfg.DeploymentCachePollIntervalMS = 0
-		lggr.Info("WARNING: KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS has been deprecated in favor of KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS and wil be removed on v0.8.0")
+		lggr.Info("WARNING: KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS has been deprecated in favor of KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS and wil be removed for v0.9.0")
 	}
 	// END TODO
 

@@ -7,14 +7,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/tj/assert"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
 )
 
 const (
-	testName = "scaling-phase-test"
+	testName = "scaling-phase-deployment-test"
 )
 
 var (
@@ -56,7 +56,7 @@ spec:
     app: {{.DeploymentName}}
 `
 
-	deploymentTemplate = `
+	workloadTemplate = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -127,7 +127,7 @@ spec:
   targetPendingRequests: 2
   scaledownPeriod: 10
   scaleTargetRef:
-    deployment: {{.DeploymentName}}
+    name: {{.DeploymentName}}
     service: {{.ServiceName}}
     port: 8080
   replicas:
@@ -181,7 +181,7 @@ func getTemplateData() (templateData, []Template) {
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
-			{Name: "deploymentTemplate", Config: deploymentTemplate},
+			{Name: "workloadTemplate", Config: workloadTemplate},
 			{Name: "serviceNameTemplate", Config: serviceTemplate},
 			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
 		}

@@ -31,9 +31,11 @@ import (
 )
 
 const (
-	KEDANamespace      = "keda"
-	IngressNamespace   = "ingress"
-	IngressReleaseName = "ingress"
+	KEDANamespace         = "keda"
+	ArgoRolloutsNamespace = "argo-rollouts"
+	ArgoRolloutsName      = "argo-rollouts"
+	IngressNamespace      = "ingress"
+	IngressReleaseName    = "ingress"
 
 	StringFalse = "false"
 	StringTrue  = "true"
