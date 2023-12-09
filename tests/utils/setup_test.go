@@ -68,7 +68,7 @@ func TestSetupArgoRollouts(t *testing.T) {
 	_, err = ExecuteCommand("helm repo update argo")
 	require.NoErrorf(t, err, "cannot update argo helm repo - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install %s argo/argo-rollouts --namespace %s",
+	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install %s argo/argo-rollouts --namespace %s --wait",
 		ArgoRolloutsName,
 		ArgoRolloutsNamespace))
 	require.NoErrorf(t, err, "cannot install argo-rollouts - %s", err)
