@@ -105,7 +105,7 @@ spec:
                   apiVersion:
                     type: string
                   deployment:
-                    description: 'DEPRECATED: The name of the deployment to scale
+                    description: 'Deprecated: The name of the deployment to scale
                       according to HTTP traffic'
                     type: string
                   kind:
