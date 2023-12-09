@@ -19,11 +19,11 @@ Moving this application to Kubernetes may make sense for several reasons, but th
 
 If the application _is_ being moved to Kubernetes, you would follow these steps to get it autoscaling and routing with KEDA-HTTP:
 
-- Create a `Deployment` and `Service`
+- Create a workload and `Service`
 - [Install](./install.md) the HTTP Add-on
-- Create a single `HTTPScaledObject` in the same namespace as the `Deployment` and `Service` you created
+- Create a single `HTTPScaledObject` in the same namespace as the workload and `Service` you created
 
-At that point, the operator will create the proper autoscaling and routing infrastructure behind the scenes and the application will be ready to scale.
+At that point, the operator will create the proper autoscaling and routing infrastructure behind the scenes and the application will be ready to scale. Any request received by the interceptor with the proper host will be routed to the proper backend.
 
 ## Current HTTP Server in Kubernetes
 
@@ -36,6 +36,6 @@ In this case, the reasoning for adding the HTTP Add-on would be clear - adding a
 Getting the HTTP Add-on working can be done transparently and without downtime to the application:
 
 - [Install](./install.md) the add-on. This step will have no effect on the running application.
-- Create a new `HTTPScaledObject`. This step activates autoscaling for the `Deployment` that you specify and the application will immediately start scaling up and down based on incoming traffic through the interceptor that was created.
+- Create a new `HTTPScaledObject`. This step activates autoscaling for the workload that you specify and the application will immediately start scaling up and down based on incoming traffic through the interceptor that was created.
 
 [Go back to landing page](./)

@@ -8,7 +8,9 @@ spec:
     pathPrefixes:
     - /test
     scaleTargetRef:
-        deployment: xkcd
+        name: xkcd
+        kind: Deployment
+        apiVersion: apps/v1
         service: xkcd
         port: 8080
     replicas:

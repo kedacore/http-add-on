@@ -14,7 +14,7 @@ You'll need to install a `Deployment` and `Service` first. You'll tell the add-o
 $ helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 ```
 
-You'll need to clone the repository to get access to this chart. If you have your own `Deployment` and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
+You'll need to clone the repository to get access to this chart. If you have your own workload and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
 
 >If you are running KEDA and the HTTP Add-on in cluster-global mode, you can install the XKCD chart in any namespace you choose. If you do so, make sure you add `--set ingressNamespace=${NAMESPACE}` to the above installation command.
 
@@ -25,10 +25,10 @@ You'll need to clone the repository to get access to this chart. If you have you
 You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object instructs interceptors to forward requests for a given host to your app's backing `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```console
-$ kubectl create -n $NAMESPACE -f examples/v0.3.0/httpscaledobject.yaml
+$ kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
 ```
 
->If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.3.0/http_scaled_object.md).
+>If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.7.0/http_scaled_object.md).
 
 ## Testing Your Installation
 
@@ -40,13 +40,13 @@ $ kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8
 
 ### Routing to the Right `Service`
 
-As said above, you need to route your HTTP traffic to the `Service` that the add-on has created. If you have existing systems - like an ingress controller - you'll need to anticipate the name of these created `Service`s. Each one will be named consistently like so, in the same namespace as the `HTTPScaledObject` and your application (i.e. `$NAMESPACE`):
+As said above, you need to route your HTTP traffic to the `Service` that the add-on has created during the installation. If you have existing systems - like an ingress controller - you'll need to anticipate the name of these created `Service`s. Each one will be named consistently like so, in the same namespace as the `HTTPScaledObject` and your application (i.e. `$NAMESPACE`):
 
 ```console
 keda-add-ons-http-interceptor-proxy
 ```
 
->This is installed by the [Helm chart](https://github.com/kedacore/charts/tree/master/http-add-on) as a `ClusterIP` `Service` by default.
+> This is installed by the [Helm chart](https://github.com/kedacore/charts/tree/master/http-add-on) as a `ClusterIP` `Service` by default.
 
 #### Installing and Using the [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/#using-helm) Ingress Controller
 
@@ -63,6 +63,8 @@ helm install ingress-nginx ingress-nginx/ingress-nginx -n ${NAMESPACE}
 ```
 
 An [`Ingress`](https://kubernetes.io/docs/concepts/services-networking/ingress/) resource was already created as part of the [xkcd chart](../examples/xkcd/templates/ingress.yaml), so the installed NGINX ingress controller will initialize, detect the `Ingress`, and begin routing to the xkcd interceptor `Service`.
+
+>NOTE: You may have to create an external service `type: ExternalName` pointing to the interceptor namespace and use it from `Ingress` manifest.
 
 When you're ready, please run `kubectl get svc -n ${NAMESPACE}`, find the `ingress-nginx-controller` service, and copy and paste its `EXTERNAL-IP`. This is the IP address that your application will be running at on the public internet.
 

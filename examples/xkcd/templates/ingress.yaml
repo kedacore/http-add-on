@@ -1,8 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "xkcd.fullname" . }}
-  namespace: {{ .Values.ingressNamespace | default .Release.Namespace }}
+  name: {{ include "xkcd.fullname" . }}  
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     kubernetes.io/ingress.class: nginx
@@ -16,7 +15,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: keda-add-ons-http-interceptor-proxy
+            name: {{ include "xkcd.fullname" $ }}-proxy
             port:
               number: 8080
   {{- end }}

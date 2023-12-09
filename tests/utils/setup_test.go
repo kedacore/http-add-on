@@ -56,6 +56,24 @@ func TestCreateKEDANamespace(t *testing.T) {
 	CreateNamespace(t, KubeClient, KEDANamespace)
 }
 
+func TestSetupArgoRollouts(t *testing.T) {
+	KubeClient = GetKubernetesClient(t)
+	CreateNamespace(t, KubeClient, ArgoRolloutsNamespace)
+	_, err := ExecuteCommand("helm version")
+	require.NoErrorf(t, err, "helm is not installed - %s", err)
+
+	_, err = ExecuteCommand("helm repo add argo https://argoproj.github.io/argo-helm")
+	require.NoErrorf(t, err, "cannot add argo helm repo - %s", err)
+
+	_, err = ExecuteCommand("helm repo update argo")
+	require.NoErrorf(t, err, "cannot update argo helm repo - %s", err)
+
+	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install %s argo/argo-rollouts --namespace %s",
+		ArgoRolloutsName,
+		ArgoRolloutsNamespace))
+	require.NoErrorf(t, err, "cannot install argo-rollouts - %s", err)
+}
+
 func TestSetupIngress(t *testing.T) {
 	KubeClient = GetKubernetesClient(t)
 	CreateNamespace(t, KubeClient, IngressNamespace)

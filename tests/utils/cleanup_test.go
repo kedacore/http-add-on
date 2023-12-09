@@ -31,6 +31,12 @@ func TestRemoveIngress(t *testing.T) {
 	DeleteNamespace(t, IngressNamespace)
 }
 
+func TestRemoveArgoRollouts(t *testing.T) {
+	_, err := ExecuteCommand(fmt.Sprintf("helm uninstall %s --namespace %s", ArgoRolloutsName, ArgoRolloutsNamespace))
+	require.NoErrorf(t, err, "cannot uninstall ingress - %s", err)
+	DeleteNamespace(t, ArgoRolloutsNamespace)
+}
+
 func TestRemoveKEDANamespace(t *testing.T) {
 	DeleteNamespace(t, KEDANamespace)
 }
