@@ -33,7 +33,6 @@ import (
 )
 
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 
 func main() {
@@ -74,8 +73,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// create the deployment informer
-	deployInformer := k8s.NewInformerBackedDeploymentCache(
+	// create the endpoints informer
+	endpInformer := k8s.NewInformerBackedEndpointsCache(
 		lggr,
 		k8sCl,
 		cfg.DeploymentCacheRsyncPeriod,
@@ -94,11 +93,11 @@ func main() {
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	// start the deployment informer
+	// start the endpoints informer
 	eg.Go(func() error {
-		lggr.Info("starting the deployment informer")
+		lggr.Info("starting the endpoints informer")
 
-		deployInformer.Start(ctx)
+		endpInformer.Start(ctx)
 		return nil
 	})
 
@@ -113,7 +112,7 @@ func main() {
 	eg.Go(func() error {
 		lggr.Info("starting the queue pinger")
 
-		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration), deployInformer); !util.IsIgnoredErr(err) {
+		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration), endpInformer); !util.IsIgnoredErr(err) {
 			lggr.Error(err, "queue pinger failed")
 			return err
 		}
