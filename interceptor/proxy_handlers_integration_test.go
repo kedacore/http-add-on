@@ -59,7 +59,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 			Namespace: target.GetNamespace(),
 		},
 	})
-	h.endpCache.SetSubsets(target.GetNamespace(), serviceName, 1)
+	r.NoError(h.endpCache.SetSubsets(target.GetNamespace(), serviceName, 1))
 
 	// happy path
 	res, err := doRequest(
@@ -339,10 +339,6 @@ func (h *harness) String() string {
 		h.proxyURL.String(),
 		h.originURL.String(),
 	)
-}
-
-func i32Ptr(i int32) *int32 {
-	return &i
 }
 
 func hostForTest(t *testing.T) string {

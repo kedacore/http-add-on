@@ -49,7 +49,6 @@ issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
         - dupl
         - unparam
   # Exclude gci check for //+kubebuilder:scaffold:imports comments. Waiting to
@@ -60,6 +59,11 @@ issues:
     - path: operator/main.go
       linters:
         - gci
+  # Exlude httpso.Spec.ScaleTargetRef.Deployment until we remove it in v0.9.0
+    - linters:
+       - staticcheck
+      text: "SA1019: httpso.Spec.ScaleTargetRef.Deployment"
+
 linters-settings:
   funlen:
     lines: 80

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
 )
@@ -154,30 +153,30 @@ func TestCheck(t *testing.T) {
 	data, templates := getTemplateData()
 	CreateKubernetesResources(t, kc, testNamespace, data, templates)
 
-	assert.True(t, waitForArgoRolloutReplicaCount(t, kc, rolloutName, testNamespace, minReplicaCount, 6, 10),
+	assert.True(t, waitForArgoRolloutReplicaCount(t, rolloutName, testNamespace, minReplicaCount, 6, 10),
 		"replica count should be %d after 1 minutes", minReplicaCount)
 
-	testScaleOut(t, kc, data)
-	testScaleIn(t, kc)
+	testScaleOut(t, data)
+	testScaleIn(t)
 
 	// cleanup
 	DeleteKubernetesResources(t, testNamespace, data, templates)
 }
 
-func testScaleOut(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+func testScaleOut(t *testing.T, data templateData) {
 	t.Log("--- testing scale out ---")
 
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 
-	assert.True(t, waitForArgoRolloutReplicaCount(t, kc, rolloutName, testNamespace, maxReplicaCount, 18, 10),
+	assert.True(t, waitForArgoRolloutReplicaCount(t, rolloutName, testNamespace, maxReplicaCount, 18, 10),
 		"replica count should be %d after 3 minutes", maxReplicaCount)
 	KubectlDeleteWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 }
 
-func testScaleIn(t *testing.T, kc *kubernetes.Clientset) {
+func testScaleIn(t *testing.T) {
 	t.Log("--- testing scale out ---")
 
-	assert.True(t, waitForArgoRolloutReplicaCount(t, kc, rolloutName, testNamespace, minReplicaCount, 12, 10),
+	assert.True(t, waitForArgoRolloutReplicaCount(t, rolloutName, testNamespace, minReplicaCount, 12, 10),
 		"replica count should be %d after 2 minutes", minReplicaCount)
 }
 
@@ -197,7 +196,7 @@ func getTemplateData() (templateData, []Template) {
 		}
 }
 
-func waitForArgoRolloutReplicaCount(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
+func waitForArgoRolloutReplicaCount(t *testing.T, name, namespace string,
 	target, iterations, intervalSeconds int) bool {
 	for i := 0; i < iterations; i++ {
 		kctlGetCmd := fmt.Sprintf(`kubectl get rollouts.argoproj.io/%s -n %s -o jsonpath="{.spec.replicas}"`, name, namespace)

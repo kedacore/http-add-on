@@ -27,7 +27,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	endpoints := *newEndpoint(ns, endpointsName)
 	cache := k8s.NewFakeEndpointsCache()
 	cache.Set(endpoints)
-	cache.SetSubsets(ns, endpointsName, 1)
+	r.NoError(cache.SetSubsets(ns, endpointsName, 1))
 
 	ctx, done := context.WithTimeout(ctx, waitFuncWait)
 	defer done()

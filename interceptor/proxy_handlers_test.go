@@ -364,7 +364,7 @@ func notifyingFunc() (forwardWaitFunc, <-chan struct{}, func()) {
 func targetFromURL(
 	u *url.URL,
 	port int,
-	deployment string,
+	workload string,
 	service string,
 ) *httpv1alpha1.HTTPScaledObject {
 	host := strings.Split(u.Host, ":")[0]
@@ -374,6 +374,7 @@ func targetFromURL(
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+				Name:    workload,
 				Service: service,
 				Port:    int32(port),
 			},
