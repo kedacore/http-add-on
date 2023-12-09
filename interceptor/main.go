@@ -29,6 +29,7 @@ import (
 )
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
 
 func main() {
 	lggr, err := pkglog.NewZapr()

@@ -5,9 +5,9 @@ metadata:
   name: interceptor
 rules:
 - apiGroups:
-  - apps
+  - ""
   resources:
-  - deployments
+  - endpoints
   verbs:
   - get
   - list
