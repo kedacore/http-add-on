@@ -22,8 +22,15 @@ import (
 
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to
 type ScaleTargetRef struct {
-	// The name of the deployment to scale according to HTTP traffic
+	// DEPRECATED: The name of the deployment to scale according to HTTP traffic
+	// +optional
 	Deployment string `json:"deployment"`
+	// +optional
+	Name string `json:"name"`
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+	// +optional
+	Kind string `json:"kind,omitempty"`
 	// The name of the service to route to
 	Service string `json:"service"`
 	// The port to route to
