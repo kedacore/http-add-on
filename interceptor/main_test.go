@@ -47,6 +47,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 		originURL,
 		originPort,
 		"testdepl",
+		"testservice",
 	)
 	namespacedName := k8s.NamespacedNameFromObject(httpso).String()
 
@@ -60,9 +61,9 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
-	waitFunc := func(_ context.Context, _, _ string) (int, error) {
+	waitFunc := func(_ context.Context, _, _ string) (bool, error) {
 		<-waiterCh
-		return 1, nil
+		return false, nil
 	}
 	g.Go(func() error {
 		return runProxyServer(
