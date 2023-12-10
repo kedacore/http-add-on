@@ -45,7 +45,7 @@ Previously announced deprecation(s):
 
 ### Other
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Bump golang version ([#853](https://github.com/kedacore/http-add-on/pull/853))
 
 ## v0.6.0
 
