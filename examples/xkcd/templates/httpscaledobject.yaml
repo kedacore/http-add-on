@@ -7,9 +7,15 @@ spec:
     hosts:
         {{- toYaml . | nindent 8 }}
     {{- end }}
+    {{- with .Values.pathPrefixes }}
+    pathPrefixes:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
     targetPendingRequests: {{ .Values.targetPendingRequests }}
     scaleTargetRef:
-        deployment: {{ include "xkcd.fullname" . }}
+        name: {{ include "xkcd.fullname" . }}
+        kind: Deployment
+        apiVersion: apps/v1
         service: {{ include "xkcd.fullname" . }}
         port: 8080
     replicas:

@@ -43,15 +43,15 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(context.Context, string, string) (int, error) {
-		return 1, nil
+	waitFunc := func(context.Context, string, string) (bool, error) {
+		return false, nil
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
-			waitTimeout:       timeouts.DeploymentReplicas,
+			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 	)
@@ -62,6 +62,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		originURL,
 		originPort,
 		"testdepl",
+		"testservice",
 	))
 	req = util.RequestWithStream(req, originURL)
 	req.Host = host
@@ -86,15 +87,15 @@ func TestWaitFailedConnection(t *testing.T) {
 		timeouts,
 		backoff,
 	)
-	waitFunc := func(context.Context, string, string) (int, error) {
-		return 1, nil
+	waitFunc := func(context.Context, string, string) (bool, error) {
+		return false, nil
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
-			waitTimeout:       timeouts.DeploymentReplicas,
+			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 	)
@@ -109,9 +110,8 @@ func TestWaitFailedConnection(t *testing.T) {
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "nosuchdepl",
-				Port:       8081,
+				Service: "nosuchdepl",
+				Port:    8081,
 			},
 			TargetPendingRequests: ptr.To[int32](1234),
 		},
@@ -131,7 +131,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	timeouts.DeploymentReplicas = 25 * time.Millisecond
+	timeouts.WorkloadReplicas = 25 * time.Millisecond
 	timeouts.ResponseHeader = 25 * time.Millisecond
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 
@@ -144,7 +144,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
-			waitTimeout:       timeouts.DeploymentReplicas,
+			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 	)
@@ -159,9 +159,8 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "nosuchsvc",
-				Port:       9091,
+				Service: "nosuchsvc",
+				Port:    9091,
 			},
 			TargetPendingRequests: ptr.To[int32](1234),
 		},
@@ -176,8 +175,8 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	t.Logf("elapsed time was %s", elapsed)
 	// serving should take at least timeouts.DeploymentReplicas, but no more than
 	// timeouts.DeploymentReplicas*4
-	r.GreaterOrEqual(elapsed, timeouts.DeploymentReplicas)
-	r.LessOrEqual(elapsed, timeouts.DeploymentReplicas*4)
+	r.GreaterOrEqual(elapsed, timeouts.WorkloadReplicas)
+	r.LessOrEqual(elapsed, timeouts.WorkloadReplicas*4)
 	r.Equal(502, res.Code, "response code was unexpected")
 
 	// we will always return the X-KEDA-HTTP-Cold-Start header
@@ -226,7 +225,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
-			waitTimeout:       timeouts.DeploymentReplicas,
+			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 	)
@@ -237,6 +236,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 		testSrvURL,
 		originPort,
 		"nosuchdepl",
+		"noservice",
 	))
 	req = util.RequestWithStream(req, testSrvURL)
 	req.Host = noSuchHost
@@ -257,6 +257,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	r.GreaterOrEqual(elapsed, waitDur)
 	r.Less(elapsed, waitDur*4)
 
+	r.Equal("true", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start true")
 	r.Equal(
 		originRespCode,
 		res.Code,
@@ -286,15 +287,15 @@ func TestWaitHeaderTimeout(t *testing.T) {
 
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
-	waitFunc := func(context.Context, string, string) (int, error) {
-		return 1, nil
+	waitFunc := func(context.Context, string, string) (bool, error) {
+		return false, nil
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
 		dialCtxFunc,
 		waitFunc,
 		forwardingConfig{
-			waitTimeout:       timeouts.DeploymentReplicas,
+			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 	)
@@ -307,9 +308,8 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "testsvc",
-				Port:       9094,
+				Service: "testsvc",
+				Port:    9094,
 			},
 			TargetPendingRequests: ptr.To[int32](1234),
 		},
@@ -350,13 +350,13 @@ func notifyingFunc() (forwardWaitFunc, <-chan struct{}, func()) {
 	finishFunc := func() {
 		close(finishCh)
 	}
-	return func(ctx context.Context, _, _ string) (int, error) {
+	return func(ctx context.Context, _, _ string) (bool, error) {
 		close(calledCh)
 		select {
 		case <-finishCh:
-			return 0, nil
+			return true, nil
 		case <-ctx.Done():
-			return 0, fmt.Errorf("TEST FUNCTION CONTEXT ERROR: %w", ctx.Err())
+			return true, fmt.Errorf("TEST FUNCTION CONTEXT ERROR: %w", ctx.Err())
 		}
 	}, calledCh, finishFunc
 }
@@ -364,7 +364,8 @@ func notifyingFunc() (forwardWaitFunc, <-chan struct{}, func()) {
 func targetFromURL(
 	u *url.URL,
 	port int,
-	deployment string,
+	workload string,
+	service string,
 ) *httpv1alpha1.HTTPScaledObject {
 	host := strings.Split(u.Host, ":")[0]
 	return &httpv1alpha1.HTTPScaledObject{
@@ -373,9 +374,9 @@ func targetFromURL(
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: deployment,
-				Service:    ":" + host,
-				Port:       int32(port),
+				Name:    workload,
+				Service: service,
+				Port:    int32(port),
 			},
 			TargetPendingRequests: ptr.To[int32](123),
 		},
@@ -384,10 +385,10 @@ func targetFromURL(
 
 func defaultTimeouts() config.Timeouts {
 	return config.Timeouts{
-		Connect:            100 * time.Millisecond,
-		KeepAlive:          100 * time.Millisecond,
-		ResponseHeader:     500 * time.Millisecond,
-		DeploymentReplicas: 1 * time.Second,
+		Connect:          100 * time.Millisecond,
+		KeepAlive:        100 * time.Millisecond,
+		ResponseHeader:   500 * time.Millisecond,
+		WorkloadReplicas: 1 * time.Second,
 	}
 }
 

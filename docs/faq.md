@@ -2,7 +2,7 @@
 
 ## Why does this project route HTTP requests?
 
-In order to autoscale a `Deployment`, KEDA-HTTP needs to be involved with routing HTTP requests. However, the project is minimally involved with routing and we're working on ways to get out of the "critical path" of an HTTP request as much as possible. For more information, please see our [scope](./scope.md) document.
+In order to autoscale a workload, KEDA-HTTP needs to be involved with routing HTTP requests. However, the project is minimally involved with routing and we're working on ways to get out of the "critical path" of an HTTP request as much as possible. For more information, please see our [scope](./scope.md) document.
 
 ## How is this project similar or different from [Osiris](https://github.com/deislabs/osiris)?
 
@@ -13,7 +13,7 @@ Osiris and KEDA-HTTP have similar features:
 
 However, Osiris and KEDA-HTTP differ in several ways:
 
-- Autoscaling concerns are implemented separately from the application resources - `Service`, `Ingress`, `Deployment` and more in KEDA-HTTP. With Osiris, those concerns are baked into each app resource.
+- Autoscaling concerns are implemented separately from the application resources - `Service`, `Ingress`, `Deployment`, `StatefulSet`, `/scale` and more in KEDA-HTTP. With Osiris, those concerns are baked into each app resource.
 - The KEDA-HTTP operator can automatically deploy and configure networking and compute resources necessary for an HTTP application to autoscale. Osiris does not have this functionality.
 - Osiris is currently archived in GitHub.
 

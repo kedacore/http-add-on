@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/tj/assert"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes"
 
 	. "github.com/kedacore/http-add-on/tests/helper"

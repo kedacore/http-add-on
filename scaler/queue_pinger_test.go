@@ -73,7 +73,7 @@ func TestCounts(t *testing.T) {
 	r.NoError(q.Resize("host3", 3))
 	r.NoError(q.Resize("host4", 4))
 	ticker := time.NewTicker(tickDur)
-	fakeCache := k8s.NewFakeDeploymentCache()
+	fakeCache := k8s.NewFakeEndpointsCache()
 	go func() {
 		_ = pinger.start(ctx, ticker, fakeCache)
 	}()

@@ -1,7 +1,7 @@
 //go:build e2e
 // +build e2e
 
-package ingress_in_keda_namespace_test
+package scaling_phase_test
 
 import (
 	"fmt"
@@ -14,28 +14,23 @@ import (
 )
 
 const (
-	testName = "ingress-in-keda-namespace-test"
+	testName = "scaling-phase-statefulset-test"
 )
 
 var (
 	testNamespace        = fmt.Sprintf("%s-ns", testName)
-	deploymentName       = fmt.Sprintf("%s-deployment", testName)
+	statefulSetName      = fmt.Sprintf("%s-statefulset", testName)
 	serviceName          = fmt.Sprintf("%s-service", testName)
-	ingressName          = fmt.Sprintf("%s-ingress", testName)
 	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
-	ingressHost          = fmt.Sprintf("http://%s-controller.%s", IngressReleaseName, IngressNamespace)
 	host                 = testName
 	minReplicaCount      = 0
-	maxReplicaCount      = 1
+	maxReplicaCount      = 4
 )
 
 type templateData struct {
 	TestNamespace        string
-	DeploymentName       string
+	StatefulSetName      string
 	ServiceName          string
-	IngressName          string
-	KEDANamespace        string
-	IngressHost          string
 	HTTPScaledObjectName string
 	Host                 string
 	MinReplicas          int
@@ -43,29 +38,6 @@ type templateData struct {
 }
 
 const (
-	ingressTemplate = `
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{.IngressName}}
-  namespace: {{.KEDANamespace}}
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    kubernetes.io/ingress.class: nginx
-spec:
-  rules:
-  - host: {{.Host}}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: keda-http-add-on-interceptor-proxy
-            port:
-              number: 8080
-`
-
 	serviceTemplate = `
 apiVersion: v1
 kind: Service
@@ -73,7 +45,7 @@ metadata:
   name: {{.ServiceName}}
   namespace: {{.TestNamespace}}
   labels:
-    app: {{.DeploymentName}}
+    app: {{.StatefulSetName}}
 spec:
   ports:
     - port: 8080
@@ -81,29 +53,29 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: {{.DeploymentName}}
+    app: {{.StatefulSetName}}
 `
 
-	deploymentTemplate = `
+	workloadTemplate = `
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: {{.DeploymentName}}
+  name: {{.StatefulSetName}}
   namespace: {{.TestNamespace}}
   labels:
-    app: {{.DeploymentName}}
+    app: {{.StatefulSetName}}
 spec:
   replicas: 0
   selector:
     matchLabels:
-      app: {{.DeploymentName}}
+      app: {{.StatefulSetName}}
   template:
     metadata:
       labels:
-        app: {{.DeploymentName}}
+        app: {{.StatefulSetName}}
     spec:
       containers:
-        - name: {{.DeploymentName}}
+        - name: {{.StatefulSetName}}
           image: registry.k8s.io/e2e-test-images/agnhost:2.45
           args:
           - netexec
@@ -121,21 +93,28 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: generate-request
+  name: load-generator
   namespace: {{.TestNamespace}}
 spec:
   template:
     spec:
       containers:
-      - name: curl-client
-        image: curlimages/curl
+      - name: apache-ab
+        image: ghcr.io/kedacore/tests-apache-ab
         imagePullPolicy: Always
-        command: ["curl", "-H", "Host: {{.Host}}", "{{.IngressHost}}"]
+        args:
+          - "-n"
+          - "2000000"
+          - "-c"
+          - "20"
+          - "-H"
+          - "Host: {{.Host}}"
+          - "http://keda-http-add-on-interceptor-proxy.keda:8080/"
       restartPolicy: Never
+      terminationGracePeriodSeconds: 5
   activeDeadlineSeconds: 600
   backoffLimit: 5
 `
-
 	httpScaledObjectTemplate = `
 kind: HTTPScaledObject
 apiVersion: http.keda.sh/v1alpha1
@@ -145,10 +124,11 @@ metadata:
 spec:
   hosts:
   - {{.Host}}
-  targetPendingRequests: 100
+  targetPendingRequests: 2
   scaledownPeriod: 10
   scaleTargetRef:
-    deployment: {{.DeploymentName}}
+    name: {{.StatefulSetName}}
+    kind: StatefulSet
     service: {{.ServiceName}}
     port: 8080
   replicas:
@@ -165,13 +145,11 @@ func TestCheck(t *testing.T) {
 	data, templates := getTemplateData()
 	CreateKubernetesResources(t, kc, testNamespace, data, templates)
 
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 6, 10),
+	assert.True(t, WaitForStatefulsetReplicaReadyCount(t, kc, statefulSetName, testNamespace, minReplicaCount, 6, 10),
 		"replica count should be %d after 1 minutes", minReplicaCount)
-	assert.True(t, WaitForIngressReady(t, kc, ingressName, KEDANamespace, 12, 10),
-		"ingress should be ready after 2 minutes")
 
 	testScaleOut(t, kc, data)
-	testScaleIn(t, kc, data)
+	testScaleIn(t, kc)
 
 	// cleanup
 	DeleteKubernetesResources(t, testNamespace, data, templates)
@@ -182,34 +160,30 @@ func testScaleOut(t *testing.T, kc *kubernetes.Clientset, data templateData) {
 
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 6, 10),
-		"replica count should be %d after 1 minutes", maxReplicaCount)
+	assert.True(t, WaitForStatefulsetReplicaReadyCount(t, kc, statefulSetName, testNamespace, maxReplicaCount, 18, 10),
+		"replica count should be %d after 3 minutes", maxReplicaCount)
+	KubectlDeleteWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 }
 
-func testScaleIn(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+func testScaleIn(t *testing.T, kc *kubernetes.Clientset) {
 	t.Log("--- testing scale out ---")
 
-	KubectlDeleteWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 12, 10),
+	assert.True(t, WaitForStatefulsetReplicaReadyCount(t, kc, statefulSetName, testNamespace, minReplicaCount, 12, 10),
 		"replica count should be %d after 2 minutes", minReplicaCount)
 }
 
 func getTemplateData() (templateData, []Template) {
 	return templateData{
 			TestNamespace:        testNamespace,
-			DeploymentName:       deploymentName,
+			StatefulSetName:      statefulSetName,
 			ServiceName:          serviceName,
-			IngressName:          ingressName,
-			KEDANamespace:        KEDANamespace,
 			HTTPScaledObjectName: httpScaledObjectName,
-			IngressHost:          ingressHost,
 			Host:                 host,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
-			{Name: "deploymentTemplate", Config: deploymentTemplate},
-			{Name: "serviceTemplate", Config: serviceTemplate},
-			{Name: "ingressTemplate", Config: ingressTemplate},
+			{Name: "workloadTemplate", Config: workloadTemplate},
+			{Name: "serviceNameTemplate", Config: serviceTemplate},
 			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
 		}
 }

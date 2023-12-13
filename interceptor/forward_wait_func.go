@@ -5,65 +5,69 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 // forwardWaitFunc is a function that waits for a condition
 // before proceeding to serve the request.
-type forwardWaitFunc func(context.Context, string, string) (int, error)
+type forwardWaitFunc func(context.Context, string, string) (bool, error)
 
-func deploymentCanServe(depl appsv1.Deployment) bool {
-	return depl.Status.ReadyReplicas > 0
+func workloadActiveEndpoints(endpoints v1.Endpoints) int {
+	total := 0
+	for _, subset := range endpoints.Subsets {
+		total += len(subset.Addresses)
+	}
+	return total
 }
 
-func newDeployReplicasForwardWaitFunc(
+func newWorkloadReplicasForwardWaitFunc(
 	lggr logr.Logger,
-	deployCache k8s.DeploymentCache,
+	endpointCache k8s.EndpointsCache,
 ) forwardWaitFunc {
-	return func(ctx context.Context, deployNS, deployName string) (int, error) {
+	return func(ctx context.Context, endpointNS, endpointName string) (bool, error) {
 		// get a watcher & its result channel before querying the
-		// deployment cache, to ensure we don't miss events
-		watcher, err := deployCache.Watch(deployNS, deployName)
+		// endpoints cache, to ensure we don't miss events
+		watcher, err := endpointCache.Watch(endpointNS, endpointName)
 		if err != nil {
-			return 0, err
+			return false, err
 		}
 		eventCh := watcher.ResultChan()
 		defer watcher.Stop()
 
-		deployment, err := deployCache.Get(deployNS, deployName)
+		endpoints, err := endpointCache.Get(endpointNS, endpointName)
 		if err != nil {
-			// if we didn't get the initial deployment state, bail out
-			return 0, fmt.Errorf(
-				"error getting state for deployment %s/%s: %w",
-				deployNS,
-				deployName,
+			// if we didn't get the initial endpoints state, bail out
+			return false, fmt.Errorf(
+				"error getting state for endpoints %s/%s: %w",
+				endpointNS,
+				endpointName,
 				err,
 			)
 		}
-		// if there is 1 or more replica, we're done waiting
-		if deploymentCanServe(deployment) {
-			return int(deployment.Status.ReadyReplicas), nil
+		// if there is 1 or more active endpoints, we're done waiting
+		activeEndpoints := workloadActiveEndpoints(endpoints)
+		if activeEndpoints > 0 {
+			return false, nil
 		}
 
 		for {
 			select {
 			case event := <-eventCh:
-				deployment, ok := event.Object.(*appsv1.Deployment)
+				endpoints, ok := event.Object.(*v1.Endpoints)
 				if !ok {
 					lggr.Info(
-						"Didn't get a deployment back in event",
+						"Didn't get a endpoints back in event",
 					)
-				} else if deploymentCanServe(*deployment) {
-					return 0, nil
+				} else if activeEndpoints := workloadActiveEndpoints(*endpoints); activeEndpoints > 0 {
+					return true, nil
 				}
 			case <-ctx.Done():
 				// otherwise, if the context is marked done before
 				// we're done waiting, fail.
-				return 0, fmt.Errorf(
-					"context marked done while waiting for deployment %s to reach > 0 replicas: %w",
-					deployName,
+				return false, fmt.Errorf(
+					"context marked done while waiting for workload reach > 0 replicas: %w",
 					ctx.Err(),
 				)
 			}

@@ -38,7 +38,7 @@ spec:
           value: "500ms"
         - name: KEDA_CONDITION_WAIT_TIMEOUT
           value: "20s"
-        - name: KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS
+        - name: KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS
           value: "1000"
         - name: KEDA_HTTP_FORCE_HTTP2
           value: "false"

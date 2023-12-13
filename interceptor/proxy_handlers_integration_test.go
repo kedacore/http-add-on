@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -29,13 +29,14 @@ import (
 // happy path - deployment is scaled to 1 and host in routing table
 func TestIntegrationHappyPath(t *testing.T) {
 	const (
-		deploymentReplicasTimeout = 200 * time.Millisecond
-		deplName                  = "testdeployment"
+		activeEndpointsTimeout = 200 * time.Millisecond
+		deploymentName         = "testdeployment"
+		serviceName            = "testservice"
 	)
 	r := require.New(t)
 	h, err := newHarness(
 		t,
-		deploymentReplicasTimeout,
+		activeEndpointsTimeout,
 	)
 	r.NoError(err)
 	defer h.close()
@@ -47,23 +48,18 @@ func TestIntegrationHappyPath(t *testing.T) {
 	target := targetFromURL(
 		h.originURL,
 		originPort,
-		deplName,
+		deploymentName,
+		serviceName,
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
 
-	h.deplCache.Set(target.GetNamespace(), deplName, appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: deplName},
-		Spec: appsv1.DeploymentSpec{
-			// note that the forwarding wait function doesn't care about
-			// the replicas field, it only cares about ReadyReplicas in the status.
-			// regardless, we're setting this because in a running cluster,
-			// it's likely that most of the time, this is equal to ReadyReplicas
-			Replicas: i32Ptr(3),
-		},
-		Status: appsv1.DeploymentStatus{
-			ReadyReplicas: 3,
+	h.endpCache.Set(v1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: target.GetNamespace(),
 		},
 	})
+	r.NoError(h.endpCache.SetSubsets(target.GetNamespace(), serviceName, 1))
 
 	// happy path
 	res, err := doRequest(
@@ -79,7 +75,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 // deployment scaled to 1 but host not in routing table
 //
 // NOTE: the interceptor needs to check in the routing table
-// _before_ checking the deployment cache, so we don't technically
+// _before_ checking the endpoints cache, so we don't technically
 // need to set the replicas to 1, but we're doing so anyway to
 // isolate the routing table behavior
 func TestIntegrationNoRoutingTableEntry(t *testing.T) {
@@ -103,12 +99,13 @@ func TestIntegrationNoRoutingTableEntry(t *testing.T) {
 // host in the routing table but deployment has no replicas
 func TestIntegrationNoReplicas(t *testing.T) {
 	const (
-		deployTimeout = 100 * time.Millisecond
+		activeEndpointsTimeout = 100 * time.Millisecond
 	)
 	host := hostForTest(t)
-	deployName := "testdeployment"
+	deploymentName := "testdeployment"
+	serviceName := "testservice"
 	r := require.New(t)
-	h, err := newHarness(t, deployTimeout)
+	h, err := newHarness(t, activeEndpointsTimeout)
 	r.NoError(err)
 
 	originPort, err := strconv.Atoi(h.originURL.Port())
@@ -117,15 +114,16 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	target := targetFromURL(
 		h.originURL,
 		originPort,
-		deployName,
+		deploymentName,
+		serviceName,
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
 
 	// 0 replicas
-	h.deplCache.Set(target.GetNamespace(), deployName, appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: deployName},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: i32Ptr(0),
+	h.endpCache.Set(v1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: target.GetNamespace(),
 		},
 	})
 
@@ -139,22 +137,23 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	r.Equal(502, res.StatusCode)
 	res.Body.Close()
 	elapsed := time.Since(start)
-	// we should have slept more than the deployment replicas wait timeout
-	r.GreaterOrEqual(elapsed, deployTimeout)
-	r.Less(elapsed, deployTimeout+50*time.Millisecond)
+	// we should have slept more than the active endpoints wait timeout
+	r.GreaterOrEqual(elapsed, activeEndpointsTimeout)
+	r.Less(elapsed, activeEndpointsTimeout+50*time.Millisecond)
 }
 
 // the request comes in while there are no replicas, and one is added
 // while it's pending
 func TestIntegrationWaitReplicas(t *testing.T) {
 	const (
-		deployTimeout   = 2 * time.Second
-		responseTimeout = 1 * time.Second
-		deployName      = "testdeployment"
+		activeEndpointsTimeout = 2 * time.Second
+		responseTimeout        = 1 * time.Second
+		deploymentName         = "testdeployment"
+		serviceName            = "testservice"
 	)
 	ctx := context.Background()
 	r := require.New(t)
-	h, err := newHarness(t, deployTimeout)
+	h, err := newHarness(t, activeEndpointsTimeout)
 	r.NoError(err)
 
 	// add host to routing table
@@ -164,24 +163,25 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	target := targetFromURL(
 		h.originURL,
 		originPort,
-		deployName,
+		deploymentName,
+		serviceName,
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
 
-	// set up a deployment with zero replicas and create
-	// a watcher we can use later to fake-send a deployment
+	// set up a endpoint with zero replicas and create
+	// a watcher we can use later to fake-send a endpoint
 	// event
-	initialDeployment := appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: deployName},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: i32Ptr(0),
+	h.endpCache.Set(v1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: target.GetNamespace(),
 		},
-	}
-	h.deplCache.Set(target.GetNamespace(), deployName, initialDeployment)
-	watcher := h.deplCache.SetWatcher(target.GetNamespace(), deployName)
+	})
+	endpoints, _ := h.endpCache.Get(target.GetNamespace(), serviceName)
+	watcher := h.endpCache.SetWatcher(target.GetNamespace(), serviceName)
 
 	// make the request in one goroutine, and in the other, wait a bit
-	// and then add replicas to the deployment cache
+	// and then add replicas to the endpoints cache
 
 	var response *http.Response
 	grp, _ := errgroup.WithContext(ctx)
@@ -198,20 +198,23 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 		resp.Body.Close()
 		return nil
 	})
-	const sleepDur = deployTimeout / 4
+	const sleepDur = activeEndpointsTimeout / 4
 	grp.Go(func() error {
 		t.Logf("Sleeping for %s", sleepDur)
 		time.Sleep(sleepDur)
 		t.Logf("Woke up, setting replicas to 10")
-		modifiedDeployment := initialDeployment.DeepCopy()
-		// note that the wait function only cares about Status.ReadyReplicas
-		// but we're setting Spec.Replicas to 10 as well because the common
-		// case in the cluster is that they would be equal
-		modifiedDeployment.Spec.Replicas = i32Ptr(10)
-		modifiedDeployment.Status.ReadyReplicas = 10
+
+		modifiedEndpoints := endpoints.DeepCopy()
+		modifiedEndpoints.Subsets = []v1.EndpointSubset{
+			{
+				Addresses: []v1.EndpointAddress{
+					{IP: "1.2.3.4"},
+				},
+			},
+		}
 		// send a watch event (instead of setting replicas) so that the watch
 		// func sees that it can forward the request now
-		watcher.Modify(modifiedDeployment)
+		watcher.Modify(modifiedEndpoints)
 		return nil
 	})
 	start := time.Now()
@@ -256,13 +259,13 @@ type harness struct {
 	originURL    *url.URL
 	routingTable *routingtest.Table
 	dialCtxFunc  kedanet.DialContextFunc
-	deplCache    *k8s.FakeDeploymentCache
+	endpCache    *k8s.FakeEndpointsCache
 	waitFunc     forwardWaitFunc
 }
 
 func newHarness(
 	t *testing.T,
-	deployReplicasTimeout time.Duration,
+	activeEndpointsTimeout time.Duration,
 ) (*harness, error) {
 	t.Helper()
 	lggr := logr.Discard()
@@ -277,10 +280,10 @@ func newHarness(
 		},
 	)
 
-	deplCache := k8s.NewFakeDeploymentCache()
-	waitFunc := newDeployReplicasForwardWaitFunc(
+	endpCache := k8s.NewFakeEndpointsCache()
+	waitFunc := newWorkloadReplicasForwardWaitFunc(
 		logr.Discard(),
-		deplCache,
+		endpCache,
 	)
 
 	originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -300,7 +303,7 @@ func newHarness(
 		dialContextFunc,
 		waitFunc,
 		forwardingConfig{
-			waitTimeout:       deployReplicasTimeout,
+			waitTimeout:       activeEndpointsTimeout,
 			respHeaderTimeout: time.Second,
 		},
 	))
@@ -320,7 +323,7 @@ func newHarness(
 		originURL:    originSrvURL,
 		routingTable: routingTable,
 		dialCtxFunc:  dialContextFunc,
-		deplCache:    deplCache,
+		endpCache:    endpCache,
 		waitFunc:     waitFunc,
 	}, nil
 }
@@ -336,10 +339,6 @@ func (h *harness) String() string {
 		h.proxyURL.String(),
 		h.originURL.String(),
 	)
-}
-
-func i32Ptr(i int32) *int32 {
-	return &i
 }
 
 func hostForTest(t *testing.T) string {

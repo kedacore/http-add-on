@@ -102,9 +102,15 @@ spec:
                 description: The name of the deployment to route HTTP requests to
                   (and to autoscale).
                 properties:
+                  apiVersion:
+                    type: string
                   deployment:
-                    description: The name of the deployment to scale according to
-                      HTTP traffic
+                    description: 'Deprecated: The name of the deployment to scale
+                      according to HTTP traffic'
+                    type: string
+                  kind:
+                    type: string
+                  name:
                     type: string
                   port:
                     description: The port to route to
@@ -114,7 +120,6 @@ spec:
                     description: The name of the service to route to
                     type: string
                 required:
-                - deployment
                 - port
                 - service
                 type: object

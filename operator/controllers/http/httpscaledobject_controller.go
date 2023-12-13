@@ -21,6 +21,7 @@ import (
 	"errors"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,6 +33,7 @@ import (
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
@@ -88,6 +90,13 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if httpso.Spec.Host != nil {
 		logger.Info(".spec.host is deprecated, performing automated migration to .spec.hosts")
 		return ctrl.Result{}, r.migrateHost(ctx, httpso)
+	}
+	// TODO(jorturfer): delete this for v0.9.0
+	if httpso.Spec.ScaleTargetRef.Name == "" ||
+		httpso.Spec.ScaleTargetRef.Kind == "" ||
+		httpso.Spec.ScaleTargetRef.APIVersion == "" {
+		logger.Info(".spec.scaleTargetRef.Deployment is deprecated, performing automated migration")
+		return ctrl.Result{}, r.migrateTargetRef(ctx, httpso)
 	}
 
 	// httpso is updated now
@@ -146,11 +155,30 @@ func (r *HTTPScaledObjectReconciler) migrateHost(ctx context.Context, httpso *ht
 	if (httpso.Spec.Hosts != nil) == (httpso.Spec.Host != nil) {
 		return errors.New("exactly one of .spec.host and .spec.hosts must be set")
 	}
-
 	httpso.Spec.Hosts = []string{
 		*httpso.Spec.Host,
 	}
 	httpso.Spec.Host = nil
+	return r.Client.Update(ctx, httpso)
+}
+
+// TODO(jorturfer): delete this for v0.9.0
+func (r *HTTPScaledObjectReconciler) migrateTargetRef(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject) error {
+	if (httpso.Spec.ScaleTargetRef.Deployment != "") == (httpso.Spec.ScaleTargetRef.Name != "") {
+		return errors.New("exactly one of .spec.scaleTargetRef.deployment and .spec.scaleTargetRef.name must be set")
+	}
+
+	if httpso.Spec.ScaleTargetRef.Name == "" {
+		httpso.Spec.ScaleTargetRef.Name = httpso.Spec.ScaleTargetRef.Deployment
+	}
+	if httpso.Spec.ScaleTargetRef.Kind == "" {
+		httpso.Spec.ScaleTargetRef.Kind = k8s.ObjectKind(&appsv1.Deployment{})
+	}
+	if httpso.Spec.ScaleTargetRef.APIVersion == "" {
+		httpso.Spec.ScaleTargetRef.APIVersion = appsv1.SchemeGroupVersion.Identifier()
+	}
+
+	httpso.Spec.ScaleTargetRef.Deployment = ""
 
 	return r.Client.Update(ctx, httpso)
 }

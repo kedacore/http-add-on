@@ -34,16 +34,16 @@ import (
 //	// context
 //	go pinger.start(ctx, ticker)
 type queuePinger struct {
-	getEndpointsFn      k8s.GetEndpointsFunc
-	interceptorNS       string
-	interceptorSvcName  string
-	interceptorDeplName string
-	adminPort           string
-	pingMut             *sync.RWMutex
-	lastPingTime        time.Time
-	allCounts           map[string]int
-	aggregateCount      int
-	lggr                logr.Logger
+	getEndpointsFn         k8s.GetEndpointsFunc
+	interceptorNS          string
+	interceptorSvcName     string
+	interceptorServiceName string
+	adminPort              string
+	pingMut                *sync.RWMutex
+	lastPingTime           time.Time
+	allCounts              map[string]int
+	aggregateCount         int
+	lggr                   logr.Logger
 }
 
 func newQueuePinger(
@@ -57,15 +57,15 @@ func newQueuePinger(
 ) (*queuePinger, error) {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
-		getEndpointsFn:      getEndpointsFn,
-		interceptorNS:       ns,
-		interceptorSvcName:  svcName,
-		interceptorDeplName: deplName,
-		adminPort:           adminPort,
-		pingMut:             pingMut,
-		lggr:                lggr,
-		allCounts:           map[string]int{},
-		aggregateCount:      0,
+		getEndpointsFn:         getEndpointsFn,
+		interceptorNS:          ns,
+		interceptorSvcName:     svcName,
+		interceptorServiceName: deplName,
+		adminPort:              adminPort,
+		pingMut:                pingMut,
+		lggr:                   lggr,
+		allCounts:              map[string]int{},
+		aggregateCount:         0,
 	}
 	return pinger, pinger.fetchAndSaveCounts(ctx)
 }
@@ -74,14 +74,14 @@ func newQueuePinger(
 func (q *queuePinger) start(
 	ctx context.Context,
 	ticker *time.Ticker,
-	deplCache k8s.DeploymentCache,
+	endpCache k8s.EndpointsCache,
 ) error {
-	deployWatchIface, err := deplCache.Watch(q.interceptorNS, q.interceptorDeplName)
+	endpoWatchIface, err := endpCache.Watch(q.interceptorNS, q.interceptorServiceName)
 	if err != nil {
 		return err
 	}
-	deployEvtChan := deployWatchIface.ResultChan()
-	defer deployWatchIface.Stop()
+	endpEvtChan := endpoWatchIface.ResultChan()
+	defer endpoWatchIface.Stop()
 
 	lggr := q.lggr.WithName("scaler.queuePinger.start")
 	defer ticker.Stop()
@@ -102,13 +102,13 @@ func (q *queuePinger) start(
 				return fmt.Errorf("error getting request counts: %w", err)
 			}
 		// handle changes to the interceptor fleet
-		// Deployment
-		case <-deployEvtChan:
+		// Endpoints
+		case <-endpEvtChan:
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(
 					err,
-					"getting request counts after interceptor deployment event",
+					"getting request counts after interceptor endpoints event",
 				)
 			}
 		}

@@ -1,0 +1,16 @@
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+    name: xkcd
+spec:
+    hosts:
+    - myhost.com
+    pathPrefixes:
+    - /test
+    scaleTargetRef:
+        name: xkcd
+        service: xkcd
+        port: 8080
+    replicas:
+        min: 5
+        max: 10

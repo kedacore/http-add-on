@@ -4,9 +4,10 @@ import (
 	"strings"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+
+	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 func NewScaledObject(
 	namespace string,
 	name string,
-	deploymentName string,
+	workloadRef v1alpha1.ScaleTargetRef,
 	scalerAddress string,
 	hosts []string,
 	pathPrefixes []string,
@@ -41,9 +42,9 @@ func NewScaledObject(
 		},
 		Spec: kedav1alpha1.ScaledObjectSpec{
 			ScaleTargetRef: &kedav1alpha1.ScaleTarget{
-				APIVersion: appsv1.SchemeGroupVersion.Identifier(),
-				Kind:       ObjectKind(&appsv1.Deployment{}),
-				Name:       deploymentName,
+				APIVersion: workloadRef.APIVersion,
+				Kind:       workloadRef.Kind,
+				Name:       workloadRef.Name,
 			},
 			PollingInterval: ptr.To[int32](soPollingInterval),
 			CooldownPeriod:  cooldownPeriod,

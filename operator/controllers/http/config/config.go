@@ -82,7 +82,7 @@ func NewExternalScalerFromEnv() (*ExternalScaler, error) {
 	// image, err := env.Get("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_IMAGE")
 	serviceName, err := env.Get("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE")
 	if err != nil {
-		return nil, fmt.Errorf("missing KEDAHTTP_EXTERNAL_SCALER_SERVICE")
+		return nil, fmt.Errorf("missing KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE")
 	}
 	port := env.GetInt32Or("KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT", 8091)
 	return &ExternalScaler{

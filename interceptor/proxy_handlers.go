@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -26,7 +27,7 @@ type forwardingConfig struct {
 
 func newForwardingConfigFromTimeouts(t *config.Timeouts) forwardingConfig {
 	return forwardingConfig{
-		waitTimeout:           t.DeploymentReplicas,
+		waitTimeout:           t.WorkloadReplicas,
 		respHeaderTimeout:     t.ResponseHeader,
 		forceAttemptHTTP2:     t.ForceHTTP2,
 		maxIdleConns:          t.MaxIdleConns,
@@ -64,10 +65,10 @@ func newForwardingHandler(
 
 		waitFuncCtx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
 		defer done()
-		replicas, err := waitFunc(
+		isColdStart, err := waitFunc(
 			waitFuncCtx,
 			httpso.GetNamespace(),
-			httpso.Spec.ScaleTargetRef.Deployment,
+			httpso.Spec.ScaleTargetRef.Service,
 		)
 		if err != nil {
 			lggr.Error(err, "wait function failed, not forwarding request")
@@ -77,11 +78,7 @@ func newForwardingHandler(
 			}
 			return
 		}
-		isColdStart := "false"
-		if replicas == 0 {
-			isColdStart = "true"
-		}
-		w.Header().Add("X-KEDA-HTTP-Cold-Start", isColdStart)
+		w.Header().Add("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
 
 		uh := handler.NewUpstream(roundTripper)
 		uh.ServeHTTP(w, r)

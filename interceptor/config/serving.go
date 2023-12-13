@@ -24,11 +24,16 @@ type Serving struct {
 	// ConfigMapCacheRsyncPeriod is the time interval
 	// for the configmap informer to rsync the local cache.
 	ConfigMapCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
-	// The interceptor has an internal process that periodically fetches the state
+	// Deprecated: The interceptor has an internal process that periodically fetches the state
 	// of deployment that is running the servers it forwards to.
 	//
 	// This is the interval (in milliseconds) representing how often to do a fetch
 	DeploymentCachePollIntervalMS int `envconfig:"KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS" default:"250"`
+	// The interceptor has an internal process that periodically fetches the state
+	// of endpoints that is running the servers it forwards to.
+	//
+	// This is the interval (in milliseconds) representing how often to do a fetch
+	EndpointsCachePollIntervalMS int `envconfig:"KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS" default:"250"`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the

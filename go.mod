@@ -12,7 +12,6 @@ require (
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/stretchr/testify v1.8.4
-	github.com/tj/assert v0.0.3
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.59.0

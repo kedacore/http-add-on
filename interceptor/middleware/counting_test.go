@@ -34,9 +34,9 @@ func TestCountMiddleware(t *testing.T) {
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: "testdepl",
-				Service:    ":",
-				Port:       8080,
+				Name:    "testdepl",
+				Service: "testservice",
+				Port:    8080,
 			},
 			TargetPendingRequests: ptr.To[int32](123),
 		},

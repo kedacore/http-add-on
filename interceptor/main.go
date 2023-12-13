@@ -28,8 +28,8 @@ import (
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
 
 func main() {
 	lggr, err := pkglog.NewZapr()
@@ -40,7 +40,7 @@ func main() {
 
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
-	if err := config.Validate(*servingCfg, *timeoutCfg); err != nil {
+	if err := config.Validate(servingCfg, *timeoutCfg, lggr); err != nil {
 		lggr.Error(err, "invalid configuration")
 		os.Exit(1)
 	}
@@ -63,16 +63,16 @@ func main() {
 		lggr.Error(err, "creating new Kubernetes ClientSet")
 		os.Exit(1)
 	}
-	deployCache := k8s.NewInformerBackedDeploymentCache(
+	endpointsCache := k8s.NewInformerBackedEndpointsCache(
 		lggr,
 		cl,
-		time.Millisecond*time.Duration(servingCfg.DeploymentCachePollIntervalMS),
+		time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS),
 	)
 	if err != nil {
-		lggr.Error(err, "creating new deployment cache")
+		lggr.Error(err, "creating new endpoints cache")
 		os.Exit(1)
 	}
-	waitFunc := newDeployReplicasForwardWaitFunc(lggr, deployCache)
+	waitFunc := newWorkloadReplicasForwardWaitFunc(lggr, endpointsCache)
 
 	httpCl, err := clientset.NewForConfig(cfg)
 	if err != nil {
@@ -95,11 +95,11 @@ func main() {
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	// start the deployment cache updater
+	// start the endpoints cache updater
 	eg.Go(func() error {
-		lggr.Info("starting the deployment cache")
+		lggr.Info("starting the endpoints cache")
 
-		deployCache.Start(ctx)
+		endpointsCache.Start(ctx)
 		return nil
 	})
 

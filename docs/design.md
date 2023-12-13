@@ -23,7 +23,7 @@ The [operator](../operator) runs inside the Kubernetes namespace to which they'r
 
 - Update an internal routing table that maps incoming HTTP hostnames to internal applications.
 - Furnish this routing table information to interceptors so that they can properly route requests.
-- Create a [`ScaledObject`](https://keda.sh/docs/2.3/concepts/scaling-deployments/#scaledobject-spec) for the `Deployment` specified in the `HTTPScaledObject` resource.
+- Create a [`ScaledObject`](https://keda.sh/docs/latest/concepts/scaling-deployments/#scaledobject-spec) for the `Deployment` specified in the `HTTPScaledObject` resource.
 
 When the `HTTPScaledObject` is deleted, the operator reverses all of the aforementioned actions.
 
