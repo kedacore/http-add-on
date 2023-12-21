@@ -182,11 +182,23 @@ var _ = Describe("RoutingMiddleware", func() {
 			r.Header.Set(uaKey, uaVal)
 
 			var rm Routing
-			b := rm.isKubeProbe(r)
+			b := rm.isProbe(r)
 			Expect(b).To(BeTrue())
 		})
 
-		It("returns false if the request is not from kube-probe", func() {
+		It("returns true if the request is from GoogleHC", func() {
+			const (
+				uaVal = "Go-http-client/1.1 GoogleHC/1.0 (linux/amd64) kubernetes/4c94112"
+			)
+
+			r.Header.Set(uaKey, uaVal)
+
+			var rm Routing
+			b := rm.isProbe(r)
+			Expect(b).To(BeTrue())
+		})
+
+		It("returns false if the request is not from kube-probe or GoogleHC", func() {
 			const (
 				uaVal = "Go-http-client/1.1 kubectl/v1.27.1 (linux/amd64) kubernetes/4c94112"
 			)
@@ -194,7 +206,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			r.Header.Set(uaKey, uaVal)
 
 			var rm Routing
-			b := rm.isKubeProbe(r)
+			b := rm.isProbe(r)
 			Expect(b).To(BeFalse())
 		})
 	})
