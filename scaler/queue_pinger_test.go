@@ -246,7 +246,6 @@ type optsFunc func(*fakeQueuePingerOpts)
 // the ticker and the pinger. it is the caller's responsibility to
 // call ticker.Stop() on the returned ticker.
 func newFakeQueuePinger(
-	ctx context.Context,
 	lggr logr.Logger,
 	optsFuncs ...optsFunc,
 ) (*time.Ticker, *queuePinger, error) {

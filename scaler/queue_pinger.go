@@ -16,12 +16,12 @@ import (
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
-type Pinger_Status int32
+type PingerStatus int32
 
 const (
-	PingerUNKNOWN Pinger_Status = 0
-	PingerACTIVE  Pinger_Status = 1
-	PingerERROR   Pinger_Status = 2
+	PingerUNKNOWN PingerStatus = 0
+	PingerACTIVE  PingerStatus = 1
+	PingerERROR   PingerStatus = 2
 )
 
 // queuePinger has functionality to ping all interceptors
@@ -52,7 +52,7 @@ type queuePinger struct {
 	allCounts              map[string]int
 	aggregateCount         int
 	lggr                   logr.Logger
-	status                 Pinger_Status
+	status                 PingerStatus
 }
 
 func newQueuePinger(

@@ -125,7 +125,7 @@ func TestStreamIsActive(t *testing.T) {
 			ctx := context.Background()
 			lggr := logr.Discard()
 			informer, _, _ := newMocks(ctrl)
-			ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+			ticker, pinger, err := newFakeQueuePinger(lggr)
 			r.NoError(err)
 			defer ticker.Stop()
 			tc.setup(t, pinger)
@@ -291,7 +291,7 @@ func TestIsActive(t *testing.T) {
 			ctx := context.Background()
 			lggr := logr.Discard()
 			informer, _, _ := newMocks(ctrl)
-			ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+			ticker, pinger, err := newFakeQueuePinger(lggr)
 			r.NoError(err)
 			defer ticker.Stop()
 			tc.setup(t, pinger)
@@ -455,7 +455,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 			t.Parallel()
 			lggr := logr.Discard()
 			informer := testCase.newInformer(t, ctrl)
-			ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+			ticker, pinger, err := newFakeQueuePinger(lggr)
 			if err != nil {
 				t.Fatalf(
 					"error creating new fake queue pinger and related components: %s",
@@ -525,7 +525,6 @@ func TestGetMetrics(t *testing.T) {
 		// create a fake queue pinger. this is the simulated
 		// scaler that pings the above fake interceptor
 		ticker, pinger, err := newFakeQueuePinger(
-			ctx,
 			lggr,
 			func(opts *fakeQueuePingerOpts) { opts.endpoints = endpoints },
 			func(opts *fakeQueuePingerOpts) { opts.tickDur = queuePingerTickDur },
@@ -535,8 +534,10 @@ func TestGetMetrics(t *testing.T) {
 			return nil, nil, err
 		}
 
+		go func() {
+			_ = pinger.start(ctx, ticker, k8s.NewFakeEndpointsCache())
+		}()
 		// sleep for a bit to ensure the pinger has time to do its first tick
-		go pinger.start(ctx, ticker, k8s.NewFakeEndpointsCache())
 		time.Sleep(10 * queuePingerTickDur)
 		return pinger, func() {
 			ticker.Stop()
@@ -557,7 +558,7 @@ func TestGetMetrics(t *testing.T) {
 				informer, _, _ := newMocks(ctrl)
 
 				// create queue and ticker without the host in it
-				ticker, pinger, err := newFakeQueuePinger(ctx, lggr)
+				ticker, pinger, err := newFakeQueuePinger(lggr)
 				if err != nil {
 					return nil, nil, nil, err
 				}
