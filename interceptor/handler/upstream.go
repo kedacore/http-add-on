@@ -43,6 +43,7 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		superDirector(req)
 		req.URL = stream
 		req.URL.Path = r.URL.Path
+		req.URL.RawPath = r.URL.RawPath
 		req.URL.RawQuery = r.URL.RawQuery
 		// delete the incoming X-Forwarded-For header so the proxy
 		// puts its own in. This is also important to prevent IP spoofing
