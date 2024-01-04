@@ -25,7 +25,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Improve Scaler reliability adding probes and 2 replicas ([#870](https://github.com/kedacore/http-add-on/issues/870))
 
 ### Fixes
 

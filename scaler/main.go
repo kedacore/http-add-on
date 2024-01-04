@@ -59,7 +59,7 @@ func main() {
 		lggr.Error(err, "creating new Kubernetes ClientSet")
 		os.Exit(1)
 	}
-	pinger, err := newQueuePinger(
+	pinger := newQueuePinger(
 		context.Background(),
 		lggr,
 		k8s.EndpointsFuncForK8sClientset(k8sCl),
@@ -68,10 +68,6 @@ func main() {
 		deplName,
 		targetPortStr,
 	)
-	if err != nil {
-		lggr.Error(err, "creating a queue pinger")
-		os.Exit(1)
-	}
 
 	// create the endpoints informer
 	endpInformer := k8s.NewInformerBackedEndpointsCache(
@@ -123,7 +119,7 @@ func main() {
 	eg.Go(func() error {
 		lggr.Info("starting the grpc server")
 
-		if err := startGrpcServer(ctx, lggr, grpcPort, pinger, httpsoInformer, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
+		if err := startGrpcServer(ctx, cfg, lggr, grpcPort, pinger, httpsoInformer, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
 			lggr.Error(err, "grpc server failed")
 			return err
 		}
@@ -143,6 +139,7 @@ func main() {
 
 func startGrpcServer(
 	ctx context.Context,
+	cfg *config,
 	lggr logr.Logger,
 	port int,
 	pinger *queuePinger,
@@ -161,8 +158,32 @@ func startGrpcServer(
 	reflection.Register(grpcServer)
 
 	hs := health.NewServer()
-	hs.SetServingStatus("liveness", grpc_health_v1.HealthCheckResponse_SERVING)
-	hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_SERVING)
+	go func() {
+		lggr.Info("starting healthchecks loop")
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			// handle cancellations/timeout
+			case <-ctx.Done():
+				hs.SetServingStatus("liveness", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+				hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+				return
+			// do our regularly scheduled work
+			case <-ticker.C:
+				// if we haven't updated the endpoints in twice QueueTickDuration we drop the check
+				if time.Now().After(pinger.lastPingTime.Add(cfg.QueueTickDuration * 2)) {
+					hs.SetServingStatus("liveness", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+					hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+				} else {
+					// we propagate pinger status as scaler status
+					hs.SetServingStatus("liveness", grpc_health_v1.HealthCheckResponse_ServingStatus(pinger.status))
+					hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_ServingStatus(pinger.status))
+				}
+			}
+		}
+	}()
+
 	grpc_health_v1.RegisterHealthServer(
 		grpcServer,
 		hs,

@@ -49,7 +49,7 @@ func TestCounts(t *testing.T) {
 	)
 	r.NoError(err)
 	defer srv.Close()
-	pinger, err := newQueuePinger(
+	pinger := newQueuePinger(
 		ctx,
 		logr.Discard(),
 		func(context.Context, string, string) (*v1.Endpoints, error) {
@@ -60,7 +60,6 @@ func TestCounts(t *testing.T) {
 		deplName,
 		srvURL.Port(),
 	)
-	r.NoError(err)
 	// the pinger does an initial fetch, so ensure that
 	// the saved counts are correct
 	retCounts := pinger.counts()
@@ -135,7 +134,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		return endpoints, nil
 	}
 
-	pinger, err := newQueuePinger(
+	pinger := newQueuePinger(
 		ctx,
 		logr.Discard(),
 		endpointsFn,
@@ -145,7 +144,6 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		srvURL.Port(),
 		// time.NewTicker(1*time.Millisecond),
 	)
-	r.NoError(err)
 
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
 
@@ -274,7 +272,7 @@ func newFakeQueuePinger(
 	}
 	ticker := time.NewTicker(opts.tickDur)
 
-	pinger, err := newQueuePinger(
+	pinger := newQueuePinger(
 		ctx,
 		lggr,
 		func(context.Context, string, string) (*v1.Endpoints, error) {
@@ -285,8 +283,5 @@ func newFakeQueuePinger(
 		"testdepl",
 		opts.port,
 	)
-	if err != nil {
-		return nil, nil, err
-	}
 	return ticker, pinger, nil
 }

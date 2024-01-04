@@ -16,6 +16,14 @@ import (
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
+type Pinger_Status int32
+
+const (
+	Pinger_UNKNOWN Pinger_Status = 0
+	Pinger_ACTIVE  Pinger_Status = 1
+	Pinger_ERROR   Pinger_Status = 2
+)
+
 // queuePinger has functionality to ping all interceptors
 // behind a given `Service`, fetch their pending queue counts,
 // and aggregate all of those counts together.
@@ -44,6 +52,7 @@ type queuePinger struct {
 	allCounts              map[string]int
 	aggregateCount         int
 	lggr                   logr.Logger
+	status                 Pinger_Status
 }
 
 func newQueuePinger(
@@ -54,7 +63,7 @@ func newQueuePinger(
 	svcName,
 	deplName,
 	adminPort string,
-) (*queuePinger, error) {
+) *queuePinger {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
 		getEndpointsFn:         getEndpointsFn,
@@ -67,7 +76,7 @@ func newQueuePinger(
 		allCounts:              map[string]int{},
 		aggregateCount:         0,
 	}
-	return pinger, pinger.fetchAndSaveCounts(ctx)
+	return pinger
 }
 
 // start starts the queuePinger
@@ -93,13 +102,13 @@ func (q *queuePinger) start(
 				ctx.Err(),
 				"context marked done. stopping queuePinger loop",
 			)
+			q.status = Pinger_ERROR
 			return fmt.Errorf("context marked done. stopping queuePinger loop: %w", ctx.Err())
 		// do our regularly scheduled work
 		case <-ticker.C:
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts")
-				return fmt.Errorf("error getting request counts: %w", err)
 			}
 		// handle changes to the interceptor fleet
 		// Endpoints
@@ -136,8 +145,10 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	)
 	if err != nil {
 		q.lggr.Error(err, "getting request counts")
+		q.status = Pinger_ERROR
 		return err
 	}
+	q.status = Pinger_ACTIVE
 	q.allCounts = counts
 	q.aggregateCount = agg
 	q.lastPingTime = time.Now()
@@ -173,6 +184,10 @@ func fetchCounts(
 	)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	if len(endpointURLs) == 0 {
+		return nil, 0, fmt.Errorf("there isn't any valid interceptor endpoint")
 	}
 
 	countsCh := make(chan *queue.Counts)

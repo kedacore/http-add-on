@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: scaler
 spec:
+  replicas: 2
   template:
     spec:
       affinity:
@@ -42,10 +43,18 @@ spec:
           grpc:
             port: 9090
             service: liveness
+          timeoutSeconds: 1
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
         readinessProbe:
           grpc:
             port: 9090
             service: readiness
+          timeoutSeconds: 1
+          periodSeconds: 1
+          successThreshold: 1
+          failureThreshold: 3
         # TODO(pedrotorres): set better default values avoiding overcommitment
         resources:
           requests:
