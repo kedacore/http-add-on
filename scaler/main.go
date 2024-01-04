@@ -60,7 +60,6 @@ func main() {
 		os.Exit(1)
 	}
 	pinger := newQueuePinger(
-		context.Background(),
 		lggr,
 		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,

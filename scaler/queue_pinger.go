@@ -19,9 +19,9 @@ import (
 type Pinger_Status int32
 
 const (
-	Pinger_UNKNOWN Pinger_Status = 0
-	Pinger_ACTIVE  Pinger_Status = 1
-	Pinger_ERROR   Pinger_Status = 2
+	PingerUNKNOWN Pinger_Status = 0
+	PingerACTIVE  Pinger_Status = 1
+	PingerERROR   Pinger_Status = 2
 )
 
 // queuePinger has functionality to ping all interceptors
@@ -56,7 +56,6 @@ type queuePinger struct {
 }
 
 func newQueuePinger(
-	ctx context.Context,
 	lggr logr.Logger,
 	getEndpointsFn k8s.GetEndpointsFunc,
 	ns,
@@ -102,7 +101,7 @@ func (q *queuePinger) start(
 				ctx.Err(),
 				"context marked done. stopping queuePinger loop",
 			)
-			q.status = Pinger_ERROR
+			q.status = PingerERROR
 			return fmt.Errorf("context marked done. stopping queuePinger loop: %w", ctx.Err())
 		// do our regularly scheduled work
 		case <-ticker.C:
@@ -145,10 +144,10 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	)
 	if err != nil {
 		q.lggr.Error(err, "getting request counts")
-		q.status = Pinger_ERROR
+		q.status = PingerERROR
 		return err
 	}
-	q.status = Pinger_ACTIVE
+	q.status = PingerACTIVE
 	q.allCounts = counts
 	q.aggregateCount = agg
 	q.lastPingTime = time.Now()

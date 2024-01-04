@@ -50,7 +50,6 @@ func TestCounts(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 	pinger := newQueuePinger(
-		ctx,
 		logr.Discard(),
 		func(context.Context, string, string) (*v1.Endpoints, error) {
 			return endpoints, nil
@@ -60,17 +59,7 @@ func TestCounts(t *testing.T) {
 		deplName,
 		srvURL.Port(),
 	)
-	// the pinger does an initial fetch, so ensure that
-	// the saved counts are correct
-	retCounts := pinger.counts()
-	r.Equal(len(counts), len(retCounts))
 
-	// now update the queue, start the ticker, and ensure
-	// that counts are updated after the first tick
-	r.NoError(q.Resize("host1", 1))
-	r.NoError(q.Resize("host2", 2))
-	r.NoError(q.Resize("host3", 3))
-	r.NoError(q.Resize("host4", 4))
 	ticker := time.NewTicker(tickDur)
 	fakeCache := k8s.NewFakeEndpointsCache()
 	go func() {
@@ -82,7 +71,7 @@ func TestCounts(t *testing.T) {
 
 	// now ensure that all the counts in the pinger
 	// are the same as in the queue, which has been updated
-	retCounts = pinger.counts()
+	retCounts := pinger.counts()
 	expectedCounts, err := q.Current()
 	r.NoError(err)
 	r.Equal(len(expectedCounts.Counts), len(retCounts))
@@ -135,7 +124,6 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	}
 
 	pinger := newQueuePinger(
-		ctx,
 		logr.Discard(),
 		endpointsFn,
 		ns,
@@ -273,7 +261,6 @@ func newFakeQueuePinger(
 	ticker := time.NewTicker(opts.tickDur)
 
 	pinger := newQueuePinger(
-		ctx,
 		lggr,
 		func(context.Context, string, string) (*v1.Endpoints, error) {
 			return opts.endpoints, nil

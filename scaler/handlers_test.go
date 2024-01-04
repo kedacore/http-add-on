@@ -22,6 +22,7 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	informersexternalversionshttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1/mock"
 	listershttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1/mock"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
@@ -535,10 +536,12 @@ func TestGetMetrics(t *testing.T) {
 		}
 
 		// sleep for a bit to ensure the pinger has time to do its first tick
+		go pinger.start(ctx, ticker, k8s.NewFakeEndpointsCache())
 		time.Sleep(10 * queuePingerTickDur)
 		return pinger, func() {
 			ticker.Stop()
 			fakeSrv.Close()
+			ctx.Done()
 		}, nil
 	}
 
