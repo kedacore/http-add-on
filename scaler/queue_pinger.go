@@ -99,7 +99,6 @@ func (q *queuePinger) start(
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts")
-				return fmt.Errorf("error getting request counts: %w", err)
 			}
 		// handle changes to the interceptor fleet
 		// Endpoints
