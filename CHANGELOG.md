@@ -30,8 +30,8 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: Add new user agent probe ([#862](https://github.com/kedacore/http-add-on/issues/862))
-- **General**: Increase ScaledObject polling interval to 15 seconds ([#799](https://github.com/kedacore/http-add-on/issues/799))
 - **General**: Fix external scaler getting into bad state when retrieving queue lengths fails. ([#870](https://github.com/kedacore/http-add-on/issues/870))
+- **General**: Increase ScaledObject polling interval to 15 seconds ([#799](https://github.com/kedacore/http-add-on/issues/799))
 - **General**: Set forward request RawPath to original request RawPath ([#864](https://github.com/kedacore/http-add-on/issues/864))
 
 ### Deprecations
