@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: scaler
 spec:
-  replicas: 2
+  replicas: 3
   template:
     spec:
       affinity:
