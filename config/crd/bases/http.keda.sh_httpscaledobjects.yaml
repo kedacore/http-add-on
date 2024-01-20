@@ -17,15 +17,12 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.scaleTargetRef.deploymentName
-      name: ScaleTargetDeploymentName
+    - jsonPath: .status.targetWorkload
+      name: ScaleTargetWorkload
       type: string
-    - jsonPath: .spec.scaleTargetRef
-      name: ScaleTargetServiceName
+    - jsonPath: .status.targetService
+      name: ScaleTargetService
       type: string
-    - jsonPath: .spec.scaleTargetRef
-      name: ScaleTargetPort
-      type: integer
     - jsonPath: .spec.replicas.min
       name: MinReplicas
       type: integer
@@ -58,19 +55,12 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
-              host:
-                description: (optional) (deprecated) The host to route. All requests
-                  which the "Host" header matches .spec.host and the Request Target
-                  matches any .spec.pathPrefixes will be routed to the Service and
-                  Port specified in the scaleTargetRef. The .spec.host field is mutually
-                  exclusive with the .spec.hosts field.
-                type: string
               hosts:
-                description: (optional) The hosts to route. All requests which the
-                  "Host" header matches any .spec.hosts and the Request Target matches
-                  any .spec.pathPrefixes will be routed to the Service and Port specified
-                  in the scaleTargetRef. The .spec.hosts field is mutually exclusive
-                  with the .spec.host field.
+                description: The hosts to route. All requests which the "Host" header
+                  matches any .spec.hosts and the Request Target matches any .spec.pathPrefixes
+                  will be routed to the Service and Port specified in the scaleTargetRef.
+                  The .spec.hosts field is mutually exclusive with the .spec.host
+                  field.
                 items:
                   type: string
                 type: array
@@ -178,6 +168,12 @@ spec:
                   - type
                   type: object
                 type: array
+              targetService:
+                description: TargetService reflects details about the scaled service.
+                type: string
+              targetWorkload:
+                description: TargetWorkload reflects details about the scaled workload.
+                type: string
             type: object
         type: object
     served: true
