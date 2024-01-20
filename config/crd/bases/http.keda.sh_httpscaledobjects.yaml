@@ -18,10 +18,10 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.targetWorkload
-      name: ScaleTargetWorkload
+      name: TargetWorkload
       type: string
     - jsonPath: .status.targetService
-      name: ScaleTargetService
+      name: TargetService
       type: string
     - jsonPath: .spec.replicas.min
       name: MinReplicas

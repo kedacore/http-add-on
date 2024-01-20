@@ -147,8 +147,8 @@ type HTTPScaledObjectStatus struct {
 // +genclient
 // +k8s:openapi-gen=true
 // +kubebuilder:object:root=true
-// +kubebuilder:printcolumn:name="ScaleTargetWorkload",type="string",JSONPath=".status.targetWorkload"
-// +kubebuilder:printcolumn:name="ScaleTargetService",type="string",JSONPath=".status.targetService"
+// +kubebuilder:printcolumn:name="TargetWorkload",type="string",JSONPath=".status.targetWorkload"
+// +kubebuilder:printcolumn:name="TargetService",type="string",JSONPath=".status.targetService"
 // +kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.replicas.min"
 // +kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.replicas.max"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
