@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
@@ -103,43 +102,5 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 			"App ScaledObject created",
 		),
 	)
-
-	return r.purgeLegacySO(ctx, cl, logger, httpso)
-}
-
-// TODO(pedrotorres): delete this on v0.6.0
-func (r *HTTPScaledObjectReconciler) purgeLegacySO(
-	ctx context.Context,
-	cl client.Client,
-	logger logr.Logger,
-	httpso *httpv1alpha1.HTTPScaledObject,
-) error {
-	legacyName := fmt.Sprintf("%s-app", httpso.GetName())
-	legacyKey := client.ObjectKey{
-		Namespace: httpso.GetNamespace(),
-		Name:      legacyName,
-	}
-
-	var legacySO kedav1alpha1.ScaledObject
-	if err := cl.Get(ctx, legacyKey, &legacySO); err != nil {
-		if errors.IsNotFound(err) {
-			logger.Info("legacy ScaledObject not found")
-			return nil
-		}
-
-		logger.Error(err, "failed getting legacy ScaledObject")
-		return err
-	}
-
-	if err := cl.Delete(ctx, &legacySO); err != nil {
-		if errors.IsNotFound(err) {
-			logger.Info("legacy ScaledObject not found")
-			return nil
-		}
-
-		logger.Error(err, "failed deleting legacy ScaledObject")
-		return err
-	}
-
 	return nil
 }

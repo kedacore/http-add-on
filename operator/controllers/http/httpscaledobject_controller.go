@@ -19,6 +19,7 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -86,11 +87,6 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	// TODO(pedrotorres): delete this on v0.6.0
-	if httpso.Spec.Host != nil {
-		logger.Info(".spec.host is deprecated, performing automated migration to .spec.hosts")
-		return ctrl.Result{}, r.migrateHost(ctx, httpso)
-	}
 	// TODO(jorturfer): delete this for v0.9.0
 	if httpso.Spec.ScaleTargetRef.Name == "" ||
 		httpso.Spec.ScaleTargetRef.Kind == "" ||
@@ -98,6 +94,10 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		logger.Info(".spec.scaleTargetRef.Deployment is deprecated, performing automated migration")
 		return ctrl.Result{}, r.migrateTargetRef(ctx, httpso)
 	}
+
+	// update status
+	httpso.Status.TargetWorkload = fmt.Sprintf("%s/%s/%s", httpso.Spec.ScaleTargetRef.APIVersion, httpso.Spec.ScaleTargetRef.Kind, httpso.Spec.ScaleTargetRef.Name)
+	httpso.Status.TargetService = fmt.Sprintf("%s:%d", httpso.Spec.ScaleTargetRef.Service, httpso.Spec.ScaleTargetRef.Port)
 
 	// httpso is updated now
 	logger.Info(
@@ -148,18 +148,6 @@ func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&httpv1alpha1.HTTPScaledObject{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
-}
-
-// TODO(pedrotorres): delete this on v0.6.0
-func (r *HTTPScaledObjectReconciler) migrateHost(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject) error {
-	if (httpso.Spec.Hosts != nil) == (httpso.Spec.Host != nil) {
-		return errors.New("exactly one of .spec.host and .spec.hosts must be set")
-	}
-	httpso.Spec.Hosts = []string{
-		*httpso.Spec.Host,
-	}
-	httpso.Spec.Host = nil
-	return r.Client.Update(ctx, httpso)
 }
 
 // TODO(jorturfer): delete this for v0.9.0

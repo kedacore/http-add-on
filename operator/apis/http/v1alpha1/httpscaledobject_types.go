@@ -47,14 +47,7 @@ type ReplicaStruct struct {
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
-	// (optional) (deprecated) The host to route. All requests which the "Host"
-	// header matches .spec.host and the Request Target matches any
-	// .spec.pathPrefixes will be routed to the Service and Port specified in
-	// the scaleTargetRef. The .spec.host field is mutually exclusive with the
-	// .spec.hosts field.
-	// +optional
-	Host *string `json:"host,omitempty"`
-	// (optional) The hosts to route. All requests which the "Host" header
+	// The hosts to route. All requests which the "Host" header
 	// matches any .spec.hosts and the Request Target matches any
 	// .spec.pathPrefixes will be routed to the Service and Port specified in
 	// the scaleTargetRef. The .spec.hosts field is mutually exclusive with the
@@ -141,6 +134,12 @@ type HTTPScaledObjectCondition struct {
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
+	// TargetWorkload reflects details about the scaled workload.
+	// +optional
+	TargetWorkload string `json:"targetWorkload,omitempty" description:"It reflects details about the scaled workload"`
+	// TargetService reflects details about the scaled service.
+	// +optional
+	TargetService string `json:"targetService,omitempty" description:"It reflects details about the scaled service"`
 	// Conditions of the operator
 	Conditions []HTTPScaledObjectCondition `json:"conditions,omitempty" description:"List of auditable conditions of the operator"`
 }
@@ -148,9 +147,8 @@ type HTTPScaledObjectStatus struct {
 // +genclient
 // +k8s:openapi-gen=true
 // +kubebuilder:object:root=true
-// +kubebuilder:printcolumn:name="ScaleTargetDeploymentName",type="string",JSONPath=".spec.scaleTargetRef.deploymentName"
-// +kubebuilder:printcolumn:name="ScaleTargetServiceName",type="string",JSONPath=".spec.scaleTargetRef"
-// +kubebuilder:printcolumn:name="ScaleTargetPort",type="integer",JSONPath=".spec.scaleTargetRef"
+// +kubebuilder:printcolumn:name="ScaleTargetWorkload",type="string",JSONPath=".status.targetWorkload"
+// +kubebuilder:printcolumn:name="ScaleTargetService",type="string",JSONPath=".status.targetService"
 // +kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.replicas.min"
 // +kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.replicas.max"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"

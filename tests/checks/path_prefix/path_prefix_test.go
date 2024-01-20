@@ -107,7 +107,8 @@ metadata:
   name: {{.HTTPScaledObjectName}}
   namespace: {{.TestNamespace}}
 spec:
-  host: {{.Host}}
+  hosts: 
+  - {{.Host}}
   pathPrefixes:
   - {{.PathPrefix0}}
   - {{.PathPrefix1}}
@@ -180,7 +181,8 @@ metadata:
   name: {{.HTTPScaledObjectName}}-2
   namespace: {{.TestNamespace}}
 spec:
-  host: {{.Host}}
+  hosts: 
+  -	{{.Host}}
   pathPrefixes:
   - {{.PathPrefix2}}
   targetPendingRequests: 100
