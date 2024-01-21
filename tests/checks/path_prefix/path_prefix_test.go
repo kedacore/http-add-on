@@ -107,7 +107,7 @@ metadata:
   name: {{.HTTPScaledObjectName}}
   namespace: {{.TestNamespace}}
 spec:
-  hosts: 
+  hosts:
   - {{.Host}}
   pathPrefixes:
   - {{.PathPrefix0}}
@@ -181,7 +181,7 @@ metadata:
   name: {{.HTTPScaledObjectName}}-2
   namespace: {{.TestNamespace}}
 spec:
-  hosts: 
+  hosts:
   -	{{.Host}}
   pathPrefixes:
   - {{.PathPrefix2}}
