@@ -74,7 +74,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 				return err
 			}
 		} else {
-			AddCondition(
+			AddOrUpdateCondition(
 				httpso,
 				*SetMessage(
 					CreateCondition(
@@ -91,7 +91,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 		}
 	}
 
-	AddCondition(
+	AddOrUpdateCondition(
 		httpso,
 		*SetMessage(
 			CreateCondition(

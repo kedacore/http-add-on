@@ -125,7 +125,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		ctx,
 		logger,
 		r.Client,
-		AddCondition(
+		AddOrUpdateCondition(
 			httpso,
 			*SetMessage(
 				CreateCondition(

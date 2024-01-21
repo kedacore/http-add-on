@@ -29,9 +29,18 @@ func SaveStatus(
 	}
 }
 
-// AddCondition adds a new condition to the HTTPScaledObject
-func AddCondition(httpso *httpv1alpha1.HTTPScaledObject, condition httpv1alpha1.HTTPScaledObjectCondition) *httpv1alpha1.HTTPScaledObject {
-	httpso.Status.Conditions = append(httpso.Status.Conditions, condition)
+// AddOrUpdateCondition adds or update a condition to the HTTPScaledObject
+func AddOrUpdateCondition(httpso *httpv1alpha1.HTTPScaledObject, condition httpv1alpha1.HTTPScaledObjectCondition) *httpv1alpha1.HTTPScaledObject {
+	found := false
+	for i := range httpso.Status.Conditions {
+		if httpso.Status.Conditions[i].Reason == condition.Reason {
+			found = true
+			httpso.Status.Conditions[i] = condition
+		}
+	}
+	if !found {
+		httpso.Status.Conditions = append(httpso.Status.Conditions, condition)
+	}
 	return httpso
 }
 
