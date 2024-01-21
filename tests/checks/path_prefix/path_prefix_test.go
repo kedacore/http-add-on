@@ -182,7 +182,7 @@ metadata:
   namespace: {{.TestNamespace}}
 spec:
   hosts:
-  -	{{.Host}}
+  - {{.Host}}
   pathPrefixes:
   - {{.PathPrefix2}}
   targetPendingRequests: 100
