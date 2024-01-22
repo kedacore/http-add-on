@@ -30,7 +30,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	)
 
 	// set initial statuses
-	AddCondition(
+	AddOrUpdateCondition(
 		httpso,
 		*SetMessage(
 			CreateCondition(

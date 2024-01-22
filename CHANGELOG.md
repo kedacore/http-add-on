@@ -17,7 +17,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: `host` field has been removed in favor of `hosts` in `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552)|[#888](https://github.com/kedacore/http-add-on/pull/888))
 
 ### New
 
@@ -43,8 +43,6 @@ New deprecation(s):
 - **General**: Deprecated `KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS` in favor of `KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS` ([#438](https://github.com/kedacore/http-add-on/issues/438))
 
 Previously announced deprecation(s):
-
-- **General**: `host` field deprecated in favor of `hosts` in `HTTPScaledObject` ([#552](https://github.com/kedacore/http-add-on/issues/552))
 
 ### Other
 
