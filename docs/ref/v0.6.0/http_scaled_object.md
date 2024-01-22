@@ -21,7 +21,7 @@ spec:
     replicas:
         min: 5
         max: 10
-
+    scaledownPeriod: 300
 ```
 
 This document is a narrated reference guide for the `HTTPScaledObject`, and we'll focus on the `spec` field.
@@ -31,6 +31,8 @@ This document is a narrated reference guide for the `HTTPScaledObject`, and we'l
 These are the hosts to apply this scaling rule to. All incoming requests with one of these values in their `Host` header will be forwarded to the `Service` and port specified in the below `scaleTargetRef`, and that same `scaleTargetRef`'s workload will be scaled accordingly.
 
 ## `pathPrefixes`
+
+>Default: "/"
 
 These are the paths to apply this scaling rule to. All incoming requests with one of these values as path prefix will be forwarded to the `Service` and port specified in the below `scaleTargetRef`, and that same `scaleTargetRef`'s workload will be scaled accordingly.
 
@@ -61,3 +63,11 @@ This is the port to route to on the service that you specified in the `service` 
 This is the number of _pending_ (or in-progress) requests that your application needs to have before the HTTP Add-on will scale it. Conversely, if your application has below this number of pending requests, the HTTP add-on will scale it down.
 
 For example, if you set this field to 100, the HTTP Add-on will scale your app up if it sees that there are 200 in-progress requests. On the other hand, it will scale down if it sees that there are only 20 in-progress requests. Note that it will _never_ scale your app to zero replicas unless there are _no_ requests in-progress. Even if you set this value to a very high number and only have a single in-progress request, your app will still have one replica.
+
+### `scaledownPeriod`
+
+>Default: 300
+
+The period to wait after the last reported active before scaling the resource back to 0.
+
+> Note: This time is measured on KEDA side based on in-flight requests, so workloads with few and random traffic could have unexpected scale to 0 cases. In those case we recommend to extend this period to ensure it doesn't happen.
