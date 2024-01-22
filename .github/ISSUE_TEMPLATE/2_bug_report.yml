@@ -52,6 +52,7 @@ body:
     label: "HTTP Add-on Version"
     description: "What version of the KEDA HTTP Add-on are you running?"
     options:
+    - "0.7.0"
     - "0.6.0"
     - "0.5.0"
     - "0.4.0"
@@ -65,10 +66,10 @@ body:
     label: Kubernetes Version
     description: What version of Kubernetes that are you running?
     options:
+    - "1.29"
     - "1.28"
     - "1.27"
-    - "1.26"
-    - "< 1.26"
+    - "< 1.27"
     - "Other"
   validations:
     required: false
