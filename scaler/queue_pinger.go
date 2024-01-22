@@ -16,6 +16,14 @@ import (
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
+type PingerStatus int32
+
+const (
+	PingerUNKNOWN PingerStatus = 0
+	PingerACTIVE  PingerStatus = 1
+	PingerERROR   PingerStatus = 2
+)
+
 // queuePinger has functionality to ping all interceptors
 // behind a given `Service`, fetch their pending queue counts,
 // and aggregate all of those counts together.
@@ -44,17 +52,17 @@ type queuePinger struct {
 	allCounts              map[string]int
 	aggregateCount         int
 	lggr                   logr.Logger
+	status                 PingerStatus
 }
 
 func newQueuePinger(
-	ctx context.Context,
 	lggr logr.Logger,
 	getEndpointsFn k8s.GetEndpointsFunc,
 	ns,
 	svcName,
 	deplName,
 	adminPort string,
-) (*queuePinger, error) {
+) *queuePinger {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
 		getEndpointsFn:         getEndpointsFn,
@@ -67,7 +75,7 @@ func newQueuePinger(
 		allCounts:              map[string]int{},
 		aggregateCount:         0,
 	}
-	return pinger, pinger.fetchAndSaveCounts(ctx)
+	return pinger
 }
 
 // start starts the queuePinger
@@ -93,6 +101,7 @@ func (q *queuePinger) start(
 				ctx.Err(),
 				"context marked done. stopping queuePinger loop",
 			)
+			q.status = PingerERROR
 			return fmt.Errorf("context marked done. stopping queuePinger loop: %w", ctx.Err())
 		// do our regularly scheduled work
 		case <-ticker.C:
@@ -135,8 +144,10 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	)
 	if err != nil {
 		q.lggr.Error(err, "getting request counts")
+		q.status = PingerERROR
 		return err
 	}
+	q.status = PingerACTIVE
 	q.allCounts = counts
 	q.aggregateCount = agg
 	q.lastPingTime = time.Now()
@@ -172,6 +183,10 @@ func fetchCounts(
 	)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	if len(endpointURLs) == 0 {
+		return nil, 0, fmt.Errorf("there isn't any valid interceptor endpoint")
 	}
 
 	countsCh := make(chan *queue.Counts)

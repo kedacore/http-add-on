@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
@@ -101,9 +102,17 @@ func TestSetupKEDA(t *testing.T) {
 	_, err = ExecuteCommand("helm repo update kedacore")
 	require.NoErrorf(t, err, "cannot update kedacore helm repo - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install keda kedacore/keda --namespace %s --wait --set extraArgs.keda.kube-api-qps=200 --set extraArgs.keda.kube-api-burst=300",
+	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install keda kedacore/keda --namespace %s --set extraArgs.keda.kube-api-qps=200 --set extraArgs.keda.kube-api-burst=300",
 		KEDANamespace))
 	require.NoErrorf(t, err, "cannot install KEDA - %s", err)
+
+	KubeClient = GetKubernetesClient(t)
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "keda-operator", KEDANamespace, 1, 30, 6),
+		"replica count should be 1 after 3 minutes")
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "keda-operator-metrics-apiserver", KEDANamespace, 1, 30, 6),
+		"replica count should be 1 after 3 minutes")
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "keda-admission-webhooks", KEDANamespace, 1, 30, 6),
+		"replica count should be 1 after 3 minutes")
 }
 
 func TestDeployKEDAHttpAddOn(t *testing.T) {
