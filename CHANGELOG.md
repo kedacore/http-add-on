@@ -10,10 +10,44 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.7.0](#v070)
 - [v0.6.0](#v060)
 - [v0.5.0](#v050)
 
 ## Unreleased
+
+### Breaking Changes
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### New
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Improvements
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Fixes
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+You can find all deprecations in [this overview](https://github.com/kedacore/http-add-on/labels/breaking-change) and [join the discussion here](https://github.com/kedacore/http-add-on/discussions/categories/deprecations).
+
+New deprecation(s):
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+Previously announced deprecation(s):
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.7.0
 
 ### Breaking Changes
 
@@ -25,7 +59,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
-- **General**: Improve Scaler reliability adding probes and 2 replicas ([#870](https://github.com/kedacore/http-add-on/issues/870))
+- **General**: Improve Scaler reliability adding probes and 3 replicas ([#870](https://github.com/kedacore/http-add-on/issues/870))
 
 ### Fixes
 
@@ -41,8 +75,6 @@ You can find all deprecations in [this overview](https://github.com/kedacore/htt
 New deprecation(s):
 
 - **General**: Deprecated `KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS` in favor of `KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS` ([#438](https://github.com/kedacore/http-add-on/issues/438))
-
-Previously announced deprecation(s):
 
 ### Other
 
