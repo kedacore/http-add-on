@@ -14,9 +14,11 @@ const (
 	soPollingInterval = 15
 	soTriggerType     = "external-push"
 
-	mkScalerAddress = "scalerAddress"
-	mkHosts         = "hosts"
-	mkPathPrefixes  = "pathPrefixes"
+	mkScalerAddress       = "scalerAddress"
+	mkHosts               = "hosts"
+	mkPathPrefixes        = "pathPrefixes"
+	mkCooldownPeriod      = "cooldownPeriod"
+	defaultCooldownPeriod = "300"
 )
 
 // NewScaledObject creates a new ScaledObject in memory
@@ -31,6 +33,11 @@ func NewScaledObject(
 	maxReplicas *int32,
 	cooldownPeriod *int32,
 ) *kedav1alpha1.ScaledObject {
+	scaledObjectCooldownPeriod := defaultCooldownPeriod
+	if cooldownPeriod != nil {
+		scaledObjectCooldownPeriod = string(*cooldownPeriod)
+	}
+
 	return &kedav1alpha1.ScaledObject{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: kedav1alpha1.SchemeGroupVersion.Identifier(),
@@ -47,7 +54,7 @@ func NewScaledObject(
 				Name:       workloadRef.Name,
 			},
 			PollingInterval: ptr.To[int32](soPollingInterval),
-			CooldownPeriod:  cooldownPeriod,
+			CooldownPeriod:  Int32P(0),
 			MinReplicaCount: minReplicas,
 			MaxReplicaCount: maxReplicas,
 			Advanced: &kedav1alpha1.AdvancedConfig{
@@ -57,9 +64,10 @@ func NewScaledObject(
 				{
 					Type: soTriggerType,
 					Metadata: map[string]string{
-						mkScalerAddress: scalerAddress,
-						mkHosts:         strings.Join(hosts, ","),
-						mkPathPrefixes:  strings.Join(pathPrefixes, ","),
+						mkScalerAddress:  scalerAddress,
+						mkHosts:          strings.Join(hosts, ","),
+						mkPathPrefixes:   strings.Join(pathPrefixes, ","),
+						mkCooldownPeriod: scaledObjectCooldownPeriod,
 					},
 				},
 			},
