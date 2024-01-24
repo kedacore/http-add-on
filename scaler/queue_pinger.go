@@ -254,5 +254,9 @@ func fetchCounts(
 		}
 	}
 
+	if _, found := totalCounts["all failed"]; found && len(totalCounts) == 1 {
+		return nil, 0, fmt.Errorf("fetching all counts failed, cannot reach any of the endpoints")
+	}
+
 	return totalCounts, agg, nil
 }
