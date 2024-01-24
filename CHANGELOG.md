@@ -38,7 +38,6 @@ You can find all deprecations in [this overview](https://github.com/kedacore/htt
 
 New deprecation(s):
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 Previously announced deprecation(s):
 
