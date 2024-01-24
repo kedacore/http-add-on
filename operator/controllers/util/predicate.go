@@ -2,11 +2,11 @@ package util
 
 import (
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-
-	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 )
 
 type HTTPScaledObjectReadyConditionPredicate struct {
