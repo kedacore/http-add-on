@@ -74,64 +74,6 @@ type HTTPScaledObjectSpec struct {
 	CooldownPeriod *int32 `json:"scaledownPeriod,omitempty" description:"Cooldown period (seconds) for resources to scale down (Default 300)"`
 }
 
-// +kubebuilder:validation:Enum=Created;Terminated;Error;Pending;Terminating;Unknown;Ready
-
-// HTTPScaledObjectCreationStatus describes the creation status
-// of the scaler's additional resources such as Services, Ingresses and Deployments
-type HTTPScaledObjectCreationStatus string
-
-const (
-	// Created indicates the resource has been created
-	Created HTTPScaledObjectCreationStatus = "Created"
-	// Terminated indicates the resource has been terminated
-	Terminated HTTPScaledObjectCreationStatus = "Terminated"
-	// Error indicates the resource had an error
-	Error HTTPScaledObjectCreationStatus = "Error"
-	// Pending indicates the resource hasn't been created
-	Pending HTTPScaledObjectCreationStatus = "Pending"
-	// Terminating indicates that the resource is marked for deletion but hasn't
-	// been deleted yet
-	Terminating HTTPScaledObjectCreationStatus = "Terminating"
-	// Unknown indicates the status is unavailable
-	Unknown HTTPScaledObjectCreationStatus = "Unknown"
-	// Ready indicates the object is fully created
-	Ready HTTPScaledObjectCreationStatus = "Ready"
-)
-
-// +kubebuilder:validation:Enum=ErrorCreatingAppScaledObject;AppScaledObjectCreated;TerminatingResources;AppScaledObjectTerminated;AppScaledObjectTerminationError;PendingCreation;HTTPScaledObjectIsReady;
-
-// HTTPScaledObjectConditionReason describes the reason why the condition transitioned
-type HTTPScaledObjectConditionReason string
-
-const (
-	ErrorCreatingAppScaledObject    HTTPScaledObjectConditionReason = "ErrorCreatingAppScaledObject"
-	AppScaledObjectCreated          HTTPScaledObjectConditionReason = "AppScaledObjectCreated"
-	TerminatingResources            HTTPScaledObjectConditionReason = "TerminatingResources"
-	AppScaledObjectTerminated       HTTPScaledObjectConditionReason = "AppScaledObjectTerminated"
-	AppScaledObjectTerminationError HTTPScaledObjectConditionReason = "AppScaledObjectTerminationError"
-	PendingCreation                 HTTPScaledObjectConditionReason = "PendingCreation"
-	HTTPScaledObjectIsReady         HTTPScaledObjectConditionReason = "HTTPScaledObjectIsReady"
-)
-
-// HTTPScaledObjectCondition stores the condition state
-type HTTPScaledObjectCondition struct {
-	// Timestamp of the condition
-	// +optional
-	Timestamp string `json:"timestamp" description:"Timestamp of this condition"`
-	// Type of condition
-	// +required
-	Type HTTPScaledObjectCreationStatus `json:"type" description:"type of status condition"`
-	// Status of the condition, one of True, False, Unknown.
-	// +required
-	Status metav1.ConditionStatus `json:"status" description:"status of the condition, one of True, False, Unknown"`
-	// Reason for the condition's last transition.
-	// +optional
-	Reason HTTPScaledObjectConditionReason `json:"reason,omitempty" description:"one-word CamelCase reason for the condition's last transition"`
-	// Message indicating details about the transition.
-	// +optional
-	Message string `json:"message,omitempty" description:"human-readable message indicating details about last transition"`
-}
-
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
 type HTTPScaledObjectStatus struct {
 	// TargetWorkload reflects details about the scaled workload.
@@ -141,7 +83,7 @@ type HTTPScaledObjectStatus struct {
 	// +optional
 	TargetService string `json:"targetService,omitempty" description:"It reflects details about the scaled service"`
 	// Conditions of the operator
-	Conditions []HTTPScaledObjectCondition `json:"conditions,omitempty" description:"List of auditable conditions of the operator"`
+	Conditions Conditions `json:"conditions,omitempty" description:"List of auditable conditions of the operator"`
 }
 
 // +genclient

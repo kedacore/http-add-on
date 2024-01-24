@@ -42,7 +42,7 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 	cond1ts, err := time.Parse(time.RFC3339, cond1.Timestamp)
 	r.NoError(err)
 	r.GreaterOrEqual(time.Since(cond1ts), time.Duration(0))
-	r.Equal(v1alpha1.Created, cond1.Type)
+	r.Equal(v1alpha1.Ready, cond1.Type)
 	r.Equal(metav1.ConditionTrue, cond1.Status)
 	r.Equal(v1alpha1.AppScaledObjectCreated, cond1.Reason)
 
