@@ -66,7 +66,7 @@ func GetCounts(
 	resp, err := httpCl.Get(interceptorURL.String())
 	if err != nil {
 		m := &Counts{
-			Counts: map[string]int{"all failed": -1},
+			Counts: map[string]int{"all failed": 0},
 		}
 		return m, nil
 	}
