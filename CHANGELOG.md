@@ -15,6 +15,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - [v0.5.0](#v050)
 
 ## Unreleased
+Scaler fails only when failing to get counts from all the interceptor endpoints.
 
 ### Breaking Changes
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
