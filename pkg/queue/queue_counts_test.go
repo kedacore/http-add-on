@@ -9,15 +9,23 @@ import (
 func TestAggregate(t *testing.T) {
 	r := require.New(t)
 	counts := NewCounts()
-	counts.Counts = map[string]int{
-		"host1": 123,
-		"host2": 234,
-		"host3": 456,
-		"host4": 567,
+	counts.Counts = map[string]Count{
+		"host1": {
+			Requests: 123,
+		},
+		"host2": {
+			Requests: 234,
+		},
+		"host3": {
+			Requests: 345,
+		},
+		"host4": {
+			Requests: 456,
+		},
 	}
 	expectedAgg := 0
 	for _, v := range counts.Counts {
-		expectedAgg += v
+		expectedAgg += v.Requests
 	}
 	r.Equal(expectedAgg, counts.Aggregate())
 }

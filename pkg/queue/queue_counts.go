@@ -16,15 +16,18 @@ type Counts struct {
 	json.Marshaler
 	json.Unmarshaler
 	fmt.Stringer
-	Counts     map[string]int
-	Activities map[string]time.Time
+	Counts map[string]Count
+}
+
+type Count struct {
+	Requests int
+	Activity time.Time
 }
 
 // NewQueueCounts creates a new empty QueueCounts struct
 func NewCounts() *Counts {
 	return &Counts{
-		Counts:     map[string]int{},
-		Activities: map[string]time.Time{},
+		Counts: map[string]Count{},
 	}
 }
 
@@ -32,7 +35,7 @@ func NewCounts() *Counts {
 func (q *Counts) Aggregate() int {
 	agg := 0
 	for _, count := range q.Counts {
-		agg += count
+		agg += count.Requests
 	}
 	return agg
 }
@@ -49,5 +52,5 @@ func (q *Counts) UnmarshalJSON(data []byte) error {
 
 // String implements fmt.Stringer
 func (q *Counts) String() string {
-	return fmt.Sprintf("%v-%v", q.Counts, q.Activities)
+	return fmt.Sprintf("%v", q.Counts)
 }

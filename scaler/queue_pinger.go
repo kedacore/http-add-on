@@ -259,10 +259,10 @@ func fetchCounts(
 		// each endpoint returns a map of counts, one count
 		// per host. add up the counts for each host
 		for host, val := range count.Counts {
-			agg += val
-			totalCounts[host] += val
-			if count.Activities[host].After(totalActivities[host]) {
-				totalActivities[host] = count.Activities[host]
+			agg += val.Requests
+			totalCounts[host] += val.Requests
+			if val.Activity.After(totalActivities[host]) {
+				totalActivities[host] = val.Activity
 			}
 		}
 	}

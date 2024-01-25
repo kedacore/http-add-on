@@ -62,7 +62,11 @@ func (f *FakeCounter) Current() (*Counts, error) {
 	f.mapMut.RLock()
 	defer f.mapMut.RUnlock()
 	retMap := f.RetMap
-	ret.Counts = retMap
+	for key, val := range retMap {
+		ret.Counts[key] = Count{
+			Requests: val,
+		}
+	}
 	return ret, nil
 }
 
@@ -75,8 +79,10 @@ type FakeCountReader struct {
 
 func (f *FakeCountReader) Current() (*Counts, error) {
 	ret := NewCounts()
-	ret.Counts = map[string]int{
-		"sample.com": f.current,
+	ret.Counts = map[string]Count{
+		"sample.com": {
+			Requests: f.current,
+		},
 	}
 	return ret, f.err
 }

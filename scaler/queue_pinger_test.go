@@ -85,7 +85,7 @@ func TestCounts(t *testing.T) {
 
 		// note that the returned value should be:
 		// (queue_count * num_endpoints)
-		r.Equal(count*3, retCount)
+		r.Equal(count.Requests*3, retCount)
 
 	}
 }
@@ -102,14 +102,20 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		numEndpoints = 3
 	)
 	counts := queue.NewCounts()
-	counts.Counts = map[string]int{
-		"host1": 123,
-		"host2": 234,
-		"host3": 345,
+	counts.Counts = map[string]queue.Count{
+		"host1": {
+			Requests: 123,
+		},
+		"host2": {
+			Requests: 234,
+		},
+		"host3": {
+			Requests: 345,
+		},
 	}
 	q := queue.NewMemory()
 	for host, count := range counts.Counts {
-		r.NoError(q.Resize(host, count))
+		r.NoError(q.Resize(host, count.Requests))
 	}
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
 		svcName, q, numEndpoints,
@@ -143,11 +149,12 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	// again, since all endpoints serve the same counts,
 	// the hosts will be the same as the original counts,
 	// but the value is (individual count * # endpoints)
-	expectedCounts := counts.Counts
-	for host, val := range expectedCounts {
-		expectedCounts[host] = val * numEndpoints
+	expectedPingerCounts := map[string]int{}
+	for host, val := range counts.Counts {
+		expectedPingerCounts[host] = val.Requests * numEndpoints
 	}
-	r.Equal(expectedCounts, pinger.allCounts)
+
+	r.Equal(expectedPingerCounts, pinger.allCounts)
 }
 
 func TestFetchCounts(t *testing.T) {
@@ -161,14 +168,23 @@ func TestFetchCounts(t *testing.T) {
 		numEndpoints = 3
 	)
 	counts := queue.NewCounts()
-	counts.Counts = map[string]int{
-		"host1": 123,
-		"host2": 234,
-		"host3": 345,
+	counts.Counts = map[string]queue.Count{
+		"host1": {
+			Requests: 123,
+			Activity: time.Now(),
+		},
+		"host2": {
+			Requests: 234,
+			Activity: time.Now(),
+		},
+		"host3": {
+			Requests: 345,
+			Activity: time.Now(),
+		},
 	}
 	q := queue.NewMemory()
 	for host, count := range counts.Counts {
-		r.NoError(q.Resize(host, count))
+		r.NoError(q.Resize(host, count.Requests))
 	}
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
 		svcName, q, numEndpoints,
@@ -200,13 +216,11 @@ func TestFetchCounts(t *testing.T) {
 	// again, since all endpoints serve the same counts,
 	// the hosts will be the same as the original counts,
 	// but the value is (individual count * # endpoints)
-	expectedCounts := counts.Counts
-	for host, val := range expectedCounts {
-		expectedCounts[host] = val * numEndpoints
+	for key, val := range counts.Counts {
+		r.Equal(val.Requests*numEndpoints, cts[key])
+		r.WithinDuration(activities[key], val.Activity, 200*time.Millisecond)
 	}
 
-	r.Equal(expectedCounts, cts)
-	r.Equal(counts.Activities, activities)
 }
 
 // startFakeQueuePinger starts a fake server that simulates
