@@ -86,6 +86,7 @@ func TestCounts(t *testing.T) {
 		// note that the returned value should be:
 		// (queue_count * num_endpoints)
 		r.Equal(count*3, retCount)
+
 	}
 }
 
@@ -183,7 +184,7 @@ func TestFetchCounts(t *testing.T) {
 		return endpoints, nil
 	}
 
-	cts, agg, err := fetchCounts(
+	cts, activities, agg, err := fetchCounts(
 		ctx,
 		logr.Discard(),
 		endpointsFn,
@@ -203,7 +204,9 @@ func TestFetchCounts(t *testing.T) {
 	for host, val := range expectedCounts {
 		expectedCounts[host] = val * numEndpoints
 	}
+
 	r.Equal(expectedCounts, cts)
+	r.Equal(counts.Activities, activities)
 }
 
 // startFakeQueuePinger starts a fake server that simulates

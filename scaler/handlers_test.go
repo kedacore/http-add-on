@@ -29,15 +29,16 @@ import (
 func TestStreamIsActive(t *testing.T) {
 	type testCase struct {
 		name           string
-		expected       bool
+		active         bool
 		expectedErr    bool
 		setup          func(t *testing.T, qp *queuePinger)
+		coolDownPeriod *int32
 		scalerMetadata map[string]string
 	}
 	testCases := []testCase{
 		{
-			name:        "Simple host inactive",
-			expected:    false,
+			name:        "Simple host inactive (deafult values)",
+			active:      false,
 			expectedErr: false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
@@ -49,12 +50,12 @@ func TestStreamIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 0
+				qp.allActivities[key] = time.Now().Add(-10 * time.Minute)
 			},
 		},
 		{
-			name:        "Simple host active",
-			expected:    true,
+			name:        "Simple host active (default values)",
+			active:      true,
 			expectedErr: false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
@@ -66,12 +67,48 @@ func TestStreamIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 1
+				qp.allActivities[key] = time.Now().Add(-4 * time.Minute)
+			},
+		},
+		{
+			name:           "Simple host inactive (set values)",
+			active:         false,
+			expectedErr:    false,
+			coolDownPeriod: k8s.Int32P(0),
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allActivities[key] = time.Now().Add(-1 * time.Second)
+			},
+		},
+		{
+			name:           "Simple host active (set values)",
+			active:         true,
+			expectedErr:    false,
+			coolDownPeriod: k8s.Int32P(600),
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allActivities[key] = time.Now().Add(-9 * time.Minute)
 			},
 		},
 		{
 			name:        "Simple multi host active",
-			expected:    true,
+			active:      true,
 			expectedErr: false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
@@ -83,33 +120,26 @@ func TestStreamIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 2
+				qp.allActivities[key] = time.Now().Add(-1 * time.Minute)
 			},
 		},
 		{
 			name:        "No host present, but host in routing table",
-			expected:    false,
+			active:      false,
 			expectedErr: false,
 			setup:       func(_ *testing.T, _ *queuePinger) {},
 		},
 		{
 			name:        "Host doesn't exist",
-			expected:    false,
+			active:      false,
 			expectedErr: true,
 			setup:       func(_ *testing.T, _ *queuePinger) {},
 		},
 		{
 			name:        "Interceptor",
-			expected:    true,
+			active:      true,
 			expectedErr: false,
-			setup: func(_ *testing.T, qp *queuePinger) {
-				qp.pingMut.Lock()
-				defer qp.pingMut.Unlock()
-
-				qp.allCounts["a"] = 1
-				qp.allCounts["b"] = 2
-				qp.allCounts["c"] = 3
-			},
+			setup:       func(_ *testing.T, _ *queuePinger) {},
 			scalerMetadata: map[string]string{
 				keyInterceptorTargetPendingRequests: "1000",
 			},
@@ -124,7 +154,26 @@ func TestStreamIsActive(t *testing.T) {
 			r := require.New(t)
 			ctx := context.Background()
 			lggr := logr.Discard()
-			informer, _, _ := newMocks(ctrl)
+			informer, _, namespaceLister := newMocks(ctrl)
+			httpso := &httpv1alpha1.HTTPScaledObject{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      t.Name(),
+				},
+				Spec: httpv1alpha1.HTTPScaledObjectSpec{
+					ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+						Name:    "testdepl",
+						Service: "testsrv",
+						Port:    8080,
+					},
+					CooldownPeriod: tc.coolDownPeriod,
+				},
+			}
+			namespaceLister.EXPECT().
+				Get(httpso.GetName()).
+				AnyTimes().
+				Return(httpso, nil)
+
 			ticker, pinger, err := newFakeQueuePinger(lggr)
 			r.NoError(err)
 			defer ticker.Stop()
@@ -185,140 +234,8 @@ func TestStreamIsActive(t *testing.T) {
 				t.Fatalf("expected no error but got: %v", err)
 			}
 
-			if tc.expected != res.Result {
-				t.Fatalf("Expected IsActive result %v, got: %v", tc.expected, res.Result)
-			}
-		})
-	}
-}
-
-func TestIsActive(t *testing.T) {
-	type testCase struct {
-		name           string
-		expected       bool
-		expectedErr    bool
-		setup          func(t *testing.T, qp *queuePinger)
-		scalerMetadata map[string]string
-	}
-	testCases := []testCase{
-		{
-			name:        "Simple host inactive",
-			expected:    false,
-			expectedErr: false,
-			setup: func(t *testing.T, qp *queuePinger) {
-				namespacedName := &types.NamespacedName{
-					Namespace: "default",
-					Name:      t.Name(),
-				}
-				key := namespacedName.String()
-
-				qp.pingMut.Lock()
-				defer qp.pingMut.Unlock()
-
-				qp.allCounts[key] = 0
-			},
-		},
-		{
-			name:        "Simple host active",
-			expected:    true,
-			expectedErr: false,
-			setup: func(t *testing.T, qp *queuePinger) {
-				namespacedName := &types.NamespacedName{
-					Namespace: "default",
-					Name:      t.Name(),
-				}
-				key := namespacedName.String()
-
-				qp.pingMut.Lock()
-				defer qp.pingMut.Unlock()
-
-				qp.allCounts[key] = 1
-			},
-		},
-		{
-			name:        "Simple multi host active",
-			expected:    true,
-			expectedErr: false,
-			setup: func(t *testing.T, qp *queuePinger) {
-				namespacedName := &types.NamespacedName{
-					Namespace: "default",
-					Name:      t.Name(),
-				}
-				key := namespacedName.String()
-
-				qp.pingMut.Lock()
-				defer qp.pingMut.Unlock()
-
-				qp.allCounts[key] = 2
-			},
-		},
-		{
-			name:        "No host present, but host in routing table",
-			expected:    false,
-			expectedErr: false,
-			setup:       func(_ *testing.T, _ *queuePinger) {},
-		},
-		{
-			name:        "Host doesn't exist",
-			expected:    false,
-			expectedErr: true,
-			setup:       func(_ *testing.T, _ *queuePinger) {},
-		},
-		{
-			name:        "Interceptor",
-			expected:    true,
-			expectedErr: false,
-			setup: func(_ *testing.T, qp *queuePinger) {
-				qp.pingMut.Lock()
-				defer qp.pingMut.Unlock()
-
-				qp.allCounts["a"] = 1
-				qp.allCounts["b"] = 2
-				qp.allCounts["c"] = 3
-			},
-			scalerMetadata: map[string]string{
-				keyInterceptorTargetPendingRequests: "1000",
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			r := require.New(t)
-			ctx := context.Background()
-			lggr := logr.Discard()
-			informer, _, _ := newMocks(ctrl)
-			ticker, pinger, err := newFakeQueuePinger(lggr)
-			r.NoError(err)
-			defer ticker.Stop()
-			tc.setup(t, pinger)
-			hdl := newImpl(
-				lggr,
-				pinger,
-				informer,
-				123,
-			)
-
-			res, err := hdl.IsActive(
-				ctx,
-				&externalscaler.ScaledObjectRef{
-					Namespace:      "default",
-					Name:           t.Name(),
-					ScalerMetadata: tc.scalerMetadata,
-				},
-			)
-
-			if tc.expectedErr && err != nil {
-				return
-			}
-			if err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
-			if tc.expected != res.Result {
-				t.Fatalf("Expected IsActive result %v, got: %v", tc.expected, res.Result)
+			if tc.active != res.Result {
+				t.Fatalf("Expected IsActive result %v, got: %v", tc.active, res.Result)
 			}
 		})
 	}

@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"time"
 
@@ -66,23 +65,34 @@ func (e *impl) IsActive(
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
 	lggr := e.lggr.WithName("IsActive")
+	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
+	key := namespacedName.String()
 
-	gmr, err := e.GetMetrics(ctx, &externalscaler.GetMetricsRequest{
-		ScaledObjectRef: sor,
-	})
+	lastActivity, keyExists := e.pinger.activities()[key]
+	if !keyExists {
+		active := false
+		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
+			// If the ScaledObject contains the interceptor configuration
+			// the query is for interceptor and it's always active
+			_, active = scalerMetadata[keyInterceptorTargetPendingRequests]
+		}
+		return &externalscaler.IsActiveResponse{
+			Result: active,
+		}, nil
+	}
+
+	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
 	if err != nil {
-		lggr.Error(err, "GetMetrics failed", "scaledObjectRef", sor.String())
+		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 		return nil, err
 	}
 
-	metricValues := gmr.GetMetricValues()
-	if err := errors.New("len(metricValues) != 1"); len(metricValues) != 1 {
-		lggr.Error(err, "invalid GetMetricsResponse", "scaledObjectRef", sor.String(), "getMetricsResponse", gmr.String())
-		return nil, err
+	cooldownPeriod := 300
+	if httpso.Spec.CooldownPeriod != nil {
+		cooldownPeriod = int(*httpso.Spec.CooldownPeriod)
 	}
-	metricValue := metricValues[0].GetMetricValue()
 
-	active := metricValue > 0
+	active := lastActivity.After(time.Now().Add((-time.Duration(cooldownPeriod) * time.Second)))
 	res := &externalscaler.IsActiveResponse{
 		Result: active,
 	}

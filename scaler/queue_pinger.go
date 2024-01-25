@@ -50,6 +50,7 @@ type queuePinger struct {
 	pingMut                *sync.RWMutex
 	lastPingTime           time.Time
 	allCounts              map[string]int
+	allActivities          map[string]time.Time
 	aggregateCount         int
 	lggr                   logr.Logger
 	status                 PingerStatus
@@ -73,6 +74,7 @@ func newQueuePinger(
 		pingMut:                pingMut,
 		lggr:                   lggr,
 		allCounts:              map[string]int{},
+		allActivities:          map[string]time.Time{},
 		aggregateCount:         0,
 	}
 	return pinger
@@ -129,12 +131,18 @@ func (q *queuePinger) counts() map[string]int {
 	return q.allCounts
 }
 
+func (q *queuePinger) activities() map[string]time.Time {
+	q.pingMut.RLock()
+	defer q.pingMut.RUnlock()
+	return q.allActivities
+}
+
 // fetchAndSaveCounts calls fetchCounts, and then
 // saves them to internal state in q
 func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	q.pingMut.Lock()
 	defer q.pingMut.Unlock()
-	counts, agg, err := fetchCounts(
+	counts, activities, agg, err := fetchCounts(
 		ctx,
 		q.lggr,
 		q.getEndpointsFn,
@@ -149,6 +157,7 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	}
 	q.status = PingerACTIVE
 	q.allCounts = counts
+	q.allActivities = activities
 	q.aggregateCount = agg
 	q.lastPingTime = time.Now()
 
@@ -171,7 +180,7 @@ func fetchCounts(
 	ns,
 	svcName,
 	adminPort string,
-) (map[string]int, int, error) {
+) (map[string]int, map[string]time.Time, int, error) {
 	lggr = lggr.WithName("queuePinger.requestCounts")
 
 	endpointURLs, err := k8s.EndpointsForService(
@@ -182,11 +191,11 @@ func fetchCounts(
 		endpointsFn,
 	)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 
 	if len(endpointURLs) == 0 {
-		return nil, 0, fmt.Errorf("there isn't any valid interceptor endpoint")
+		return nil, nil, 0, fmt.Errorf("there isn't any valid interceptor endpoint")
 	}
 
 	countsCh := make(chan *queue.Counts)
@@ -238,12 +247,13 @@ func fetchCounts(
 
 	if err := fetchGrp.Wait(); err != nil {
 		lggr.Error(err, "fetching all counts failed")
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 
 	// consume the results of the counts channel
 	agg := 0
 	totalCounts := make(map[string]int)
+	totalActivities := make(map[string]time.Time)
 	// range through the result of each endpoint
 	for count := range countsCh {
 		// each endpoint returns a map of counts, one count
@@ -251,8 +261,11 @@ func fetchCounts(
 		for host, val := range count.Counts {
 			agg += val
 			totalCounts[host] += val
+			if count.Activities[host].After(totalActivities[host]) {
+				totalActivities[host] = count.Activities[host]
+			}
 		}
 	}
 
-	return totalCounts, agg, nil
+	return totalCounts, totalActivities, agg, nil
 }

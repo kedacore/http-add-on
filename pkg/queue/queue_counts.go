@@ -3,6 +3,7 @@ package queue
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // Counts is a snapshot of the HTTP pending request queue counts
@@ -15,13 +16,15 @@ type Counts struct {
 	json.Marshaler
 	json.Unmarshaler
 	fmt.Stringer
-	Counts map[string]int
+	Counts     map[string]int
+	Activities map[string]time.Time
 }
 
 // NewQueueCounts creates a new empty QueueCounts struct
 func NewCounts() *Counts {
 	return &Counts{
-		Counts: map[string]int{},
+		Counts:     map[string]int{},
+		Activities: map[string]time.Time{},
 	}
 }
 
@@ -46,5 +49,5 @@ func (q *Counts) UnmarshalJSON(data []byte) error {
 
 // String implements fmt.Stringer
 func (q *Counts) String() string {
-	return fmt.Sprintf("%v", q.Counts)
+	return fmt.Sprintf("%v-%v", q.Counts, q.Activities)
 }

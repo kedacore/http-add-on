@@ -14,10 +14,12 @@ func TestCurrent(t *testing.T) {
 	current, err := memory.Current()
 	r.NoError(err)
 	r.Equal(current.Counts, memory.countMap)
+	r.Equal(current.Activities, memory.activityMap)
 
 	err = memory.Resize("host1", 1)
 	r.NoError(err)
 	err = memory.Resize("host2", 1)
 	r.NoError(err)
 	r.NotEqual(current.Counts, memory.countMap)
+	r.NotEqual(current.Activities, memory.activityMap)
 }

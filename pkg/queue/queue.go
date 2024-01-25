@@ -2,6 +2,7 @@ package queue
 
 import (
 	"sync"
+	"time"
 )
 
 // CountReader represents the size of a virtual HTTP queue, possibly
@@ -40,16 +41,18 @@ type Counter interface {
 // holds the HTTP queue in memory only. Always use
 // NewMemory to create one of these.
 type Memory struct {
-	countMap map[string]int
-	mut      *sync.RWMutex
+	countMap    map[string]int
+	activityMap map[string]time.Time
+	mut         *sync.RWMutex
 }
 
 // NewMemoryQueue creates a new empty in-memory queue
 func NewMemory() *Memory {
 	lock := new(sync.RWMutex)
 	return &Memory{
-		countMap: make(map[string]int),
-		mut:      lock,
+		countMap:    make(map[string]int),
+		activityMap: make(map[string]time.Time),
+		mut:         lock,
 	}
 }
 
@@ -60,6 +63,7 @@ func (r *Memory) Resize(host string, delta int) error {
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	r.countMap[host] += delta
+	r.activityMap[host] = time.Now()
 	return nil
 }
 
@@ -69,15 +73,18 @@ func (r *Memory) Ensure(host string) {
 	_, ok := r.countMap[host]
 	if !ok {
 		r.countMap[host] = 0
+		r.activityMap[host] = time.Now()
 	}
 }
 
 func (r *Memory) Remove(host string) bool {
 	r.mut.Lock()
 	defer r.mut.Unlock()
-	_, ok := r.countMap[host]
+	_, countOk := r.countMap[host]
+	_, activityOk := r.countMap[host]
 	delete(r.countMap, host)
-	return ok
+	delete(r.activityMap, host)
+	return countOk || activityOk
 }
 
 // Current returns the current size of the queue.
@@ -87,6 +94,7 @@ func (r *Memory) Current() (*Counts, error) {
 	cts := NewCounts()
 	for key, val := range r.countMap {
 		cts.Counts[key] = val
+		cts.Activities[key] = r.activityMap[key]
 	}
 	return cts, nil
 }
