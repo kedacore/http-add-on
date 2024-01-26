@@ -37,7 +37,7 @@ func TestStreamIsActive(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			name:        "Simple host inactive (deafult values)",
+			name:        "Simple host inactive (default values)",
 			active:      false,
 			expectedErr: false,
 			setup: func(t *testing.T, qp *queuePinger) {

@@ -61,7 +61,7 @@ func (e *impl) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 }
 
 func (e *impl) IsActive(
-	ctx context.Context,
+	_ context.Context,
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
 	lggr := e.lggr.WithName("IsActive")

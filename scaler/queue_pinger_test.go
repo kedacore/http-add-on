@@ -86,7 +86,6 @@ func TestCounts(t *testing.T) {
 		// note that the returned value should be:
 		// (queue_count * num_endpoints)
 		r.Equal(count.Requests*3, retCount)
-
 	}
 }
 
@@ -220,7 +219,6 @@ func TestFetchCounts(t *testing.T) {
 		r.Equal(val.Requests*numEndpoints, cts[key])
 		r.WithinDuration(activities[key], val.Activity, 200*time.Millisecond)
 	}
-
 }
 
 // startFakeQueuePinger starts a fake server that simulates
