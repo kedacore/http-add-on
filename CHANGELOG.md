@@ -17,6 +17,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## Unreleased
 
 ### Breaking Changes
+
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### New
@@ -25,7 +26,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: CooldownPeriod (IsActive) is now managed by the Scaler using the time since the last request and not in-flight requests ([#882](https://github.com/kedacore/http-add-on/issues/882))
 
 ### Fixes
 
