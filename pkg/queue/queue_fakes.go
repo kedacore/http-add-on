@@ -73,8 +73,9 @@ func (f *FakeCounter) Current() (*Counts, error) {
 var _ CountReader = &FakeCountReader{}
 
 type FakeCountReader struct {
-	current int
-	err     error
+	current  int
+	activity time.Time
+	err      error
 }
 
 func (f *FakeCountReader) Current() (*Counts, error) {
@@ -82,6 +83,7 @@ func (f *FakeCountReader) Current() (*Counts, error) {
 	ret.Counts = map[string]Count{
 		"sample.com": {
 			Requests: f.current,
+			Activity: f.activity,
 		},
 	}
 	return ret, f.err

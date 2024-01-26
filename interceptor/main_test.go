@@ -142,7 +142,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 		"couldn't find host %s in the queue",
 		host,
 	)
-	r.Equal(0, counts[namespacedName])
+	r.Equal(0, counts[namespacedName].Requests)
 
 	done()
 	r.Error(g.Wait())
