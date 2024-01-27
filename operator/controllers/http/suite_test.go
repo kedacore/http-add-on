@@ -106,6 +106,12 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      appName,
+			Labels: map[string]string{
+				"label": "a",
+			},
+			Annotations: map[string]string{
+				"annotation": "b",
+			},
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
