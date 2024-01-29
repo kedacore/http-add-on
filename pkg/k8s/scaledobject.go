@@ -23,6 +23,8 @@ const (
 func NewScaledObject(
 	namespace string,
 	name string,
+	labels map[string]string,
+	annotations map[string]string,
 	workloadRef v1alpha1.ScaleTargetRef,
 	scalerAddress string,
 	hosts []string,
@@ -37,8 +39,10 @@ func NewScaledObject(
 			Kind:       ObjectKind(&kedav1alpha1.ScaledObject{}),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
+			Namespace:   namespace,
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: kedav1alpha1.ScaledObjectSpec{
 			ScaleTargetRef: &kedav1alpha1.ScaleTarget{

@@ -37,6 +37,8 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 	appScaledObject := k8s.NewScaledObject(
 		httpso.GetNamespace(),
 		httpso.GetName(), // HTTPScaledObject name is the same as the ScaledObject name
+		httpso.Labels,
+		httpso.Annotations,
 		httpso.Spec.ScaleTargetRef,
 		externalScalerHostName,
 		httpso.Spec.Hosts,
