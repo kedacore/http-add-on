@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/kedacore/http-add-on/tests/helper"
 	"github.com/stretchr/testify/assert"
+
+	. "github.com/kedacore/http-add-on/tests/helper"
 )
 
 const (
