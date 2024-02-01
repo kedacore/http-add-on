@@ -11,7 +11,7 @@ If you haven't installed KEDA and the HTTP Add-on (this project), please do so f
 You'll need to install a `Deployment` and `Service` first. You'll tell the add-on to begin scaling it up and down after this step. We've provided a [Helm](https://helm.sh) chart in this repository that you can use to try it out. Use this command to create the resources you need.
 
 ```console
-$ helm install xkcd ./examples/xkcd -n ${NAMESPACE}
+helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 ```
 
 You'll need to clone the repository to get access to this chart. If you have your own workload and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
@@ -25,7 +25,7 @@ You'll need to clone the repository to get access to this chart. If you have you
 You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object instructs interceptors to forward requests for a given host to your app's backing `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```console
-$ kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
+kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
 ```
 
 >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.7.0/http_scaled_object.md).
@@ -35,7 +35,7 @@ $ kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
 You've now installed a web application and activated autoscaling by creating an `HTTPScaledObject` for it. For autoscaling to work properly, HTTP traffic needs to route through the `Service` that the add-on has set up. You can use `kubectl port-forward` to quickly test things out:
 
 ```console
-$ kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080:8080
+kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080:8080
 ```
 
 ### Routing to the Right `Service`
@@ -85,8 +85,8 @@ curl -H "Host: myhost.com" <Your IP>/path1
 You can also use port-forward to interceptor service for making the request:
 
 ```console
-$ kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080:8080
-$ curl -H "Host: myhost.com" localhost:8080/path1
+kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080:8080
+curl -H "Host: myhost.com" localhost:8080/path1
 ```
 
 [Go back to landing page](./)
