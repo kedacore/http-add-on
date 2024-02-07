@@ -31,7 +31,7 @@ var _ http.Handler = (*Logging)(nil)
 
 func (lm *Logging) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = util.RequestWithLogger(r, lm.logger.WithName("LoggingMiddleware"))
-	w = newLoggingResponseWriter(w)
+	w = newResponseWriter(w)
 
 	var sw util.Stopwatch
 	defer lm.logAsync(w, r, &sw)
@@ -50,9 +50,9 @@ func (lm *Logging) log(w http.ResponseWriter, r *http.Request, sw *util.Stopwatc
 	ctx := r.Context()
 	logger := util.LoggerFromContext(ctx)
 
-	lrw := w.(*loggingResponseWriter)
+	lrw := w.(*responseWriter)
 	if lrw == nil {
-		lrw = newLoggingResponseWriter(w)
+		lrw = newResponseWriter(w)
 	}
 
 	timestamp := sw.StartTime().Format(CombinedLogTimeFormat)

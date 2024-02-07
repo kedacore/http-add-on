@@ -7,6 +7,7 @@ Here is an overview of detailed documentation:
 - [Design](design.md)
 - [Use-Cases](use_cases.md)
 - [Walkthrough](walkthrough.md)
+- [Operate](operate.md)
 - [Developing](developing.md)
 - [Integrations](integrations.md)
 - [FAQ](faq.md)

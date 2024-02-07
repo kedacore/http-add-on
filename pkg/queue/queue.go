@@ -15,6 +15,7 @@ type CountReader interface {
 	// Current returns the current count of pending requests
 	// for the given hostname
 	Current() (*Counts, error)
+	CurrentForHost(host string) (int, bool)
 }
 
 // QueueCounter represents a virtual HTTP queue, possibly distributed across
@@ -131,4 +132,13 @@ func (r *Memory) Current() (*Counts, error) {
 		}
 	}
 	return cts, nil
+}
+
+func (r *Memory) CurrentForHost(host string) (int, bool) {
+	r.mut.RLock()
+	defer r.mut.RUnlock()
+	if _, ok := r.concurrentMap[host]; ok {
+		return r.concurrentMap[host], true
+	}
+	return 0, false
 }

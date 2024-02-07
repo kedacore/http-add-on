@@ -22,6 +22,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
+- **General**: Add support to collect metrics using either a prometheus compatible endpoint or by sending metrics to an OTEL http endpoint ([#910](https://github.com/kedacore/http-add-on/issues/910))
 - **General**: Propagate HTTPScaledObject labels and annotations to ScaledObject ([#840](https://github.com/kedacore/http-add-on/issues/840))
 - **General**: Provide support to allow HTTP scaler to work alongside other core KEDA scalers ([#489](https://github.com/kedacore/http-add-on/issues/489))
 - **General**: Support aggregation windows ([#882](https://github.com/kedacore/http-add-on/issues/882))

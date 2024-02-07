@@ -90,6 +90,15 @@ func (f *FakeCounter) Current() (*Counts, error) {
 	return ret, nil
 }
 
+func (f *FakeCounter) CurrentForHost(host string) (int, bool) {
+	f.mapMut.RLock()
+	defer f.mapMut.RUnlock()
+	if _, ok := f.RetMap[host]; ok {
+		return f.RetMap[host].Concurrency, true
+	}
+	return 0, false
+}
+
 var _ CountReader = &FakeCountReader{}
 
 type FakeCountReader struct {
@@ -107,4 +116,8 @@ func (f *FakeCountReader) Current() (*Counts, error) {
 		},
 	}
 	return ret, f.err
+}
+
+func (f *FakeCountReader) CurrentForHost(_ string) (int, bool) {
+	return f.concurrency, true
 }
