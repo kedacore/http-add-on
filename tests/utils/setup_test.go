@@ -5,6 +5,7 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -12,6 +13,60 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
+)
+
+var (
+	OtlpConfig = `mode: deployment
+config:
+  exporters:
+    logging:
+      loglevel: debug
+    prometheus:
+      endpoint: 0.0.0.0:8889
+  receivers:
+    jaeger: null
+    prometheus: null
+    zipkin: null
+  service:
+    pipelines:
+      traces: null
+      metrics:
+        receivers:
+          - otlp
+        exporters:
+          - logging
+          - prometheus
+      logs: null
+`
+	OtlpServicePatch = `apiVersion: v1
+kind: Service
+metadata:
+  name: opentelemetry-collector
+spec:
+  selector:
+    app.kubernetes.io/name: opentelemetry-collector
+  ports:
+    - protocol: TCP
+      port: 8889
+      targetPort: 8889
+      name: prometheus
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opentelemetry-collector
+spec:
+  template:
+    spec:
+      containers:
+      - name: opentelemetry-collector
+        ports:
+        - containerPort: 8889
+          name: prometheus
+          protocol: TCP
+`
 )
 
 func TestVerifyCommands(t *testing.T) {
@@ -121,4 +176,36 @@ func TestDeployKEDAHttpAddOn(t *testing.T) {
 
 	t.Log(string(out))
 	t.Log("KEDA Http Add-on deployed successfully using 'make deploy' command")
+}
+
+func TestSetupOpentelemetryComponents(t *testing.T) {
+	OpentelemetryNamespace := "open-telemetry-system"
+	otlpTempFileName := "otlp.yml"
+	otlpServiceTempFileName := "otlpServicePatch.yml"
+	defer os.Remove(otlpTempFileName)
+	defer os.Remove(otlpServiceTempFileName)
+	err := os.WriteFile(otlpTempFileName, []byte(OtlpConfig), 0755)
+	assert.NoErrorf(t, err, "cannot create otlp config file - %s", err)
+
+	err = os.WriteFile(otlpServiceTempFileName, []byte(OtlpServicePatch), 0755)
+	assert.NoErrorf(t, err, "cannot create otlp service patch file - %s", err)
+
+	_, err = ExecuteCommand("helm version")
+	require.NoErrorf(t, err, "helm is not installed - %s", err)
+
+	_, err = ExecuteCommand("helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts")
+	require.NoErrorf(t, err, "cannot add open-telemetry helm repo - %s", err)
+
+	_, err = ExecuteCommand("helm repo update open-telemetry")
+	require.NoErrorf(t, err, "cannot update open-telemetry helm repo - %s", err)
+
+	KubeClient = GetKubernetesClient(t)
+	CreateNamespace(t, KubeClient, OpentelemetryNamespace)
+
+	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector -f %s --namespace %s", otlpTempFileName, OpentelemetryNamespace))
+
+	require.NoErrorf(t, err, "cannot install opentelemetry - %s", err)
+
+	_, err = ExecuteCommand(fmt.Sprintf("kubectl apply -f %s -n %s", otlpServiceTempFileName, OpentelemetryNamespace))
+	require.NoErrorf(t, err, "cannot update opentelemetry ports - %s", err)
 }

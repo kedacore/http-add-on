@@ -66,6 +66,15 @@ func (f *FakeCounter) Current() (*Counts, error) {
 	return ret, nil
 }
 
+func (f *FakeCounter) CurrentForHost(host string) (int, bool) {
+	f.mapMut.RLock()
+	defer f.mapMut.RUnlock()
+	if _, ok := f.RetMap[host]; ok {
+		return f.RetMap[host], true
+	}
+	return 0, false
+}
+
 var _ CountReader = &FakeCountReader{}
 
 type FakeCountReader struct {
@@ -79,4 +88,8 @@ func (f *FakeCountReader) Current() (*Counts, error) {
 		"sample.com": f.current,
 	}
 	return ret, f.err
+}
+
+func (f *FakeCountReader) CurrentForHost(host string) (int, bool) {
+	return f.current, true
 }

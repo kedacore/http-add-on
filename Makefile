@@ -147,6 +147,12 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 	cd config/interceptor && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
 
+	cd config/interceptor && \
+	$(KUSTOMIZE) edit add patch --path otel/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+
+	cd config/interceptor && \
+	$(KUSTOMIZE) edit add patch --path otel/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
+
 	cd config/scaler && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
 
