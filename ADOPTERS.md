@@ -6,8 +6,7 @@ This page contains a list of organizations who are using KEDA's HTTP Add-on in p
 
 | Organization | Status | More Information (Blog post, etc.) |
 | ------------ | ---------| ---------------|
-|N/A|![testing](https://img.shields.io/badge/-development%20&%20testing-green?style=flat)| N/A|
-|PropulsionAI|![testing](https://img.shields.io/badge/-development%20&%20testing-green?style=flat)|Backend API and Frontend Web App|
+|[![PropulsionAI](https://propulsionhq.com/assets/images/propulsion-full-color.png)](https://propulsionhq.com)|![testing](https://img.shields.io/badge/-development%20&%20testing-green?style=flat)|[PropulsionAI](](https://propulsionhq.com)) allows you to add AI to your apps, without writing code.|
 
 ## Become an adopter!
 
