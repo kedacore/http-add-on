@@ -7,6 +7,7 @@ This page contains a list of organizations who are using KEDA's HTTP Add-on in p
 | Organization | Status | More Information (Blog post, etc.) |
 | ------------ | ---------| ---------------|
 |N/A|![testing](https://img.shields.io/badge/-development%20&%20testing-green?style=flat)| N/A|
+|PropulsionAI|![testing](https://img.shields.io/badge/-development%20&%20testing-green?style=flat)|Backend API and Frontend Web App|
 
 ## Become an adopter!
 
