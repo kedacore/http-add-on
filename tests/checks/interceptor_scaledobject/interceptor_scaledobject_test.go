@@ -5,6 +5,9 @@ package interceptor_scaledobject_test
 
 import (
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
 )
@@ -18,5 +21,13 @@ const (
 func TestCheck(t *testing.T) {
 	predicate := `-o jsonpath="{.status.conditions[?(@.type=="Ready")].status}"`
 	expectedResult := "True"
-	CheckKubectlGetResult(t, scaledObject, interceptorScaledObjectName, kedaNamespace, predicate, expectedResult)
+	result := "False"
+	for i := 0; i < 4; i++ {
+		result = KubectlGetResult(t, scaledObject, interceptorScaledObjectName, kedaNamespace, predicate)
+		if result == expectedResult {
+			break
+		}
+		time.Sleep(15 * time.Second)
+	}
+	assert.Equal(t, expectedResult, result)
 }
