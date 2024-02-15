@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -48,6 +49,7 @@ func newForwardingHandler(
 	dialCtxFunc kedanet.DialContextFunc,
 	waitFunc forwardWaitFunc,
 	fwdCfg forwardingConfig,
+	tlsCfg *tls.Config,
 ) http.Handler {
 	roundTripper := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
@@ -58,6 +60,7 @@ func newForwardingHandler(
 		TLSHandshakeTimeout:   fwdCfg.tlsHandshakeTimeout,
 		ExpectContinueTimeout: fwdCfg.expectContinueTimeout,
 		ResponseHeaderTimeout: fwdCfg.respHeaderTimeout,
+		TLSClientConfig:       tlsCfg,
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

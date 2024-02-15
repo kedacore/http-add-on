@@ -23,7 +23,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			probeHandler.Handle("/probe", emptyHandler)
 			upstreamHandler.Handle("/upstream", emptyHandler)
 
-			rm := NewRouting(routingTable, probeHandler, upstreamHandler)
+			rm := NewRouting(routingTable, probeHandler, upstreamHandler, false)
 			Expect(rm).NotTo(BeNil())
 			Expect(rm.routingTable).To(Equal(routingTable))
 			Expect(rm.probeHandler).To(Equal(probeHandler))
@@ -58,7 +58,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			upstreamHandler = http.NewServeMux()
 			probeHandler = http.NewServeMux()
 			routingTable = routingtest.NewTable()
-			routingMiddleware = NewRouting(routingTable, probeHandler, upstreamHandler)
+			routingMiddleware = NewRouting(routingTable, probeHandler, upstreamHandler, false)
 
 			w = httptest.NewRecorder()
 

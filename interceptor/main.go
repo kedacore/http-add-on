@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -68,6 +70,9 @@ func main() {
 
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
+	proxyTlsEnabled := servingCfg.ProxyTLSEnabled
+	proxyTlsConfig := map[string]string{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath}
+	proxyTLSPort := servingCfg.TLSPort
 
 	// setup the configured metrics collectors
 	metrics.NewMetricsCollectors(metricsCfg)
@@ -163,11 +168,20 @@ func main() {
 	// start the proxy server. this is the server that
 	// accepts, holds and forwards user requests
 	eg.Go(func() error {
-		setupLog.Info("starting the proxy server", "port", proxyPort)
+		if proxyTlsEnabled {
+			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyPort); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "proxy server failed")
-			return err
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyTLSPort, proxyTlsEnabled, proxyTlsConfig); !util.IsIgnoredErr(err) {
+				setupLog.Error(err, "proxy server failed")
+				return err
+			}
+		} else {
+			setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
+
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyPort, false, nil); !util.IsIgnoredErr(err) {
+				setupLog.Error(err, "proxy server failed")
+				return err
+			}
 		}
 
 		return nil
@@ -199,7 +213,7 @@ func runAdminServer(
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, adminServer)
+	return kedahttp.ServeContext(ctx, addr, adminServer, false, nil)
 }
 
 func runMetricsServer(
@@ -209,7 +223,7 @@ func runMetricsServer(
 ) error {
 	lggr.Info("starting the prometheus metrics server", "port", metricsCfg.OtelPrometheusExporterPort, "path", "/metrics")
 	addr := fmt.Sprintf("0.0.0.0:%d", metricsCfg.OtelPrometheusExporterPort)
-	return kedahttp.ServeContext(ctx, addr, promhttp.Handler())
+	return kedahttp.ServeContext(ctx, addr, promhttp.Handler(), false, nil)
 }
 
 func runProxyServer(
@@ -220,6 +234,8 @@ func runProxyServer(
 	routingTable routing.Table,
 	timeouts *config.Timeouts,
 	port int,
+	tlsEnabled bool,
+	tlsConfig map[string]string,
 ) error {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
@@ -229,12 +245,34 @@ func runProxyServer(
 	})
 	go probeHandler.Start(ctx)
 
+	tlsCfg := tls.Config{}
+	if tlsEnabled {
+		caCert, err := os.ReadFile(tlsConfig["certificatePath"])
+		if err != nil {
+			logger.Error(fmt.Errorf("error reading file from TLSCertPath"), "error", err)
+			os.Exit(1)
+
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		cert, err := tls.LoadX509KeyPair(tlsConfig["certificatePath"], tlsConfig["keyPath"])
+
+		if err != nil {
+			logger.Error(fmt.Errorf("error creating TLS configuration for proxy server"), "error", err)
+			os.Exit(1)
+		}
+
+		tlsCfg.RootCAs = caCertPool
+		tlsCfg.Certificates = []tls.Certificate{cert}
+	}
+
 	var upstreamHandler http.Handler
 	upstreamHandler = newForwardingHandler(
 		logger,
 		dialContextFunc,
 		waitFunc,
 		newForwardingConfigFromTimeouts(timeouts),
+		&tlsCfg,
 	)
 	upstreamHandler = middleware.NewCountingMiddleware(
 		q,
@@ -246,6 +284,7 @@ func runProxyServer(
 		routingTable,
 		probeHandler,
 		upstreamHandler,
+		tlsEnabled,
 	)
 	rootHandler = middleware.NewLogging(
 		logger,
@@ -258,5 +297,5 @@ func runProxyServer(
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	logger.Info("proxy server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, rootHandler)
+	return kedahttp.ServeContext(ctx, addr, rootHandler, tlsEnabled, tlsConfig)
 }
