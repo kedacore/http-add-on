@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -306,7 +307,9 @@ func newHarness(
 			waitTimeout:       activeEndpointsTimeout,
 			respHeaderTimeout: time.Second,
 		},
-	))
+		&tls.Config{}),
+		false,
+	)
 
 	proxySrv, proxySrvURL, err := kedanet.StartTestServer(proxyHdl)
 	if err != nil {
