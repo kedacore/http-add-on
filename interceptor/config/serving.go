@@ -34,6 +34,15 @@ type Serving struct {
 	//
 	// This is the interval (in milliseconds) representing how often to do a fetch
 	EndpointsCachePollIntervalMS int `envconfig:"KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS" default:"250"`
+	// ProxyTLSEnabled is a flag to specify whether the interceptor proxy should
+	// be running using a TLS enabled server
+	ProxyTLSEnabled bool `envconfig:"KEDA_HTTP_PROXY_TLS_ENABLED" default:"false"`
+	// TLSCertPath is the path to read the certificate file from for the TLS server
+	TLSCertPath string `envconfig:"KEDA_HTTP_PROXY_TLS_CERT_PATH" default:"/certs/tls.crt"`
+	// TLSKeyPath is the path to read the private key file from for the TLS server
+	TLSKeyPath string `envconfig:"KEDA_HTTP_PROXY_TLS_KEY_PATH" default:"/certs/tls.key"`
+	// TLSPort is the port that the server should serve on if TLS is enabled
+	TLSPort int `envconfig:"KEDA_HTTP_PROXY_TLS_PORT" default:"8443"`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the

@@ -32,6 +32,15 @@ GO_LDFLAGS="-X github.com/kedacore/http-add-on/pkg/build.version=${VERSION} -X g
 GIT_COMMIT  ?= $(shell git rev-list -1 HEAD)
 GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
 
+define DOMAINS
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = localhost
+endef
+export DOMAINS
+
 # Build targets
 
 build-operator:
@@ -45,8 +54,19 @@ build-scaler:
 
 build: build-operator build-interceptor build-scaler
 
+test-certs:
+	echo "$$DOMAINS" > domains.ext
+
+	openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout RootCA.key -out RootCA.pem -subj "/C=US/CN=Example-Root-CA"
+	openssl x509 -outform pem -in RootCA.pem -out RootCA.crt
+	openssl req -new -nodes -newkey rsa:2048 -keyout localhost.key -out localhost.csr -subj "/C=US/ST=YourState/L=YourCity/O=Example-Certificates/CN=localhost.local"
+	openssl x509 -req -sha256 -days 1024 -in localhost.csr -CA RootCA.pem -CAkey RootCA.key -CAcreateserial -extfile domains.ext -out localhost.crt
+
+clean-test-certs:
+	rm RootCA.* domains.ext localhost.*
+
 # Test targets
-test: fmt vet
+test: fmt vet test-certs
 	go test ./...
 
 e2e-test:
