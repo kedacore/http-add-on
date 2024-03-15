@@ -16,8 +16,8 @@ require (
 	golang.org/x/sync v0.6.0
 	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.33.0
-	k8s.io/api v0.29.0
-	k8s.io/apimachinery v0.29.0
+	k8s.io/api v0.29.2
+	k8s.io/apimachinery v0.29.2
 	k8s.io/client-go v0.29.0
 	k8s.io/code-generator v0.29.0
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
