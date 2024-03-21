@@ -155,12 +155,6 @@ spec:
                     type:
                       description: Type of condition
                       enum:
-                      - Created
-                      - Terminated
-                      - Error
-                      - Pending
-                      - Terminating
-                      - Unknown
                       - Ready
                       type: string
                   required:

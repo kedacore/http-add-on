@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +35,7 @@ import (
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
+	"github.com/kedacore/http-add-on/operator/controllers/util"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
@@ -146,7 +148,20 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // SetupWithManager sets up the controller with the Manager.
 func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&httpv1alpha1.HTTPScaledObject{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&httpv1alpha1.HTTPScaledObject{}, builder.WithPredicates(
+			predicate.Or(
+				predicate.GenerationChangedPredicate{},
+				util.HTTPScaledObjectReadyConditionPredicate{},
+			),
+		)).
+		// Trigger a reconcile only when the ScaledObject spec,label or annotation changes.
+		// Ignore updates to ScaledObject status
+		Owns(&kedav1alpha1.ScaledObject{}, builder.WithPredicates(
+			predicate.Or(
+				predicate.LabelChangedPredicate{},
+				predicate.AnnotationChangedPredicate{},
+				util.ScaledObjectSpecChangedPredicate{},
+			))).
 		Complete(r)
 }
 
