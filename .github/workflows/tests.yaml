@@ -22,7 +22,7 @@ jobs:
         - runner: ubuntu-latest
           name: amd64
     steps:
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
 
     - name: Register workspace path
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -70,7 +70,7 @@ jobs:
     name: Static Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
       - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
         with:
           python-version: 3.x
