@@ -7,7 +7,7 @@
 1. **Proxy Service in Virtual Service:**
 
    - Within the Istio virtual service definition, add a proxy service as a route destination.
-   - Set the host of this proxy service to `keda-add-ons-http-interceptor-proxy`` (the Keda HTTP Addon interceptor service).
+   - Set the host of this proxy service to `keda-add-ons-http-interceptor-proxy`` (the KEDA HTTP Addon interceptor service).
    - Set the port to `8080`` (the default interceptor port).
 
 **Example yaml**
@@ -28,13 +28,13 @@ spec:
 
 2. **Namespace Alignment:**
 
-   - Ensure that both the Keda HTTP Addon and the Istio virtual service are deployed within the same Kubernetes namespace. This ensures proper communication between the components.
+   - Ensure that both the KEDA HTTP Addon and the Istio virtual service are deployed within the same Kubernetes namespace. This ensures proper communication between the components.
 
 ### Behavior
 
-- When a user makes a request, the Istio virtual service routes it to the Keda HTTP Addon interceptor service.
-- The interceptor service captures request metrics and relays them to the Keda scaler component.
-- Based on these metrics and scaling rules defined in the Keda configuration, the Keda scaler automatically scales the target workload (e.g., a deployment) up or down (including scaling to zero).
+- When a user makes a request, the Istio virtual service routes it to the KEDA HTTP Addon interceptor service.
+- The interceptor service captures request metrics and relays them to the KEDA scaler component.
+- Based on these metrics and scaling rules defined in the KEDA configuration, the KEDA scaler automatically scales the target workload (e.g., a deployment) up or down (including scaling to zero).
 
 ### Troubleshooting Tips
 
