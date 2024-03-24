@@ -8,4 +8,5 @@ Here is an overview of detailed documentation:
 - [Use-Cases](use_cases.md)
 - [Walkthrough](walkthrough.md)
 - [Developing](developing.md)
+- [Integrations](integrations.md)
 - [FAQ](faq.md)
