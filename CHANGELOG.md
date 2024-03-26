@@ -23,10 +23,9 @@ This changelog keeps track of work items that have been completed and are ready 
 ### New
 
 - **General**: Propagate HTTPScaledObject labels and annotations to ScaledObject ([#840](https://github.com/kedacore/http-add-on/issues/840))
+- **General**: Provide support to allow HTTP scaler to work alongside other core KEDA scalers ([#489](https://github.com/kedacore/http-add-on/issues/489))
 
 ### Improvements
-
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Fixes
 

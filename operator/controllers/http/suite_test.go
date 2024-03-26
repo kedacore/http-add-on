@@ -131,3 +131,41 @@ func newCommonTestInfra(namespace, appName string) *commonTestInfra {
 		httpso:  httpso,
 	}
 }
+
+func newCommonTestInfraWithSkipScaledObjectCreation(namespace, appName string) *commonTestInfra {
+	localScheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(localScheme))
+	utilruntime.Must(httpv1alpha1.AddToScheme(localScheme))
+	utilruntime.Must(kedav1alpha1.AddToScheme(localScheme))
+
+	ctx := context.Background()
+	cl := fake.NewClientBuilder().WithScheme(localScheme).Build()
+	logger := logr.Discard()
+
+	httpso := httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      appName,
+			Annotations: map[string]string{
+				"skipScaledObjectCreation": "true",
+			},
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+				Deployment: appName,
+				Service:    appName,
+				Port:       8081,
+			},
+			Hosts: []string{"myhost1.com", "myhost2.com"},
+		},
+	}
+
+	return &commonTestInfra{
+		ns:      namespace,
+		appName: appName,
+		ctx:     ctx,
+		cl:      cl,
+		logger:  logger,
+		httpso:  httpso,
+	}
+}
