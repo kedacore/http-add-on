@@ -1,0 +1,6 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: interceptor
+spec:
+  minReplicaCount: 1

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 
+	"github.com/kedacore/http-add-on/interceptor/metrics"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -68,6 +69,11 @@ func (cm *Counting) inc(logger logr.Logger, key string) bool {
 		return false
 	}
 
+	currentCount, validCount := cm.queueCounter.CurrentForHost(key)
+	if validCount {
+		metrics.RecordPendingRequestCount(key, int64(currentCount))
+	}
+
 	return true
 }
 
@@ -76,6 +82,11 @@ func (cm *Counting) dec(logger logr.Logger, key string) bool {
 		logger.Error(err, "error decrementing queue counter", "key", key)
 
 		return false
+	}
+
+	currentCount, validCount := cm.queueCounter.CurrentForHost(key)
+	if validCount {
+		metrics.RecordPendingRequestCount(key, int64(currentCount))
 	}
 
 	return true
