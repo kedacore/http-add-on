@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
@@ -50,6 +51,7 @@ func newForwardingHandler(
 	waitFunc forwardWaitFunc,
 	fwdCfg forwardingConfig,
 	tlsCfg *tls.Config,
+	tracingCfg *config.Tracing,
 ) http.Handler {
 	roundTripper := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
@@ -63,10 +65,11 @@ func newForwardingHandler(
 		TLSClientConfig:       tlsCfg,
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var uh *handler.Upstream
 		ctx := r.Context()
 		httpso := util.HTTPSOFromContext(ctx)
 
-		waitFuncCtx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
+		waitFuncCtx, done := context.WithTimeout(ctx, fwdCfg.waitTimeout)
 		defer done()
 		isColdStart, err := waitFunc(
 			waitFuncCtx,
@@ -83,7 +86,11 @@ func newForwardingHandler(
 		}
 		w.Header().Add("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
 
-		uh := handler.NewUpstream(roundTripper)
+		if tracingCfg.Enabled {
+			uh = handler.NewUpstream(otelhttp.NewTransport(roundTripper), tracingCfg)
+		} else {
+			uh = handler.NewUpstream(roundTripper, &config.Tracing{})
+		}
 		uh.ServeHTTP(w, r)
 	})
 }
