@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,6 +24,7 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/handler"
 	"github.com/kedacore/http-add-on/interceptor/metrics"
 	"github.com/kedacore/http-add-on/interceptor/middleware"
+	"github.com/kedacore/http-add-on/interceptor/tracing"
 	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
 	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	"github.com/kedacore/http-add-on/pkg/build"
@@ -41,9 +44,11 @@ var (
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
 
 func main() {
+	defer os.Exit(1)
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
 	metricsCfg := config.MustParseMetrics()
+	tracingCfg := config.MustParseTracing()
 
 	opts := zap.Options{
 		Development: true,
@@ -55,7 +60,7 @@ func main() {
 
 	if err := config.Validate(servingCfg, *timeoutCfg, ctrl.Log); err != nil {
 		setupLog.Error(err, "invalid configuration")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	setupLog.Info(
@@ -80,7 +85,7 @@ func main() {
 	cl, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		setupLog.Error(err, "creating new Kubernetes ClientSet")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 	endpointsCache := k8s.NewInformerBackedEndpointsCache(
 		ctrl.Log,
@@ -89,14 +94,14 @@ func main() {
 	)
 	if err != nil {
 		setupLog.Error(err, "creating new endpoints cache")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 	waitFunc := newWorkloadReplicasForwardWaitFunc(ctrl.Log, endpointsCache)
 
 	httpCl, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		setupLog.Error(err, "creating new HTTP ClientSet")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	queues := queue.NewMemory()
@@ -105,7 +110,7 @@ func main() {
 	routingTable, err := routing.NewTable(sharedInformerFactory, servingCfg.WatchNamespace, queues)
 	if err != nil {
 		setupLog.Error(err, "fetching routing table")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	setupLog.Info("Interceptor starting")
@@ -114,6 +119,18 @@ func main() {
 	ctx = util.ContextWithLogger(ctx, ctrl.Log)
 
 	eg, ctx := errgroup.WithContext(ctx)
+
+	if tracingCfg.Enabled {
+		shutdown, err := tracing.SetupOTelSDK(ctx, tracingCfg)
+
+		if err != nil {
+			setupLog.Error(err, "Error setting up tracer")
+		}
+
+		defer func() {
+			err = errors.Join(err, shutdown(context.Background()))
+		}()
+	}
 
 	// start the endpoints cache updater
 	eg.Go(func() error {
@@ -173,7 +190,7 @@ func main() {
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig, tracingCfg); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -185,7 +202,7 @@ func main() {
 	eg.Go(func() error {
 		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
 
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyPort, false, nil); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyPort, false, nil, tracingCfg); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -197,7 +214,7 @@ func main() {
 
 	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
 		setupLog.Error(err, "fatal error")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	setupLog.Info("Bye!")
@@ -242,6 +259,7 @@ func runProxyServer(
 	port int,
 	tlsEnabled bool,
 	tlsConfig map[string]string,
+	tracingConfig *config.Tracing,
 ) error {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
@@ -256,7 +274,7 @@ func runProxyServer(
 		caCert, err := os.ReadFile(tlsConfig["certificatePath"])
 		if err != nil {
 			logger.Error(fmt.Errorf("error reading file from TLSCertPath"), "error", err)
-			os.Exit(1)
+			runtime.Goexit()
 		}
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caCert)
@@ -264,7 +282,7 @@ func runProxyServer(
 
 		if err != nil {
 			logger.Error(fmt.Errorf("error creating TLS configuration for proxy server"), "error", err)
-			os.Exit(1)
+			runtime.Goexit()
 		}
 
 		tlsCfg.RootCAs = caCertPool
@@ -278,6 +296,7 @@ func runProxyServer(
 		waitFunc,
 		newForwardingConfigFromTimeouts(timeouts),
 		&tlsCfg,
+		tracingConfig,
 	)
 	upstreamHandler = middleware.NewCountingMiddleware(
 		q,
@@ -291,6 +310,11 @@ func runProxyServer(
 		upstreamHandler,
 		tlsEnabled,
 	)
+
+	if tracingConfig.Enabled {
+		rootHandler = otelhttp.NewHandler(rootHandler, "keda-http-interceptor")
+	}
+
 	rootHandler = middleware.NewLogging(
 		logger,
 		rootHandler,
