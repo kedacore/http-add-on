@@ -66,6 +66,16 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 		metadata.Name,
 	)
 
+	r.EqualValues(
+		testInfra.httpso.ObjectMeta.Labels,
+		metadata.Labels,
+	)
+
+	r.EqualValues(
+		testInfra.httpso.ObjectMeta.Annotations,
+		metadata.Annotations,
+	)
+
 	var minReplicaCount *int32
 	var maxReplicaCount *int32
 	if replicas := testInfra.httpso.Spec.Replicas; replicas != nil {
@@ -98,6 +108,8 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 	}
 	*testInfra.httpso.Spec.Replicas.Min++
 	*testInfra.httpso.Spec.Replicas.Max++
+	testInfra.httpso.ObjectMeta.Labels["test"] = "test-label"
+	testInfra.httpso.ObjectMeta.Annotations["test"] = "test-annotation"
 	r.NoError(reconciller.createOrUpdateScaledObject(
 		testInfra.ctx,
 		testInfra.cl,
@@ -114,6 +126,18 @@ func TestCreateOrUpdateScaledObject(t *testing.T) {
 		testInfra.httpso,
 	)
 	r.NoError(err)
+
+	metadata = retSO.ObjectMeta
+	r.EqualValues(
+		testInfra.httpso.ObjectMeta.Labels,
+		metadata.Labels,
+	)
+
+	r.EqualValues(
+		testInfra.httpso.ObjectMeta.Annotations,
+		metadata.Annotations,
+	)
+
 	spec = retSO.Spec
 	r.Equal(
 		*testInfra.httpso.Spec.Replicas.Min,

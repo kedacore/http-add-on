@@ -11,7 +11,7 @@ If you haven't installed KEDA and the HTTP Add-on (this project), please do so f
 You'll need to install a `Deployment` and `Service` first. You'll tell the add-on to begin scaling it up and down after this step. We've provided a [Helm](https://helm.sh) chart in this repository that you can use to try it out. Use this command to create the resources you need.
 
 ```console
-$ helm install xkcd ./examples/xkcd -n ${NAMESPACE}
+helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 ```
 
 You'll need to clone the repository to get access to this chart. If you have your own workload and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
@@ -25,7 +25,7 @@ You'll need to clone the repository to get access to this chart. If you have you
 You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object instructs interceptors to forward requests for a given host to your app's backing `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```console
-$ kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
+kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
 ```
 
 >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.7.0/http_scaled_object.md).
@@ -35,7 +35,7 @@ $ kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
 You've now installed a web application and activated autoscaling by creating an `HTTPScaledObject` for it. For autoscaling to work properly, HTTP traffic needs to route through the `Service` that the add-on has set up. You can use `kubectl port-forward` to quickly test things out:
 
 ```console
-$ kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8080:80
+kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080:8080
 ```
 
 ### Routing to the Right `Service`
@@ -43,10 +43,10 @@ $ kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8
 As said above, you need to route your HTTP traffic to the `Service` that the add-on has created during the installation. If you have existing systems - like an ingress controller - you'll need to anticipate the name of these created `Service`s. Each one will be named consistently like so, in the same namespace as the `HTTPScaledObject` and your application (i.e. `$NAMESPACE`):
 
 ```console
-keda-add-ons-http-interceptor-proxy
+keda-http-add-on-interceptor-proxy
 ```
 
-> This is installed by the [Helm chart](https://github.com/kedacore/charts/tree/master/http-add-on) as a `ClusterIP` `Service` by default.
+> This is installed by raw manifests. If you are using the [Helm chart](https://github.com/kedacore/charts/tree/main/http-add-on) to install the add-on, it crates a service named `keda-add-ons-http-interceptor-proxy` as a `ClusterIP` by default.
 
 #### Installing and Using the [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/#using-helm) Ingress Controller
 
@@ -77,9 +77,54 @@ Now that you have your application running and your ingress configured, you can 
 Regardless, you can use the below `curl` command to make a request to your application:
 
 ```console
-curl -H "Host: myhost.com" <Your IP>
+curl -H "Host: myhost.com" <Your IP>/path1
 ```
 
 >Note the `-H` flag above to specify the `Host` header. This is needed to tell the interceptor how to route the request. If you have a DNS name set up for the IP, you don't need this header.
+
+You can also use port-forward to interceptor service for making the request:
+
+```console
+kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080:8080
+curl -H "Host: myhost.com" localhost:8080/path1
+```
+
+### Integrating HTTP Add-On Scaler with other KEDA scalers
+
+For scenerios where you want to integrate HTTP Add-On scaler with other keda scalers, you can set the `SkipScaledObjectCreation` annotation to true on your `HTTPScaledObject`.  The reconciler will then skip the KEDA core ScaledObject creation which will allow you to create your own `ScaledObject` and add HTTP scaler as one of your triggers.
+
+> 💡 Ensure that your ScaledObject is created with a different name than the `HTTPScaledObject` to ensure your ScaledObject is not removed by the reconciler.
+
+It is reccomended that you first deploy your HTTPScaledObject with no annotation set in order to obtain the latest trigger spec to use on your own managed ScaledObject.
+
+1. Deploy your `HTTPScaledObject` with annotation set to false
+
+```console
+annotations:
+  skipScaledObjectCreation: false
+```
+
+2. Take copy of the current generated external-push trigger spec on the generated ScaledObject.
+
+For example:
+
+```console
+  triggers:
+  - type: external-push
+    metadata:
+      hosts: example-service
+      pathPrefixes: ""
+      scalerAddress: keda-http-add-on-external-scaler.keda:9090
+```
+
+3. Apply the `skipScaledObjectCreation` annotation with `true` and apply the change. This will remove the originally created `ScaledObject` allowing you to create your own.
+
+```console
+annotations:
+  skipScaledObjectCreation: true
+```
+
+4. Add the `external-push` trigger taken from step 2 to your own ScaledObject and apply this.
+
 
 [Go back to landing page](./)

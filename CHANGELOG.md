@@ -17,15 +17,15 @@ This changelog keeps track of work items that have been completed and are ready 
 ## Unreleased
 
 ### Breaking Changes
+
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### New
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Propagate HTTPScaledObject labels and annotations to ScaledObject ([#840](https://github.com/kedacore/http-add-on/issues/840))
+- **General**: Provide support to allow HTTP scaler to work alongside other core KEDA scalers ([#489](https://github.com/kedacore/http-add-on/issues/489))
 
 ### Improvements
-
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Fixes
 
@@ -37,11 +37,10 @@ You can find all deprecations in [this overview](https://github.com/kedacore/htt
 
 New deprecation(s):
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 Previously announced deprecation(s):
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Deprecated `KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS` in favor of `KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS` ([#438](https://github.com/kedacore/http-add-on/issues/438))
 
 ### Other
 

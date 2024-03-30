@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetesVersion: [v1.28, v1.28, v1.27]
+        kubernetesVersion: [v1.29, v1.28, v1.27]
         include:
         - kubernetesVersion: v1.29
           kindImage: kindest/node:v1.29.0@sha256:eaa1450915475849a73a9227b8f201df25e55e268e5d619312131292e324d570
@@ -32,13 +32,13 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
 
       - name: Helm install
         uses: Azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3.5
 
       - name: Create k8s ${{ matrix.kubernetesVersion }} Kind Cluster
-        uses: helm/kind-action@dda0770415bac9fc20092cacbc54aa298604d140 # v1.8.0
+        uses: helm/kind-action@99576bfa6ddf9a8e612d83b513da5a75875caced # v1.9.0
         with:
           node_image: ${{ matrix.kindImage }}
           cluster_name: cluster
@@ -73,7 +73,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
 
       - name: Generate images
         run: |
@@ -90,7 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetesVersion: [v1.28, v1.28, v1.27]
+        kubernetesVersion: [v1.29, v1.28, v1.27]
         include:
         - kubernetesVersion: v1.29
           kindImage: kindest/node:v1.29.0@sha256:eaa1450915475849a73a9227b8f201df25e55e268e5d619312131292e324d570
@@ -99,7 +99,7 @@ jobs:
         - kubernetesVersion: v1.27
           kindImage: kindest/node:v1.27.3@sha256:3966ac761ae0136263ffdb6cfd4db23ef8a83cba8a463690e98317add2c9ba72
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
 
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v4.1
         with:
@@ -109,7 +109,7 @@ jobs:
         uses: Azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3.5
 
       - name: Create k8s ${{ matrix.kubernetesVersion }} Kind Cluster
-        uses: helm/kind-action@dda0770415bac9fc20092cacbc54aa298604d140 # v1.8.0
+        uses: helm/kind-action@99576bfa6ddf9a8e612d83b513da5a75875caced # v1.9.0
         with:
           node_image: ${{ matrix.kindImage }}
           cluster_name: ${{ runner.name }}
