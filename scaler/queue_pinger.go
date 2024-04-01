@@ -49,8 +49,7 @@ type queuePinger struct {
 	adminPort              string
 	pingMut                *sync.RWMutex
 	lastPingTime           time.Time
-	allCounts              map[string]int
-	aggregateCount         int
+	allCounts              map[string]queue.Count
 	lggr                   logr.Logger
 	status                 PingerStatus
 }
@@ -72,8 +71,7 @@ func newQueuePinger(
 		adminPort:              adminPort,
 		pingMut:                pingMut,
 		lggr:                   lggr,
-		allCounts:              map[string]int{},
-		aggregateCount:         0,
+		allCounts:              map[string]queue.Count{},
 	}
 	return pinger
 }
@@ -123,7 +121,7 @@ func (q *queuePinger) start(
 	}
 }
 
-func (q *queuePinger) counts() map[string]int {
+func (q *queuePinger) counts() map[string]queue.Count {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return q.allCounts
@@ -134,7 +132,7 @@ func (q *queuePinger) counts() map[string]int {
 func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	q.pingMut.Lock()
 	defer q.pingMut.Unlock()
-	counts, agg, err := fetchCounts(
+	counts, err := fetchCounts(
 		ctx,
 		q.lggr,
 		q.getEndpointsFn,
@@ -149,7 +147,6 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	}
 	q.status = PingerACTIVE
 	q.allCounts = counts
-	q.aggregateCount = agg
 	q.lastPingTime = time.Now()
 
 	return nil
@@ -171,7 +168,7 @@ func fetchCounts(
 	ns,
 	svcName,
 	adminPort string,
-) (map[string]int, int, error) {
+) (map[string]queue.Count, error) {
 	lggr = lggr.WithName("queuePinger.requestCounts")
 
 	endpointURLs, err := k8s.EndpointsForService(
@@ -182,11 +179,11 @@ func fetchCounts(
 		endpointsFn,
 	)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	if len(endpointURLs) == 0 {
-		return nil, 0, fmt.Errorf("there isn't any valid interceptor endpoint")
+		return nil, fmt.Errorf("there isn't any valid interceptor endpoint")
 	}
 
 	countsCh := make(chan *queue.Counts)
@@ -238,21 +235,25 @@ func fetchCounts(
 
 	if err := fetchGrp.Wait(); err != nil {
 		lggr.Error(err, "fetching all counts failed")
-		return nil, 0, err
+		return nil, err
 	}
 
-	// consume the results of the counts channel
-	agg := 0
-	totalCounts := make(map[string]int)
+	totalCounts := make(map[string]queue.Count)
 	// range through the result of each endpoint
 	for count := range countsCh {
 		// each endpoint returns a map of counts, one count
 		// per host. add up the counts for each host
 		for host, val := range count.Counts {
-			agg += val
-			totalCounts[host] += val
+			var responseCount queue.Count
+			var ok bool
+			if responseCount, ok = totalCounts[host]; !ok {
+				responseCount = queue.Count{}
+			}
+			responseCount.Concurrency += val.Concurrency
+			responseCount.RPS += val.RPS
+			totalCounts[host] = responseCount
 		}
 	}
 
-	return totalCounts, agg, nil
+	return totalCounts, nil
 }

@@ -49,7 +49,7 @@ func TestStreamIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 0
+				qp.allCounts[key] = queue.Count{}
 			},
 		},
 		{
@@ -66,7 +66,9 @@ func TestStreamIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 1
+				qp.allCounts[key] = queue.Count{
+					Concurrency: 1,
+				}
 			},
 		},
 		{
@@ -83,7 +85,9 @@ func TestStreamIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 2
+				qp.allCounts[key] = queue.Count{
+					Concurrency: 2,
+				}
 			},
 		},
 		{
@@ -106,9 +110,15 @@ func TestStreamIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts["a"] = 1
-				qp.allCounts["b"] = 2
-				qp.allCounts["c"] = 3
+				qp.allCounts["a"] = queue.Count{
+					Concurrency: 1,
+				}
+				qp.allCounts["b"] = queue.Count{
+					Concurrency: 2,
+				}
+				qp.allCounts["c"] = queue.Count{
+					Concurrency: 3,
+				}
 			},
 			scalerMetadata: map[string]string{
 				keyInterceptorTargetPendingRequests: "1000",
@@ -215,7 +225,9 @@ func TestIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 0
+				qp.allCounts[key] = queue.Count{
+					Concurrency: 0,
+				}
 			},
 		},
 		{
@@ -232,7 +244,9 @@ func TestIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 1
+				qp.allCounts[key] = queue.Count{
+					Concurrency: 1,
+				}
 			},
 		},
 		{
@@ -249,7 +263,9 @@ func TestIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = 2
+				qp.allCounts[key] = queue.Count{
+					Concurrency: 2,
+				}
 			},
 		},
 		{
@@ -272,9 +288,15 @@ func TestIsActive(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts["a"] = 1
-				qp.allCounts["b"] = 2
-				qp.allCounts["c"] = 3
+				qp.allCounts["a"] = queue.Count{
+					Concurrency: 1,
+				}
+				qp.allCounts["b"] = queue.Count{
+					Concurrency: 2,
+				}
+				qp.allCounts["c"] = queue.Count{
+					Concurrency: 3,
+				}
 			},
 			scalerMetadata: map[string]string{
 				keyInterceptorTargetPendingRequests: "1000",
@@ -509,7 +531,9 @@ func TestGetMetrics(t *testing.T) {
 		for host, val := range hostMap {
 			// NOTE: don't call .Resize here or you'll have to make sure
 			// to receive on q.ResizedCh
-			q.RetMap[host] = val
+			q.RetMap[host] = queue.Count{
+				Concurrency: val,
+			}
 		}
 		// create the HTTP server to encode and serve
 		// the host map

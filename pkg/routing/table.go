@@ -15,6 +15,7 @@ import (
 	"github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -40,9 +41,10 @@ type table struct {
 	httpScaledObjectsMutex                   sync.RWMutex
 	memoryHolder                             util.AtomicValue[TableMemory]
 	memorySignaler                           util.Signaler
+	queueCounter                             queue.Counter
 }
 
-func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string) (Table, error) {
+func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string, counter queue.Counter) (Table, error) {
 	httpScaledObjects := informershttpv1alpha1.New(sharedInformerFactory, namespace, nil).HTTPScaledObjects()
 
 	t := table{
@@ -61,7 +63,7 @@ func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, name
 		return nil, err
 	}
 	t.httpScaledObjectEventHandlerRegistration = registration
-
+	t.queueCounter = counter
 	return &t, nil
 }
 
@@ -149,6 +151,7 @@ func (t *table) OnAdd(obj interface{}, _ bool) {
 		return
 	}
 	key := *k8s.NamespacedNameFromObject(httpScaledObject)
+	t.queueCounter.EnsureKey(key.String())
 
 	defer t.memorySignaler.Signal()
 
@@ -198,6 +201,8 @@ func (t *table) OnDelete(obj interface{}) {
 	defer t.httpScaledObjectsMutex.Unlock()
 
 	delete(t.httpScaledObjects, key)
+
+	t.queueCounter.RemoveKey(key.String())
 }
 
 var _ util.HealthChecker = (*table)(nil)

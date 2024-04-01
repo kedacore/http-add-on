@@ -79,14 +79,15 @@ func main() {
 		lggr.Error(err, "creating new HTTP ClientSet")
 		os.Exit(1)
 	}
+
+	queues := queue.NewMemory()
+
 	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, servingCfg.ConfigMapCacheRsyncPeriod)
-	routingTable, err := routing.NewTable(sharedInformerFactory, servingCfg.WatchNamespace)
+	routingTable, err := routing.NewTable(sharedInformerFactory, servingCfg.WatchNamespace, queues)
 	if err != nil {
 		lggr.Error(err, "fetching routing table")
 		os.Exit(1)
 	}
-
-	q := queue.NewMemory()
 
 	lggr.Info("Interceptor starting")
 
@@ -122,7 +123,7 @@ func main() {
 	eg.Go(func() error {
 		lggr.Info("starting the admin server", "port", adminPort)
 
-		if err := runAdminServer(ctx, lggr, q, adminPort); !util.IsIgnoredErr(err) {
+		if err := runAdminServer(ctx, lggr, queues, adminPort); !util.IsIgnoredErr(err) {
 			lggr.Error(err, "admin server failed")
 			return err
 		}
@@ -135,7 +136,7 @@ func main() {
 	eg.Go(func() error {
 		lggr.Info("starting the proxy server", "port", proxyPort)
 
-		if err := runProxyServer(ctx, lggr, q, waitFunc, routingTable, timeoutCfg, proxyPort); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, lggr, queues, waitFunc, routingTable, timeoutCfg, proxyPort); !util.IsIgnoredErr(err) {
 			lggr.Error(err, "proxy server failed")
 			return err
 		}

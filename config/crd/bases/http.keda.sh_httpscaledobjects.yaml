@@ -63,18 +63,20 @@ spec:
               hosts:
                 description: |-
                   The hosts to route. All requests which the "Host" header
-                  matches any .spec.hosts (and the Request Target matches any
-                  .spec.pathPrefixes) will be routed to the Service and Port specified in
-                  the scaleTargetRef.
+                  matches any .spec.hosts and the Request Target matches any
+                  .spec.pathPrefixes will be routed to the Service and Port specified in
+                  the scaleTargetRef. The .spec.hosts field is mutually exclusive with the
+                  .spec.host field.
                 items:
                   type: string
                 type: array
               pathPrefixes:
                 description: |-
-                  The paths to route. All requests which the Request Target matches any
-                  .spec.pathPrefixes (and the "Host" header matches any .spec.hosts)
-                  will be routed to the Service and Port specified in
-                  the scaleTargetRef.
+                  (optional) The paths to route. All requests which the Request Target
+                  matches any .spec.pathPrefixes and the "Host" header matches any
+                  .spec.hosts will be routed to the Service and Port specified in the
+                  scaleTargetRef. The .spec.hosts field is mutually exclusive with the
+                  .spec.host field. When this field is null, any path is matched.
                 items:
                   type: string
                 type: array

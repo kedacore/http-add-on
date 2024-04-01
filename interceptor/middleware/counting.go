@@ -62,7 +62,7 @@ func (cm *Counting) count(ctx context.Context, signaler util.Signaler) {
 }
 
 func (cm *Counting) inc(logger logr.Logger, key string) bool {
-	if err := cm.queueCounter.Resize(key, +1); err != nil {
+	if err := cm.queueCounter.Increase(key, 1); err != nil {
 		logger.Error(err, "error incrementing queue counter", "key", key)
 
 		return false
@@ -72,7 +72,7 @@ func (cm *Counting) inc(logger logr.Logger, key string) bool {
 }
 
 func (cm *Counting) dec(logger logr.Logger, key string) bool {
-	if err := cm.queueCounter.Resize(key, -1); err != nil {
+	if err := cm.queueCounter.Decrease(key, 1); err != nil {
 		logger.Error(err, "error decrementing queue counter", "key", key)
 
 		return false

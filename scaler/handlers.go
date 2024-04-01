@@ -188,9 +188,9 @@ func (e *impl) GetMetrics(
 	metricName := MetricName(namespacedName)
 
 	key := namespacedName.String()
-	count := int64(e.pinger.counts()[key])
+	count := e.pinger.counts()[key]
 
-	if count == 0 {
+	if count.Concurrency == 0 {
 		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
 			if _, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
 				return e.interceptorMetrics(metricName)
@@ -202,7 +202,7 @@ func (e *impl) GetMetrics(
 		MetricValues: []*externalscaler.MetricValue{
 			{
 				MetricName:  metricName,
-				MetricValue: count,
+				MetricValue: int64(count.Concurrency),
 			},
 		},
 	}
@@ -214,7 +214,7 @@ func (e *impl) interceptorMetrics(metricName string) (*externalscaler.GetMetrics
 
 	var count int64
 	for _, v := range e.pinger.counts() {
-		count += int64(v)
+		count += int64(v.Concurrency)
 	}
 	if err := strconv.ErrRange; count < 0 {
 		lggr.Error(err, "count overflowed", "value", count)

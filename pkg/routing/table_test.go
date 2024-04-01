@@ -16,6 +16,7 @@ import (
 	clientsethttpv1alpha1mock "github.com/kedacore/http-add-on/operator/generated/clientset/versioned/typed/http/v1alpha1/mock"
 	informersexternalversions "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -110,7 +111,7 @@ var _ = Describe("Table", func() {
 
 	Context("New", func() {
 		It("returns a table with fields initialized", func() {
-			i, err := NewTable(sharedInformerFactory, namespace)
+			i, err := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(i).NotTo(BeNil())
 
@@ -135,7 +136,7 @@ var _ = Describe("Table", func() {
 		)
 
 		BeforeEach(func() {
-			i, _ := NewTable(sharedInformerFactory, namespace)
+			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter())
 			t = i.(*table)
 		})
 
@@ -180,7 +181,7 @@ var _ = Describe("Table", func() {
 		)
 
 		BeforeEach(func() {
-			i, _ := NewTable(sharedInformerFactory, namespace)
+			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter())
 			t = i.(*table)
 		})
 
@@ -278,7 +279,7 @@ var _ = Describe("Table", func() {
 		)
 
 		BeforeEach(func() {
-			i, _ := NewTable(sharedInformerFactory, namespace)
+			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter())
 			t = i.(*table)
 		})
 
