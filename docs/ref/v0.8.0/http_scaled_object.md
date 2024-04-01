@@ -128,6 +128,8 @@ This value defines the granualarity of the aggregated requests for the request r
 
 This section enables scaling based on the request concurrency.
 
+> **NOTE**: This is the only scaling behaviour before v0.8.0
+
 #### `targetValue`
 
 >Default: 100

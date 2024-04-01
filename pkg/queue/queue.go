@@ -89,7 +89,7 @@ func (r *Memory) EnsureKey(host string, window, granularity time.Duration) {
 	}
 	_, ok = r.rpsMap[host]
 	if !ok {
-		r.rpsMap[host] = NewRequestsBuckets(time.Minute, time.Second)
+		r.rpsMap[host] = NewRequestsBuckets(window, granularity)
 	}
 }
 
@@ -101,7 +101,7 @@ func (r *Memory) UpdateBuckets(host string, window, granularity time.Duration) {
 	if ok &&
 		(buckets.window != window ||
 			buckets.granularity != granularity) {
-		r.rpsMap[host] = NewRequestsBuckets(time.Minute, time.Second)
+		r.rpsMap[host] = NewRequestsBuckets(window, granularity)
 	}
 }
 
