@@ -49,7 +49,7 @@ Previously announced deprecation(s):
 
 ### Other
 
-- **General**: Unify loggers ([#958](https://github.com/kedacore/http-add-on/issues/882))
+- **General**: Unify loggers ([#958](https://github.com/kedacore/http-add-on/issues/958))
 
 ## v0.7.0
 
