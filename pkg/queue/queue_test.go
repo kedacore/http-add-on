@@ -12,7 +12,7 @@ func TestCurrent(t *testing.T) {
 	memory := NewMemory()
 	now := time.Now()
 	host := "host1"
-	memory.EnsureKey(host)
+	memory.EnsureKey(host, time.Minute, time.Second)
 	err := memory.Increase(host, 1)
 	r.NoError(err)
 	current, err := memory.Current()

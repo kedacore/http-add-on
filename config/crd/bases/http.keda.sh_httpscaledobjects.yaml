@@ -123,8 +123,39 @@ spec:
                 description: (optional) Cooldown period value
                 format: int32
                 type: integer
+              scalingMetric:
+                description: (optional) Configuration for the metric used for scaling
+                properties:
+                  concurrency:
+                    description: Scaling based on concurrent requests for a given
+                      target
+                    properties:
+                      targetValue:
+                        default: 100
+                        description: Target value for rate scaling
+                        type: integer
+                    type: object
+                  requestRate:
+                    description: Scaling based the average rate during an specific
+                      time window for a given target
+                    properties:
+                      granularity:
+                        default: 1s
+                        description: Time granularity for rate calculation
+                        type: string
+                      targetValue:
+                        default: 100
+                        description: Target value for rate scaling
+                        type: integer
+                      window:
+                        default: 1m
+                        description: Time window for rate calculation
+                        type: string
+                    type: object
+                type: object
               targetPendingRequests:
-                description: (optional) Target metric value
+                description: (optional) DEPRECATED (use SscalingMetric instead) Target
+                  metric value
                 format: int32
                 type: integer
             required:

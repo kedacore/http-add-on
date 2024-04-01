@@ -31,9 +31,9 @@ type Counter interface {
 	// Decrease decreases the queue size by delta for the given host.
 	Decrease(host string, delta int) error
 	// EnsureKey ensures that host is represented in this counter.
-	// If host already has a nonzero value, then it is unchanged. If
-	// it is missing, it is set to 0.
-	EnsureKey(host string)
+	EnsureKey(host string, window, granularity time.Duration)
+	// UpdateBuckets update request backets if there are changes
+	UpdateBuckets(host string, window, granularity time.Duration)
 	// RemoveKey tries to remove the given host and its
 	// associated counts from the queue. returns true if it existed,
 	// false otherwise.
@@ -80,7 +80,7 @@ func (r *Memory) Decrease(host string, delta int) error {
 	return nil
 }
 
-func (r *Memory) EnsureKey(host string) {
+func (r *Memory) EnsureKey(host string, window, granularity time.Duration) {
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	_, ok := r.concurrentMap[host]
@@ -89,6 +89,18 @@ func (r *Memory) EnsureKey(host string) {
 	}
 	_, ok = r.rpsMap[host]
 	if !ok {
+		r.rpsMap[host] = NewRequestsBuckets(time.Minute, time.Second)
+	}
+}
+
+func (r *Memory) UpdateBuckets(host string, window, granularity time.Duration) {
+	r.EnsureKey(host, window, granularity)
+	r.mut.Lock()
+	defer r.mut.Unlock()
+	buckets, ok := r.rpsMap[host]
+	if ok &&
+		(buckets.window != window ||
+			buckets.granularity != granularity) {
 		r.rpsMap[host] = NewRequestsBuckets(time.Minute, time.Second)
 	}
 }

@@ -7,8 +7,8 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"time"
@@ -22,25 +22,24 @@ import (
 	"google.golang.org/grpc/reflection"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
 	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/build"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	pkglog "github.com/kedacore/http-add-on/pkg/log"
 	"github.com/kedacore/http-add-on/pkg/util"
+)
+
+var (
+	setupLog = ctrl.Log.WithName("setup")
 )
 
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 
 func main() {
-	lggr, err := pkglog.NewZapr()
-	if err != nil {
-		log.Fatalf("error creating new logger (%v)", err)
-	}
-
 	cfg := mustParseConfig()
 	grpcPort := cfg.GRPCPort
 	namespace := cfg.TargetNamespace
@@ -49,18 +48,26 @@ func main() {
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
 	targetPendingRequests := cfg.TargetPendingRequests
 
+	opts := zap.Options{
+		Development: true,
+	}
+	opts.BindFlags(flag.CommandLine)
+	flag.Parse()
+
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
 	k8sCfg, err := ctrl.GetConfig()
 	if err != nil {
-		lggr.Error(err, "Kubernetes client config not found")
+		setupLog.Error(err, "Kubernetes client config not found")
 		os.Exit(1)
 	}
 	k8sCl, err := kubernetes.NewForConfig(k8sCfg)
 	if err != nil {
-		lggr.Error(err, "creating new Kubernetes ClientSet")
+		setupLog.Error(err, "creating new Kubernetes ClientSet")
 		os.Exit(1)
 	}
 	pinger := newQueuePinger(
-		lggr,
+		ctrl.Log,
 		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,
 		svcName,
@@ -70,27 +77,27 @@ func main() {
 
 	// create the endpoints informer
 	endpInformer := k8s.NewInformerBackedEndpointsCache(
-		lggr,
+		ctrl.Log,
 		k8sCl,
 		cfg.DeploymentCacheRsyncPeriod,
 	)
 
 	httpCl, err := clientset.NewForConfig(k8sCfg)
 	if err != nil {
-		lggr.Error(err, "creating new HTTP ClientSet")
+		setupLog.Error(err, "creating new HTTP ClientSet")
 		os.Exit(1)
 	}
 	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, cfg.ConfigMapCacheRsyncPeriod)
 	httpsoInformer := informershttpv1alpha1.New(sharedInformerFactory, "", nil).HTTPScaledObjects()
 
 	ctx := ctrl.SetupSignalHandler()
-	ctx = util.ContextWithLogger(ctx, lggr)
+	ctx = util.ContextWithLogger(ctx, setupLog)
 
 	eg, ctx := errgroup.WithContext(ctx)
 
 	// start the endpoints informer
 	eg.Go(func() error {
-		lggr.Info("starting the endpoints informer")
+		setupLog.Info("starting the endpoints informer")
 
 		endpInformer.Start(ctx)
 		return nil
@@ -98,17 +105,17 @@ func main() {
 
 	// start the httpso informer
 	eg.Go(func() error {
-		lggr.Info("starting the httpso informer")
+		setupLog.Info("starting the httpso informer")
 
 		httpsoInformer.Informer().Run(ctx.Done())
 		return nil
 	})
 
 	eg.Go(func() error {
-		lggr.Info("starting the queue pinger")
+		setupLog.Info("starting the queue pinger")
 
 		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration), endpInformer); !util.IsIgnoredErr(err) {
-			lggr.Error(err, "queue pinger failed")
+			setupLog.Error(err, "queue pinger failed")
 			return err
 		}
 
@@ -116,24 +123,24 @@ func main() {
 	})
 
 	eg.Go(func() error {
-		lggr.Info("starting the grpc server")
+		setupLog.Info("starting the grpc server")
 
-		if err := startGrpcServer(ctx, cfg, lggr, grpcPort, pinger, httpsoInformer, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
-			lggr.Error(err, "grpc server failed")
+		if err := startGrpcServer(ctx, cfg, ctrl.Log, grpcPort, pinger, httpsoInformer, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
+			setupLog.Error(err, "grpc server failed")
 			return err
 		}
 
 		return nil
 	})
 
-	build.PrintComponentInfo(lggr, "Scaler")
+	build.PrintComponentInfo(ctrl.Log, "Scaler")
 
 	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-		lggr.Error(err, "fatal error")
+		setupLog.Error(err, "fatal error")
 		os.Exit(1)
 	}
 
-	lggr.Info("Bye!")
+	setupLog.Info("Bye!")
 }
 
 func startGrpcServer(

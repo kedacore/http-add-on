@@ -63,13 +63,15 @@ func (f *FakeCounter) Decrease(host string, i int) error {
 	return nil
 }
 
-func (f *FakeCounter) EnsureKey(host string) {
+func (f *FakeCounter) EnsureKey(host string, window, granularity time.Duration) {
 	f.mapMut.Lock()
 	defer f.mapMut.Unlock()
 	f.RetMap[host] = Count{
 		Concurrency: 0,
 	}
 }
+
+func (f *FakeCounter) UpdateBuckets(_ string, _, _ time.Duration) {}
 
 func (f *FakeCounter) RemoveKey(host string) bool {
 	f.mapMut.Lock()

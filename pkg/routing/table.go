@@ -151,7 +151,15 @@ func (t *table) OnAdd(obj interface{}, _ bool) {
 		return
 	}
 	key := *k8s.NamespacedNameFromObject(httpScaledObject)
-	t.queueCounter.EnsureKey(key.String())
+
+	window := time.Minute
+	granualrity := time.Second
+	if httpScaledObject.Spec.ScalingMetric != nil &&
+		httpScaledObject.Spec.ScalingMetric.Rate != nil {
+		window = httpScaledObject.Spec.ScalingMetric.Rate.Window.Duration
+		granualrity = httpScaledObject.Spec.ScalingMetric.Rate.Granularity.Duration
+	}
+	t.queueCounter.EnsureKey(key.String(), window, granualrity)
 
 	defer t.memorySignaler.Signal()
 
@@ -174,8 +182,16 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 	}
 	newKey := *k8s.NamespacedNameFromObject(newHTTPSO)
 
-	mustDelete := oldKey != newKey
+	window := time.Minute
+	granualrity := time.Second
+	if newHTTPSO.Spec.ScalingMetric != nil &&
+		newHTTPSO.Spec.ScalingMetric.Rate != nil {
+		window = newHTTPSO.Spec.ScalingMetric.Rate.Window.Duration
+		granualrity = newHTTPSO.Spec.ScalingMetric.Rate.Granularity.Duration
+	}
+	t.queueCounter.UpdateBuckets(newKey.String(), window, granualrity)
 
+	mustDelete := oldKey != newKey
 	defer t.memorySignaler.Signal()
 
 	t.httpScaledObjectsMutex.Lock()
@@ -185,6 +201,7 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 
 	if mustDelete {
 		delete(t.httpScaledObjects, oldKey)
+		t.queueCounter.RemoveKey(oldKey.String())
 	}
 }
 

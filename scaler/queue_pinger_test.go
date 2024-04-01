@@ -51,7 +51,7 @@ func TestCounts(t *testing.T) {
 
 	q := queue.NewMemory()
 	for host, count := range counts {
-		q.EnsureKey(host)
+		q.EnsureKey(host, time.Minute, time.Second)
 		r.NoError(q.Increase(host, count.Concurrency))
 	}
 
@@ -135,7 +135,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	}
 	q := queue.NewMemory()
 	for host, count := range counts.Counts {
-		q.EnsureKey(host)
+		q.EnsureKey(host, time.Minute, time.Second)
 		r.NoError(q.Increase(host, count.Concurrency))
 	}
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
@@ -205,7 +205,7 @@ func TestFetchCounts(t *testing.T) {
 	}
 	q := queue.NewMemory()
 	for host, count := range counts.Counts {
-		q.EnsureKey(host)
+		q.EnsureKey(host, time.Minute, time.Second)
 		r.NoError(q.Increase(host, count.Concurrency))
 	}
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(

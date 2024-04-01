@@ -26,6 +26,8 @@ import (
 	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
+const validHTTPScaledObjectName = "valid-httpscaledobject"
+
 func TestStreamIsActive(t *testing.T) {
 	type testCase struct {
 		name           string
@@ -33,6 +35,7 @@ func TestStreamIsActive(t *testing.T) {
 		expectedErr    bool
 		setup          func(t *testing.T, qp *queuePinger)
 		scalerMetadata map[string]string
+		scalingMetric  *httpv1alpha1.ScalingMetricSpec
 	}
 	testCases := []testCase{
 		{
@@ -51,9 +54,12 @@ func TestStreamIsActive(t *testing.T) {
 
 				qp.allCounts[key] = queue.Count{}
 			},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
 		},
 		{
-			name:        "Simple host active",
+			name:        "Simple host active by concurrency and scaling metric nil",
 			expected:    true,
 			expectedErr: false,
 			setup: func(t *testing.T, qp *queuePinger) {
@@ -69,6 +75,110 @@ func TestStreamIsActive(t *testing.T) {
 				qp.allCounts[key] = queue.Count{
 					Concurrency: 1,
 				}
+			},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
+			scalingMetric: nil,
+		},
+		{
+			name:        "Simple host active by concurrency and concurrency scaling metric",
+			expected:    true,
+			expectedErr: false,
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = queue.Count{
+					Concurrency: 1,
+				}
+			},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
+			scalingMetric: &httpv1alpha1.ScalingMetricSpec{
+				Concurrency: &httpv1alpha1.ConcurrencyMetricSpec{},
+			},
+		},
+		{
+			name:        "Simple host active by concurrency and concurrency scaling rate",
+			expected:    false,
+			expectedErr: false,
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = queue.Count{
+					Concurrency: 1,
+				}
+			},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
+			scalingMetric: &httpv1alpha1.ScalingMetricSpec{
+				Rate: &httpv1alpha1.RateMetricSpec{},
+			},
+		},
+		{
+			name:        "Simple host active by rate and concurrency scaling metric",
+			expected:    false,
+			expectedErr: false,
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = queue.Count{
+					RPS: 1,
+				}
+			},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
+			scalingMetric: &httpv1alpha1.ScalingMetricSpec{
+				Concurrency: &httpv1alpha1.ConcurrencyMetricSpec{},
+			},
+		},
+		{
+			name:        "Simple host active by concurrency and concurrency scaling rate",
+			expected:    true,
+			expectedErr: false,
+			setup: func(t *testing.T, qp *queuePinger) {
+				namespacedName := &types.NamespacedName{
+					Namespace: "default",
+					Name:      t.Name(),
+				}
+				key := namespacedName.String()
+
+				qp.pingMut.Lock()
+				defer qp.pingMut.Unlock()
+
+				qp.allCounts[key] = queue.Count{
+					RPS: 1,
+				}
+			},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
+			scalingMetric: &httpv1alpha1.ScalingMetricSpec{
+				Rate: &httpv1alpha1.RateMetricSpec{},
 			},
 		},
 		{
@@ -89,12 +199,9 @@ func TestStreamIsActive(t *testing.T) {
 					Concurrency: 2,
 				}
 			},
-		},
-		{
-			name:        "No host present, but host in routing table",
-			expected:    false,
-			expectedErr: false,
-			setup:       func(_ *testing.T, _ *queuePinger) {},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
 		},
 		{
 			name:        "Host doesn't exist",
@@ -134,7 +241,7 @@ func TestStreamIsActive(t *testing.T) {
 			r := require.New(t)
 			ctx := context.Background()
 			lggr := logr.Discard()
-			informer, _, _ := newMocks(ctrl)
+			informer, _, _ := newMocks(ctrl, tc.scalingMetric)
 			ticker, pinger, err := newFakeQueuePinger(lggr)
 			r.NoError(err)
 			defer ticker.Stop()
@@ -229,6 +336,9 @@ func TestIsActive(t *testing.T) {
 					Concurrency: 0,
 				}
 			},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
 		},
 		{
 			name:        "Simple host active",
@@ -247,6 +357,9 @@ func TestIsActive(t *testing.T) {
 				qp.allCounts[key] = queue.Count{
 					Concurrency: 1,
 				}
+			},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -267,12 +380,9 @@ func TestIsActive(t *testing.T) {
 					Concurrency: 2,
 				}
 			},
-		},
-		{
-			name:        "No host present, but host in routing table",
-			expected:    false,
-			expectedErr: false,
-			setup:       func(_ *testing.T, _ *queuePinger) {},
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
 		},
 		{
 			name:        "Host doesn't exist",
@@ -312,7 +422,7 @@ func TestIsActive(t *testing.T) {
 			r := require.New(t)
 			ctx := context.Background()
 			lggr := logr.Discard()
-			informer, _, _ := newMocks(ctrl)
+			informer, _, _ := newMocks(ctrl, nil)
 			ticker, pinger, err := newFakeQueuePinger(lggr)
 			r.NoError(err)
 			defer ticker.Stop()
@@ -360,7 +470,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 			name:                "valid host as single host value in scaler metadata",
 			defaultTargetMetric: 0,
 			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
-				informer, _, namespaceLister := newMocks(ctrl)
+				informer, _, namespaceLister := newMocks(ctrl, nil)
 
 				httpso := &httpv1alpha1.HTTPScaledObject{
 					ObjectMeta: metav1.ObjectMeta{
@@ -397,7 +507,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 			name:                "valid hosts as multiple hosts value in scaler metadata",
 			defaultTargetMetric: 0,
 			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
-				informer, _, namespaceLister := newMocks(ctrl)
+				informer, _, namespaceLister := newMocks(ctrl, nil)
 
 				httpso := &httpv1alpha1.HTTPScaledObject{
 					ObjectMeta: metav1.ObjectMeta{
@@ -438,7 +548,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 			name:                "interceptor",
 			defaultTargetMetric: 0,
 			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
-				informer, _, namespaceLister := newMocks(ctrl)
+				informer, _, namespaceLister := newMocks(ctrl, nil)
 
 				namespaceLister.EXPECT().
 					Get(gomock.Any()).
@@ -579,7 +689,7 @@ func TestGetMetrics(t *testing.T) {
 				ctx context.Context,
 				lggr logr.Logger,
 			) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error) {
-				informer, _, _ := newMocks(ctrl)
+				informer, _, _ := newMocks(ctrl, nil)
 
 				// create queue and ticker without the host in it
 				ticker, pinger, err := newFakeQueuePinger(lggr)
@@ -600,6 +710,9 @@ func TestGetMetrics(t *testing.T) {
 				r.Equal(int64(0), metricVal.MetricValue)
 			},
 			defaultTargetMetric: int64(200),
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
 		},
 		{
 			name: "HTTPSO present in the queue pinger",
@@ -609,7 +722,7 @@ func TestGetMetrics(t *testing.T) {
 				ctx context.Context,
 				lggr logr.Logger,
 			) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error) {
-				informer, _, _ := newMocks(ctrl)
+				informer, _, _ := newMocks(ctrl, nil)
 
 				namespacedName := &types.NamespacedName{
 					Namespace: ns,
@@ -637,6 +750,9 @@ func TestGetMetrics(t *testing.T) {
 				r.Equal(int64(201), metricVal.MetricValue)
 			},
 			defaultTargetMetric: int64(200),
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
 		},
 		{
 			name: "multiple validHosts add MetricValues",
@@ -646,7 +762,7 @@ func TestGetMetrics(t *testing.T) {
 				ctx context.Context,
 				lggr logr.Logger,
 			) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error) {
-				informer, _, _ := newMocks(ctrl)
+				informer, _, _ := newMocks(ctrl, nil)
 
 				namespacedName := &types.NamespacedName{
 					Namespace: ns,
@@ -677,6 +793,9 @@ func TestGetMetrics(t *testing.T) {
 				r.Equal(int64(579), metricVal.MetricValue)
 			},
 			defaultTargetMetric: int64(500),
+			scalerMetadata: map[string]string{
+				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+			},
 		},
 		{
 			name: "interceptor",
@@ -686,7 +805,7 @@ func TestGetMetrics(t *testing.T) {
 				ctx context.Context,
 				lggr logr.Logger,
 			) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *queuePinger, func(), error) {
-				informer, _, _ := newMocks(ctrl)
+				informer, _, _ := newMocks(ctrl, nil)
 
 				memory := map[string]int{
 					"a": 1,
@@ -754,11 +873,22 @@ func TestGetMetrics(t *testing.T) {
 	}
 }
 
-func newMocks(ctrl *gomock.Controller) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *listershttpv1alpha1mock.MockHTTPScaledObjectLister, *listershttpv1alpha1mock.MockHTTPScaledObjectNamespaceLister) {
+func newMocks(ctrl *gomock.Controller, scalingMetric *httpv1alpha1.ScalingMetricSpec) (*informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer, *listershttpv1alpha1mock.MockHTTPScaledObjectLister, *listershttpv1alpha1mock.MockHTTPScaledObjectNamespaceLister) {
 	namespaceLister := listershttpv1alpha1mock.NewMockHTTPScaledObjectNamespaceLister(ctrl)
 	namespaceLister.EXPECT().
-		Get("").
+		Get(validHTTPScaledObjectName).
 		DoAndReturn(func(name string) (*httpv1alpha1.HTTPScaledObject, error) {
+			if name == validHTTPScaledObjectName {
+
+				return &httpv1alpha1.HTTPScaledObject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: validHTTPScaledObjectName,
+					},
+					Spec: httpv1alpha1.HTTPScaledObjectSpec{
+						ScalingMetric: scalingMetric,
+					},
+				}, nil
+			}
 			return nil, errors.NewNotFound(httpv1alpha1.Resource("httpscaledobject"), name)
 		}).
 		AnyTimes()

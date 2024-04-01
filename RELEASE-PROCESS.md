@@ -20,7 +20,17 @@ It should not include every single change but solely what matters to our custome
 
 Add the new released version to the list in `KEDA Version` dropdown in [2_bug_report.yml](https://github.com/kedacore/http-add-on/blob/main/.github/ISSUE_TEMPLATE/2_bug_report.yml).
 
-## 4: Create a new GitHub release
+## 4. Update documentation references to current version
+
+Update the links to current version within the file `walkthrough.md`
+
+> ```console
+> kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
+> ```
+
+> >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.7.0/http_scaled_object.md).
+
+## 5: Create a new GitHub release
 
 [Create a new release](https://github.com/kedacore/http-add-on/releases/new) on the GitHub releases page, using your new release number.
 
@@ -30,7 +40,7 @@ The release description should be a short to medium length summary of what has c
 
 After you create the new release, automation in a GitHub action will build and deploy new container images.
 
-## 5: Submit a PR to the [Helm Charts Repository](https://github.com/kedacore/charts)
+## 6: Submit a PR to the [Helm Charts Repository](https://github.com/kedacore/charts)
 
 The scope of the changes you'll need to make to the Helm chart vary, but the below list is the minimum set of fields to change:
 
@@ -66,11 +76,11 @@ Once you've made changes to the chart, here's how to do submit the change to the
 
 After your PR is merged, you've completed the release. Congratulations! You can optionally write a blog post about it; see the next section if you're interested.
 
-## 6: Publish release on Artifact Hub
+## 7: Publish release on Artifact Hub
 
 Publish release on Artifact Hub by creating a new version in [kedacore/external-scalers](https://github.com/kedacore/external-scalers/tree/main/artifacthub/add-ons-http).
 
-## 7: Write a blog post on the documentation site (_optional_)
+## 8: Write a blog post on the documentation site (_optional_)
 
 If you believe that your release is large enough to warrant a blog post on the [keda.sh/blog](https://keda.sh/blog/) site, please go to [github.com/kedacore/keda-docs](https://github.com/kedacore/keda-docs) and submit a new PR with a blog article about the release.
 
