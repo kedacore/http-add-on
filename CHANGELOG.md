@@ -38,14 +38,9 @@ This changelog keeps track of work items that have been completed and are ready 
 
 You can find all deprecations in [this overview](https://github.com/kedacore/http-add-on/labels/breaking-change) and [join the discussion here](https://github.com/kedacore/http-add-on/discussions/categories/deprecations).
 
-New deprecation(s):
-
-- **General**: Deprecated `targetPendingRequests` in favor of `spec.scalingMetric.*.targetValue` ([#959](https://github.com/kedacore/http-add-on/discussions/959))
-
-Previously announced deprecation(s):
-
+- **General**: Deprecated `.spec.scaleTargetRef.deployment` ([#960](https://github.com/kedacore/http-add-on/discussions/960))
 - **General**: Deprecated `KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS` in favor of `KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS` ([#438](https://github.com/kedacore/http-add-on/issues/438))
-- **General**: Deprecated `.spec.scaleTargetRef.deployment` ([#960](https://github.com/kedacore/http-add-on/discussions/960)) 
+- **General**: Deprecated `targetPendingRequests` in favor of `spec.scalingMetric.*.targetValue` ([#959](https://github.com/kedacore/http-add-on/discussions/959))
 
 ### Other
 

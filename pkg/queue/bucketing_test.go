@@ -127,7 +127,7 @@ func TestRequestsBucketsManyRepsWithNonMonotonicalOrder(t *testing.T) {
 	for p := 0; p < 5; p++ {
 		end = start.Add(time.Duration(d[p]) * granularity)
 		for t := 0; t < 5; t++ {
-			buckets.Record(end, int(p+t))
+			buckets.Record(end, p+t)
 		}
 	}
 
@@ -165,7 +165,7 @@ func TestRequestsBucketsWindowAverage(t *testing.T) {
 		t.Errorf("WindowAverage = %v, want: %v", got, want)
 	}
 	for i := 1; i < 5; i++ {
-		buckets.Record(now.Add(time.Duration(i)*time.Second), int(i+1))
+		buckets.Record(now.Add(time.Duration(i)*time.Second), i+1)
 	}
 
 	if got, want := buckets.WindowAverage(now.Add(4*time.Second)), 15./5; got != want {
@@ -322,7 +322,6 @@ func TestRoundToNDigits(t *testing.T) {
 	if got, want := roundToNDigits(6, 12345), 12345.; got != want {
 		t.Errorf("Rounding = %v, want: %v", got, want)
 	}
-
 }
 
 func (t *RequestsBuckets) forEachBucket(now time.Time, acc func(time time.Time, bucket int)) {

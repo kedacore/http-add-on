@@ -37,7 +37,6 @@ var (
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
 
 func main() {
-
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
 

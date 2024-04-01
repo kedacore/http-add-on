@@ -200,7 +200,7 @@ func (e *impl) GetMetrics(
 	metricName := MetricName(namespacedName)
 
 	scalerMetadata := sor.GetScalerMetadata()
-	httpScaledObjectName, ok := scalerMetadata[k8s.HttpScaledObjectKey]
+	httpScaledObjectName, ok := scalerMetadata[k8s.HTTPScaledObjectKey]
 	if !ok {
 		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
 			if _, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {

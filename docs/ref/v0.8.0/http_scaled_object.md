@@ -116,13 +116,13 @@ This is the target value for the scaling configuration.
 
 >Default: "1m"
 
-This value defines the aggregation window for the request rate calculation. 
+This value defines the aggregation window for the request rate calculation.
 
 #### `granularity`
 
 >Default: "1s"
 
-This value defines the granualarity of the aggregated requests for the request rate calculation. 
+This value defines the granualarity of the aggregated requests for the request rate calculation.
 
 ### `concurrency`
 

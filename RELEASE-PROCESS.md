@@ -28,7 +28,7 @@ Update the links to current version within the file `walkthrough.md`
 > kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
 > ```
 
-> >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.7.0/http_scaled_object.md).
+> >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](THE REFERENCE).
 
 ## 5: Create a new GitHub release
 

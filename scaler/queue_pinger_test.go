@@ -167,8 +167,8 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	// but the value is (individual count * # endpoints)
 	expectedCounts := counts.Counts
 	for host, val := range expectedCounts {
-		val.Concurrency = val.Concurrency * 3
-		val.RPS = val.RPS * 3
+		val.Concurrency *= 3
+		val.RPS *= 3
 		expectedCounts[host] = val
 	}
 	r.Equal(expectedCounts, pinger.allCounts)
@@ -237,8 +237,8 @@ func TestFetchCounts(t *testing.T) {
 	// but the value is (individual count * # endpoints)
 	expectedCounts := counts.Counts
 	for host, val := range expectedCounts {
-		val.Concurrency = val.Concurrency * 3
-		val.RPS = val.RPS * 3
+		val.Concurrency *= 3
+		val.RPS *= 3
 		expectedCounts[host] = val
 	}
 	r.Equal(expectedCounts, cts)

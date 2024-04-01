@@ -55,7 +55,7 @@ func TestStreamIsActive(t *testing.T) {
 				qp.allCounts[key] = queue.Count{}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -77,7 +77,7 @@ func TestStreamIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 			scalingMetric: nil,
 		},
@@ -100,7 +100,7 @@ func TestStreamIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 			scalingMetric: &httpv1alpha1.ScalingMetricSpec{
 				Concurrency: &httpv1alpha1.ConcurrencyMetricSpec{},
@@ -125,7 +125,7 @@ func TestStreamIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 			scalingMetric: &httpv1alpha1.ScalingMetricSpec{
 				Rate: &httpv1alpha1.RateMetricSpec{},
@@ -150,7 +150,7 @@ func TestStreamIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 			scalingMetric: &httpv1alpha1.ScalingMetricSpec{
 				Concurrency: &httpv1alpha1.ConcurrencyMetricSpec{},
@@ -175,7 +175,7 @@ func TestStreamIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 			scalingMetric: &httpv1alpha1.ScalingMetricSpec{
 				Rate: &httpv1alpha1.RateMetricSpec{},
@@ -200,7 +200,7 @@ func TestStreamIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -337,7 +337,7 @@ func TestIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -359,7 +359,7 @@ func TestIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -381,7 +381,7 @@ func TestIsActive(t *testing.T) {
 				}
 			},
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -711,7 +711,7 @@ func TestGetMetrics(t *testing.T) {
 			},
 			defaultTargetMetric: int64(200),
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -751,7 +751,7 @@ func TestGetMetrics(t *testing.T) {
 			},
 			defaultTargetMetric: int64(200),
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -794,7 +794,7 @@ func TestGetMetrics(t *testing.T) {
 			},
 			defaultTargetMetric: int64(500),
 			scalerMetadata: map[string]string{
-				k8s.HttpScaledObjectKey: validHTTPScaledObjectName,
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
@@ -879,7 +879,6 @@ func newMocks(ctrl *gomock.Controller, scalingMetric *httpv1alpha1.ScalingMetric
 		Get(validHTTPScaledObjectName).
 		DoAndReturn(func(name string) (*httpv1alpha1.HTTPScaledObject, error) {
 			if name == validHTTPScaledObjectName {
-
 				return &httpv1alpha1.HTTPScaledObject{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: validHTTPScaledObjectName,

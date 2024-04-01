@@ -63,7 +63,7 @@ func (f *FakeCounter) Decrease(host string, i int) error {
 	return nil
 }
 
-func (f *FakeCounter) EnsureKey(host string, window, granularity time.Duration) {
+func (f *FakeCounter) EnsureKey(host string, _, _ time.Duration) {
 	f.mapMut.Lock()
 	defer f.mapMut.Unlock()
 	f.RetMap[host] = Count{

@@ -13,7 +13,7 @@ const (
 	soTriggerType     = "external-push"
 
 	ScalerAddressKey    = "scalerAddress"
-	HttpScaledObjectKey = "httpScaledObject"
+	HTTPScaledObjectKey = "httpScaledObject"
 )
 
 // NewScaledObject creates a new ScaledObject in memory
@@ -24,8 +24,6 @@ func NewScaledObject(
 	annotations map[string]string,
 	workloadRef v1alpha1.ScaleTargetRef,
 	scalerAddress string,
-	hosts []string,
-	pathPrefixes []string,
 	minReplicas *int32,
 	maxReplicas *int32,
 	cooldownPeriod *int32,
@@ -59,7 +57,7 @@ func NewScaledObject(
 					Type: soTriggerType,
 					Metadata: map[string]string{
 						ScalerAddressKey:    scalerAddress,
-						HttpScaledObjectKey: name,
+						HTTPScaledObjectKey: name,
 					},
 				},
 			},
