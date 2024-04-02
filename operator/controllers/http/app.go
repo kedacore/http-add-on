@@ -37,7 +37,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		httpso,
 		*SetMessage(
 			CreateCondition(
-				v1alpha1.Pending,
+				v1alpha1.Ready,
 				v1.ConditionUnknown,
 				v1alpha1.PendingCreation,
 			),

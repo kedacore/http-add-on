@@ -80,7 +80,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 				httpso,
 				*SetMessage(
 					CreateCondition(
-						httpv1alpha1.Error,
+						httpv1alpha1.Ready,
 						v1.ConditionFalse,
 						httpv1alpha1.ErrorCreatingAppScaledObject,
 					),
@@ -97,7 +97,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 		httpso,
 		*SetMessage(
 			CreateCondition(
-				httpv1alpha1.Created,
+				httpv1alpha1.Ready,
 				v1.ConditionTrue,
 				httpv1alpha1.AppScaledObjectCreated,
 			),
