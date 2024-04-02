@@ -161,7 +161,7 @@ spec:
   triggers:
   - type: external-push
     metadata:
-      hosts: {{.Host}}
+      httpScaledObject: {{.HTTPScaledObjectName}}
       scalerAddress: keda-http-add-on-external-scaler.keda:9090
 `
 )
