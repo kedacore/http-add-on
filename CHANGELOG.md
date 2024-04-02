@@ -29,7 +29,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: Operator is aware about changes on underlying ScaledObject ([#900](https://github.com/kedacore/http-add-on/issues/900))
+- **General**: Ensure operator is aware about changes on underlying ScaledObject ([#900](https://github.com/kedacore/http-add-on/issues/900))
 
 ### Deprecations
 
