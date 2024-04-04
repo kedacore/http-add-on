@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.12.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: httpscaledobjects.http.keda.sh
 spec:
   group: http.keda.sh
@@ -41,14 +41,19 @@ spec:
         description: HTTPScaledObject is the Schema for the httpscaledobjects API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -56,21 +61,20 @@ spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
               hosts:
-                description: The hosts to route. All requests which the "Host" header
-                  matches any .spec.hosts and the Request Target matches any .spec.pathPrefixes
-                  will be routed to the Service and Port specified in the scaleTargetRef.
-                  The .spec.hosts field is mutually exclusive with the .spec.host
-                  field.
+                description: |-
+                  The hosts to route. All requests which the "Host" header
+                  matches any .spec.hosts (and the Request Target matches any
+                  .spec.pathPrefixes) will be routed to the Service and Port specified in
+                  the scaleTargetRef.
                 items:
                   type: string
                 type: array
               pathPrefixes:
-                description: (optional) The paths to route. All requests which the
-                  Request Target matches any .spec.pathPrefixes and the "Host" header
-                  matches any .spec.hosts will be routed to the Service and Port specified
-                  in the scaleTargetRef. The .spec.hosts field is mutually exclusive
-                  with the .spec.host field. When this field is null, any path is
-                  matched.
+                description: |-
+                  The paths to route. All requests which the Request Target matches any
+                  .spec.pathPrefixes (and the "Host" header matches any .spec.hosts)
+                  will be routed to the Service and Port specified in
+                  the scaleTargetRef.
                 items:
                   type: string
                 type: array
