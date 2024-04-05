@@ -19,9 +19,9 @@ Before you install any of these components, you need to install KEDA. Below are 
 >This document will rely on environment variables such as `${NAMESPACE}` to indicate a value you should customize and provide to the relevant command. In the below `helm install` command, `${NAMESPACE}` should be the namespace you'd like to install KEDA into.
 
 ```console
-$ helm repo add kedacore https://kedacore.github.io/charts
-$ helm repo update
-$ helm install keda kedacore/keda --namespace ${NAMESPACE} --create-namespace
+helm repo add kedacore https://kedacore.github.io/charts
+helm repo update
+helm install keda kedacore/keda --namespace ${NAMESPACE} --create-namespace
 ```
 
 >The above command installs KEDA in cluster-global mode. Add `--set watchNamespace=<target namespace>` to install KEDA in namespaced mode.
@@ -49,7 +49,7 @@ There are a few values that you can pass to the above `helm install` command by 
 >If you want to install the latest build of the HTTP Add-on, set `version` to `canary`:
 
 ```console
-$ helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.tag=canary
+helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.tag=canary
 ```
 
 For an exhaustive list of configuration options, see the official HTTP Add-on chart [values.yaml file](https://github.com/kedacore/charts/blob/master/http-add-on/values.yaml).
@@ -59,16 +59,16 @@ For an exhaustive list of configuration options, see the official HTTP Add-on ch
 Local clusters like [Microk8s](https://microk8s.io/) offer in-cluster image registries. These are popular tools to speed up and ease local development. If you use such a tool for local development, we recommend that you use and push your images to its local registry. When you do, you'll want to set your `images.*` variables to the address of the local registry. In the case of MicroK8s, that address is `localhost:32000` and the `helm install` command would look like the following:
 
 ```console
-$ helm repo add kedacore https://kedacore.github.io/charts
-$ helm repo update
-$ helm pull kedacore/keda-add-ons-http --untar --untardir ./charts
-$ helm upgrade kedahttp ./charts/keda-add-ons-http \
-    --install \
-    --namespace ${NAMESPACE} \
-    --create-namespace \
-    --set image=localhost:32000/keda-http-operator \
-    --set images.scaler=localhost:32000/keda-http-scaler \
-    --set images.interceptor=localhost:32000/keda-http-interceptor
+helm repo add kedacore https://kedacore.github.io/charts
+helm repo update
+helm pull kedacore/keda-add-ons-http --untar --untardir ./charts
+helm upgrade kedahttp ./charts/keda-add-ons-http \
+  --install \
+  --namespace ${NAMESPACE} \
+  --create-namespace \
+  --set image=localhost:32000/keda-http-operator \
+  --set images.scaler=localhost:32000/keda-http-scaler \
+  --set images.interceptor=localhost:32000/keda-http-interceptor
 ```
 
 ## Compatibility Table
