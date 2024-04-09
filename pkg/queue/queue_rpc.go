@@ -65,7 +65,10 @@ func GetCounts(
 	interceptorURL.Path = countsPath
 	resp, err := httpCl.Get(interceptorURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("requesting the queue counts from %s: %w", interceptorURL.String(), err)
+		m := &Counts{
+			Counts: map[string]int{"all failed": 0},
+		}
+		return m, nil
 	}
 	defer resp.Body.Close()
 	counts := NewCounts()
