@@ -121,8 +121,10 @@ spec:
   hosts:
   - {{.Host1}}
   - {{.Host2}}
-  targetPendingRequests: 100
   scaledownPeriod: 10
+  scalingMetric:
+    concurrency:
+      targetValue: 20
   scaleTargetRef:
     deployment: {{.DeploymentName}}
     service: {{.ServiceName}}

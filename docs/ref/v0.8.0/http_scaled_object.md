@@ -1,6 +1,6 @@
 # The `HTTPScaledObject`
 
->This document reflects the specification of the `HTTPScaledObject` resource for the `v0.6.0` version.
+>This document reflects the specification of the `HTTPScaledObject` resource for the `v0.8.0` version.
 
 Each `HTTPScaledObject` looks approximately like the below:
 
@@ -15,13 +15,22 @@ spec:
     pathPrefixes:
     - /test
     scaleTargetRef:
-        deployment: xkcd
+        name: xkcd
+        kind: Deployment
+        apiVersion: apps/v1
         service: xkcd
         port: 8080
     replicas:
         min: 5
         max: 10
     scaledownPeriod: 300
+    scalingMetric: # requestRate and concurrency are mutually exclusive
+        requestRate:
+            granularity: 1s
+            targetValue: 100
+            window: 1m
+        concurrency:
+            targetValue: 100
 ```
 
 This document is a narrated reference guide for the `HTTPScaledObject`, and we'll focus on the `spec` field.
@@ -44,9 +53,21 @@ This is the primary and most important part of the `spec` because it describes:
 2. What workload to scale.
 3. The service to which to route HTTP traffic.
 
-### `deployment`
+### `deployment` (DEPRECTATED: removed as part of v0.9.0)
 
 This is the name of the `Deployment` to scale. It must exist in the same namespace as this `HTTPScaledObject` and shouldn't be managed by any other autoscaling system. This means that there should not be any `ScaledObject` already created for this `Deployment`. The HTTP Add-on will manage a `ScaledObject` internally.
+
+### `name`
+
+This is the name of the workload to scale. It must exist in the same namespace as this `HTTPScaledObject` and shouldn't be managed by any other autoscaling system. This means that there should not be any `ScaledObject` already created for this workload. The HTTP Add-on will manage a `ScaledObject` internally.
+
+### `kind`
+
+This is the kind of the workload to scale.
+
+### `apiVersion`
+
+This is the apiVersion of the workload to scale.
 
 ### `service`
 
@@ -56,7 +77,7 @@ This is the name of the service to route traffic to. The add-on will create auto
 
 This is the port to route to on the service that you specified in the `service` field. It should be exposed on the service and should route to a valid `containerPort` on the `Deployment` you gave in the `deployment` field.
 
-### `targetPendingRequests`
+### `targetPendingRequests` (DEPRECTATED: removed as part of v0.9.0)
 
 >Default: 100
 
@@ -71,3 +92,46 @@ For example, if you set this field to 100, the HTTP Add-on will scale your app u
 The period to wait after the last reported active before scaling the resource back to 0.
 
 > Note: This time is measured on KEDA side based on in-flight requests, so workloads with few and random traffic could have unexpected scale to 0 cases. In those case we recommend to extend this period to ensure it doesn't happen.
+
+
+## `scalingMetric`
+
+This is the second most important part of the `spec` because it describes how the workload has to scale. This section contains 2 nested sections (`requestRate` and `concurrency`) which are mutually exclusive between themselves.
+
+### `requestRate`
+
+This section enables scaling based on the request rate.
+
+> **NOTE**: Requests information is stored in memory, aggragating long periods (longer than 5 minutes) or too fine granularity (less than 1 second) could produce perfomance issues or memory usage increase.
+
+> **NOTE 2**: Although updating `window` and/or `granularity` is something doable, the process just replaces all the stored request count infomation. This can produce unexpected scaling behaviours until the window is populated again.
+
+#### `targetValue`
+
+>Default: 100
+
+This is the target value for the scaling configuration.
+
+#### `window`
+
+>Default: "1m"
+
+This value defines the aggregation window for the request rate calculation.
+
+#### `granularity`
+
+>Default: "1s"
+
+This value defines the granualarity of the aggregated requests for the request rate calculation.
+
+### `concurrency`
+
+This section enables scaling based on the request concurrency.
+
+> **NOTE**: This is the only scaling behaviour before v0.8.0
+
+#### `targetValue`
+
+>Default: 100
+
+This is the target value for the scaling configuration.

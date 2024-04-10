@@ -9,15 +9,31 @@ import (
 func TestAggregate(t *testing.T) {
 	r := require.New(t)
 	counts := NewCounts()
-	counts.Counts = map[string]int{
-		"host1": 123,
-		"host2": 234,
-		"host3": 456,
-		"host4": 567,
+	counts.Counts = map[string]Count{
+		"host1": {
+			Concurrency: 123,
+			RPS:         123,
+		},
+		"host2": {
+			Concurrency: 234,
+			RPS:         234,
+		},
+		"host3": {
+			Concurrency: 345,
+			RPS:         345,
+		},
+		"host4": {
+			Concurrency: 456,
+			RPS:         456,
+		},
 	}
-	expectedAgg := 0
+	expectedConcurrency := 0
+	expectedRPS := 0.
 	for _, v := range counts.Counts {
-		expectedAgg += v
+		expectedConcurrency += v.Concurrency
+		expectedRPS += v.RPS
 	}
-	r.Equal(expectedAgg, counts.Aggregate())
+	agg := counts.Aggregate()
+	r.Equal(expectedConcurrency, agg.Concurrency)
+	r.Equal(expectedRPS, agg.RPS)
 }

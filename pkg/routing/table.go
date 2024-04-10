@@ -15,6 +15,7 @@ import (
 	"github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -40,9 +41,10 @@ type table struct {
 	httpScaledObjectsMutex                   sync.RWMutex
 	memoryHolder                             util.AtomicValue[TableMemory]
 	memorySignaler                           util.Signaler
+	queueCounter                             queue.Counter
 }
 
-func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string) (Table, error) {
+func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string, counter queue.Counter) (Table, error) {
 	httpScaledObjects := informershttpv1alpha1.New(sharedInformerFactory, namespace, nil).HTTPScaledObjects()
 
 	t := table{
@@ -61,7 +63,7 @@ func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, name
 		return nil, err
 	}
 	t.httpScaledObjectEventHandlerRegistration = registration
-
+	t.queueCounter = counter
 	return &t, nil
 }
 
@@ -150,6 +152,15 @@ func (t *table) OnAdd(obj interface{}, _ bool) {
 	}
 	key := *k8s.NamespacedNameFromObject(httpScaledObject)
 
+	window := time.Minute
+	granualrity := time.Second
+	if httpScaledObject.Spec.ScalingMetric != nil &&
+		httpScaledObject.Spec.ScalingMetric.Rate != nil {
+		window = httpScaledObject.Spec.ScalingMetric.Rate.Window.Duration
+		granualrity = httpScaledObject.Spec.ScalingMetric.Rate.Granularity.Duration
+	}
+	t.queueCounter.EnsureKey(key.String(), window, granualrity)
+
 	defer t.memorySignaler.Signal()
 
 	t.httpScaledObjectsMutex.Lock()
@@ -171,8 +182,16 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 	}
 	newKey := *k8s.NamespacedNameFromObject(newHTTPSO)
 
-	mustDelete := oldKey != newKey
+	window := time.Minute
+	granualrity := time.Second
+	if newHTTPSO.Spec.ScalingMetric != nil &&
+		newHTTPSO.Spec.ScalingMetric.Rate != nil {
+		window = newHTTPSO.Spec.ScalingMetric.Rate.Window.Duration
+		granualrity = newHTTPSO.Spec.ScalingMetric.Rate.Granularity.Duration
+	}
+	t.queueCounter.UpdateBuckets(newKey.String(), window, granualrity)
 
+	mustDelete := oldKey != newKey
 	defer t.memorySignaler.Signal()
 
 	t.httpScaledObjectsMutex.Lock()
@@ -182,6 +201,7 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 
 	if mustDelete {
 		delete(t.httpScaledObjects, oldKey)
+		t.queueCounter.RemoveKey(oldKey.String())
 	}
 }
 
@@ -198,6 +218,8 @@ func (t *table) OnDelete(obj interface{}) {
 	defer t.httpScaledObjectsMutex.Unlock()
 
 	delete(t.httpScaledObjects, key)
+
+	t.queueCounter.RemoveKey(key.String())
 }
 
 var _ util.HealthChecker = (*table)(nil)

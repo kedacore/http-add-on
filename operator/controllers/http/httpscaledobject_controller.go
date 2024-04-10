@@ -110,6 +110,15 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		httpso.Name,
 	)
 
+	// check if ScalingMetric is correct
+	if httpso.Spec.ScalingMetric != nil &&
+		httpso.Spec.ScalingMetric.Concurrency != nil &&
+		httpso.Spec.ScalingMetric.Rate != nil {
+		err := fmt.Errorf(".spec.scalingMetric.concurrency and .spec.scalingMetric.rate are mutually exclusive")
+		logger.Error(err, "invalid values for .spec.scalingMetric")
+		return ctrl.Result{}, err
+	}
+
 	// Create required app objects for the application defined by the CRD
 	err := r.createOrUpdateApplicationResources(
 		ctx,

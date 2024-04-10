@@ -5,8 +5,16 @@ import (
 	"fmt"
 )
 
-// Counts is a snapshot of the HTTP pending request queue counts
-// for each host.
+// Count is a snapshot of the HTTP pending request (Concurrency)
+// count and RPS
+
+type Count struct {
+	Concurrency int
+	RPS         float64
+}
+
+// Count is a snapshot of the HTTP pending request (Concurrency)
+// count and RPS for each host.
 // This is a json.Marshaler, json.Unmarshaler, and fmt.Stringer
 // implementation.
 //
@@ -15,23 +23,24 @@ type Counts struct {
 	json.Marshaler
 	json.Unmarshaler
 	fmt.Stringer
-	Counts map[string]int
+	Counts map[string]Count
 }
 
 // NewQueueCounts creates a new empty QueueCounts struct
 func NewCounts() *Counts {
 	return &Counts{
-		Counts: map[string]int{},
+		Counts: map[string]Count{},
 	}
 }
 
 // Aggregate returns the total count across all hosts
-func (q *Counts) Aggregate() int {
-	agg := 0
+func (q *Counts) Aggregate() Count {
+	res := Count{}
 	for _, count := range q.Counts {
-		agg += count
+		res.Concurrency += count.Concurrency
+		res.RPS += count.RPS
 	}
-	return agg
+	return res
 }
 
 // MarshalJSON implements json.Marshaler

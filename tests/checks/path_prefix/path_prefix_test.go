@@ -185,7 +185,9 @@ spec:
   - {{.Host}}
   pathPrefixes:
   - {{.PathPrefix2}}
-  targetPendingRequests: 100
+  scalingMetric:
+    concurrency:
+      targetValue: 20
   scaledownPeriod: 10
   scaleTargetRef:
     deployment: {{.DeploymentName}}-2

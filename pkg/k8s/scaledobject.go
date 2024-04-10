@@ -1,8 +1,6 @@
 package k8s
 
 import (
-	"strings"
-
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -14,9 +12,8 @@ const (
 	soPollingInterval = 15
 	soTriggerType     = "external-push"
 
-	mkScalerAddress = "scalerAddress"
-	mkHosts         = "hosts"
-	mkPathPrefixes  = "pathPrefixes"
+	ScalerAddressKey    = "scalerAddress"
+	HTTPScaledObjectKey = "httpScaledObject"
 )
 
 // NewScaledObject creates a new ScaledObject in memory
@@ -27,8 +24,6 @@ func NewScaledObject(
 	annotations map[string]string,
 	workloadRef v1alpha1.ScaleTargetRef,
 	scalerAddress string,
-	hosts []string,
-	pathPrefixes []string,
 	minReplicas *int32,
 	maxReplicas *int32,
 	cooldownPeriod *int32,
@@ -61,9 +56,8 @@ func NewScaledObject(
 				{
 					Type: soTriggerType,
 					Metadata: map[string]string{
-						mkScalerAddress: scalerAddress,
-						mkHosts:         strings.Join(hosts, ","),
-						mkPathPrefixes:  strings.Join(pathPrefixes, ","),
+						ScalerAddressKey:    scalerAddress,
+						HTTPScaledObjectKey: name,
 					},
 				},
 			},

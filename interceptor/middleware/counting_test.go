@@ -56,10 +56,9 @@ func TestCountMiddleware(t *testing.T) {
 
 	ctx := context.Background()
 
-	// for a valid request, we expect the queue to be resized twice.
+	// for a valid request, we expect the queue to be modified twice.
 	// once to mark a pending HTTP request, then a second time to remove it.
-	// by the end of both sends, resize1 + resize2 should be 0,
-	// or in other words, the queue size should be back to zero
+	// by the end of both sends, increase1 + decrease1 should be 2
 
 	// run middleware with the host in the request
 	req, err := http.NewRequest("GET", "/something", nil)
@@ -70,7 +69,7 @@ func TestCountMiddleware(t *testing.T) {
 	req = req.WithContext(reqCtx)
 	req.Host = uri.Host
 
-	agg, respRecorder := expectResizes(
+	agg, respRecorder := expectUpdates(
 		ctx,
 		t,
 		2,
@@ -86,10 +85,10 @@ func TestCountMiddleware(t *testing.T) {
 	)
 	r.Equal(http.StatusOK, respRecorder.Code)
 	r.Equal(http.StatusText(respRecorder.Code), respRecorder.Body.String())
-	r.Equal(0, agg)
+	r.Equal(2, agg)
 }
 
-// expectResizes creates a new httptest.ResponseRecorder, then passes req through
+// expectUpdates creates a new httptest.ResponseRecorder, then passes req through
 // the middleware. every time the middleware calls fakeCounter.Resize(), it calls
 // resizeCheckFn with t and the queue.HostCount that represents the resize call
 // that was made. it also maintains an aggregate delta of the counts passed to
@@ -98,7 +97,7 @@ func TestCountMiddleware(t *testing.T) {
 //
 // this function returns the aggregate and the httptest.ResponseRecorder that was
 // created and used with the middleware
-func expectResizes(
+func expectUpdates(
 	ctx context.Context,
 	t *testing.T,
 	nResizes int,

@@ -7,6 +7,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -145,13 +147,22 @@ func (e *impl) GetMetricSpec(
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 		return nil, err
 	}
-	targetPendingRequests := int64(ptr.Deref(httpso.Spec.TargetPendingRequests, 100))
+	targetValue := int64(ptr.Deref(httpso.Spec.TargetPendingRequests, 100))
+
+	if httpso.Spec.ScalingMetric != nil {
+		if httpso.Spec.ScalingMetric.Concurrency != nil {
+			targetValue = int64(httpso.Spec.ScalingMetric.Concurrency.TargetValue)
+		}
+		if httpso.Spec.ScalingMetric.Rate != nil {
+			targetValue = int64(httpso.Spec.ScalingMetric.Rate.TargetValue)
+		}
+	}
 
 	res := &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{
 				MetricName: metricName,
-				TargetSize: targetPendingRequests,
+				TargetSize: targetValue,
 			},
 		},
 	}
@@ -182,27 +193,49 @@ func (e *impl) GetMetrics(
 	_ context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
 ) (*externalscaler.GetMetricsResponse, error) {
+	lggr := e.lggr.WithName("GetMetrics")
 	sor := metricRequest.ScaledObjectRef
 
 	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
 	metricName := MetricName(namespacedName)
 
-	key := namespacedName.String()
-	count := int64(e.pinger.counts()[key])
-
-	if count == 0 {
+	scalerMetadata := sor.GetScalerMetadata()
+	httpScaledObjectName, ok := scalerMetadata[k8s.HTTPScaledObjectKey]
+	if !ok {
 		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
 			if _, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
 				return e.interceptorMetrics(metricName)
 			}
 		}
+		err := fmt.Errorf("unable to get HTTPScaledObject reference")
+		lggr.Error(err, "unable to get the linked HTTPScaledObject for ScaledObject", "name", sor.Name, "namespace", sor.Namespace)
+		return nil, err
+	}
+
+	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(httpScaledObjectName)
+	if err != nil {
+		lggr.Error(err, "unable to get HTTPScaledObject", "name", httpScaledObjectName, "namespace", sor.Namespace)
+		return nil, err
+	}
+
+	key := namespacedName.String()
+	count := e.pinger.counts()[key]
+
+	var metricValue int
+	if httpso.Spec.ScalingMetric != nil &&
+		httpso.Spec.ScalingMetric.Rate != nil {
+		metricValue = int(math.Ceil(count.RPS))
+		lggr.V(1).Info(fmt.Sprintf("%d rps for %s", metricValue, httpso.GetName()))
+	} else {
+		metricValue = count.Concurrency
+		lggr.V(1).Info(fmt.Sprintf("%d concurrent requests for %s", metricValue, httpso.GetName()))
 	}
 
 	res := &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
 			{
 				MetricName:  metricName,
-				MetricValue: count,
+				MetricValue: int64(metricValue),
 			},
 		},
 	}
@@ -214,7 +247,7 @@ func (e *impl) interceptorMetrics(metricName string) (*externalscaler.GetMetrics
 
 	var count int64
 	for _, v := range e.pinger.counts() {
-		count += int64(v)
+		count += int64(v.Concurrency)
 	}
 	if err := strconv.ErrRange; count < 0 {
 		lggr.Error(err, "count overflowed", "value", count)

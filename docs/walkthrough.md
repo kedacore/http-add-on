@@ -95,7 +95,7 @@ For scenerios where you want to integrate HTTP Add-On scaler with other keda sca
 
 > 💡 Ensure that your ScaledObject is created with a different name than the `HTTPScaledObject` to ensure your ScaledObject is not removed by the reconciler.
 
-It is reccomended that you first deploy your HTTPScaledObject with no annotation set in order to obtain the latest trigger spec to use on your own managed ScaledObject.
+If you don't know how to set the external scaler in the ScaledObject, you can deploy first your HTTPScaledObject with no annotation set in order to obtain the latest trigger spec to use on your own managed ScaledObject.
 
 1. Deploy your `HTTPScaledObject` with annotation set to false
 
@@ -112,8 +112,7 @@ For example:
   triggers:
   - type: external-push
     metadata:
-      hosts: example-service
-      pathPrefixes: ""
+      httpScaledObject: YOUR_HTTPSCALEDOBJECT_NAME
       scalerAddress: keda-http-add-on-external-scaler.keda:9090
 ```
 

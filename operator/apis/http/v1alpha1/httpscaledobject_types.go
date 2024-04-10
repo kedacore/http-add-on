@@ -45,6 +45,38 @@ type ReplicaStruct struct {
 	Max *int32 `json:"max,omitempty" description:"Maximum amount of replicas to have in the deployment (Default 100)"`
 }
 
+// ScalingMetricSpec contains the scaling calculation type
+type ScalingMetricSpec struct {
+	// Scaling based on concurrent requests for a given target
+	Concurrency *ConcurrencyMetricSpec `json:"concurrency,omitempty" description:"Scaling based on concurrent requests for a given target. 'concurrency' and 'rate' are mutually exclusive."`
+	// Scaling based the average rate during an specific time window for a given target
+	Rate *RateMetricSpec `json:"requestRate,omitempty" description:"Scaling based the average rate during an specific time window for a given target. 'concurrency' and 'rate' are mutually exclusive."`
+}
+
+// ConcurrencyMetricSpec defines the concurrency scaling
+type ConcurrencyMetricSpec struct {
+	// Target value for rate scaling
+	// +kubebuilder:default=100
+	// +optional
+	TargetValue int `json:"targetValue" description:"Target value for concurrency scaling"`
+}
+
+// RateMetricSpec defines the concurrency scaling
+type RateMetricSpec struct {
+	// Target value for rate scaling
+	// +kubebuilder:default=100
+	// +optional
+	TargetValue int `json:"targetValue" description:"Target value for rate scaling"`
+	// Time window for rate calculation
+	// +kubebuilder:default="1m"
+	// +optional
+	Window metav1.Duration `json:"window" description:"Time window for rate calculation"`
+	// Time granularity for rate calculation
+	// +kubebuilder:default="1s"
+	// +optional
+	Granularity metav1.Duration `json:"granularity" description:"Time granularity for rate calculation"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -63,12 +95,15 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Replica information
 	// +optional
 	Replicas *ReplicaStruct `json:"replicas,omitempty"`
-	// (optional) Target metric value
+	// (optional) DEPRECATED (use SscalingMetric instead) Target metric value
 	// +optional
 	TargetPendingRequests *int32 `json:"targetPendingRequests,omitempty" description:"The target metric value for the HPA (Default 100)"`
 	// (optional) Cooldown period value
 	// +optional
 	CooldownPeriod *int32 `json:"scaledownPeriod,omitempty" description:"Cooldown period (seconds) for resources to scale down (Default 300)"`
+	// (optional) Configuration for the metric used for scaling
+	// +optional
+	ScalingMetric *ScalingMetricSpec `json:"scalingMetric,omitempty" description:"Configuration for the metric used for scaling. If empty 'concurrency' will be used"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject

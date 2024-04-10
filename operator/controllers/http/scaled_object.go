@@ -41,8 +41,6 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 		httpso.Annotations,
 		httpso.Spec.ScaleTargetRef,
 		externalScalerHostName,
-		httpso.Spec.Hosts,
-		httpso.Spec.PathPrefixes,
 		minReplicaCount,
 		maxReplicaCount,
 		httpso.Spec.CooldownPeriod,

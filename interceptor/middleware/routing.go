@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	kpUserAgent = regexp.MustCompile(`(^|\s)kube-probe/`)
-	ghUserAgent = regexp.MustCompile(`(^|\s)GoogleHC/`)
+	kubernetesProbeUserAgent = regexp.MustCompile(`(^|\s)kube-probe/`)
+	googleHCUserAgent        = regexp.MustCompile(`(^|\s)GoogleHC/`)
 )
 
 type Routing struct {
@@ -75,5 +75,5 @@ func (rm *Routing) streamFromHTTPSO(httpso *httpv1alpha1.HTTPScaledObject) (*url
 func (rm *Routing) isProbe(r *http.Request) bool {
 	ua := r.UserAgent()
 
-	return kpUserAgent.Match([]byte(ua)) || ghUserAgent.Match([]byte(ua))
+	return kubernetesProbeUserAgent.Match([]byte(ua)) || googleHCUserAgent.Match([]byte(ua))
 }

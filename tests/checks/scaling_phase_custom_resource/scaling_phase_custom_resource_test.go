@@ -113,7 +113,7 @@ spec:
           - "-n"
           - "2000000"
           - "-c"
-          - "20"
+          - "5"
           - "-H"
           - "Host: {{.Host}}"
           - "http://keda-http-add-on-interceptor-proxy.keda:8080/"
@@ -131,8 +131,12 @@ metadata:
 spec:
   hosts:
   - {{.Host}}
-  targetPendingRequests: 2
-  scaledownPeriod: 10
+  scalingMetric:
+    requestRate:
+      granularity: 1s
+      targetValue: 20
+      window: 1m
+  scaledownPeriod: 0
   scaleTargetRef:
     name: {{.RolloutName}}
     apiVersion: argoproj.io/v1alpha1

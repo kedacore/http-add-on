@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var _ Counter = &FakeCounter{}
+var _ Counter = (*FakeCounter)(nil)
 
 type HostAndCount struct {
 	Host  string
@@ -14,7 +14,7 @@ type HostAndCount struct {
 }
 type FakeCounter struct {
 	mapMut        *sync.RWMutex
-	RetMap        map[string]int
+	RetMap        map[string]Count
 	ResizedCh     chan HostAndCount
 	ResizeTimeout time.Duration
 }
@@ -22,34 +22,58 @@ type FakeCounter struct {
 func NewFakeCounter() *FakeCounter {
 	return &FakeCounter{
 		mapMut:        new(sync.RWMutex),
-		RetMap:        map[string]int{},
+		RetMap:        map[string]Count{},
 		ResizedCh:     make(chan HostAndCount),
 		ResizeTimeout: 1 * time.Second,
 	}
 }
 
-func (f *FakeCounter) Resize(host string, i int) error {
+func (f *FakeCounter) Increase(host string, i int) error {
 	f.mapMut.Lock()
-	f.RetMap[host] += i
+	count := f.RetMap[host]
+	count.Concurrency += i
+	count.RPS += float64(i)
+	f.RetMap[host] = count
 	f.mapMut.Unlock()
 	select {
 	case f.ResizedCh <- HostAndCount{Host: host, Count: i}:
 	case <-time.After(f.ResizeTimeout):
 		return fmt.Errorf(
-			"FakeCounter.Resize timeout after %s",
+			"FakeCounter.Increase timeout after %s",
 			f.ResizeTimeout,
 		)
 	}
 	return nil
 }
 
-func (f *FakeCounter) Ensure(host string) {
+func (f *FakeCounter) Decrease(host string, i int) error {
 	f.mapMut.Lock()
-	defer f.mapMut.Unlock()
-	f.RetMap[host] = 0
+	count := f.RetMap[host]
+	count.Concurrency -= i
+	f.RetMap[host] = count
+	f.mapMut.Unlock()
+	select {
+	case f.ResizedCh <- HostAndCount{Host: host, Count: i}:
+	case <-time.After(f.ResizeTimeout):
+		return fmt.Errorf(
+			"FakeCounter.Decrease timeout after %s",
+			f.ResizeTimeout,
+		)
+	}
+	return nil
 }
 
-func (f *FakeCounter) Remove(host string) bool {
+func (f *FakeCounter) EnsureKey(host string, _, _ time.Duration) {
+	f.mapMut.Lock()
+	defer f.mapMut.Unlock()
+	f.RetMap[host] = Count{
+		Concurrency: 0,
+	}
+}
+
+func (f *FakeCounter) UpdateBuckets(_ string, _, _ time.Duration) {}
+
+func (f *FakeCounter) RemoveKey(host string) bool {
 	f.mapMut.Lock()
 	defer f.mapMut.Unlock()
 	_, ok := f.RetMap[host]
@@ -69,14 +93,18 @@ func (f *FakeCounter) Current() (*Counts, error) {
 var _ CountReader = &FakeCountReader{}
 
 type FakeCountReader struct {
-	current int
-	err     error
+	concurrency int
+	rps         float64
+	err         error
 }
 
 func (f *FakeCountReader) Current() (*Counts, error) {
 	ret := NewCounts()
-	ret.Counts = map[string]int{
-		"sample.com": f.current,
+	ret.Counts = map[string]Count{
+		"sample.com": {
+			Concurrency: f.concurrency,
+			RPS:         f.rps,
+		},
 	}
 	return ret, f.err
 }

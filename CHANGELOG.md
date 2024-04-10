@@ -24,8 +24,11 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: Propagate HTTPScaledObject labels and annotations to ScaledObject ([#840](https://github.com/kedacore/http-add-on/issues/840))
 - **General**: Provide support to allow HTTP scaler to work alongside other core KEDA scalers ([#489](https://github.com/kedacore/http-add-on/issues/489))
+- **General**: Support aggregation windows ([#882](https://github.com/kedacore/http-add-on/issues/882))
 
 ### Improvements
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Fixes
 
@@ -35,16 +38,13 @@ This changelog keeps track of work items that have been completed and are ready 
 
 You can find all deprecations in [this overview](https://github.com/kedacore/http-add-on/labels/breaking-change) and [join the discussion here](https://github.com/kedacore/http-add-on/discussions/categories/deprecations).
 
-New deprecation(s):
-
-
-Previously announced deprecation(s):
-
+- **General**: Deprecated `.spec.scaleTargetRef.deployment` ([#960](https://github.com/kedacore/http-add-on/discussions/960))
 - **General**: Deprecated `KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS` in favor of `KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS` ([#438](https://github.com/kedacore/http-add-on/issues/438))
+- **General**: Deprecated `targetPendingRequests` in favor of `spec.scalingMetric.*.targetValue` ([#959](https://github.com/kedacore/http-add-on/discussions/959))
 
 ### Other
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Unify loggers ([#958](https://github.com/kedacore/http-add-on/issues/958))
 
 ## v0.7.0
 

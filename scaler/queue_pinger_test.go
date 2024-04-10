@@ -30,16 +30,29 @@ func TestCounts(t *testing.T) {
 
 	// assemble an in-memory queue and start up a fake server that serves it.
 	// we'll configure the queue pinger to use that server below
-	counts := map[string]int{
-		"host1": 123,
-		"host2": 234,
-		"host3": 456,
-		"host4": 809,
+	counts := map[string]queue.Count{
+		"host1": {
+			Concurrency: 123,
+			RPS:         123,
+		},
+		"host2": {
+			Concurrency: 234,
+			RPS:         234,
+		},
+		"host3": {
+			Concurrency: 345,
+			RPS:         345,
+		},
+		"host4": {
+			Concurrency: 456,
+			RPS:         456,
+		},
 	}
 
 	q := queue.NewMemory()
 	for host, count := range counts {
-		r.NoError(q.Resize(host, count))
+		q.EnsureKey(host, time.Minute, time.Second)
+		r.NoError(q.Increase(host, count.Concurrency))
 	}
 
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
@@ -85,7 +98,8 @@ func TestCounts(t *testing.T) {
 
 		// note that the returned value should be:
 		// (queue_count * num_endpoints)
-		r.Equal(count*3, retCount)
+		r.Equal(count.Concurrency*3, retCount.Concurrency)
+		r.Equal(count.RPS*3, retCount.RPS)
 	}
 }
 
@@ -101,14 +115,28 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		numEndpoints = 3
 	)
 	counts := queue.NewCounts()
-	counts.Counts = map[string]int{
-		"host1": 123,
-		"host2": 234,
-		"host3": 345,
+	counts.Counts = map[string]queue.Count{
+		"host1": {
+			Concurrency: 123,
+			RPS:         123,
+		},
+		"host2": {
+			Concurrency: 234,
+			RPS:         234,
+		},
+		"host3": {
+			Concurrency: 345,
+			RPS:         345,
+		},
+		"host4": {
+			Concurrency: 456,
+			RPS:         456,
+		},
 	}
 	q := queue.NewMemory()
 	for host, count := range counts.Counts {
-		r.NoError(q.Resize(host, count))
+		q.EnsureKey(host, time.Minute, time.Second)
+		r.NoError(q.Increase(host, count.Concurrency))
 	}
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
 		svcName, q, numEndpoints,
@@ -130,21 +158,18 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
-		// time.NewTicker(1*time.Millisecond),
 	)
 
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
 
 	// since all endpoints serve the same counts,
-	// expected aggregate is individual count * # endpoints
-	expectedAgg := counts.Aggregate() * numEndpoints
-	r.Equal(expectedAgg, pinger.aggregateCount)
-	// again, since all endpoints serve the same counts,
 	// the hosts will be the same as the original counts,
 	// but the value is (individual count * # endpoints)
 	expectedCounts := counts.Counts
 	for host, val := range expectedCounts {
-		expectedCounts[host] = val * numEndpoints
+		val.Concurrency *= 3
+		val.RPS *= 3
+		expectedCounts[host] = val
 	}
 	r.Equal(expectedCounts, pinger.allCounts)
 }
@@ -160,14 +185,28 @@ func TestFetchCounts(t *testing.T) {
 		numEndpoints = 3
 	)
 	counts := queue.NewCounts()
-	counts.Counts = map[string]int{
-		"host1": 123,
-		"host2": 234,
-		"host3": 345,
+	counts.Counts = map[string]queue.Count{
+		"host1": {
+			Concurrency: 123,
+			RPS:         123,
+		},
+		"host2": {
+			Concurrency: 234,
+			RPS:         234,
+		},
+		"host3": {
+			Concurrency: 345,
+			RPS:         345,
+		},
+		"host4": {
+			Concurrency: 456,
+			RPS:         456,
+		},
 	}
 	q := queue.NewMemory()
 	for host, count := range counts.Counts {
-		r.NoError(q.Resize(host, count))
+		q.EnsureKey(host, time.Minute, time.Second)
+		r.NoError(q.Increase(host, count.Concurrency))
 	}
 	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
 		svcName, q, numEndpoints,
@@ -183,7 +222,7 @@ func TestFetchCounts(t *testing.T) {
 		return endpoints, nil
 	}
 
-	cts, agg, err := fetchCounts(
+	cts, err := fetchCounts(
 		ctx,
 		logr.Discard(),
 		endpointsFn,
@@ -192,16 +231,15 @@ func TestFetchCounts(t *testing.T) {
 		srvURL.Port(),
 	)
 	r.NoError(err)
+
 	// since all endpoints serve the same counts,
-	// expected aggregate is individual count * # endpoints
-	expectedAgg := counts.Aggregate() * numEndpoints
-	r.Equal(expectedAgg, agg)
-	// again, since all endpoints serve the same counts,
 	// the hosts will be the same as the original counts,
 	// but the value is (individual count * # endpoints)
 	expectedCounts := counts.Counts
 	for host, val := range expectedCounts {
-		expectedCounts[host] = val * numEndpoints
+		val.Concurrency *= 3
+		val.RPS *= 3
+		expectedCounts[host] = val
 	}
 	r.Equal(expectedCounts, cts)
 }
