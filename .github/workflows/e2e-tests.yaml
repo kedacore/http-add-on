@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
 
       - name: Helm install
-        uses: Azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3.5
+        uses: Azure/setup-helm@b7246b12e77f7134dc2d460a3d5bad15bbe29390 # v4.1.0
 
       - name: Create k8s ${{ matrix.kubernetesVersion }} Kind Cluster
         uses: helm/kind-action@99576bfa6ddf9a8e612d83b513da5a75875caced # v1.9.0
@@ -106,7 +106,7 @@ jobs:
           go-version: "1.21"
 
       - name: Helm install
-        uses: Azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3.5
+        uses: Azure/setup-helm@b7246b12e77f7134dc2d460a3d5bad15bbe29390 # v4.1.0
 
       - name: Create k8s ${{ matrix.kubernetesVersion }} Kind Cluster
         uses: helm/kind-action@99576bfa6ddf9a8e612d83b513da5a75875caced # v1.9.0
