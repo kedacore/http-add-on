@@ -45,6 +45,7 @@ You can find all deprecations in [this overview](https://github.com/kedacore/htt
 ### Other
 
 - **General**: Unify loggers ([#958](https://github.com/kedacore/http-add-on/issues/958))
+- **General**: Align with the new format of Ingress in the example demo ([#979](https://github.com/kedacore/http-add-on/pull/979))
 
 ## v0.7.0
 
