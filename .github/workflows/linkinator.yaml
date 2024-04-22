@@ -13,7 +13,7 @@ jobs:
   linkinator:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4
       - uses: JustinBeckwith/linkinator-action@39e601e8efc0c24b7228ec87e43f4b9abebf3b25 # v1
         with:
           paths: "**/*.md"

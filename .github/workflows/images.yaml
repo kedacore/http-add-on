@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/kedacore/keda-tools:1.21.6
     steps:
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4
       - name: Register workspace path
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Scaler
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/kedacore/keda-tools:1.21.6
     steps:
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4
       - name: Register workspace path
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Operator
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/kedacore/keda-tools:1.21.6
     steps:
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4
       - name: Register workspace path
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build The Interceptor
