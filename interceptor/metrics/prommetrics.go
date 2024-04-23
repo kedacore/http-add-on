@@ -15,9 +15,9 @@ import (
 )
 
 type PrometheusMetrics struct {
-	meter               api.Meter
-	requestCounter      api.Int64Counter
-	pendingRequestGauge api.Int64ObservableGauge
+	meter                 api.Meter
+	requestCounter        api.Int64Counter
+	pendingRequestCounter api.Int64UpDownCounter
 }
 
 func NewPrometheusMetrics(options ...prometheus.Option) *PrometheusMetrics {
@@ -49,15 +49,15 @@ func NewPrometheusMetrics(options ...prometheus.Option) *PrometheusMetrics {
 		log.Fatalf("could not create new Prometheus request counter: %v", err)
 	}
 
-	pendingRequestGauge, err := meter.Int64ObservableGauge("interceptor_pending_request_count", api.WithDescription("a gauge of requests pending forwarding by the interceptor proxy"))
+	pendingRequestCounter, err := meter.Int64UpDownCounter("interceptor_pending_request_count", api.WithDescription("a count of requests pending forwarding by the interceptor proxy"))
 	if err != nil {
-		log.Fatalf("could not create new Prometheus pending request gauge: %v", err)
+		log.Fatalf("could not create new Prometheus pending request counter: %v", err)
 	}
 
 	return &PrometheusMetrics{
-		meter:               meter,
-		requestCounter:      reqCounter,
-		pendingRequestGauge: pendingRequestGauge,
+		meter:                 meter,
+		requestCounter:        reqCounter,
+		pendingRequestCounter: pendingRequestCounter,
 	}
 }
 
@@ -75,17 +75,12 @@ func (p *PrometheusMetrics) RecordRequestCount(method string, path string, respo
 }
 
 func (p *PrometheusMetrics) RecordPendingRequestCount(host string, value int64) {
+	ctx := context.Background()
 	opt := api.WithAttributeSet(
 		attribute.NewSet(
 			attribute.Key("host").String(host),
 		),
 	)
 
-	_, err := p.meter.RegisterCallback(func(_ context.Context, o api.Observer) error {
-		o.ObserveInt64(p.pendingRequestGauge, value, opt)
-		return nil
-	}, p.pendingRequestGauge)
-	if err != nil {
-		log.Printf("error recording pending request values in prometheus gauge: %v", err)
-	}
+	p.pendingRequestCounter.Add(ctx, value, opt)
 }

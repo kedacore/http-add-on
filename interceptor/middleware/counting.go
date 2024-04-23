@@ -69,10 +69,7 @@ func (cm *Counting) inc(logger logr.Logger, key string) bool {
 		return false
 	}
 
-	currentCount, validCount := cm.queueCounter.CurrentForHost(key)
-	if validCount {
-		metrics.RecordPendingRequestCount(key, int64(currentCount))
-	}
+	metrics.RecordPendingRequestCount(key, int64(1))
 
 	return true
 }
@@ -84,10 +81,7 @@ func (cm *Counting) dec(logger logr.Logger, key string) bool {
 		return false
 	}
 
-	currentCount, validCount := cm.queueCounter.CurrentForHost(key)
-	if validCount {
-		metrics.RecordPendingRequestCount(key, int64(currentCount))
-	}
+	metrics.RecordPendingRequestCount(key, int64(-1))
 
 	return true
 }

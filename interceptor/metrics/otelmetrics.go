@@ -18,9 +18,9 @@ import (
 )
 
 type OtelMetrics struct {
-	meter               api.Meter
-	requestCounter      api.Int64Counter
-	pendingRequestGauge api.Int64ObservableGauge
+	meter                 api.Meter
+	requestCounter        api.Int64Counter
+	pendingRequestCounter api.Int64UpDownCounter
 }
 
 func NewOtelMetrics(metricsConfig *config.Metrics, options ...metric.Option) *OtelMetrics {
@@ -63,15 +63,15 @@ func NewOtelMetrics(metricsConfig *config.Metrics, options ...metric.Option) *Ot
 		log.Fatalf("could not create new otelhttpmetric request counter: %v", err)
 	}
 
-	pendingRequestGauge, err := meter.Int64ObservableGauge("interceptor_pending_request_count", api.WithDescription("a gauge of requests pending forwarding by the interceptor proxy"))
+	pendingRequestCounter, err := meter.Int64UpDownCounter("interceptor_pending_request_count", api.WithDescription("a count of requests pending forwarding by the interceptor proxy"))
 	if err != nil {
-		log.Fatalf("could not create new otelhttpmetric pending request gauge: %v", err)
+		log.Fatalf("could not create new otelhttpmetric pending request counter: %v", err)
 	}
 
 	return &OtelMetrics{
-		meter:               meter,
-		requestCounter:      reqCounter,
-		pendingRequestGauge: pendingRequestGauge,
+		meter:                 meter,
+		requestCounter:        reqCounter,
+		pendingRequestCounter: pendingRequestCounter,
 	}
 }
 
@@ -89,19 +89,14 @@ func (om *OtelMetrics) RecordRequestCount(method string, path string, responseCo
 }
 
 func (om *OtelMetrics) RecordPendingRequestCount(host string, value int64) {
+	ctx := context.Background()
 	opt := api.WithAttributeSet(
 		attribute.NewSet(
 			attribute.Key("host").String(host),
 		),
 	)
 
-	_, err := om.meter.RegisterCallback(func(_ context.Context, o api.Observer) error {
-		o.ObserveInt64(om.pendingRequestGauge, value, opt)
-		return nil
-	}, om.pendingRequestGauge)
-	if err != nil {
-		log.Printf("error recording pending request values in prometheus gauge: %v", err)
-	}
+	om.pendingRequestCounter.Add(ctx, value, opt)
 }
 
 func getHeaders(s string) map[string]string {

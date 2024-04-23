@@ -37,7 +37,7 @@ func TestRequestCounter(t *testing.T) {
 	assert.Equal(t, data.Value, int64(1))
 }
 
-func TestPendingRequestGuage(t *testing.T) {
+func TestPendingRequestCounter(t *testing.T) {
 	testOtel.RecordPendingRequestCount("test-host", 5)
 	got := metricdata.ResourceMetrics{}
 	err := testReader.Collect(context.Background(), &got)
@@ -47,7 +47,7 @@ func TestPendingRequestGuage(t *testing.T) {
 	assert.NotEqual(t, len(scopeMetrics.Metrics), 0)
 
 	metricInfo := retrieveMetric(scopeMetrics.Metrics, "interceptor_pending_request_count")
-	data := metricInfo.Data.(metricdata.Gauge[int64]).DataPoints[0]
+	data := metricInfo.Data.(metricdata.Sum[int64]).DataPoints[0]
 	assert.Equal(t, data.Value, int64(5))
 }
 

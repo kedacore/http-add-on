@@ -17,6 +17,8 @@ import (
 
 var (
 	OtlpConfig = `mode: deployment
+image:
+  repository: "otel/opentelemetry-collector-contrib"
 config:
   exporters:
     logging:

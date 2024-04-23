@@ -39,7 +39,7 @@ func TestPromPendingRequestCountMetric(t *testing.T) {
 	options := []promexporter.Option{promexporter.WithRegisterer(testRegistry)}
 	testPrometheus := NewPrometheusMetrics(options...)
 	expectedOutput := `
-	# HELP interceptor_pending_request_count a gauge of requests pending forwarding by the interceptor proxy
+	# HELP interceptor_pending_request_count a count of requests pending forwarding by the interceptor proxy
 	# TYPE interceptor_pending_request_count gauge
 	interceptor_pending_request_count{host="test-host",otel_scope_name="keda-interceptor-proxy",otel_scope_version=""} 10
 	# HELP otel_scope_info Instrumentation Scope metadata

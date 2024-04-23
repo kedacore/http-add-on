@@ -19,9 +19,6 @@ func TestCurrent(t *testing.T) {
 	r.NoError(err)
 	r.Equal(current.Counts[host].Concurrency, memory.concurrentMap[host])
 	r.Equal(current.Counts[host].RPS, memory.rpsMap[host].WindowAverage(now))
-	currentForHost, validCount := memory.CurrentForHost("host1")
-	r.Equal(validCount, true)
-	r.Equal(currentForHost, 1)
 
 	err = memory.Increase(host, 1)
 	r.NoError(err)
