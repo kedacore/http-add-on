@@ -10,7 +10,7 @@ require (
 	github.com/kedacore/keda/v2 v2.13.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo/v2 v2.17.1
-	github.com/onsi/gomega v1.31.0
+	github.com/onsi/gomega v1.33.0
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/otel v1.23.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.23.0
