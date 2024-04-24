@@ -40,3 +40,10 @@ func TestRemoveArgoRollouts(t *testing.T) {
 func TestRemoveKEDANamespace(t *testing.T) {
 	DeleteNamespace(t, KEDANamespace)
 }
+
+func TestRemoveOpentelemetryComponents(t *testing.T) {
+	OpentelemetryNamespace := "open-telemetry-system"
+	_, err := ExecuteCommand(fmt.Sprintf("helm uninstall opentelemetry-collector --namespace %s", OpentelemetryNamespace))
+	require.NoErrorf(t, err, "cannot uninstall opentelemetry-collector - %s", err)
+	DeleteNamespace(t, OpentelemetryNamespace)
+}

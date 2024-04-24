@@ -12,6 +12,9 @@ require (
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.31.0
 	github.com/stretchr/testify v1.8.4
+	go.opentelemetry.io/otel v1.23.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.23.0
+	go.opentelemetry.io/otel/sdk v1.23.0
 	golang.org/x/sync v0.6.0
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
@@ -22,6 +25,16 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	sigs.k8s.io/controller-runtime v0.17.1
 	sigs.k8s.io/kustomize/kustomize/v5 v5.3.0
+)
+
+require (
+	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0 // indirect
+	go.opentelemetry.io/otel/trace v1.23.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
+	go.uber.org/zap v1.26.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de // indirect
 )
 
 require (
@@ -62,16 +75,18 @@ require (
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.18.0 // indirect
-	github.com/prometheus/client_model v0.5.0 // indirect
-	github.com/prometheus/common v0.46.0 // indirect
+	github.com/prometheus/client_golang v1.18.0
+	github.com/prometheus/client_model v0.5.0
+	github.com/prometheus/common v0.46.0
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
+	go.opentelemetry.io/otel/exporters/prometheus v0.45.1
+	go.opentelemetry.io/otel/metric v1.23.0
+	go.opentelemetry.io/otel/sdk/metric v1.23.0
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.23.0 // indirect

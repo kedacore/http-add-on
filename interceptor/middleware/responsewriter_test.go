@@ -8,18 +8,18 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("loggingResponseWriter", func() {
+var _ = Describe("responseWriter", func() {
 	Context("New", func() {
 		It("returns new object with expected field values set", func() {
 			var (
 				w = httptest.NewRecorder()
 			)
 
-			lrw := newLoggingResponseWriter(w)
-			Expect(lrw).NotTo(BeNil())
-			Expect(lrw.downstreamResponseWriter).To(Equal(w))
-			Expect(lrw.bytesWritten).To(Equal(0))
-			Expect(lrw.statusCode).To(Equal(0))
+			rw := newResponseWriter(w)
+			Expect(rw).NotTo(BeNil())
+			Expect(rw.downstreamResponseWriter).To(Equal(w))
+			Expect(rw.bytesWritten).To(Equal(0))
+			Expect(rw.statusCode).To(Equal(0))
 		})
 	})
 
@@ -29,11 +29,11 @@ var _ = Describe("loggingResponseWriter", func() {
 				bw = 128
 			)
 
-			lrw := &loggingResponseWriter{
+			rw := &responseWriter{
 				bytesWritten: bw,
 			}
 
-			ret := lrw.BytesWritten()
+			ret := rw.BytesWritten()
 			Expect(ret).To(Equal(bw))
 		})
 	})
@@ -44,11 +44,11 @@ var _ = Describe("loggingResponseWriter", func() {
 				sc = http.StatusTeapot
 			)
 
-			lrw := &loggingResponseWriter{
+			rw := &responseWriter{
 				statusCode: sc,
 			}
 
-			ret := lrw.StatusCode()
+			ret := rw.StatusCode()
 			Expect(ret).To(Equal(sc))
 		})
 	})
@@ -59,14 +59,14 @@ var _ = Describe("loggingResponseWriter", func() {
 				w = httptest.NewRecorder()
 			)
 
-			lrw := &loggingResponseWriter{
+			rw := &responseWriter{
 				downstreamResponseWriter: w,
 			}
 
 			h := w.Header()
 			h.Set("Content-Type", "application/json")
 
-			ret := lrw.Header()
+			ret := rw.Header()
 			Expect(ret).To(Equal(h))
 		})
 	})
@@ -83,16 +83,16 @@ var _ = Describe("loggingResponseWriter", func() {
 				w = httptest.NewRecorder()
 			)
 
-			lrw := &loggingResponseWriter{
+			rw := &responseWriter{
 				bytesWritten:             initialBW,
 				downstreamResponseWriter: w,
 			}
 
-			n, err := lrw.Write([]byte(body))
+			n, err := rw.Write([]byte(body))
 			Expect(err).To(BeNil())
 			Expect(n).To(Equal(bodyLen))
 
-			Expect(lrw.bytesWritten).To(Equal(initialBW + bodyLen))
+			Expect(rw.bytesWritten).To(Equal(initialBW + bodyLen))
 
 			Expect(w.Body.String()).To(Equal(body))
 		})
@@ -108,13 +108,13 @@ var _ = Describe("loggingResponseWriter", func() {
 				w = httptest.NewRecorder()
 			)
 
-			lrw := &loggingResponseWriter{
+			rw := &responseWriter{
 				statusCode:               http.StatusOK,
 				downstreamResponseWriter: w,
 			}
-			lrw.WriteHeader(sc)
+			rw.WriteHeader(sc)
 
-			Expect(lrw.statusCode).To(Equal(sc))
+			Expect(rw.statusCode).To(Equal(sc))
 
 			Expect(w.Code).To(Equal(sc))
 		})

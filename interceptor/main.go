@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
+	"github.com/kedacore/http-add-on/interceptor/metrics"
 	"github.com/kedacore/http-add-on/interceptor/middleware"
 	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
 	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
@@ -39,6 +41,7 @@ var (
 func main() {
 	timeoutCfg := config.MustParseTimeouts()
 	servingCfg := config.MustParseServing()
+	metricsCfg := config.MustParseMetrics()
 
 	opts := zap.Options{
 		Development: true,
@@ -59,10 +62,15 @@ func main() {
 		timeoutCfg,
 		"servingConfig",
 		servingCfg,
+		"metricsConfig",
+		metricsCfg,
 	)
 
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
+
+	// setup the configured metrics collectors
+	metrics.NewMetricsCollectors(metricsCfg)
 
 	cfg := ctrl.GetConfigOrDie()
 
@@ -139,6 +147,19 @@ func main() {
 		return nil
 	})
 
+	if metricsCfg.OtelPrometheusExporterEnabled {
+		// start the prometheus compatible metrics server
+		// serves a prometheus compatible metrics endpoint on the configured port
+		eg.Go(func() error {
+			if err := runMetricsServer(ctx, ctrl.Log, metricsCfg); !util.IsIgnoredErr(err) {
+				setupLog.Error(err, "could not start the Prometheus metrics server")
+				return err
+			}
+
+			return nil
+		})
+	}
+
 	// start the proxy server. this is the server that
 	// accepts, holds and forwards user requests
 	eg.Go(func() error {
@@ -181,6 +202,16 @@ func runAdminServer(
 	return kedahttp.ServeContext(ctx, addr, adminServer)
 }
 
+func runMetricsServer(
+	ctx context.Context,
+	lggr logr.Logger,
+	metricsCfg *config.Metrics,
+) error {
+	lggr.Info("starting the prometheus metrics server", "port", metricsCfg.OtelPrometheusExporterPort, "path", "/metrics")
+	addr := fmt.Sprintf("0.0.0.0:%d", metricsCfg.OtelPrometheusExporterPort)
+	return kedahttp.ServeContext(ctx, addr, promhttp.Handler())
+}
+
 func runProxyServer(
 	ctx context.Context,
 	logger logr.Logger,
@@ -218,6 +249,10 @@ func runProxyServer(
 	)
 	rootHandler = middleware.NewLogging(
 		logger,
+		rootHandler,
+	)
+
+	rootHandler = middleware.NewMetrics(
 		rootHandler,
 	)
 
