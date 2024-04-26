@@ -23,7 +23,7 @@ require (
 	k8s.io/client-go v1.5.2
 	k8s.io/code-generator v0.30.0
 	k8s.io/utils v0.0.0-20240423183400-0849a56e8f22
-	sigs.k8s.io/controller-runtime v0.18.0
+	sigs.k8s.io/controller-runtime v0.17.3
 	sigs.k8s.io/kustomize/kustomize/v5 v5.4.1
 )
 
@@ -54,6 +54,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240401170217-c3f982113cda // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
+	k8s.io/component-base v0.30.0 // indirect
 )
 
 require (
