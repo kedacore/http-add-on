@@ -104,9 +104,9 @@ spec:
         imagePullPolicy: Always
         args:
           - "-n"
-          - "2000000"
+          - "20000"
           - "-c"
-          - "5"
+          - "1"
           - "-H"
           - "Host: {{.Host}}"
           - "http://keda-http-add-on-interceptor-proxy.keda:8080/"
@@ -127,7 +127,7 @@ spec:
   scalingMetric:
     requestRate:
       granularity: 1s
-      targetValue: 20
+      targetValue: 2
       window: 1m
   scaledownPeriod: 0
   scaleTargetRef:

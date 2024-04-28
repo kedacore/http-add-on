@@ -52,6 +52,9 @@ test: fmt vet
 e2e-test:
 	go run -tags e2e ./tests/run-all.go
 
+e2e-test-local:
+	SKIP_SETUP=true go run -tags e2e ./tests/run-all.go
+
 # Docker targets
 docker-build-operator:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_OPERATOR_VERSIONED_TAG} -t ${IMAGE_OPERATOR_SHA_TAG} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
@@ -148,13 +151,16 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path otel/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+	$(KUSTOMIZE) edit add patch --path e2e-test/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path otel/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
+	$(KUSTOMIZE) edit add patch --path e2e-test/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
 
 	cd config/scaler && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
+
+	cd config/scaler && \
+	$(KUSTOMIZE) edit add patch --path e2e-test/deployment.yaml --group apps --kind Deployment --name scaler --version v1
 
 	cd config/operator && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}

@@ -48,9 +48,7 @@ func main() {
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
 	targetPendingRequests := cfg.TargetPendingRequests
 
-	opts := zap.Options{
-		Development: true,
-	}
+	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
