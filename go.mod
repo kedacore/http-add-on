@@ -1,6 +1,6 @@
 module github.com/kedacore/http-add-on
 
-go 1.22
+go 1.22.2
 
 replace github.com/kedacore/keda/v2 => github.com/jorturfer/keda/v2 v2.10.1-0.20240427123307-b3dd5171c49f
 
@@ -27,7 +27,19 @@ require (
 	k8s.io/utils v0.0.0-20240423183400-0849a56e8f22
 	sigs.k8s.io/controller-runtime v0.17.3
 	sigs.k8s.io/kustomize/kustomize/v5 v5.4.1
+)
 
+replace (
+	// pin k8s.io to v0.29.4
+	github.com/google/cel-go => github.com/google/cel-go v0.17.8
+	k8s.io/api => k8s.io/api v0.29.4
+	k8s.io/apimachinery => k8s.io/apimachinery v0.29.4
+	k8s.io/apiserver => k8s.io/apiserver v0.29.4
+	k8s.io/client-go => k8s.io/client-go v0.29.4
+	k8s.io/code-generator => k8s.io/code-generator v0.29.4
+	k8s.io/component-base => k8s.io/component-base v0.29.4
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00
+	k8s.io/metrics => k8s.io/metrics v0.29.4
 )
 
 require (
@@ -44,7 +56,6 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	k8s.io/component-base v0.29.4 // indirect
 	k8s.io/gengo v0.0.0-20240129211411-f967bbeff4b4 // indirect
-	k8s.io/gengo/v2 v2.0.0-20240228010128-51d4e06bde70 // indirect
 )
 
 require (
