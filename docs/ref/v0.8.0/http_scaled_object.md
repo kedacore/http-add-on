@@ -9,6 +9,8 @@ kind: HTTPScaledObject
 apiVersion: http.keda.sh/v1alpha1
 metadata:
     name: xkcd
+    annotations:
+        httpscaledobject.keda.sh/skip-scaledobject-creation: "false"
 spec:
     hosts:
     - myhost.com
@@ -33,7 +35,12 @@ spec:
             targetValue: 100
 ```
 
-This document is a narrated reference guide for the `HTTPScaledObject`, and we'll focus on the `spec` field.
+This document is a narrated reference guide for the `HTTPScaledObject`.
+
+## `httpscaledobject.keda.sh/skip-scaledobject-creation` annotation
+
+This annotation will disable the ScaledObject generation and management but keeping the routing and metrics available. This is done removing the current ScaledObject if it has been already created, allowing to use user managed ScaledObjects pointing the add-on scaler directly (supporting all the ScaledObject configurations and multiple triggers). You can read more about this [here](./../../walkthrough.md#integrating-http-add-on-scaler-with-other-keda-scalers)
+
 
 ## `hosts`
 

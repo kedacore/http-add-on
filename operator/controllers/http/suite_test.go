@@ -147,7 +147,7 @@ func newCommonTestInfraWithSkipScaledObjectCreation(namespace, appName string) *
 			Namespace: namespace,
 			Name:      appName,
 			Annotations: map[string]string{
-				"skipScaledObjectCreation": "true",
+				"httpscaledobject.keda.sh/skip-scaledobject-creation": "true",
 			},
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
