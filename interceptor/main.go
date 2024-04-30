@@ -70,9 +70,7 @@ func main() {
 
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
-	proxyTlsEnabled := servingCfg.ProxyTLSEnabled
-	proxyTlsConfig := map[string]string{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath}
-	proxyTLSPort := servingCfg.TLSPort
+	proxyTLSEnabled := servingCfg.ProxyTLSEnabled
 
 	// setup the configured metrics collectors
 	metrics.NewMetricsCollectors(metricsCfg)
@@ -165,23 +163,31 @@ func main() {
 		})
 	}
 
-	// start the proxy server. this is the server that
+	// start the proxy servers. This is the server that
 	// accepts, holds and forwards user requests
-	eg.Go(func() error {
-		if proxyTlsEnabled {
+	// start a proxy server with TLS
+	if proxyTLSEnabled {
+		eg.Go(func() error {
+			proxyTLSConfig := map[string]string{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath}
+			proxyTLSPort := servingCfg.TLSPort
+
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyTLSPort, proxyTlsEnabled, proxyTlsConfig); !util.IsIgnoredErr(err) {
-				setupLog.Error(err, "proxy server failed")
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig); !util.IsIgnoredErr(err) {
+				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
-		} else {
-			setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
+			return nil
+		})
+	}
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyPort, false, nil); !util.IsIgnoredErr(err) {
-				setupLog.Error(err, "proxy server failed")
-				return err
-			}
+	// start a proxy server without TLS.
+	eg.Go(func() error {
+		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
+
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, timeoutCfg, proxyPort, false, nil); !util.IsIgnoredErr(err) {
+			setupLog.Error(err, "proxy server failed")
+			return err
 		}
 
 		return nil
@@ -251,7 +257,6 @@ func runProxyServer(
 		if err != nil {
 			logger.Error(fmt.Errorf("error reading file from TLSCertPath"), "error", err)
 			os.Exit(1)
-
 		}
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caCert)

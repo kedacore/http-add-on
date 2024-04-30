@@ -210,7 +210,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 			timeouts,
 			port,
 			true,
-			map[string]string{"certificatePath": "../localhost.crt", "keyPath": "../localhost.key"},
+			map[string]string{"certificatePath": "../certs/tls.crt", "keyPath": "../certs/tls.key"},
 		)
 	})
 
@@ -219,8 +219,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 
 	// make an HTTPs request in the background
 	g.Go(func() error {
-
-		f, err := os.ReadFile("../RootCA.pem")
+		f, err := os.ReadFile("../certs/RootCA.pem")
 		if err != nil {
 			t.Errorf("Unable to find RootCA for test, please run tests via `make test`")
 		}

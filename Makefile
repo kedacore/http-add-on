@@ -38,6 +38,8 @@ keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
 subjectAltName = @alt_names
 [alt_names]
 DNS.1 = localhost
+DNS.2 = *.keda
+DNS.3 = *.interceptor-tls-test-ns
 endef
 export DOMAINS
 
@@ -54,16 +56,19 @@ build-scaler:
 
 build: build-operator build-interceptor build-scaler
 
-test-certs:
-	echo "$$DOMAINS" > domains.ext
+# generate certs for local unit and e2e tests
+rootca-test-certs:
+	mkdir -p certs
+	openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout certs/RootCA.key -out certs/RootCA.pem -subj "/C=US/CN=Keda-Root-CA"
+	openssl x509 -outform pem -in certs/RootCA.pem -out certs/RootCA.crt
 
-	openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout RootCA.key -out RootCA.pem -subj "/C=US/CN=Example-Root-CA"
-	openssl x509 -outform pem -in RootCA.pem -out RootCA.crt
-	openssl req -new -nodes -newkey rsa:2048 -keyout localhost.key -out localhost.csr -subj "/C=US/ST=YourState/L=YourCity/O=Example-Certificates/CN=localhost.local"
-	openssl x509 -req -sha256 -days 1024 -in localhost.csr -CA RootCA.pem -CAkey RootCA.key -CAcreateserial -extfile domains.ext -out localhost.crt
+test-certs: rootca-test-certs
+	echo "$$DOMAINS" > certs/domains.ext
+	openssl req -new -nodes -newkey rsa:2048 -keyout certs/tls.key -out certs/tls.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Keda-Certificates/CN=keda.local"
+	openssl x509 -req -sha256 -days 1024 -in certs/tls.csr -CA certs/RootCA.pem -CAkey certs/RootCA.key -CAcreateserial -extfile certs/domains.ext -out certs/tls.crt
 
 clean-test-certs:
-	rm RootCA.* domains.ext localhost.*
+	rm -r certs || true
 
 # Test targets
 test: fmt vet test-certs
@@ -176,6 +181,12 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 	cd config/interceptor && \
 	$(KUSTOMIZE) edit add patch --path e2e-test/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
 
+	cd config/interceptor && \
+	$(KUSTOMIZE) edit add patch --path tls/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+
+	cd config/interceptor && \
+	$(KUSTOMIZE) edit add patch --path tls/proxy.service.yaml --kind Service --name interceptor-proxy --version v1
+
 	cd config/scaler && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
 
@@ -194,3 +205,8 @@ kind-load:
 	kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION}
 	kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION}
 	kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION}
+
+k3d-import:
+	k3d image import ghcr.io/kedacore/http-add-on-operator:main
+	k3d image import ghcr.io/kedacore/http-add-on-interceptor:main
+	k3d image import ghcr.io/kedacore/http-add-on-scaler:main

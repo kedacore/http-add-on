@@ -27,24 +27,23 @@ import (
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-var TestTlsConfig = tls.Config{}
+var TestTLSConfig = tls.Config{}
 
 func init() {
-	caCert, err := os.ReadFile("../localhost.crt")
+	caCert, err := os.ReadFile("../certs/tls.crt")
 	if err != nil {
 		log.Fatalf("Error getting tests certs - make sure to run make test to generate them: %v", err)
-
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
-	cert, err := tls.LoadX509KeyPair("../localhost.crt", "../localhost.key")
+	cert, err := tls.LoadX509KeyPair("../certs/tls.crt", "../certs/tls.key")
 
 	if err != nil {
 		log.Fatalf("Error getting tests certs - make sure to run make test to generate them %v", err)
 	}
 
-	TestTlsConfig.RootCAs = caCertPool
-	TestTlsConfig.Certificates = []tls.Certificate{cert}
+	TestTLSConfig.RootCAs = caCertPool
+	TestTLSConfig.Certificates = []tls.Certificate{cert}
 }
 
 // the proxy should successfully forward a request to a running server
@@ -129,7 +128,7 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
-		&TestTlsConfig,
+		&TestTLSConfig,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -224,7 +223,7 @@ func TestWaitFailedConnectionTLS(t *testing.T) {
 			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
-		&TestTlsConfig,
+		&TestTLSConfig,
 	)
 	stream, err := url.Parse("http://0.0.0.0:0")
 	r.NoError(err)
@@ -347,7 +346,7 @@ func TestTimesOutOnWaitFuncTLS(t *testing.T) {
 			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
-		&TestTlsConfig,
+		&TestTLSConfig,
 	)
 	stream, err := url.Parse("http://1.1.1.1")
 	r.NoError(err)
@@ -496,7 +495,7 @@ func TestWaitsForWaitFuncTLS(t *testing.T) {
 			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
-		&TestTlsConfig,
+		&TestTLSConfig,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -624,7 +623,7 @@ func TestWaitHeaderTimeoutTLS(t *testing.T) {
 			waitTimeout:       timeouts.WorkloadReplicas,
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
-		&TestTlsConfig,
+		&TestTLSConfig,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)

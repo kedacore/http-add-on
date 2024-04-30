@@ -57,7 +57,7 @@ func TestServeContextWithTLS(t *testing.T) {
 		done()
 	}()
 	start := time.Now()
-	err := ServeContext(ctx, addr, hdl, true, map[string]string{"certificatePath": "../../localhost.crt", "keyPath": "../../localhost.key"})
+	err := ServeContext(ctx, addr, hdl, true, map[string]string{"certificatePath": "../../certs/tls.crt", "keyPath": "../../certs/tls.key"})
 	elapsed := time.Since(start)
 
 	r.Error(err)
