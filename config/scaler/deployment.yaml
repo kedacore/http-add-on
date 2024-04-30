@@ -23,6 +23,10 @@ spec:
       containers:
       - name: scaler
         image: ghcr.io/kedacore/http-add-on-scaler
+        args:
+        - --zap-log-level=info
+        - --zap-encoder=console
+        - --zap-time-encoding=rfc3339
         env:
         - name: KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT
           value: "keda-http-add-on-interceptor"

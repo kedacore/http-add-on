@@ -23,6 +23,10 @@ spec:
       containers:
       - name: interceptor
         image: ghcr.io/kedacore/http-add-on-interceptor
+        args:
+        - --zap-log-level=info
+        - --zap-encoder=console
+        - --zap-time-encoding=rfc3339
         env:
         - name: KEDA_HTTP_CURRENT_NAMESPACE
           value: "keda"

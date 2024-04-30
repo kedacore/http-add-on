@@ -22,7 +22,7 @@ limitations under the License.
 package hack
 
 import (
-	_ "github.com/golang/mock/mockgen"
+	_ "go.uber.org/mock/mockgen"
 	_ "k8s.io/code-generator"
 	_ "sigs.k8s.io/kustomize/kustomize/v5"
 )
