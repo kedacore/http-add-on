@@ -91,7 +91,7 @@ curl -H "Host: myhost.com" localhost:8080/path1
 
 ### Integrating HTTP Add-On Scaler with other KEDA scalers
 
-For scenerios where you want to integrate HTTP Add-On scaler with other keda scalers, you can set the `SkipScaledObjectCreation` annotation to true on your `HTTPScaledObject`.  The reconciler will then skip the KEDA core ScaledObject creation which will allow you to create your own `ScaledObject` and add HTTP scaler as one of your triggers.
+For scenerios where you want to integrate HTTP Add-On scaler with other keda scalers, you can set the `"httpscaledobject.keda.sh/skip-scaledobject-creation"` annotation to true on your `HTTPScaledObject`.  The reconciler will then skip the KEDA core ScaledObject creation which will allow you to create your own `ScaledObject` and add HTTP scaler as one of your triggers.
 
 > 💡 Ensure that your ScaledObject is created with a different name than the `HTTPScaledObject` to ensure your ScaledObject is not removed by the reconciler.
 
@@ -101,7 +101,7 @@ If you don't know how to set the external scaler in the ScaledObject, you can de
 
 ```console
 annotations:
-  skipScaledObjectCreation: false
+  httpscaledobject.keda.sh/skip-scaledobject-creation: "false"
 ```
 
 2. Take copy of the current generated external-push trigger spec on the generated ScaledObject.
@@ -116,11 +116,11 @@ For example:
       scalerAddress: keda-http-add-on-external-scaler.keda:9090
 ```
 
-3. Apply the `skipScaledObjectCreation` annotation with `true` and apply the change. This will remove the originally created `ScaledObject` allowing you to create your own.
+3. Apply the `"httpscaledobject.keda.sh/skip-scaledobject-creation"` annotation with `true` and apply the change. This will remove the originally created `ScaledObject` allowing you to create your own.
 
 ```console
 annotations:
-  skipScaledObjectCreation: true
+  httpscaledobject.keda.sh/skip-scaledobject-creation: "true"
 ```
 
 4. Add the `external-push` trigger taken from step 2 to your own ScaledObject and apply this.

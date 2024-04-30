@@ -147,7 +147,7 @@ func newCommonTestInfraWithSkipScaledObjectCreation(namespace, appName string) *
 			Namespace: namespace,
 			Name:      appName,
 			Annotations: map[string]string{
-				"skipScaledObjectCreation": "true",
+				SkipScaledObjectCreationAnnotation: "true",
 			},
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{

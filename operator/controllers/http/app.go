@@ -14,6 +14,10 @@ import (
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 )
 
+var (
+	SkipScaledObjectCreationAnnotation = "httpscaledobject.keda.sh/skip-scaledobject-creation"
+)
+
 func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
@@ -45,12 +49,12 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	)
 
 	// We want to integrate http scaler with other
-	// scalers. when SkipScaledObjectCreation is set to true,
+	// scalers. when "httpscaledobject.keda.sh/skip-scaledobject-creation" is set to true,
 	// reconciler will skip the KEDA core ScaledObjects creation or delete scaledObject if it already exists.
 	// you can then create your own SO, and add http scaler as one of your triggers.
-	if httpso.Annotations["skipScaledObjectCreation"] == "true" {
+	if httpso.Annotations[SkipScaledObjectCreationAnnotation] == "true" {
 		logger.Info(
-			"Skip scaled objects creation with flag SkipScaledObjectCreation=true",
+			"Skip scaled objects creation with flag 'httpscaledobject.keda.sh/skip-scaledobject-creation'=true",
 			"HTTPScaledObject", httpso.Name)
 		err := r.deleteScaledObject(ctx, cl, logger, httpso)
 		if err != nil {

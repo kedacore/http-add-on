@@ -124,7 +124,7 @@ metadata:
   name: {{.HTTPScaledObjectName}}
   namespace: {{.TestNamespace}}
   annotations:
-    skipScaledObjectCreation: "true"
+    httpscaledobject.keda.sh/skip-scaledobject-creation: "true"
 spec:
   hosts:
   - {{.Host}}
