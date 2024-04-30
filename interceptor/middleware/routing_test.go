@@ -19,8 +19,9 @@ var _ = Describe("RoutingMiddleware", func() {
 				probeHandler    = http.NewServeMux()
 				upstreamHandler = http.NewServeMux()
 			)
-			probeHandler.Handle("/probe", http.HandlerFunc(nil))
-			upstreamHandler.Handle("/upstream", http.HandlerFunc(nil))
+			emptyHandler := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+			probeHandler.Handle("/probe", emptyHandler)
+			upstreamHandler.Handle("/upstream", emptyHandler)
 
 			rm := NewRouting(routingTable, probeHandler, upstreamHandler)
 			Expect(rm).NotTo(BeNil())

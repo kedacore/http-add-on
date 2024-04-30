@@ -24,7 +24,7 @@ func newSizeHandler(
 	lggr logr.Logger,
 	q CountReader,
 ) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		cur, err := q.Current()
 		if err != nil {
 			lggr.Error(err, "getting queue size")

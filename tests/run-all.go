@@ -36,16 +36,18 @@ type TestResult struct {
 
 func main() {
 	ctx := context.Background()
-
+	skipSetup := os.Getenv("SKIP_SETUP") == "true"
 	//
 	// Install KEDA HTTP Add-on
 	//
 
-	installation := executeTest(ctx, "tests/utils/setup_test.go", "15m", 1)
-	fmt.Print(installation.Tries[0])
-	if !installation.Passed {
-		uninstallKeda(ctx)
-		os.Exit(1)
+	if !skipSetup {
+		installation := executeTest(ctx, "tests/utils/setup_test.go", "15m", 1)
+		fmt.Print(installation.Tries[0])
+		if !installation.Passed {
+			uninstallKeda(ctx)
+			os.Exit(1)
+		}
 	}
 
 	//
@@ -56,10 +58,11 @@ func main() {
 	//
 	// Uninstall KEDA
 	//
-
-	passed := uninstallKeda(ctx)
-	if !passed {
-		os.Exit(1)
+	if !skipSetup {
+		passed := uninstallKeda(ctx)
+		if !passed {
+			os.Exit(1)
+		}
 	}
 
 	//
