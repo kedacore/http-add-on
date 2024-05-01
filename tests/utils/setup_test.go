@@ -172,24 +172,6 @@ func TestSetupKEDA(t *testing.T) {
 		"replica count should be 1 after 3 minutes")
 }
 
-func TestSetupTLSConfiguration(t *testing.T) {
-	out, err := ExecuteCommandWithDir("make test-certs", "../..")
-	require.NoErrorf(t, err, "error generating test certs - %s", err)
-	t.Log(string(out))
-	t.Log("test certificates successfully generated")
-
-	_, err = ExecuteCommand("kubectl -n keda create secret tls keda-tls --cert ../../certs/tls.crt --key ../../certs/tls.key")
-	require.NoErrorf(t, err, "could not create tls cert secret in keda namespace - %s", err)
-}
-
-func TestDeployKEDAHttpAddOn(t *testing.T) {
-	out, err := ExecuteCommandWithDir("make deploy", "../..")
-	require.NoErrorf(t, err, "error deploying KEDA Http Add-on - %s", err)
-
-	t.Log(string(out))
-	t.Log("KEDA Http Add-on deployed successfully using 'make deploy' command")
-}
-
 func TestSetupOpentelemetryComponents(t *testing.T) {
 	OpentelemetryNamespace := "open-telemetry-system"
 	otlpTempFileName := "otlp.yml"
@@ -219,4 +201,22 @@ func TestSetupOpentelemetryComponents(t *testing.T) {
 
 	_, err = ExecuteCommand(fmt.Sprintf("kubectl apply -f %s -n %s", otlpServiceTempFileName, OpentelemetryNamespace))
 	require.NoErrorf(t, err, "cannot update opentelemetry ports - %s", err)
+}
+
+func TestSetupTLSConfiguration(t *testing.T) {
+	out, err := ExecuteCommandWithDir("make test-certs", "../..")
+	require.NoErrorf(t, err, "error generating test certs - %s", err)
+	t.Log(string(out))
+	t.Log("test certificates successfully generated")
+
+	_, err = ExecuteCommand("kubectl -n keda create secret tls keda-tls --cert ../../certs/tls.crt --key ../../certs/tls.key")
+	require.NoErrorf(t, err, "could not create tls cert secret in keda namespace - %s", err)
+}
+
+func TestDeployKEDAHttpAddOn(t *testing.T) {
+	out, err := ExecuteCommandWithDir("make deploy", "../..")
+	require.NoErrorf(t, err, "error deploying KEDA Http Add-on - %s", err)
+
+	t.Log(string(out))
+	t.Log("KEDA Http Add-on deployed successfully using 'make deploy' command")
 }
