@@ -355,3 +355,10 @@ admin/Cargo.lock
 
 /target
 .envrc
+
+# locally generated certs for testing TLS
+*.crt
+*.pem
+*.csr
+*.srl
+*.ext

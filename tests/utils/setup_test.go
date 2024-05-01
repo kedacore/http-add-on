@@ -172,6 +172,16 @@ func TestSetupKEDA(t *testing.T) {
 		"replica count should be 1 after 3 minutes")
 }
 
+func TestSetupTLSConfiguration(t *testing.T) {
+	out, err := ExecuteCommandWithDir("make test-certs", "../..")
+	require.NoErrorf(t, err, "error generating test certs - %s", err)
+	t.Log(string(out))
+	t.Log("test certificates successfully generated")
+
+	_, err = ExecuteCommand("kubectl -n keda create secret tls keda-tls --cert ../../certs/tls.crt --key ../../certs/tls.key")
+	require.NoErrorf(t, err, "could not create tls cert secret in keda namespace - %s", err)
+}
+
 func TestDeployKEDAHttpAddOn(t *testing.T) {
 	out, err := ExecuteCommandWithDir("make deploy", "../..")
 	require.NoErrorf(t, err, "error deploying KEDA Http Add-on - %s", err)
@@ -205,7 +215,6 @@ func TestSetupOpentelemetryComponents(t *testing.T) {
 	CreateNamespace(t, KubeClient, OpentelemetryNamespace)
 
 	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector -f %s --namespace %s", otlpTempFileName, OpentelemetryNamespace))
-
 	require.NoErrorf(t, err, "cannot install opentelemetry - %s", err)
 
 	_, err = ExecuteCommand(fmt.Sprintf("kubectl apply -f %s -n %s", otlpServiceTempFileName, OpentelemetryNamespace))

@@ -19,3 +19,9 @@ The OTEL exporter can be enabled by setting the `KEDA_HTTP_OTEL_HTTP_EXPORTER_EN
 If the collector is exposed on a unsecured endpoint then you can set the `KEDA_HTTP_OTEL_HTTP_COLLECTOR_INSECURE` environment variable to `true` (`false` by default) which will disable client security on the exporter.
 
 If you need to provide any headers such as authentication details in order to utilise your OTEL collector you can add them into the `KEDA_HTTP_OTEL_HTTP_HEADERS` environment variable. The frequency at which the metrics are exported can be configured by setting `KEDA_HTTP_OTEL_METRIC_EXPORT_INTERVAL` to the number of seconds you require between each export interval (`30` by default).
+
+# Configuring TLS for the KEDA HTTP Add-on interceptor proxy
+
+The interceptor proxy has the ability to run both a HTTP and HTTPS server simultaneously to allow you to scale workloads that use either protocol. By default, the interceptor proxy will only serve over HTTP, but this behavior can be changed by configuring the appropriate environment variables on the deployment.
+
+The TLS server can be enabled by setting the environment variable `KEDA_HTTP_PROXY_TLS_ENABLED` to `true` on the interceptor deployment (`false` by default). The TLS server will start on port `8443` by default, but this can be configured by setting `KEDA_HTTP_PROXY_TLS_PORT` to your desired port number. The TLS server will require valid TLS certificates to start, the path to the certificates can be configured via the `KEDA_HTTP_PROXY_TLS_CERT_PATH` and `KEDA_HTTP_PROXY_TLS_KEY_PATH` environment variables (`/certs/tls.crt` and `/certs/tls.key` by default).

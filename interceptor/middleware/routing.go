@@ -21,13 +21,15 @@ type Routing struct {
 	routingTable    routing.Table
 	probeHandler    http.Handler
 	upstreamHandler http.Handler
+	tlsEnabled      bool
 }
 
-func NewRouting(routingTable routing.Table, probeHandler http.Handler, upstreamHandler http.Handler) *Routing {
+func NewRouting(routingTable routing.Table, probeHandler http.Handler, upstreamHandler http.Handler, tlsEnabled bool) *Routing {
 	return &Routing{
 		routingTable:    routingTable,
 		probeHandler:    probeHandler,
 		upstreamHandler: upstreamHandler,
+		tlsEnabled:      tlsEnabled,
 	}
 }
 
@@ -63,6 +65,14 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rm *Routing) streamFromHTTPSO(httpso *httpv1alpha1.HTTPScaledObject) (*url.URL, error) {
+	if rm.tlsEnabled {
+		return url.Parse(fmt.Sprintf(
+			"https://%s.%s:%d",
+			httpso.Spec.ScaleTargetRef.Service,
+			httpso.GetNamespace(),
+			httpso.Spec.ScaleTargetRef.Port,
+		))
+	}
 	//goland:noinspection HttpUrlsUsage
 	return url.Parse(fmt.Sprintf(
 		"http://%s.%s:%d",

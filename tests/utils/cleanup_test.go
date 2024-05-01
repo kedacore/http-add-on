@@ -47,3 +47,10 @@ func TestRemoveOpentelemetryComponents(t *testing.T) {
 	require.NoErrorf(t, err, "cannot uninstall opentelemetry-collector - %s", err)
 	DeleteNamespace(t, OpentelemetryNamespace)
 }
+
+func TestCleanUpCerts(t *testing.T) {
+	out, err := ExecuteCommandWithDir("make clean-test-certs", "../..")
+	require.NoErrorf(t, err, "error cleaning up test certs - %s", err)
+	t.Log(string(out))
+	t.Log("test certificates successfully cleaned up")
+}
