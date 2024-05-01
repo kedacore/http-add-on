@@ -54,7 +54,7 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
-    - port: 443
+    - port: 8443
       targetPort: https
       protocol: TCP
       name: https
@@ -86,7 +86,7 @@ spec:
           args:
           - netexec
           - --http-port
-          - "443"
+          - "8443"
           - --tls-cert-file
           - /certs/tls.crt
           - --tls-private-key-file
@@ -96,7 +96,7 @@ spec:
               containerPort: 8080
               protocol: TCP
             - name: https
-              containerPort: 443
+              containerPort: 8443
               protocol: TCP
           volumeMounts:
             - readOnly: true
@@ -127,7 +127,7 @@ spec:
   scaleTargetRef:
     deployment: {{.DeploymentName}}
     service: {{.ServiceName}}
-    port: 443
+    port: 8443
   replicas:
     min: {{ .MinReplicas }}
     max: {{ .MaxReplicas }}
