@@ -27,7 +27,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
-- **General**: Add configurable TLS on the wire support to the interceptor proxy ([#907](https://github.com/kedacore/http-add-on/issues/907))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Fixes
 
@@ -45,6 +45,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
+- **General**: Add configurable TLS on the wire support to the interceptor proxy ([#907](https://github.com/kedacore/http-add-on/issues/907))
 - **General**: Add support to collect metrics using either a prometheus compatible endpoint or by sending metrics to an OTEL http endpoint ([#910](https://github.com/kedacore/http-add-on/issues/910))
 - **General**: Propagate HTTPScaledObject labels and annotations to ScaledObject ([#840](https://github.com/kedacore/http-add-on/issues/840))
 - **General**: Provide support to allow HTTP scaler to work alongside other core KEDA scalers ([#489](https://github.com/kedacore/http-add-on/issues/489))

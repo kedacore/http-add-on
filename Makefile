@@ -176,22 +176,22 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path e2e-test/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+	$(KUSTOMIZE) edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path e2e-test/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
+	$(KUSTOMIZE) edit add patch --path e2e-test/otel/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path tls/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+	$(KUSTOMIZE) edit add patch --path e2e-test/tls/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path tls/proxy.service.yaml --kind Service --name interceptor-proxy --version v1
+	$(KUSTOMIZE) edit add patch --path e2e-test/tls/proxy.service.yaml --kind Service --name interceptor-proxy --version v1
 
 	cd config/scaler && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
 
 	cd config/scaler && \
-	$(KUSTOMIZE) edit add patch --path e2e-test/deployment.yaml --group apps --kind Deployment --name scaler --version v1
+	$(KUSTOMIZE) edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name scaler --version v1
 
 	cd config/operator && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
@@ -200,13 +200,3 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 
 undeploy:
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
-
-kind-load:
-	kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION}
-	kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION}
-	kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION}
-
-k3d-import:
-	k3d image import ghcr.io/kedacore/http-add-on-operator:main
-	k3d image import ghcr.io/kedacore/http-add-on-interceptor:main
-	k3d image import ghcr.io/kedacore/http-add-on-scaler:main
