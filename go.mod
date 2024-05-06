@@ -99,7 +99,7 @@ require (
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
-	go.opentelemetry.io/otel/exporters/prometheus v0.45.1
+	go.opentelemetry.io/otel/exporters/prometheus v0.48.0
 	go.opentelemetry.io/otel/metric v1.26.0
 	go.opentelemetry.io/otel/sdk/metric v1.26.0
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09 // indirect
