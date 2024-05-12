@@ -158,8 +158,8 @@ func createOrUpdateInterceptorResources(
 		envs,
 		httpSpec.Interceptor.Replicas,
 		selector,
-		httpss.GetLabels(),
-		httpss.GetAnnotations(),
+		httpSpec.Interceptor.GetLabels(),
+		httpSpec.Interceptor.GetAnnotations(),
 		httpSpec.Interceptor.Resources,
 	)
 	// Set HTTPScaledObject instance as the owner and controller

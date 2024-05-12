@@ -96,8 +96,8 @@ func createOrUpdateExternalScalerResources(
 		envs,
 		httpSpec.Scaler.Replicas,
 		selector,
-		httpss.GetLabels(),
-		httpss.GetAnnotations(),
+		httpSpec.Scaler.GetLabels(),
+		httpSpec.Scaler.GetAnnotations(),
 		httpSpec.Scaler.Resources,
 	)
 	// Set HTTPScaledObject instance as the owner and controller

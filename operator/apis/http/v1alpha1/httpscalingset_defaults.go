@@ -108,6 +108,20 @@ func (c *HTTPInterceptorSepc) GetImage() string {
 	return *c.Image
 }
 
+func (c *HTTPInterceptorSepc) GetLabels() map[string]string {
+	if c.Labels == nil {
+		return map[string]string{}
+	}
+	return c.Labels
+}
+
+func (c *HTTPInterceptorSepc) GetAnnotations() map[string]string {
+	if c.Annotations == nil {
+		return map[string]string{}
+	}
+	return c.Annotations
+}
+
 func (c *HTTPScalerSepc) GetPort() int32 {
 	if c.Config.Port == nil {
 		return 9090
@@ -120,4 +134,18 @@ func (c *HTTPScalerSepc) GetImage() string {
 		return scalerImage
 	}
 	return *c.Image
+}
+
+func (c *HTTPScalerSepc) GetLabels() map[string]string {
+	if c.Labels == nil {
+		return map[string]string{}
+	}
+	return c.Labels
+}
+
+func (c *HTTPScalerSepc) GetAnnotations() map[string]string {
+	if c.Annotations == nil {
+		return map[string]string{}
+	}
+	return c.Annotations
 }
