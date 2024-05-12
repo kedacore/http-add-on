@@ -70,7 +70,7 @@ jobs:
       uses: test-summary/action@032c8a9cec6aaa3c20228112cae6ca10a3b29336 # v2.3
       with:
         paths: |
-          test-report.xml
+          **/*-test-report.xml
       if: always()
 
   statics:

@@ -82,7 +82,7 @@ install-test-deps:
 	go install gotest.tools/gotestsum@latest
 
 test: fmt vet test-certs install-test-deps envtest
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" gotestsum --junitfile test-report.xml
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" gotestsum --junitfile unit-test-report.xml
 
 e2e-test: install-test-deps
 	go run -tags e2e ./tests/run-all.go

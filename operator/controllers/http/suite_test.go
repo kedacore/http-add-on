@@ -52,10 +52,11 @@ var k8sClient client.Client
 var ctx context.Context
 var cancel context.CancelFunc
 
-func TestAPIs(t *testing.T) {
+func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	RunSpecs(t, "Controllers Suite")
+	suiteConfig, reporterConfig := GinkgoConfiguration()
+	reporterConfig.JUnitReport = "functional-test-report.xml"
+	RunSpecs(t, "Controllers Suite", suiteConfig, reporterConfig)
 }
 
 var _ = BeforeSuite(func() {

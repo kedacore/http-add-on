@@ -364,4 +364,4 @@ admin/Cargo.lock
 *.ext
 
 # test results
-test-report.xml
+*-test-report.xml
