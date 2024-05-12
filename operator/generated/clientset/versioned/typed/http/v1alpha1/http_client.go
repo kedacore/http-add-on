@@ -28,7 +28,9 @@ import (
 
 type HttpV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ClusterHTTPScalingSetsGetter
 	HTTPScaledObjectsGetter
+	HTTPScalingSetsGetter
 }
 
 // HttpV1alpha1Client is used to interact with features provided by the http group.
@@ -36,8 +38,16 @@ type HttpV1alpha1Client struct {
 	restClient rest.Interface
 }
 
+func (c *HttpV1alpha1Client) ClusterHTTPScalingSets(namespace string) ClusterHTTPScalingSetInterface {
+	return newClusterHTTPScalingSets(c, namespace)
+}
+
 func (c *HttpV1alpha1Client) HTTPScaledObjects(namespace string) HTTPScaledObjectInterface {
 	return newHTTPScaledObjects(c, namespace)
+}
+
+func (c *HttpV1alpha1Client) HTTPScalingSets(namespace string) HTTPScalingSetInterface {
+	return newHTTPScalingSets(c, namespace)
 }
 
 // NewForConfig creates a new HttpV1alpha1Client for the given config.

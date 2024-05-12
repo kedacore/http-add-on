@@ -33,6 +33,8 @@ GIT_COMMIT  ?= $(shell git rev-list -1 HEAD)
 GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
 
 COSIGN_FLAGS ?= -y -a GIT_HASH=${GIT_COMMIT} -a GIT_VERSION=${VERSION} -a BUILD_DATE=${DATE}
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.30
 
 define DOMAINS
 basicConstraints=CA:FALSE
@@ -73,13 +75,19 @@ clean-test-certs:
 	rm -r certs || true
 
 # Test targets
-test: fmt vet test-certs
-	go test ./...
 
-e2e-test:
+.PHONY: install-test-deps
+install-test-deps:
+	go install github.com/jstemmer/go-junit-report/v2@latest
+	go install gotest.tools/gotestsum@latest
+
+test: fmt vet test-certs install-test-deps envtest
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" gotestsum --junitfile test-report.xml
+
+e2e-test: install-test-deps
 	go run -tags e2e ./tests/run-all.go
 
-e2e-test-local:
+e2e-test-local: install-test-deps
 	SKIP_SETUP=true go run -tags e2e ./tests/run-all.go
 
 # Docker targets
@@ -169,6 +177,10 @@ lint: ## Run golangci-lint against code.
 
 pre-commit: ## Run static-checks.
 	pre-commit run --all-files
+
+ENVTEST = $(shell pwd)/bin/setup-envtest
+envtest: ## Install envtest-setup if necessary.
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-runtime/tools/setup-envtest
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.

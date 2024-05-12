@@ -42,16 +42,15 @@ const (
 //	// context
 //	go pinger.start(ctx, ticker)
 type queuePinger struct {
-	getEndpointsFn         k8s.GetEndpointsFunc
-	interceptorNS          string
-	interceptorSvcName     string
-	interceptorServiceName string
-	adminPort              string
-	pingMut                *sync.RWMutex
-	lastPingTime           time.Time
-	allCounts              map[string]queue.Count
-	lggr                   logr.Logger
-	status                 PingerStatus
+	getEndpointsFn     k8s.GetEndpointsFunc
+	interceptorNS      string
+	interceptorSvcName string
+	adminPort          string
+	pingMut            *sync.RWMutex
+	lastPingTime       time.Time
+	allCounts          map[string]queue.Count
+	lggr               logr.Logger
+	status             PingerStatus
 }
 
 func newQueuePinger(
@@ -59,19 +58,17 @@ func newQueuePinger(
 	getEndpointsFn k8s.GetEndpointsFunc,
 	ns,
 	svcName,
-	deplName,
 	adminPort string,
 ) *queuePinger {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
-		getEndpointsFn:         getEndpointsFn,
-		interceptorNS:          ns,
-		interceptorSvcName:     svcName,
-		interceptorServiceName: deplName,
-		adminPort:              adminPort,
-		pingMut:                pingMut,
-		lggr:                   lggr,
-		allCounts:              map[string]queue.Count{},
+		getEndpointsFn:     getEndpointsFn,
+		interceptorNS:      ns,
+		interceptorSvcName: svcName,
+		adminPort:          adminPort,
+		pingMut:            pingMut,
+		lggr:               lggr,
+		allCounts:          map[string]queue.Count{},
 	}
 	return pinger
 }
@@ -82,7 +79,7 @@ func (q *queuePinger) start(
 	ticker *time.Ticker,
 	endpCache k8s.EndpointsCache,
 ) error {
-	endpoWatchIface, err := endpCache.Watch(q.interceptorNS, q.interceptorServiceName)
+	endpoWatchIface, err := endpCache.Watch(q.interceptorNS, q.interceptorSvcName)
 	if err != nil {
 		return err
 	}

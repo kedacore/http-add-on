@@ -147,6 +147,13 @@ func (e *impl) GetMetricSpec(
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 		return nil, err
 	}
+
+	if !util.IsManagedByThisScalingSet(httpso) {
+		err := fmt.Errorf("the HTTPScaledObject %s is not for this ScalingSet", httpso.Name)
+		lggr.Error(err, "invalid configuration")
+		return nil, err
+	}
+
 	targetValue := int64(ptr.Deref(httpso.Spec.TargetPendingRequests, 100))
 
 	if httpso.Spec.ScalingMetric != nil {
@@ -215,6 +222,12 @@ func (e *impl) GetMetrics(
 	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(httpScaledObjectName)
 	if err != nil {
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", httpScaledObjectName, "namespace", sor.Namespace)
+		return nil, err
+	}
+
+	if !util.IsManagedByThisScalingSet(httpso) {
+		err := fmt.Errorf("the HTTPScaledObject %s is not for this ScalingSet", httpso.Name)
+		lggr.Error(err, "invalid configuration")
 		return nil, err
 	}
 

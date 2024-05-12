@@ -66,6 +66,13 @@ jobs:
     - name: Test
       run: ARCH=${{ matrix.name }} make test
 
+    - name: Test Summary
+      uses: test-summary/action@032c8a9cec6aaa3c20228112cae6ca10a3b29336 # v2.3
+      with:
+        paths: |
+          test-report.xml
+      if: always()
+
   statics:
     name: Static Checks
     runs-on: ubuntu-latest

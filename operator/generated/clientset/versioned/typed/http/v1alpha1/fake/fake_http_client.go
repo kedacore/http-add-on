@@ -28,8 +28,16 @@ type FakeHttpV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeHttpV1alpha1) ClusterHTTPScalingSets(namespace string) v1alpha1.ClusterHTTPScalingSetInterface {
+	return &FakeClusterHTTPScalingSets{c, namespace}
+}
+
 func (c *FakeHttpV1alpha1) HTTPScaledObjects(namespace string) v1alpha1.HTTPScaledObjectInterface {
 	return &FakeHTTPScaledObjects{c, namespace}
+}
+
+func (c *FakeHttpV1alpha1) HTTPScalingSets(namespace string) v1alpha1.HTTPScalingSetInterface {
+	return &FakeHTTPScalingSets{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

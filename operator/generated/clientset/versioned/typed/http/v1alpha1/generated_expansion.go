@@ -18,4 +18,8 @@ limitations under the License.
 
 package v1alpha1
 
+type ClusterHTTPScalingSetExpansion interface{}
+
 type HTTPScaledObjectExpansion interface{}
+
+type HTTPScalingSetExpansion interface{}

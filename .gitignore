@@ -362,3 +362,6 @@ admin/Cargo.lock
 *.csr
 *.srl
 *.ext
+
+# test results
+test-report.xml

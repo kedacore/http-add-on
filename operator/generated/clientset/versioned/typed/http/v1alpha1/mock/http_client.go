@@ -57,6 +57,20 @@ func (m *MockHttpV1alpha1Interface) EXPECT() *MockHttpV1alpha1InterfaceMockRecor
 	return m.recorder
 }
 
+// ClusterHTTPScalingSets mocks base method.
+func (m *MockHttpV1alpha1Interface) ClusterHTTPScalingSets(namespace string) v1alpha1.ClusterHTTPScalingSetInterface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClusterHTTPScalingSets", namespace)
+	ret0, _ := ret[0].(v1alpha1.ClusterHTTPScalingSetInterface)
+	return ret0
+}
+
+// ClusterHTTPScalingSets indicates an expected call of ClusterHTTPScalingSets.
+func (mr *MockHttpV1alpha1InterfaceMockRecorder) ClusterHTTPScalingSets(namespace any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterHTTPScalingSets", reflect.TypeOf((*MockHttpV1alpha1Interface)(nil).ClusterHTTPScalingSets), namespace)
+}
+
 // HTTPScaledObjects mocks base method.
 func (m *MockHttpV1alpha1Interface) HTTPScaledObjects(namespace string) v1alpha1.HTTPScaledObjectInterface {
 	m.ctrl.T.Helper()
@@ -69,6 +83,20 @@ func (m *MockHttpV1alpha1Interface) HTTPScaledObjects(namespace string) v1alpha1
 func (mr *MockHttpV1alpha1InterfaceMockRecorder) HTTPScaledObjects(namespace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTTPScaledObjects", reflect.TypeOf((*MockHttpV1alpha1Interface)(nil).HTTPScaledObjects), namespace)
+}
+
+// HTTPScalingSets mocks base method.
+func (m *MockHttpV1alpha1Interface) HTTPScalingSets(namespace string) v1alpha1.HTTPScalingSetInterface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HTTPScalingSets", namespace)
+	ret0, _ := ret[0].(v1alpha1.HTTPScalingSetInterface)
+	return ret0
+}
+
+// HTTPScalingSets indicates an expected call of HTTPScalingSets.
+func (mr *MockHttpV1alpha1InterfaceMockRecorder) HTTPScalingSets(namespace any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTTPScalingSets", reflect.TypeOf((*MockHttpV1alpha1Interface)(nil).HTTPScalingSets), namespace)
 }
 
 // RESTClient mocks base method.

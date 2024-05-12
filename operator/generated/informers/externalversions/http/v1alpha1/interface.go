@@ -24,8 +24,12 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// ClusterHTTPScalingSets returns a ClusterHTTPScalingSetInformer.
+	ClusterHTTPScalingSets() ClusterHTTPScalingSetInformer
 	// HTTPScaledObjects returns a HTTPScaledObjectInformer.
 	HTTPScaledObjects() HTTPScaledObjectInformer
+	// HTTPScalingSets returns a HTTPScalingSetInformer.
+	HTTPScalingSets() HTTPScalingSetInformer
 }
 
 type version struct {
@@ -39,7 +43,17 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
+// ClusterHTTPScalingSets returns a ClusterHTTPScalingSetInformer.
+func (v *version) ClusterHTTPScalingSets() ClusterHTTPScalingSetInformer {
+	return &clusterHTTPScalingSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // HTTPScaledObjects returns a HTTPScaledObjectInformer.
 func (v *version) HTTPScaledObjects() HTTPScaledObjectInformer {
 	return &hTTPScaledObjectInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// HTTPScalingSets returns a HTTPScalingSetInformer.
+func (v *version) HTTPScalingSets() HTTPScalingSetInformer {
+	return &hTTPScalingSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

@@ -5,33 +5,41 @@ import (
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 )
 
 const (
+	// This finalizer is deprecated and we shouldn't use it
 	httpScaledObjectFinalizer = "httpscaledobject.http.keda.sh"
+	httpFinalizer             = "http.keda.sh"
 )
 
-// ensureFinalizer check there is finalizer present on the ScaledObject, if not it adds one
+// ensureFinalizer check there is finalizer present on the HTTP resources, if not it adds one
 func ensureFinalizer(
 	ctx context.Context,
 	logger logr.Logger,
 	client client.Client,
-	httpso *httpv1alpha1.HTTPScaledObject,
+	httpObject client.Object,
 ) error {
-	if !contains(httpso.GetFinalizers(), httpScaledObjectFinalizer) {
-		logger.Info("Adding Finalizer for the ScaledObject")
-		httpso.SetFinalizers(append(httpso.GetFinalizers(), httpScaledObjectFinalizer))
+	if !contains(httpObject.GetFinalizers(), httpFinalizer) {
+		logger.Info("Adding Finalizer")
+		// We have to ensure that the old finalizer is removed
+		// We can remove this code in future versions, like v0.10.0 or later
+		finalizers := remove(httpObject.GetFinalizers(), httpScaledObjectFinalizer)
+
+		httpObject.SetFinalizers(append(finalizers, httpFinalizer))
 
 		// Update CR
-		err := client.Update(ctx, httpso)
+		err := client.Update(ctx, httpObject)
 		if err != nil {
 			logger.Error(
 				err,
-				"Failed to update HTTPScaledObject with a finalizer",
+				"Failed to update with a finalizer",
+				"name",
+				httpObject.GetName(),
+				"kind",
+				httpObject.GetObjectKind().GroupVersionKind().String(),
 				"finalizer",
-				httpScaledObjectFinalizer,
+				httpFinalizer,
 			)
 			return err
 		}
@@ -43,21 +51,25 @@ func finalizeScaledObject(
 	ctx context.Context,
 	logger logr.Logger,
 	client client.Client,
-	httpso *httpv1alpha1.HTTPScaledObject) error {
-	if contains(httpso.GetFinalizers(), httpScaledObjectFinalizer) {
-		httpso.SetFinalizers(remove(httpso.GetFinalizers(), httpScaledObjectFinalizer))
-		if err := client.Update(ctx, httpso); err != nil {
+	httpObject client.Object) error {
+	if contains(httpObject.GetFinalizers(), httpFinalizer) {
+		httpObject.SetFinalizers(remove(httpObject.GetFinalizers(), httpFinalizer))
+		if err := client.Update(ctx, httpObject); err != nil {
 			logger.Error(
 				err,
 				"Failed to update ScaledObject after removing a finalizer",
+				"name",
+				httpObject.GetName(),
+				"kind",
+				httpObject.GetObjectKind().GroupVersionKind().String(),
 				"finalizer",
-				httpScaledObjectFinalizer,
+				httpFinalizer,
 			)
 			return err
 		}
 	}
 
-	logger.Info("Successfully finalized HTTPScaledObject")
+	logger.Info("Successfully finalized")
 	return nil
 }
 

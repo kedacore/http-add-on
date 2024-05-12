@@ -5,6 +5,56 @@ metadata:
   name: operator
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - clusterhttpscalingsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - clusterhttpscalingsets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - clusterhttpscalingsets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - http.keda.sh
   resources:
   - httpscaledobjects
@@ -26,6 +76,32 @@ rules:
   - http.keda.sh
   resources:
   - httpscaledobjects/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - httpscalingsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - httpscalingsets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - http.keda.sh
+  resources:
+  - httpscalingsets/status
   verbs:
   - get
   - patch

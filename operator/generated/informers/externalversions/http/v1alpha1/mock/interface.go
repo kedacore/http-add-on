@@ -56,6 +56,20 @@ func (m *MockInterface) EXPECT() *MockInterfaceMockRecorder {
 	return m.recorder
 }
 
+// ClusterHTTPScalingSets mocks base method.
+func (m *MockInterface) ClusterHTTPScalingSets() v1alpha1.ClusterHTTPScalingSetInformer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClusterHTTPScalingSets")
+	ret0, _ := ret[0].(v1alpha1.ClusterHTTPScalingSetInformer)
+	return ret0
+}
+
+// ClusterHTTPScalingSets indicates an expected call of ClusterHTTPScalingSets.
+func (mr *MockInterfaceMockRecorder) ClusterHTTPScalingSets() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterHTTPScalingSets", reflect.TypeOf((*MockInterface)(nil).ClusterHTTPScalingSets))
+}
+
 // HTTPScaledObjects mocks base method.
 func (m *MockInterface) HTTPScaledObjects() v1alpha1.HTTPScaledObjectInformer {
 	m.ctrl.T.Helper()
@@ -68,4 +82,18 @@ func (m *MockInterface) HTTPScaledObjects() v1alpha1.HTTPScaledObjectInformer {
 func (mr *MockInterfaceMockRecorder) HTTPScaledObjects() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTTPScaledObjects", reflect.TypeOf((*MockInterface)(nil).HTTPScaledObjects))
+}
+
+// HTTPScalingSets mocks base method.
+func (m *MockInterface) HTTPScalingSets() v1alpha1.HTTPScalingSetInformer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HTTPScalingSets")
+	ret0, _ := ret[0].(v1alpha1.HTTPScalingSetInformer)
+	return ret0
+}
+
+// HTTPScalingSets indicates an expected call of HTTPScalingSets.
+func (mr *MockInterfaceMockRecorder) HTTPScalingSets() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTTPScalingSets", reflect.TypeOf((*MockInterface)(nil).HTTPScalingSets))
 }

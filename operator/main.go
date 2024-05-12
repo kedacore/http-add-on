@@ -119,6 +119,24 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
 		os.Exit(1)
 	}
+
+	if err = (&httpcontrollers.HTTPScalingSetReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HTTPScalingSet")
+		os.Exit(1)
+	}
+
+	if err = (&httpcontrollers.ClusterHTTPScalingSetReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		KEDANamespace: baseConfig.CurrentNamespace,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HTTPScalingSet")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

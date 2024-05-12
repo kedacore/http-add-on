@@ -30,6 +30,52 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockClusterHTTPScalingSetListerExpansion is a mock of ClusterHTTPScalingSetListerExpansion interface.
+type MockClusterHTTPScalingSetListerExpansion struct {
+	ctrl     *gomock.Controller
+	recorder *MockClusterHTTPScalingSetListerExpansionMockRecorder
+}
+
+// MockClusterHTTPScalingSetListerExpansionMockRecorder is the mock recorder for MockClusterHTTPScalingSetListerExpansion.
+type MockClusterHTTPScalingSetListerExpansionMockRecorder struct {
+	mock *MockClusterHTTPScalingSetListerExpansion
+}
+
+// NewMockClusterHTTPScalingSetListerExpansion creates a new mock instance.
+func NewMockClusterHTTPScalingSetListerExpansion(ctrl *gomock.Controller) *MockClusterHTTPScalingSetListerExpansion {
+	mock := &MockClusterHTTPScalingSetListerExpansion{ctrl: ctrl}
+	mock.recorder = &MockClusterHTTPScalingSetListerExpansionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockClusterHTTPScalingSetListerExpansion) EXPECT() *MockClusterHTTPScalingSetListerExpansionMockRecorder {
+	return m.recorder
+}
+
+// MockClusterHTTPScalingSetNamespaceListerExpansion is a mock of ClusterHTTPScalingSetNamespaceListerExpansion interface.
+type MockClusterHTTPScalingSetNamespaceListerExpansion struct {
+	ctrl     *gomock.Controller
+	recorder *MockClusterHTTPScalingSetNamespaceListerExpansionMockRecorder
+}
+
+// MockClusterHTTPScalingSetNamespaceListerExpansionMockRecorder is the mock recorder for MockClusterHTTPScalingSetNamespaceListerExpansion.
+type MockClusterHTTPScalingSetNamespaceListerExpansionMockRecorder struct {
+	mock *MockClusterHTTPScalingSetNamespaceListerExpansion
+}
+
+// NewMockClusterHTTPScalingSetNamespaceListerExpansion creates a new mock instance.
+func NewMockClusterHTTPScalingSetNamespaceListerExpansion(ctrl *gomock.Controller) *MockClusterHTTPScalingSetNamespaceListerExpansion {
+	mock := &MockClusterHTTPScalingSetNamespaceListerExpansion{ctrl: ctrl}
+	mock.recorder = &MockClusterHTTPScalingSetNamespaceListerExpansionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockClusterHTTPScalingSetNamespaceListerExpansion) EXPECT() *MockClusterHTTPScalingSetNamespaceListerExpansionMockRecorder {
+	return m.recorder
+}
+
 // MockHTTPScaledObjectListerExpansion is a mock of HTTPScaledObjectListerExpansion interface.
 type MockHTTPScaledObjectListerExpansion struct {
 	ctrl     *gomock.Controller
@@ -73,5 +119,51 @@ func NewMockHTTPScaledObjectNamespaceListerExpansion(ctrl *gomock.Controller) *M
 
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockHTTPScaledObjectNamespaceListerExpansion) EXPECT() *MockHTTPScaledObjectNamespaceListerExpansionMockRecorder {
+	return m.recorder
+}
+
+// MockHTTPScalingSetListerExpansion is a mock of HTTPScalingSetListerExpansion interface.
+type MockHTTPScalingSetListerExpansion struct {
+	ctrl     *gomock.Controller
+	recorder *MockHTTPScalingSetListerExpansionMockRecorder
+}
+
+// MockHTTPScalingSetListerExpansionMockRecorder is the mock recorder for MockHTTPScalingSetListerExpansion.
+type MockHTTPScalingSetListerExpansionMockRecorder struct {
+	mock *MockHTTPScalingSetListerExpansion
+}
+
+// NewMockHTTPScalingSetListerExpansion creates a new mock instance.
+func NewMockHTTPScalingSetListerExpansion(ctrl *gomock.Controller) *MockHTTPScalingSetListerExpansion {
+	mock := &MockHTTPScalingSetListerExpansion{ctrl: ctrl}
+	mock.recorder = &MockHTTPScalingSetListerExpansionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockHTTPScalingSetListerExpansion) EXPECT() *MockHTTPScalingSetListerExpansionMockRecorder {
+	return m.recorder
+}
+
+// MockHTTPScalingSetNamespaceListerExpansion is a mock of HTTPScalingSetNamespaceListerExpansion interface.
+type MockHTTPScalingSetNamespaceListerExpansion struct {
+	ctrl     *gomock.Controller
+	recorder *MockHTTPScalingSetNamespaceListerExpansionMockRecorder
+}
+
+// MockHTTPScalingSetNamespaceListerExpansionMockRecorder is the mock recorder for MockHTTPScalingSetNamespaceListerExpansion.
+type MockHTTPScalingSetNamespaceListerExpansionMockRecorder struct {
+	mock *MockHTTPScalingSetNamespaceListerExpansion
+}
+
+// NewMockHTTPScalingSetNamespaceListerExpansion creates a new mock instance.
+func NewMockHTTPScalingSetNamespaceListerExpansion(ctrl *gomock.Controller) *MockHTTPScalingSetNamespaceListerExpansion {
+	mock := &MockHTTPScalingSetNamespaceListerExpansion{ctrl: ctrl}
+	mock.recorder = &MockHTTPScalingSetNamespaceListerExpansionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockHTTPScalingSetNamespaceListerExpansion) EXPECT() *MockHTTPScalingSetNamespaceListerExpansionMockRecorder {
 	return m.recorder
 }

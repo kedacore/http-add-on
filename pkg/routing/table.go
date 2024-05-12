@@ -46,7 +46,6 @@ type table struct {
 
 func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string, counter queue.Counter) (Table, error) {
 	httpScaledObjects := informershttpv1alpha1.New(sharedInformerFactory, namespace, nil).HTTPScaledObjects()
-
 	t := table{
 		httpScaledObjects: make(map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject),
 		memorySignaler:    util.NewSignaler(),
@@ -150,6 +149,9 @@ func (t *table) OnAdd(obj interface{}, _ bool) {
 	if !ok {
 		return
 	}
+	if !util.IsManagedByThisScalingSet(httpScaledObject) {
+		return
+	}
 	key := *k8s.NamespacedNameFromObject(httpScaledObject)
 
 	window := time.Minute
@@ -175,11 +177,25 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 		return
 	}
 	oldKey := *k8s.NamespacedNameFromObject(oldHTTPSO)
-
 	newHTTPSO, ok := newObj.(*httpv1alpha1.HTTPScaledObject)
 	if !ok {
 		return
 	}
+	defer t.memorySignaler.Signal()
+
+	if !util.IsManagedByThisScalingSet(newHTTPSO) {
+		// If the old HTTPSO was  managed by this
+		// instance, we have to delete it
+		if util.IsManagedByThisScalingSet(oldHTTPSO) {
+			t.httpScaledObjectsMutex.Lock()
+			defer t.httpScaledObjectsMutex.Unlock()
+
+			delete(t.httpScaledObjects, oldKey)
+			t.queueCounter.RemoveKey(oldKey.String())
+		}
+		return
+	}
+
 	newKey := *k8s.NamespacedNameFromObject(newHTTPSO)
 
 	window := time.Minute
@@ -191,15 +207,12 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 	}
 	t.queueCounter.UpdateBuckets(newKey.String(), window, granualrity)
 
-	mustDelete := oldKey != newKey
-	defer t.memorySignaler.Signal()
-
 	t.httpScaledObjectsMutex.Lock()
 	defer t.httpScaledObjectsMutex.Unlock()
 
 	t.httpScaledObjects[newKey] = newHTTPSO
 
-	if mustDelete {
+	if oldKey != newKey {
 		delete(t.httpScaledObjects, oldKey)
 		t.queueCounter.RemoveKey(oldKey.String())
 	}
@@ -208,6 +221,9 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 func (t *table) OnDelete(obj interface{}) {
 	httpScaledObject, ok := obj.(*httpv1alpha1.HTTPScaledObject)
 	if !ok {
+		return
+	}
+	if !util.IsManagedByThisScalingSet(httpScaledObject) {
 		return
 	}
 	key := *k8s.NamespacedNameFromObject(httpScaledObject)
