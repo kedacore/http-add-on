@@ -146,7 +146,7 @@ var _ = Describe("ClusterHTTPScalingSetController", func() {
 				},
 				Spec: v1alpha1.HTTPScalingSetSpec{
 					Interceptor: v1alpha1.HTTPInterceptorSepc{
-						Replicas:  ptr.To(int32(interceptorReplicas)),
+						Replicas:  ptr.To(interceptorReplicas),
 						Resources: interceptorResouces,
 						Config: &v1alpha1.HTTPInterceptorConfigurationSepc{
 							ProxyPort: ptr.To(interceptorProxyPort),
@@ -160,7 +160,7 @@ var _ = Describe("ClusterHTTPScalingSetController", func() {
 						},
 					},
 					Scaler: v1alpha1.HTTPScalerSepc{
-						Replicas:  ptr.To(int32(scalerReplicas)),
+						Replicas:  ptr.To(scalerReplicas),
 						Resources: scalerResouces,
 						Config: v1alpha1.HTTPScalerConfigurationSepc{
 							Port: ptr.To(scalerPort),
