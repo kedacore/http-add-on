@@ -25,6 +25,7 @@ import (
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -101,17 +102,17 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&HTTPScalingSetReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(k8sClient).ToNot(BeNil())
 
-	kedaNs := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "keda",
-		},
-	}
-	err = k8sClient.Create(ctx, kedaNs)
-	Expect(err).ToNot(HaveOccurred())
+	createNamespace("keda")
 
 	go func() {
 		err = k8sManager.Start(ctx)
@@ -128,6 +129,23 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
 })
+
+func validateResources(expected, value corev1.ResourceRequirements) {
+	Expect(expected.Requests.Cpu().AsApproximateFloat64()).Should(BeEquivalentTo(value.Requests.Cpu().AsApproximateFloat64()))
+	Expect(expected.Requests.Memory().AsApproximateFloat64()).Should(BeEquivalentTo(value.Requests.Memory().AsApproximateFloat64()))
+	Expect(expected.Limits.Cpu().AsApproximateFloat64()).Should(BeEquivalentTo(value.Limits.Cpu().AsApproximateFloat64()))
+	Expect(expected.Limits.Memory().AsApproximateFloat64()).Should(BeEquivalentTo(value.Limits.Memory().AsApproximateFloat64()))
+}
+
+func createNamespace(name string) {
+	ns := &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	err := k8sClient.Create(ctx, ns)
+	Expect(err).ToNot(HaveOccurred())
+}
 
 type commonTestInfra struct {
 	ns      string
