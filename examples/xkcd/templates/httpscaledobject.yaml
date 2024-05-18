@@ -11,7 +11,7 @@ spec:
     pathPrefixes:
         {{- toYaml . | nindent 8 }}
     {{- end }}
-    scalingMetric: 
+    scalingMetric:
         concurrency:
             targetValue: {{ .Values.targetPendingRequests }}
     scaleTargetRef:
