@@ -11,7 +11,9 @@ spec:
     pathPrefixes:
         {{- toYaml . | nindent 8 }}
     {{- end }}
-    targetPendingRequests: {{ .Values.targetPendingRequests }}
+    scalingMetric: 
+        concurrency:
+            targetValue: {{ .Values.targetPendingRequests }}
     scaleTargetRef:
         name: {{ include "xkcd.fullname" . }}
         kind: Deployment
