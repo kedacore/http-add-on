@@ -128,15 +128,15 @@ publish-scaler-multiarch:
 
 publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publish-scaler-multiarch
 
-release: manifests kustomize ## Produce new KEDA Http Add-on release in keda-http-add-on-$(VERSION).yaml file.
+release: manifests kustomize ## Produce new KEDA Http Add-on release in keda-add-ons-http-$(VERSION).yaml file.
 	cd config/interceptor && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
 	cd config/scaler && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
 	cd config/operator && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
-	$(KUSTOMIZE) build config/default > keda-http-add-on-$(VERSION).yaml
-	$(KUSTOMIZE) build config/crd     > keda-http-add-on-$(VERSION)-crds.yaml
+	$(KUSTOMIZE) build config/default > keda-add-ons-http-$(VERSION).yaml
+	$(KUSTOMIZE) build config/crd     > keda-add-ons-http-$(VERSION)-crds.yaml
 
 # Development
 

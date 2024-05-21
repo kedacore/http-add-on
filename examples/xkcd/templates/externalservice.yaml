@@ -6,4 +6,4 @@ metadata:
     {{- include "xkcd.labels" . | nindent 4 }}
 spec:
   type: ExternalName
-  externalName: keda-http-add-on-interceptor-proxy.keda
+  externalName: keda-add-ons-http-interceptor-proxy.keda

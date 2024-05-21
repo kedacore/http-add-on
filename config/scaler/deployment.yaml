@@ -29,13 +29,13 @@ spec:
         - --zap-time-encoding=rfc3339
         env:
         - name: KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT
-          value: "keda-http-add-on-interceptor"
+          value: "keda-add-ons-http-interceptor"
         - name: KEDA_HTTP_SCALER_PORT
           value: "9090"
         - name: KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE
           value: "keda"
         - name: KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE
-          value: "keda-http-add-on-interceptor-admin"
+          value: "keda-add-ons-http-interceptor-admin"
         - name: KEDA_HTTP_SCALER_TARGET_ADMIN_PORT
           value: "9090"
         - name: KEDA_HTTP_SCALER_STREAM_INTERVAL_MS

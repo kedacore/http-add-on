@@ -29,7 +29,7 @@ var (
 	host                         = testName
 	minReplicaCount              = 0
 	maxReplicaCount              = 1
-	kedaInterceptorPrometheusURL = "http://keda-http-add-on-interceptor-metrics.keda:2223/metrics"
+	kedaInterceptorPrometheusURL = "http://keda-add-ons-http-interceptor-metrics.keda:2223/metrics"
 )
 
 type templateData struct {
@@ -108,7 +108,7 @@ spec:
       - name: curl-client
         image: curlimages/curl
         imagePullPolicy: Always
-        command: ["curl", "-H", "Host: {{.Host}}", "keda-http-add-on-interceptor-proxy.keda:8080"]
+        command: ["curl", "-H", "Host: {{.Host}}", "keda-add-ons-http-interceptor-proxy.keda:8080"]
       restartPolicy: Never
   activeDeadlineSeconds: 600
   backoffLimit: 5

@@ -6,7 +6,7 @@ resources:
 - ../operator
 - ../scaler
 namespace: keda
-namePrefix: keda-http-add-on-
+namePrefix: keda-add-ons-http-
 labels:
 - includeSelectors: true
   includeTemplates: true

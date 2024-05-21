@@ -75,9 +75,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: https://uploads.github.com/repos/kedacore/http-add-on/releases/${{ steps.get-release-info.outputs.id }}/assets?name=keda-http-add-on-${{ steps.get_version.outputs.VERSION }}.yaml
-          asset_path: keda-http-add-on-${{ steps.get_version.outputs.VERSION }}.yaml
-          asset_name: keda-http-add-on-${{ steps.get_version.outputs.VERSION }}.yaml
+          upload_url: https://uploads.github.com/repos/kedacore/http-add-on/releases/${{ steps.get-release-info.outputs.id }}/assets?name=keda-add-ons-http-${{ steps.get_version.outputs.VERSION }}.yaml
+          asset_path: keda-add-ons-http-${{ steps.get_version.outputs.VERSION }}.yaml
+          asset_name: keda-add-ons-http-${{ steps.get_version.outputs.VERSION }}.yaml
           asset_content_type: application/x-yaml
 
       # Upload CRD deployment YAML file to GitHub release
@@ -87,7 +87,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: https://uploads.github.com/repos/kedacore/http-add-on/releases/${{ steps.get-release-info.outputs.id }}/assets?name=keda-http-add-on-${{ steps.get_version.outputs.VERSION }}-crds.yaml
-          asset_path: keda-http-add-on-${{ steps.get_version.outputs.VERSION }}-crds.yaml
-          asset_name: keda-http-add-on-${{ steps.get_version.outputs.VERSION }}-crds.yaml
+          upload_url: https://uploads.github.com/repos/kedacore/http-add-on/releases/${{ steps.get-release-info.outputs.id }}/assets?name=keda-add-ons-http-${{ steps.get_version.outputs.VERSION }}-crds.yaml
+          asset_path: keda-add-ons-http-${{ steps.get_version.outputs.VERSION }}-crds.yaml
+          asset_name: keda-add-ons-http-${{ steps.get_version.outputs.VERSION }}-crds.yaml
           asset_content_type: application/x-yaml

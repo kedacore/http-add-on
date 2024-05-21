@@ -75,7 +75,7 @@ metadata:
     app: {{.DeploymentName}}
 spec:
   type: ExternalName
-  externalName: keda-http-add-on-interceptor-proxy.{{.KEDANamespace}}
+  externalName: keda-add-ons-http-interceptor-proxy.{{.KEDANamespace}}
 `
 
 	serviceTemplate = `

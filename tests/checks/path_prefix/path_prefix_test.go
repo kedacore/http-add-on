@@ -211,7 +211,7 @@ spec:
       - name: curl-client
         image: curlimages/curl
         imagePullPolicy: Always
-        command: ["curl", "-H", "Host: {{.Host}}", "keda-http-add-on-interceptor-proxy.keda:8080{{.PathPrefix}}"]
+        command: ["curl", "-H", "Host: {{.Host}}", "keda-add-ons-http-interceptor-proxy.keda:8080{{.PathPrefix}}"]
       restartPolicy: Never
   activeDeadlineSeconds: 600
   backoffLimit: 5

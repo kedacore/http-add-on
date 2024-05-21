@@ -116,7 +116,7 @@ spec:
           - "1"
           - "-H"
           - "Host: {{.Host}}"
-          - "http://keda-http-add-on-interceptor-proxy.keda:8080/"
+          - "http://keda-add-ons-http-interceptor-proxy.keda:8080/"
       restartPolicy: Never
       terminationGracePeriodSeconds: 5
   activeDeadlineSeconds: 600
