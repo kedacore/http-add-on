@@ -171,7 +171,7 @@ func TestMetricGeneration(t *testing.T) {
 	// If the metric is not found first time around then retry with a delay.
 	if !ok {
 		// Add a small sleep to allow metrics to be pushed from the exporter to the collector
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		// Fetch metrics and validate them
 		family := fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", otelCollectorPromURL))
 		val, ok = family["interceptor_request_count_total"]
