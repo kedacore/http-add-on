@@ -3,7 +3,7 @@ module github.com/kedacore/http-add-on
 go 1.22.2
 
 require (
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/kedacore/keda/v2 v2.14.1-0.20240429185716-c55e306af94b
