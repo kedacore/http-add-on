@@ -14,6 +14,13 @@ You'll need to install a `Deployment` and `Service` first. You'll tell the add-o
 helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 ```
 
+#### xkcd exposed with GatewayAPI
+Alternatively if you'd like to try the addon along with GatewayAPI, you can install first GatewayAPI CRDs and some GatewayAPI implementation, for example as described in a [section below](#installing-and-using-the-eg-gatewayapi) and install the application as with `httproute=true` which will deploy properly configured `HTTPRoute` too.
+
+```console
+helm install xkcd ./examples/xkcd -n ${NAMESPACE} --set httproute=true
+```
+
 You'll need to clone the repository to get access to this chart. If you have your own workload and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
 
 >If you are running KEDA and the HTTP Add-on in cluster-global mode, you can install the XKCD chart in any namespace you choose. If you do so, make sure you add `--set ingressNamespace=${NAMESPACE}` to the above installation command.
@@ -69,6 +76,58 @@ An [`Ingress`](https://kubernetes.io/docs/concepts/services-networking/ingress/)
 When you're ready, please run `kubectl get svc -n ${NAMESPACE}`, find the `ingress-nginx-controller` service, and copy and paste its `EXTERNAL-IP`. This is the IP address that your application will be running at on the public internet.
 
 >Note: you should go further and set your DNS records appropriately and set up a TLS certificate for this IP address. Instructions to do that are out of scope of this document, though.
+
+#### Installing and Using the [eg](https://gateway.envoyproxy.io/v1.0.1/install/install-helm/) GatewayAPI
+
+Similarly to exposing your service with `Ingress`, you can expose your service with `HTTPRoute` as part of [GatewayAPI](https://github.com/kubernetes-sigs/gateway-api). Following steps describe how to install one of may GatewayAPI implementations - Envoy Gateway.
+You should install the `xkcd` helm chart with `--set httproute=true` as [explained above](#xkcd-exposed-with-gatewayapi).
+
+The helm chart is publically available and hosted by DockerHub
+```console
+helm install eg oci://docker.io/envoyproxy/gateway-helm --version v1.0.1 -n envoy-gateway-system --create-namespace
+```
+Before creating new `Gateway`, wait for Envoy Gateway to become available
+```console
+kubectl wait --timeout=5m -n envoy-gateway-system deployment/envoy-gateway --for=condition=Available
+```
+Create `GatewayClass` and `Gateway`
+```console
+cat << 'EOF' | kubectl apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: eg
+  namespace: envoy-gateway-system
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+EOF
+```
+> 💡 Note the `ExternalName` type `Service` used to route traffic from `Ingress` defined in one namespace to the interceptor `Service` defined in another is not necessary with GatewayAPI.
+> The GatewayAPI defines [`ReferenceGrant`](https://gateway-api.sigs.k8s.io/api-types/referencegrant/) to allow `HTTPRoutes` referencing `Services` and other types of backend from different `Namespaces`.
+
+You can see the IP address for following rest of the document with
+```console
+kubectl get gateway -n envoy-gateway-system
+```
+For example (your IP will likely differ)
+```
+NAME   CLASS   ADDRESS          PROGRAMMED   AGE
+eg     eg      172.24.255.201   True         16s
+```
 
 ### Making an HTTP Request to your App
 

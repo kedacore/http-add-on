@@ -1,0 +1,39 @@
+{{- if .Values.httproute }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "xkcd.fullname" . }}
+spec:
+  parentRefs:
+    - name: eg
+      namespace: envoy-gateway-system
+  hostnames:
+  {{- range .Values.hosts }}
+    - {{ . | toString }}
+  {{- end }}
+  rules:
+    - backendRefs:
+        - kind: Service
+          name: keda-add-ons-http-interceptor-proxy
+          namespace: keda
+          port: 8080
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ include "xkcd.fullname" . }}
+  namespace: keda
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: {{ .Release.Namespace }}
+  to:
+  - group: ""
+    kind: Service
+    name: keda-add-ons-http-interceptor-proxy
+{{- end }}
