@@ -152,9 +152,9 @@ func newCommonTestInfraWithSkipScaledObjectCreation(namespace, appName string) *
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: appName,
-				Service:    appName,
-				Port:       8081,
+				Name:    appName,
+				Service: appName,
+				Port:    8081,
 			},
 			Hosts: []string{"myhost1.com", "myhost2.com"},
 		},

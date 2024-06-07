@@ -19,7 +19,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Drop support for deprecated field `spec.scaleTargetRef.deployment` ([#1061](https://github.com/kedacore/http-add-on/issues/1061))
 
 ### New
 

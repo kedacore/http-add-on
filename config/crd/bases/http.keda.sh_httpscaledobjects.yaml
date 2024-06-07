@@ -98,10 +98,6 @@ spec:
                 properties:
                   apiVersion:
                     type: string
-                  deployment:
-                    description: 'Deprecated: The name of the deployment to scale
-                      according to HTTP traffic'
-                    type: string
                   kind:
                     type: string
                   name:
@@ -152,7 +148,7 @@ spec:
                     type: object
                 type: object
               targetPendingRequests:
-                description: (optional) DEPRECATED (use SscalingMetric instead) Target
+                description: (optional) DEPRECATED (use ScalingMetric instead) Target
                   metric value
                 format: int32
                 type: integer
