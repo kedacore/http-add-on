@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
-	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/build"
 )
 
@@ -21,7 +20,7 @@ type OtelMetrics struct {
 	pendingRequestCounter api.Int64UpDownCounter
 }
 
-func NewOtelMetrics(metricsConfig *config.Metrics, options ...metric.Option) *OtelMetrics {
+func NewOtelMetrics(options ...metric.Option) *OtelMetrics {
 	ctx := context.Background()
 
 	exporter, err := otlpmetrichttp.New(ctx)
