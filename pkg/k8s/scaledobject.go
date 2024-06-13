@@ -12,22 +12,14 @@ const (
 	soPollingInterval = 15
 	soTriggerType     = "external-push"
 
-	ScalerAddressKey    = "scalerAddress"
-	HTTPScaledObjectKey = "httpScaledObject"
+	ScalerAddressKey           = "scalerAddress"
+	HTTPScaledObjectKey        = "httpScaledObject"
+	HTTPScaledObjectVersionKey = "httpScaledObjectVersion"
 )
 
 // NewScaledObject creates a new ScaledObject in memory
-func NewScaledObject(
-	namespace string,
-	name string,
-	labels map[string]string,
-	annotations map[string]string,
-	workloadRef v1alpha1.ScaleTargetRef,
-	scalerAddress string,
-	minReplicas *int32,
-	maxReplicas *int32,
-	cooldownPeriod *int32,
-) *kedav1alpha1.ScaledObject {
+func NewScaledObject(namespace string, name string, labels map[string]string, annotations map[string]string,
+	workloadRef v1alpha1.ScaleTargetRef, scalerAddress string, minReplicas *int32, maxReplicas *int32, cooldownPeriod *int32, httpSoVersion string) *kedav1alpha1.ScaledObject {
 	return &kedav1alpha1.ScaledObject{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: kedav1alpha1.SchemeGroupVersion.Identifier(),
@@ -58,6 +50,8 @@ func NewScaledObject(
 					Metadata: map[string]string{
 						ScalerAddressKey:    scalerAddress,
 						HTTPScaledObjectKey: name,
+						// Store HTTPSO resource version in the metadata, this ensures that the ScaledObject is reconciled when the HTTPSO is updated
+						HTTPScaledObjectVersionKey: httpSoVersion,
 					},
 				},
 			},
