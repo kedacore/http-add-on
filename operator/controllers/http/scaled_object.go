@@ -18,13 +18,7 @@ import (
 // according to the given parameters. If the create failed because the
 // ScaledObject already exists, attempts to patch the scaledobject.
 // otherwise, fails.
-func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
-	ctx context.Context,
-	cl client.Client,
-	logger logr.Logger,
-	externalScalerHostName string,
-	httpso *httpv1alpha1.HTTPScaledObject,
-) error {
+func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(ctx context.Context, cl client.Client, logger logr.Logger, externalScalerHostName string, httpso *httpv1alpha1.HTTPScaledObject) error {
 	logger.Info("Creating scaled objects", "external scaler host name", externalScalerHostName)
 
 	var minReplicaCount *int32
@@ -44,6 +38,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 		minReplicaCount,
 		maxReplicaCount,
 		httpso.Spec.CooldownPeriod,
+		httpso.ResourceVersion,
 	)
 
 	// Set HTTPScaledObject instance as the owner and controller
@@ -60,17 +55,11 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 			}
 			var fetchedSO kedav1alpha1.ScaledObject
 			if err := cl.Get(ctx, existingSOKey, &fetchedSO); err != nil {
-				logger.Error(
-					err,
-					"failed to fetch existing ScaledObject for patching",
-				)
+				logger.Error(err, "failed to fetch existing ScaledObject for patching")
 				return err
 			}
 			if err := cl.Patch(ctx, appScaledObject, client.Merge); err != nil {
-				logger.Error(
-					err,
-					"failed to patch existing ScaledObject",
-				)
+				logger.Error(err, "failed to patch existing ScaledObject")
 				return err
 			}
 		} else {
