@@ -4,8 +4,8 @@
 SHELL           = /bin/bash
 
 IMAGE_REGISTRY 	?= ghcr.io
-IMAGE_REPO     	?= kedacore
-VERSION 		?= main
+IMAGE_REPO     	?= kedify
+VERSION 		?= 0.8.0-1
 
 IMAGE_OPERATOR 		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
 IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
