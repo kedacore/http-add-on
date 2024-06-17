@@ -77,7 +77,7 @@ When you're ready, please run `kubectl get svc -n ${NAMESPACE}`, find the `ingre
 
 >Note: you should go further and set your DNS records appropriately and set up a TLS certificate for this IP address. Instructions to do that are out of scope of this document, though.
 
-#### Installing and Using the [eg](https://gateway.envoyproxy.io/v1.0.1/install/install-helm/) GatewayAPI
+#### Installing and Using the [eg](https://gateway.envoyproxy.io/latest/install/install-helm/) GatewayAPI
 
 Similarly to exposing your service with `Ingress`, you can expose your service with `HTTPRoute` as part of [GatewayAPI](https://github.com/kubernetes-sigs/gateway-api). Following steps describe how to install one of may GatewayAPI implementations - Envoy Gateway.
 You should install the `xkcd` helm chart with `--set httproute=true` as [explained above](#xkcd-exposed-with-gatewayapi).
