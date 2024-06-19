@@ -58,6 +58,8 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: make sign-images
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
 
       # Get release information to determine id of the current release
       - name: Get Release
