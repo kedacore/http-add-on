@@ -2,7 +2,7 @@
 
 The HTTP Add-on is highly modular and, as expected, builds on top of KEDA core. Below are some additional components:
 
-- **Operator** - watches for `ScaledHTTPObject` CRD resources and creates necessary backing Kubernetes resources (e.g. `Deployment`s, `Service`s, `ScaledObject`s, and so forth)
+- **Operator** - watches for `HTTPScaledObject` CRD resources and creates necessary backing Kubernetes resources (e.g. `Deployment`s, `Service`s, `ScaledObject`s, and so forth)
 - **Scaler** - communicates scaling-related metrics to KEDA. By default, the operator will install this for you as necessary.
 - **Interceptor** - a cluster-internal proxy that proxies incoming HTTP requests, communicating HTTP queue size metrics to the scaler, and holding requests in a temporary request queue when there are not yet any available app `Pod`s ready to serve. By default, the operator will install this for you as necessary.
     >There is [pending work](https://github.com/kedacore/http-add-on/issues/354) that may eventually make this component optional.

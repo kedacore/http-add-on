@@ -32,6 +32,8 @@ GO_LDFLAGS="-X github.com/kedacore/http-add-on/pkg/build.version=${VERSION} -X g
 GIT_COMMIT  ?= $(shell git rev-list -1 HEAD)
 GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
 
+COSIGN_FLAGS ?= -y -a GIT_HASH=${GIT_COMMIT} -a GIT_VERSION=${VERSION} -a BUILD_DATE=${DATE}
+
 define DOMAINS
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
@@ -141,6 +143,14 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 verify-manifests: ## Verify manifests are up to date.
 	./hack/verify-manifests.sh
+
+sign-images: ## Sign KEDA images published on GitHub Container Registry
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_OPERATOR_VERSIONED_TAG)
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_OPERATOR_SHA_TAG)
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_INTERCEPTOR_VERSIONED_TAG)
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_INTERCEPTOR_SHA_TAG)
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_SCALER_VERSIONED_TAG)
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_SCALER_SHA_TAG)
 
 mockgen: ## Generate mock implementations of Go interfaces.
 	./hack/update-mockgen.sh

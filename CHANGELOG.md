@@ -40,7 +40,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Other
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Sign images with Cosign ([#1062](https://github.com/kedacore/http-add-on/issues/1062))
 
 ## v0.8.0
 
