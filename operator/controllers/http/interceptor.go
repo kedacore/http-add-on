@@ -14,6 +14,7 @@ import (
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
+	"github.com/kedacore/http-add-on/pkg/validator"
 )
 
 const (
@@ -89,11 +90,11 @@ func createOrUpdateInterceptorResources(
 	}
 	envs := []corev1.EnvVar{
 		{
-			Name:  util.ScalingSetNameEnv,
+			Name:  validator.ScalingSetNameEnv,
 			Value: httpss.GetName(),
 		},
 		{
-			Name:  util.ScalingSetKindEnv,
+			Name:  validator.ScalingSetKindEnv,
 			Value: string(httpKind),
 		},
 		{

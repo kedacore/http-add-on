@@ -27,123 +27,123 @@ var (
 	scalerImage      = fmt.Sprintf("ghcr.io/kedacore/http-add-on-scaler:%s", build.Version())
 )
 
-func (c *HTTPInterceptorSepc) GetProxyPort() int32 {
+func (c *HTTPInterceptorSpec) GetProxyPort() int32 {
 	if c.Config == nil || c.Config.ProxyPort == nil {
 		return 8080
 	}
 	return *c.Config.ProxyPort
 }
 
-func (c *HTTPInterceptorSepc) GetAdminPort() int32 {
+func (c *HTTPInterceptorSpec) GetAdminPort() int32 {
 	if c.Config == nil || c.Config.AdminPort == nil {
 		return 9090
 	}
 	return *c.Config.AdminPort
 }
-func (c *HTTPInterceptorSepc) GetConnectTimeout() string {
+func (c *HTTPInterceptorSpec) GetConnectTimeout() string {
 	if c.Config == nil || c.Config.ConnectTimeout == nil {
 		return "500ms"
 	}
 	return *c.Config.ConnectTimeout
 }
-func (c *HTTPInterceptorSepc) GetHeaderTimeout() string {
+func (c *HTTPInterceptorSpec) GetHeaderTimeout() string {
 	if c.Config == nil || c.Config.HeaderTimeout == nil {
 		return "500ms"
 	}
 	return *c.Config.HeaderTimeout
 }
-func (c *HTTPInterceptorSepc) GetWaitTimeout() string {
+func (c *HTTPInterceptorSpec) GetWaitTimeout() string {
 	if c.Config == nil || c.Config.WaitTimeout == nil {
 		return "1500ms"
 	}
 	return *c.Config.WaitTimeout
 }
-func (c *HTTPInterceptorSepc) GetIdleConnTimeout() string {
+func (c *HTTPInterceptorSpec) GetIdleConnTimeout() string {
 	if c.Config == nil || c.Config.IdleConnTimeout == nil {
 		return "90s"
 	}
 	return *c.Config.IdleConnTimeout
 }
-func (c *HTTPInterceptorSepc) GetTLSHandshakeTimeout() string {
+func (c *HTTPInterceptorSpec) GetTLSHandshakeTimeout() string {
 	if c.Config == nil || c.Config.TLSHandshakeTimeout == nil {
 		return "10s"
 	}
 	return *c.Config.TLSHandshakeTimeout
 }
-func (c *HTTPInterceptorSepc) GetExpectContinueTimeout() string {
+func (c *HTTPInterceptorSpec) GetExpectContinueTimeout() string {
 	if c.Config == nil || c.Config.ExpectContinueTimeout == nil {
 		return "1s"
 	}
 	return *c.Config.ExpectContinueTimeout
 }
-func (c *HTTPInterceptorSepc) GetForceHTTP2() bool {
+func (c *HTTPInterceptorSpec) GetForceHTTP2() bool {
 	if c.Config == nil || c.Config.ForceHTTP2 == nil {
 		return false
 	}
 	return *c.Config.ForceHTTP2
 }
-func (c *HTTPInterceptorSepc) GetKeepAlive() string {
+func (c *HTTPInterceptorSpec) GetKeepAlive() string {
 	if c.Config == nil || c.Config.KeepAlive == nil {
 		return "1s"
 	}
 	return *c.Config.KeepAlive
 }
-func (c *HTTPInterceptorSepc) GetMaxIdleConns() int {
+func (c *HTTPInterceptorSpec) GetMaxIdleConns() int {
 	if c.Config == nil || c.Config.MaxIdleConns == nil {
 		return 100
 	}
 	return *c.Config.MaxIdleConns
 }
-func (c *HTTPInterceptorSepc) GetPollingInterval() int {
+func (c *HTTPInterceptorSpec) GetPollingInterval() int {
 	if c.Config == nil || c.Config.PollingInterval == nil {
 		return 1000
 	}
 	return *c.Config.PollingInterval
 }
 
-func (c *HTTPInterceptorSepc) GetImage() string {
+func (c *HTTPInterceptorSpec) GetImage() string {
 	if c.Image == nil {
 		return interceptorImage
 	}
 	return *c.Image
 }
 
-func (c *HTTPInterceptorSepc) GetLabels() map[string]string {
+func (c *HTTPInterceptorSpec) GetLabels() map[string]string {
 	if c.Labels == nil {
 		return map[string]string{}
 	}
 	return c.Labels
 }
 
-func (c *HTTPInterceptorSepc) GetAnnotations() map[string]string {
+func (c *HTTPInterceptorSpec) GetAnnotations() map[string]string {
 	if c.Annotations == nil {
 		return map[string]string{}
 	}
 	return c.Annotations
 }
 
-func (c *HTTPScalerSepc) GetPort() int32 {
+func (c *HTTPScalerSpec) GetPort() int32 {
 	if c.Config.Port == nil {
 		return 9090
 	}
 	return *c.Config.Port
 }
 
-func (c *HTTPScalerSepc) GetImage() string {
+func (c *HTTPScalerSpec) GetImage() string {
 	if c.Image == nil {
 		return scalerImage
 	}
 	return *c.Image
 }
 
-func (c *HTTPScalerSepc) GetLabels() map[string]string {
+func (c *HTTPScalerSpec) GetLabels() map[string]string {
 	if c.Labels == nil {
 		return map[string]string{}
 	}
 	return c.Labels
 }
 
-func (c *HTTPScalerSepc) GetAnnotations() map[string]string {
+func (c *HTTPScalerSpec) GetAnnotations() map[string]string {
 	if c.Annotations == nil {
 		return map[string]string{}
 	}

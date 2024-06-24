@@ -1,6 +1,4 @@
 /*
-
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -81,13 +79,7 @@ func (r *HTTPScalingSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Create required app objects for the application defined by the CRD
-	err := createOrUpdateInterceptorResources(
-		ctx,
-		logger,
-		r.Client,
-		httpss,
-		r.Scheme,
-	)
+	err := createOrUpdateInterceptorResources(ctx, logger, r.Client, httpss, r.Scheme)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

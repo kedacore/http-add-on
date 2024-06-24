@@ -37,8 +37,8 @@ type HTTPInterceptorScalingSpec struct {
 	Target int `json:"target"`
 }
 
-// HTTPInterceptorConfigurationSepc defines the desired state of Interceptor configuration
-type HTTPInterceptorConfigurationSepc struct {
+// HTTPInterceptorConfigurationSpec defines the desired state of Interceptor configuration
+type HTTPInterceptorConfigurationSpec struct {
 	// +optional
 	// Port to be used for proxy operations
 	ProxyPort *int32 `json:"proxyPort,omitempty"`
@@ -46,7 +46,7 @@ type HTTPInterceptorConfigurationSepc struct {
 	// Port to be used for admin operations
 	AdminPort *int32 `json:"adminPort,omitempty"`
 	// +optional
-	// Timeout for stablishing the connection
+	// Timeout for establishing the connection
 	ConnectTimeout *string `json:"connectTimeout,omitempty"`
 	// +optional
 	// How long to wait between when the HTTP request
@@ -86,11 +86,11 @@ type HTTPInterceptorConfigurationSepc struct {
 	PollingInterval *int `json:"pollingInterval,omitempty"`
 }
 
-// HTTPInterceptorSepc defines the desired state of Interceptor component
-type HTTPInterceptorSepc struct {
+// HTTPInterceptorSpec defines the desired state of Interceptor component
+type HTTPInterceptorSpec struct {
 	// +optional
 	// Traffic configuration
-	Config *HTTPInterceptorConfigurationSepc `json:"config,omitempty"`
+	Config *HTTPInterceptorConfigurationSpec `json:"config,omitempty"`
 	// Number of replicas for the interceptor
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Container image name.
@@ -126,20 +126,20 @@ type HTTPInterceptorSepc struct {
 	ServiceAccountName string `json:"serviceAccountName"`
 }
 
-// HTTPScalerConfigurationSepc defines the desired state of scaler configuration
-type HTTPScalerConfigurationSepc struct {
+// HTTPScalerConfigurationSpec defines the desired state of scaler configuration
+type HTTPScalerConfigurationSpec struct {
 	// +kubebuilder:default=9090
 	// +optional
 	// Port to be used for proxy operations
 	Port *int32 `json:"port,omitempty"`
 }
 
-// HTTPScalerSepc defines the desired state of Scaler component
-type HTTPScalerSepc struct {
+// HTTPScalerSpec defines the desired state of Scaler component
+type HTTPScalerSpec struct {
 	// +kubebuilder:default={}
 	// +optional
 	// Traffic configuration
-	Config HTTPScalerConfigurationSepc `json:"config,omitempty"`
+	Config HTTPScalerConfigurationSpec `json:"config,omitempty"`
 	// Number of replicas for the interceptor
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Container image name.
@@ -175,8 +175,8 @@ type HTTPScalerSepc struct {
 
 // HTTPScalingSetSpec defines the desired state of HTTPScalingSet
 type HTTPScalingSetSpec struct {
-	Interceptor HTTPInterceptorSepc `json:"interceptor"`
-	Scaler      HTTPScalerSepc      `json:"scaler"`
+	Interceptor HTTPInterceptorSpec `json:"interceptor"`
+	Scaler      HTTPScalerSpec      `json:"scaler"`
 }
 
 // HTTPScalingSetStatus defines the observed state of HTTPScalingSet

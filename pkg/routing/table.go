@@ -17,6 +17,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
+	"github.com/kedacore/http-add-on/pkg/validator"
 )
 
 var (
@@ -149,7 +150,7 @@ func (t *table) OnAdd(obj interface{}, _ bool) {
 	if !ok {
 		return
 	}
-	if !util.IsManagedByThisScalingSet(httpScaledObject) {
+	if !validator.IsManagedByThisScalingSet(httpScaledObject) {
 		return
 	}
 	key := *k8s.NamespacedNameFromObject(httpScaledObject)
@@ -183,10 +184,10 @@ func (t *table) OnUpdate(oldObj interface{}, newObj interface{}) {
 	}
 	defer t.memorySignaler.Signal()
 
-	if !util.IsManagedByThisScalingSet(newHTTPSO) {
+	if !validator.IsManagedByThisScalingSet(newHTTPSO) {
 		// If the old HTTPSO was  managed by this
 		// instance, we have to delete it
-		if util.IsManagedByThisScalingSet(oldHTTPSO) {
+		if validator.IsManagedByThisScalingSet(oldHTTPSO) {
 			t.httpScaledObjectsMutex.Lock()
 			defer t.httpScaledObjectsMutex.Unlock()
 
@@ -223,7 +224,7 @@ func (t *table) OnDelete(obj interface{}) {
 	if !ok {
 		return
 	}
-	if !util.IsManagedByThisScalingSet(httpScaledObject) {
+	if !validator.IsManagedByThisScalingSet(httpScaledObject) {
 		return
 	}
 	key := *k8s.NamespacedNameFromObject(httpScaledObject)

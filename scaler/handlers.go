@@ -20,6 +20,7 @@ import (
 	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
+	"github.com/kedacore/http-add-on/pkg/validator"
 )
 
 const (
@@ -148,7 +149,7 @@ func (e *impl) GetMetricSpec(
 		return nil, err
 	}
 
-	if !util.IsManagedByThisScalingSet(httpso) {
+	if !validator.IsManagedByThisScalingSet(httpso) {
 		err := fmt.Errorf("the HTTPScaledObject %s is not for this ScalingSet", httpso.Name)
 		lggr.Error(err, "invalid configuration")
 		return nil, err
@@ -225,7 +226,7 @@ func (e *impl) GetMetrics(
 		return nil, err
 	}
 
-	if !util.IsManagedByThisScalingSet(httpso) {
+	if !validator.IsManagedByThisScalingSet(httpso) {
 		err := fmt.Errorf("the HTTPScaledObject %s is not for this ScalingSet", httpso.Name)
 		lggr.Error(err, "invalid configuration")
 		return nil, err

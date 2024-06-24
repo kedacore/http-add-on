@@ -12,349 +12,350 @@ spec:
     listKind: HTTPScalingSetList
     plural: httpscalingsets
     shortNames:
-    - ss
+      - ss
     singular: httpscalingset
   scope: Namespaced
   versions:
-  - name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: HTTPScalingSet is the Schema for the httpscalingset API
-        properties:
-          apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-            type: string
-          kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: HTTPScalingSetSpec defines the desired state of HTTPScalingSet
-            properties:
-              interceptor:
-                description: HTTPInterceptorSepc defines the desired state of Interceptor
-                  component
-                properties:
-                  annotations:
-                    additionalProperties:
-                      type: string
-                    description: |-
-                      Annotations is an unstructured key value map stored with a resource that may be
-                      set by external tools to store and retrieve arbitrary metadata. They are not
-                      queryable and should be preserved when modifying objects.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
-                    type: object
-                  autoscaling:
-                    description: Autoscaling options for the interceptor
-                    properties:
-                      maxReplicas:
-                        default: 100
-                        description: Maximum replicas for the interceptor
-                        type: integer
-                      minReplicas:
-                        default: 3
-                        description: Minimum replicas for the interceptor
-                        type: integer
-                      target:
-                        default: 100
-                        description: Target concurrent requests
-                        type: integer
-                    type: object
-                  config:
-                    description: Traffic configuration
-                    properties:
-                      adminPort:
-                        description: Port to be used for admin operations
-                        format: int32
-                        type: integer
-                      connectTimeout:
-                        description: Timeout for stablishing the connection
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: HTTPScalingSet is the Schema for the httpscalingset API
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: HTTPScalingSetSpec defines the desired state of HTTPScalingSet
+              properties:
+                interceptor:
+                  description:
+                    HTTPInterceptorSpec defines the desired state of Interceptor
+                    component
+                  properties:
+                    annotations:
+                      additionalProperties:
                         type: string
-                      expectContinueTimeout:
-                        description: |-
-                          Max amount of time the interceptor will wait
-                          after sending request headers if the server returned an Expect: 100-continue
-                          header
-                        type: string
-                      forceHTTP2:
-                        description: Try to force HTTP2 for all requests
-                        type: boolean
-                      handshakeTimeout:
-                        description: |-
-                          Max amount of time the interceptor will
-                          wait to establish a TLS connection
-                        type: string
-                      headerTimeout:
-                        description: |-
-                          How long to wait between when the HTTP request
-                          is sent to the backing app and when response headers need to arrive
-                        type: string
-                      idleConnTimeout:
-                        description: |-
-                          Timeout after which a connection in the interceptor's
-                          internal connection pool will be closed
-                        type: string
-                      keepAlive:
-                        description: Interval between keepalive probes
-                        type: string
-                      maxIdleConnections:
-                        description: |-
-                          Max number of connections that can be idle in the
-                          interceptor's internal connection pool
-                        type: integer
-                      pollingInterval:
-                        description: |-
-                          The interceptor has an internal process that periodically fetches the state
-                          of endpoints that is running the servers it forwards to.
-                          This is the interval (in milliseconds) representing how often to do a fetch
-                        type: integer
-                      proxyPort:
-                        description: Port to be used for proxy operations
-                        format: int32
-                        type: integer
-                      waitTimeout:
-                        description: |-
-                          How long to wait for the backing workload
-                          to have 1 or more replicas before connecting and sending the HTTP request.
-                        type: string
-                    type: object
-                  image:
-                    description: Container image name.
-                    type: string
-                  imagePullSecrets:
-                    description: |-
-                      ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images used by this PodSpec.
-                      If specified, these secrets will be passed to individual puller implementations for them to use.
-                      More info: https://kubernetes.io/docs/concepts/containers/images#specifying-imagepullsecrets-on-a-pod
-                    items:
                       description: |-
-                        LocalObjectReference contains enough information to let you locate the
-                        referenced object inside the same namespace.
+                        Annotations is an unstructured key value map stored with a resource that may be
+                        set by external tools to store and retrieve arbitrary metadata. They are not
+                        queryable and should be preserved when modifying objects.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
+                      type: object
+                    autoscaling:
+                      description: Autoscaling options for the interceptor
                       properties:
-                        name:
+                        maxReplicas:
+                          default: 100
+                          description: Maximum replicas for the interceptor
+                          type: integer
+                        minReplicas:
+                          default: 3
+                          description: Minimum replicas for the interceptor
+                          type: integer
+                        target:
+                          default: 100
+                          description: Target concurrent requests
+                          type: integer
+                      type: object
+                    config:
+                      description: Traffic configuration
+                      properties:
+                        adminPort:
+                          description: Port to be used for admin operations
+                          format: int32
+                          type: integer
+                        connectTimeout:
+                          description: Timeout for establishing the connection
+                          type: string
+                        expectContinueTimeout:
                           description: |-
-                            Name of the referent.
-                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?
+                            Max amount of time the interceptor will wait
+                            after sending request headers if the server returned an Expect: 100-continue
+                            header
+                          type: string
+                        forceHTTP2:
+                          description: Try to force HTTP2 for all requests
+                          type: boolean
+                        handshakeTimeout:
+                          description: |-
+                            Max amount of time the interceptor will
+                            wait to establish a TLS connection
+                          type: string
+                        headerTimeout:
+                          description: |-
+                            How long to wait between when the HTTP request
+                            is sent to the backing app and when response headers need to arrive
+                          type: string
+                        idleConnTimeout:
+                          description: |-
+                            Timeout after which a connection in the interceptor's
+                            internal connection pool will be closed
+                          type: string
+                        keepAlive:
+                          description: Interval between keepalive probes
+                          type: string
+                        maxIdleConnections:
+                          description: |-
+                            Max number of connections that can be idle in the
+                            interceptor's internal connection pool
+                          type: integer
+                        pollingInterval:
+                          description: |-
+                            The interceptor has an internal process that periodically fetches the state
+                            of endpoints that is running the servers it forwards to.
+                            This is the interval (in milliseconds) representing how often to do a fetch
+                          type: integer
+                        proxyPort:
+                          description: Port to be used for proxy operations
+                          format: int32
+                          type: integer
+                        waitTimeout:
+                          description: |-
+                            How long to wait for the backing workload
+                            to have 1 or more replicas before connecting and sending the HTTP request.
                           type: string
                       type: object
-                      x-kubernetes-map-type: atomic
-                    type: array
-                  labels:
-                    additionalProperties:
+                    image:
+                      description: Container image name.
                       type: string
-                    description: |-
-                      Map of string keys and values that can be used to organize and categorize
-                      (scope and select) objects. May match selectors of replication controllers
-                      and services.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
-                    type: object
-                  replicas:
-                    description: Number of replicas for the interceptor
-                    format: int32
-                    type: integer
-                  resources:
-                    description: |-
-                      Compute Resources required by this interceptor.
-                      Cannot be updated.
-                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                    properties:
-                      claims:
-                        description: |-
-                          Claims lists the names of resources, defined in spec.resourceClaims,
-                          that are used by this container.
-
-
-                          This is an alpha field and requires enabling the
-                          DynamicResourceAllocation feature gate.
-
-
-                          This field is immutable. It can only be set for containers.
-                        items:
-                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
-                          properties:
-                            name:
-                              description: |-
-                                Name must match the name of one entry in pod.spec.resourceClaims of
-                                the Pod where this field is used. It makes that resource available
-                                inside a container.
-                              type: string
-                          required:
-                          - name
-                          type: object
-                        type: array
-                        x-kubernetes-list-map-keys:
-                        - name
-                        x-kubernetes-list-type: map
-                      limits:
-                        additionalProperties:
-                          anyOf:
-                          - type: integer
-                          - type: string
-                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                          x-kubernetes-int-or-string: true
-                        description: |-
-                          Limits describes the maximum amount of compute resources allowed.
-                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                        type: object
-                      requests:
-                        additionalProperties:
-                          anyOf:
-                          - type: integer
-                          - type: string
-                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                          x-kubernetes-int-or-string: true
-                        description: |-
-                          Requests describes the minimum amount of compute resources required.
-                          If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                          otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                        type: object
-                    type: object
-                  serviceAccountName:
-                    default: default
-                    description: Name of the service account to be used
-                    type: string
-                type: object
-              scaler:
-                description: HTTPScalerSepc defines the desired state of Scaler component
-                properties:
-                  annotations:
-                    additionalProperties:
-                      type: string
-                    description: |-
-                      Annotations is an unstructured key value map stored with a resource that may be
-                      set by external tools to store and retrieve arbitrary metadata. They are not
-                      queryable and should be preserved when modifying objects.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
-                    type: object
-                  config:
-                    default: {}
-                    description: Traffic configuration
-                    properties:
-                      port:
-                        default: 9090
-                        description: Port to be used for proxy operations
-                        format: int32
-                        type: integer
-                    type: object
-                  image:
-                    description: Container image name.
-                    type: string
-                  imagePullSecrets:
-                    description: |-
-                      ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images used by this PodSpec.
-                      If specified, these secrets will be passed to individual puller implementations for them to use.
-                      More info: https://kubernetes.io/docs/concepts/containers/images#specifying-imagepullsecrets-on-a-pod
-                    items:
+                    imagePullSecrets:
                       description: |-
-                        LocalObjectReference contains enough information to let you locate the
-                        referenced object inside the same namespace.
-                      properties:
-                        name:
-                          description: |-
-                            Name of the referent.
-                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?
-                          type: string
+                        ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images used by this PodSpec.
+                        If specified, these secrets will be passed to individual puller implementations for them to use.
+                        More info: https://kubernetes.io/docs/concepts/containers/images#specifying-imagepullsecrets-on-a-pod
+                      items:
+                        description: |-
+                          LocalObjectReference contains enough information to let you locate the
+                          referenced object inside the same namespace.
+                        properties:
+                          name:
+                            description: |-
+                              Name of the referent.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      type: array
+                    labels:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        Map of string keys and values that can be used to organize and categorize
+                        (scope and select) objects. May match selectors of replication controllers
+                        and services.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
                       type: object
-                      x-kubernetes-map-type: atomic
-                    type: array
-                  labels:
-                    additionalProperties:
-                      type: string
-                    description: |-
-                      Map of string keys and values that can be used to organize and categorize
-                      (scope and select) objects. May match selectors of replication controllers
-                      and services.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
-                    type: object
-                  replicas:
-                    description: Number of replicas for the interceptor
-                    format: int32
-                    type: integer
-                  resources:
-                    description: |-
-                      Compute Resources required by this scaler.
-                      Cannot be updated.
-                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                    properties:
-                      claims:
-                        description: |-
-                          Claims lists the names of resources, defined in spec.resourceClaims,
-                          that are used by this container.
+                    replicas:
+                      description: Number of replicas for the interceptor
+                      format: int32
+                      type: integer
+                    resources:
+                      description: |-
+                        Compute Resources required by this interceptor.
+                        Cannot be updated.
+                        More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                      properties:
+                        claims:
+                          description: |-
+                            Claims lists the names of resources, defined in spec.resourceClaims,
+                            that are used by this container.
 
 
-                          This is an alpha field and requires enabling the
-                          DynamicResourceAllocation feature gate.
+                            This is an alpha field and requires enabling the
+                            DynamicResourceAllocation feature gate.
 
 
-                          This field is immutable. It can only be set for containers.
-                        items:
-                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
-                          properties:
-                            name:
-                              description: |-
-                                Name must match the name of one entry in pod.spec.resourceClaims of
-                                the Pod where this field is used. It makes that resource available
-                                inside a container.
-                              type: string
-                          required:
-                          - name
+                            This field is immutable. It can only be set for containers.
+                          items:
+                            description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                            properties:
+                              name:
+                                description: |-
+                                  Name must match the name of one entry in pod.spec.resourceClaims of
+                                  the Pod where this field is used. It makes that resource available
+                                  inside a container.
+                                type: string
+                            required:
+                              - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                            - name
+                          x-kubernetes-list-type: map
+                        limits:
+                          additionalProperties:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: |-
+                            Limits describes the maximum amount of compute resources allowed.
+                            More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                           type: object
-                        type: array
-                        x-kubernetes-list-map-keys:
-                        - name
-                        x-kubernetes-list-type: map
-                      limits:
-                        additionalProperties:
-                          anyOf:
-                          - type: integer
-                          - type: string
-                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                          x-kubernetes-int-or-string: true
+                        requests:
+                          additionalProperties:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: |-
+                            Requests describes the minimum amount of compute resources required.
+                            If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                            otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                            More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          type: object
+                      type: object
+                    serviceAccountName:
+                      default: default
+                      description: Name of the service account to be used
+                      type: string
+                  type: object
+                scaler:
+                  description: HTTPScalerSpec defines the desired state of Scaler component
+                  properties:
+                    annotations:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        Annotations is an unstructured key value map stored with a resource that may be
+                        set by external tools to store and retrieve arbitrary metadata. They are not
+                        queryable and should be preserved when modifying objects.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
+                      type: object
+                    config:
+                      default: {}
+                      description: Traffic configuration
+                      properties:
+                        port:
+                          default: 9090
+                          description: Port to be used for proxy operations
+                          format: int32
+                          type: integer
+                      type: object
+                    image:
+                      description: Container image name.
+                      type: string
+                    imagePullSecrets:
+                      description: |-
+                        ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images used by this PodSpec.
+                        If specified, these secrets will be passed to individual puller implementations for them to use.
+                        More info: https://kubernetes.io/docs/concepts/containers/images#specifying-imagepullsecrets-on-a-pod
+                      items:
                         description: |-
-                          Limits describes the maximum amount of compute resources allowed.
-                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          LocalObjectReference contains enough information to let you locate the
+                          referenced object inside the same namespace.
+                        properties:
+                          name:
+                            description: |-
+                              Name of the referent.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?
+                            type: string
                         type: object
-                      requests:
-                        additionalProperties:
-                          anyOf:
-                          - type: integer
-                          - type: string
-                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                          x-kubernetes-int-or-string: true
-                        description: |-
-                          Requests describes the minimum amount of compute resources required.
-                          If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                          otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                        type: object
-                    type: object
-                  serviceAccountName:
-                    default: default
-                    description: Name of the service account to be used
-                    type: string
-                type: object
-            required:
-            - interceptor
-            - scaler
-            type: object
-          status:
-            description: HTTPScalingSetStatus defines the observed state of HTTPScalingSet
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
+                        x-kubernetes-map-type: atomic
+                      type: array
+                    labels:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        Map of string keys and values that can be used to organize and categorize
+                        (scope and select) objects. May match selectors of replication controllers
+                        and services.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
+                      type: object
+                    replicas:
+                      description: Number of replicas for the interceptor
+                      format: int32
+                      type: integer
+                    resources:
+                      description: |-
+                        Compute Resources required by this scaler.
+                        Cannot be updated.
+                        More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                      properties:
+                        claims:
+                          description: |-
+                            Claims lists the names of resources, defined in spec.resourceClaims,
+                            that are used by this container.
+
+
+                            This is an alpha field and requires enabling the
+                            DynamicResourceAllocation feature gate.
+
+
+                            This field is immutable. It can only be set for containers.
+                          items:
+                            description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                            properties:
+                              name:
+                                description: |-
+                                  Name must match the name of one entry in pod.spec.resourceClaims of
+                                  the Pod where this field is used. It makes that resource available
+                                  inside a container.
+                                type: string
+                            required:
+                              - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                            - name
+                          x-kubernetes-list-type: map
+                        limits:
+                          additionalProperties:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: |-
+                            Limits describes the maximum amount of compute resources allowed.
+                            More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          type: object
+                        requests:
+                          additionalProperties:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: |-
+                            Requests describes the minimum amount of compute resources required.
+                            If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                            otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                            More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          type: object
+                      type: object
+                    serviceAccountName:
+                      default: default
+                      description: Name of the service account to be used
+                      type: string
+                  type: object
+              required:
+                - interceptor
+                - scaler
+              type: object
+            status:
+              description: HTTPScalingSetStatus defines the observed state of HTTPScalingSet
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

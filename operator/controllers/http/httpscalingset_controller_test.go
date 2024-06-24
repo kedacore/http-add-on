@@ -35,8 +35,8 @@ var _ = Describe("HTTPScalingSetController", func() {
 					Namespace: namesapce,
 				},
 				Spec: v1alpha1.HTTPScalingSetSpec{
-					Interceptor: v1alpha1.HTTPInterceptorSepc{},
-					Scaler:      v1alpha1.HTTPScalerSepc{},
+					Interceptor: v1alpha1.HTTPInterceptorSpec{},
+					Scaler:      v1alpha1.HTTPScalerSpec{},
 				},
 			}
 			err := k8sClient.Create(context.Background(), css)
@@ -151,10 +151,10 @@ var _ = Describe("HTTPScalingSetController", func() {
 					Namespace: namesapce,
 				},
 				Spec: v1alpha1.HTTPScalingSetSpec{
-					Interceptor: v1alpha1.HTTPInterceptorSepc{
+					Interceptor: v1alpha1.HTTPInterceptorSpec{
 						Replicas:  ptr.To(interceptorReplicas),
 						Resources: interceptorResouces,
-						Config: &v1alpha1.HTTPInterceptorConfigurationSepc{
+						Config: &v1alpha1.HTTPInterceptorConfigurationSpec{
 							ProxyPort: ptr.To(interceptorProxyPort),
 							AdminPort: ptr.To(interceptorAdminPort),
 						},
@@ -165,10 +165,10 @@ var _ = Describe("HTTPScalingSetController", func() {
 							"interceptor-annotation-1": "value-2",
 						},
 					},
-					Scaler: v1alpha1.HTTPScalerSepc{
+					Scaler: v1alpha1.HTTPScalerSpec{
 						Replicas:  ptr.To(scalerReplicas),
 						Resources: scalerResouces,
-						Config: v1alpha1.HTTPScalerConfigurationSepc{
+						Config: v1alpha1.HTTPScalerConfigurationSpec{
 							Port: ptr.To(scalerPort),
 						},
 						Labels: map[string]string{
