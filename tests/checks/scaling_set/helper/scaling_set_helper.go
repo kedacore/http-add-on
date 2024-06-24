@@ -131,7 +131,7 @@ spec:
       window: 30s
   scaledownPeriod: 0
   scaleTargetRef:
-    deployment: {{.DeploymentName}}
+    name: {{.DeploymentName}}
     service: {{.ServiceName}}
     port: 8080
   replicas:
