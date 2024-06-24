@@ -3,8 +3,6 @@ package metrics
 import (
 	"context"
 	"log"
-	"strings"
-	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
@@ -13,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
-	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/build"
 )
 
@@ -23,21 +20,10 @@ type OtelMetrics struct {
 	pendingRequestCounter api.Int64UpDownCounter
 }
 
-func NewOtelMetrics(metricsConfig *config.Metrics, options ...metric.Option) *OtelMetrics {
+func NewOtelMetrics(options ...metric.Option) *OtelMetrics {
 	ctx := context.Background()
-	var exporter *otlpmetrichttp.Exporter
-	var err error
-	endpoint := otlpmetrichttp.WithEndpoint(metricsConfig.OtelHTTPCollectorEndpoint)
-	headersFromEnvVar := getHeaders(metricsConfig.OtelHTTPHeaders)
-	headers := otlpmetrichttp.WithHeaders(headersFromEnvVar)
 
-	if metricsConfig.OtelHTTPCollectorInsecure {
-		insecure := otlpmetrichttp.WithInsecure()
-		exporter, err = otlpmetrichttp.New(ctx, endpoint, headers, insecure)
-	} else {
-		exporter, err = otlpmetrichttp.New(ctx, endpoint, headers)
-	}
-
+	exporter, err := otlpmetrichttp.New(ctx)
 	if err != nil {
 		log.Fatalf("could not create otelmetrichttp exporter: %v", err)
 	}
@@ -50,7 +36,7 @@ func NewOtelMetrics(metricsConfig *config.Metrics, options ...metric.Option) *Ot
 		)
 
 		options = []metric.Option{
-			metric.WithReader(metric.NewPeriodicReader(exporter, metric.WithInterval(time.Duration(metricsConfig.OtelMetricExportInterval)*time.Second))),
+			metric.WithReader(metric.NewPeriodicReader(exporter)),
 			metric.WithResource(res),
 		}
 	}
@@ -97,19 +83,4 @@ func (om *OtelMetrics) RecordPendingRequestCount(host string, value int64) {
 	)
 
 	om.pendingRequestCounter.Add(ctx, value, opt)
-}
-
-func getHeaders(s string) map[string]string {
-	// Get the headers in key-value pair from the KEDA_HTTP_OTEL_HTTP_HEADERS environment variable
-	var m = map[string]string{}
-
-	if s != "" {
-		h := strings.Split(s, ",")
-		for _, v := range h {
-			x := strings.Split(v, "=")
-			m[x[0]] = x[1]
-		}
-	}
-
-	return m
 }

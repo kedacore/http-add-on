@@ -22,7 +22,7 @@ func NewMetricsCollectors(metricsConfig *config.Metrics) {
 	}
 
 	if metricsConfig.OtelHTTPExporterEnabled {
-		otelhttpmetrics := NewOtelMetrics(metricsConfig)
+		otelhttpmetrics := NewOtelMetrics()
 		collectors = append(collectors, otelhttpmetrics)
 	}
 }
