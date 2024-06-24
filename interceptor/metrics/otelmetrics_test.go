@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
-
-	"github.com/kedacore/http-add-on/interceptor/config"
 )
 
 var (
@@ -19,8 +17,7 @@ var (
 func init() {
 	testReader = metric.NewManualReader()
 	options := metric.WithReader(testReader)
-	metricsCfg := config.Metrics{}
-	testOtel = NewOtelMetrics(&metricsCfg, options)
+	testOtel = NewOtelMetrics(options)
 }
 
 func TestRequestCounter(t *testing.T) {

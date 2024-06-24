@@ -13,10 +13,10 @@ jobs:
   linkinator:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       - uses: JustinBeckwith/linkinator-action@39e601e8efc0c24b7228ec87e43f4b9abebf3b25 # v1
         with:
           paths: "**/*.md"
           markdown: true
           retry: true
-          linksToSkip: "https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-operator, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler"
+          linksToSkip: "https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-operator, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler, http://opentelemetry-collector.open-telemetry-system:4318"

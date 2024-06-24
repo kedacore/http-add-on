@@ -9,15 +9,13 @@ spec:
       containers:
       - name: interceptor
         env:
-        - name: KEDA_HTTP_OTEL_PROM_EXPORTER_ENABLED
+        - name: OTEL_PROM_EXPORTER_ENABLED
           value: "true"
-        - name: KEDA_HTTP_OTEL_PROM_EXPORTER_PORT
+        - name: OTEL_PROM_EXPORTER_PORT
           value: "2223"
-        - name: KEDA_HTTP_OTEL_HTTP_EXPORTER_ENABLED
+        - name: OTEL_EXPORTER_OTLP_METRICS_ENABLED
           value: "true"
-        - name: KEDA_HTTP_OTEL_HTTP_COLLECTOR_ENDPOINT
-          value: "opentelemetry-collector.open-telemetry-system:4318"
-        - name: KEDA_HTTP_OTEL_HTTP_COLLECTOR_INSECURE
-          value: "true"
-        - name: KEDA_HTTP_OTEL_METRIC_EXPORT_INTERVAL
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://opentelemetry-collector.open-telemetry-system:4318"
+        - name: OTEL_METRIC_EXPORT_INTERVAL
           value: "1"
