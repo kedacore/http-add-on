@@ -22,9 +22,6 @@ import (
 
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to
 type ScaleTargetRef struct {
-	// Deprecated: The name of the deployment to scale according to HTTP traffic
-	// +optional
-	Deployment string `json:"deployment"`
 	// +optional
 	Name string `json:"name"`
 	// +optional
@@ -95,7 +92,7 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Replica information
 	// +optional
 	Replicas *ReplicaStruct `json:"replicas,omitempty"`
-	// (optional) DEPRECATED (use SscalingMetric instead) Target metric value
+	// (optional) DEPRECATED (use ScalingMetric instead) Target metric value
 	// +optional
 	TargetPendingRequests *int32 `json:"targetPendingRequests,omitempty" description:"The target metric value for the HPA (Default 100)"`
 	// (optional) Cooldown period value

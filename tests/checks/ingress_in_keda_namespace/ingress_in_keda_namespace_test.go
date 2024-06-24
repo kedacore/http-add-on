@@ -148,7 +148,7 @@ spec:
   targetPendingRequests: 100
   scaledownPeriod: 10
   scaleTargetRef:
-    deployment: {{.DeploymentName}}
+    name: {{.DeploymentName}}
     service: {{.ServiceName}}
     port: 8080
   replicas:

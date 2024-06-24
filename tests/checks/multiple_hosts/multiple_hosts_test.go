@@ -126,7 +126,7 @@ spec:
     concurrency:
       targetValue: 20
   scaleTargetRef:
-    deployment: {{.DeploymentName}}
+    name: {{.DeploymentName}}
     service: {{.ServiceName}}
     port: 8080
   replicas:

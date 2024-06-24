@@ -236,9 +236,9 @@ func TestWaitFailedConnectionTLS(t *testing.T) {
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "nosuchdepl",
-				Port:       8081,
+				Name:    "nosuchdepl",
+				Service: "nosuchdepl",
+				Port:    8081,
 			},
 			TargetPendingRequests: ptr.To[int32](1234),
 		},
@@ -359,9 +359,9 @@ func TestTimesOutOnWaitFuncTLS(t *testing.T) {
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "nosuchsvc",
-				Port:       9091,
+				Name:    "nosuchdepl",
+				Service: "nosuchsvc",
+				Port:    9091,
 			},
 			TargetPendingRequests: ptr.To[int32](1234),
 		},
@@ -634,9 +634,9 @@ func TestWaitHeaderTimeoutTLS(t *testing.T) {
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Deployment: "nosuchdepl",
-				Service:    "testsvc",
-				Port:       9094,
+				Name:    "nosuchdepl",
+				Service: "testsvc",
+				Port:    9094,
 			},
 			TargetPendingRequests: ptr.To[int32](1234),
 		},
