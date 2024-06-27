@@ -7,7 +7,7 @@
 1. **Proxy Service in Virtual Service:**
 
    - Within the Istio virtual service definition, add a proxy service as a route destination.
-   - Set the host of this proxy service to `keda-add-ons-http-interceptor-proxy`` (the KEDA HTTP Addon interceptor service).
+   - Set the host of this proxy service to `keda-http-add-on-interceptor-proxy`` (the KEDA HTTP Addon interceptor service).
    - Set the port to `8080`` (the default interceptor port).
 
 **Example yaml**
@@ -22,7 +22,7 @@ spec:
   http:
     - route:
         - destination:
-            host: keda-add-ons-http-interceptor-proxy
+            host: keda-http-add-on-interceptor-proxy
             port: 8080
 ```
 
