@@ -69,6 +69,32 @@ spec:
           name: prometheus
           protocol: TCP
 `
+
+	gatewayClass = `
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+`
+
+	gateway = `
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: eg
+  namespace: envoy-gateway-system
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+`
 )
 
 func TestVerifyCommands(t *testing.T) {
@@ -147,6 +173,20 @@ func TestSetupIngress(t *testing.T) {
 	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install %s ingress-nginx/ingress-nginx --set fullnameOverride=%s --set controller.service.type=ClusterIP --namespace %s --wait",
 		IngressReleaseName, IngressReleaseName, IngressNamespace))
 	require.NoErrorf(t, err, "cannot install ingress - %s", err)
+}
+
+func TestSetupEnvoyGateway(t *testing.T) {
+	KubeClient = GetKubernetesClient(t)
+	_, err := ExecuteCommand("helm version")
+	require.NoErrorf(t, err, "helm is not installed - %s", err)
+
+	_, err = ExecuteCommand(fmt.Sprintf("helm install %s oci://docker.io/envoyproxy/gateway-helm --version v1.0.1 -n %s --create-namespace", EnvoyReleaseName, EnvoyNamespace))
+	require.NoErrorf(t, err, "cannot install envoy gateway - %s", err)
+
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "envoy-gateway", "envoy-gateway-system", 1, 30, 6))
+
+	KubectlApplyWithTemplate(t, nil, "gatewayClass", gatewayClass)
+	KubectlApplyWithTemplate(t, nil, "gateway", gateway)
 }
 
 func TestSetupKEDA(t *testing.T) {

@@ -54,3 +54,26 @@ func TestCleanUpCerts(t *testing.T) {
 	t.Log(string(out))
 	t.Log("test certificates successfully cleaned up")
 }
+
+func TestRemoveEnvoyGateway(t *testing.T) {
+	gatewayClass := `
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+`
+
+	gateway := `
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: eg
+  namespace: envoy-gateway-system
+`
+
+	KubectlDeleteWithTemplate(t, nil, "gateway", gateway)
+	KubectlDeleteWithTemplate(t, nil, "gatewayClass", gatewayClass)
+	_, err := ExecuteCommand(fmt.Sprintf("helm uninstall %s --namespace %s", EnvoyReleaseName, EnvoyNamespace))
+	require.NoErrorf(t, err, "cannot uninstall envoy gateway - %s", err)
+	DeleteNamespace(t, EnvoyNamespace)
+}
