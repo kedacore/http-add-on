@@ -24,5 +24,6 @@ package hack
 import (
 	_ "go.uber.org/mock/mockgen"
 	_ "k8s.io/code-generator"
+	_ "sigs.k8s.io/controller-runtime/tools/setup-envtest"
 	_ "sigs.k8s.io/kustomize/kustomize/v5"
 )

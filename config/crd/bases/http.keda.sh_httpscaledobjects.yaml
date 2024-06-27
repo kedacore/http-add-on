@@ -147,6 +147,22 @@ spec:
                         type: string
                     type: object
                 type: object
+              scalingSet:
+                description: |-
+                  ScalingSet to be used for this HTTPScaledObject, if empty, default
+                  interceptor and scaler will be used
+                properties:
+                  kind:
+                    description: Kind of the resource being referred to. Defaults
+                      to HTTPScalingSet.
+                    enum:
+                    - HTTPScalingSet
+                    - ClusterHTTPScalingSet
+                    type: string
+                  name:
+                    description: Name of the scaling set
+                    type: string
+                type: object
               targetPendingRequests:
                 description: (optional) DEPRECATED (use ScalingMetric instead) Target
                   metric value

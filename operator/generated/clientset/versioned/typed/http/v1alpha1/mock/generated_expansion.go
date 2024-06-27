@@ -30,6 +30,29 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockClusterHTTPScalingSetExpansion is a mock of ClusterHTTPScalingSetExpansion interface.
+type MockClusterHTTPScalingSetExpansion struct {
+	ctrl     *gomock.Controller
+	recorder *MockClusterHTTPScalingSetExpansionMockRecorder
+}
+
+// MockClusterHTTPScalingSetExpansionMockRecorder is the mock recorder for MockClusterHTTPScalingSetExpansion.
+type MockClusterHTTPScalingSetExpansionMockRecorder struct {
+	mock *MockClusterHTTPScalingSetExpansion
+}
+
+// NewMockClusterHTTPScalingSetExpansion creates a new mock instance.
+func NewMockClusterHTTPScalingSetExpansion(ctrl *gomock.Controller) *MockClusterHTTPScalingSetExpansion {
+	mock := &MockClusterHTTPScalingSetExpansion{ctrl: ctrl}
+	mock.recorder = &MockClusterHTTPScalingSetExpansionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockClusterHTTPScalingSetExpansion) EXPECT() *MockClusterHTTPScalingSetExpansionMockRecorder {
+	return m.recorder
+}
+
 // MockHTTPScaledObjectExpansion is a mock of HTTPScaledObjectExpansion interface.
 type MockHTTPScaledObjectExpansion struct {
 	ctrl     *gomock.Controller
@@ -50,5 +73,28 @@ func NewMockHTTPScaledObjectExpansion(ctrl *gomock.Controller) *MockHTTPScaledOb
 
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockHTTPScaledObjectExpansion) EXPECT() *MockHTTPScaledObjectExpansionMockRecorder {
+	return m.recorder
+}
+
+// MockHTTPScalingSetExpansion is a mock of HTTPScalingSetExpansion interface.
+type MockHTTPScalingSetExpansion struct {
+	ctrl     *gomock.Controller
+	recorder *MockHTTPScalingSetExpansionMockRecorder
+}
+
+// MockHTTPScalingSetExpansionMockRecorder is the mock recorder for MockHTTPScalingSetExpansion.
+type MockHTTPScalingSetExpansionMockRecorder struct {
+	mock *MockHTTPScalingSetExpansion
+}
+
+// NewMockHTTPScalingSetExpansion creates a new mock instance.
+func NewMockHTTPScalingSetExpansion(ctrl *gomock.Controller) *MockHTTPScalingSetExpansion {
+	mock := &MockHTTPScalingSetExpansion{ctrl: ctrl}
+	mock.recorder = &MockHTTPScalingSetExpansionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockHTTPScalingSetExpansion) EXPECT() *MockHTTPScalingSetExpansionMockRecorder {
 	return m.recorder
 }

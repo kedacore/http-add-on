@@ -20,6 +20,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type ScalingSetKind string
+
+const (
+	HTTPScalingSetKind        ScalingSetKind = "HTTPScalingSet"
+	ClusterHTTPScalingSetKind ScalingSetKind = "ClusterHTTPScalingSet"
+)
+
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to
 type ScaleTargetRef struct {
 	// +optional
@@ -74,8 +81,36 @@ type RateMetricSpec struct {
 	Granularity metav1.Duration `json:"granularity" description:"Time granularity for rate calculation"`
 }
 
+// HTTPSalingSetTargetRef defines the desired scaling set to be used
+type HTTPSalingSetTargetRef struct {
+	// Name of the scaling set
+	Name string `json:"name,omitempty"`
+	// Kind of the resource being referred to. Defaults to HTTPScalingSet.
+	// +kubebuilder:validation:Enum=HTTPScalingSet;ClusterHTTPScalingSet
+	// +optional
+	Kind ScalingSetKind `json:"kind,omitempty"`
+}
+
+func (so *HTTPScaledObjectSpec) GetHTTPSalingSetTargetRef() HTTPSalingSetTargetRef {
+	r := HTTPSalingSetTargetRef{}
+	if so.ScalingSet == nil {
+		return r
+	}
+
+	r.Name = so.ScalingSet.Name
+	r.Kind = ClusterHTTPScalingSetKind
+	if so.ScalingSet.Kind != "" {
+		r.Kind = so.ScalingSet.Kind
+	}
+	return r
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
+	// ScalingSet to be used for this HTTPScaledObject, if empty, default
+	// interceptor and scaler will be used
+	// +optional
+	ScalingSet *HTTPSalingSetTargetRef `json:"scalingSet,omitempty"`
 	// The hosts to route. All requests which the "Host" header
 	// matches any .spec.hosts (and the Request Target matches any
 	// .spec.pathPrefixes) will be routed to the Service and Port specified in

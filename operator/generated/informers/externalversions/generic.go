@@ -53,8 +53,12 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=http, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("clusterhttpscalingsets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Http().V1alpha1().ClusterHTTPScalingSets().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("httpscaledobjects"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Http().V1alpha1().HTTPScaledObjects().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("httpscalingsets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Http().V1alpha1().HTTPScalingSets().Informer()}, nil
 
 	}
 

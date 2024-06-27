@@ -25,8 +25,6 @@ func TestHttpScaledObjectControllerWhenSkipAnnotationNotSet(t *testing.T) {
 		testInfra.ctx,
 		testInfra.logger,
 		testInfra.cl,
-		config.Base{},
-		config.ExternalScaler{},
 		&testInfra.httpso,
 	)
 	r.NoError(err)
@@ -57,8 +55,6 @@ func TestHttpScaledObjectControllerWhenSkipAnnotationSet(t *testing.T) {
 		testInfra.ctx,
 		testInfra.logger,
 		testInfra.cl,
-		config.Base{},
-		config.ExternalScaler{},
 		&testInfra.httpso,
 	)
 	r.NoError(err)
@@ -89,8 +85,6 @@ func TestHttpScaledObjectControllerWhenSkipAnnotationAddedToExistingHttpSo(t *te
 		testInfra.ctx,
 		testInfra.logger,
 		testInfra.cl,
-		config.Base{},
-		config.ExternalScaler{},
 		&testInfra.httpso,
 	)
 	r.NoError(err)
@@ -111,8 +105,6 @@ func TestHttpScaledObjectControllerWhenSkipAnnotationAddedToExistingHttpSo(t *te
 		testInfra.ctx,
 		testInfra.logger,
 		testInfra.cl,
-		config.Base{},
-		config.ExternalScaler{},
 		&testInfra.httpso,
 	)
 	r.NoError(err)

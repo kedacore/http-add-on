@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -11,7 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 )
 
 var (
@@ -22,8 +22,6 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	ctx context.Context,
 	logger logr.Logger,
 	cl client.Client,
-	baseConfig config.Base,
-	externalScalerConfig config.ExternalScaler,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
 	defer SaveStatus(context.Background(), logger, cl, httpso)
@@ -68,11 +66,15 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	// the app deployment and the interceptor deployment.
 	// this needs to be submitted so that KEDA will scale both the app and
 	// interceptor
+	externalScalerURI, err := r.getExternalScalerURI(ctx, r.BaseConfig.CurrentNamespace, httpso)
+	if err != nil {
+		return fmt.Errorf("failed to generate the external scaler uri for HTTPScaledObject %s. %w", httpso.Name, err)
+	}
 	return r.createOrUpdateScaledObject(
 		ctx,
 		cl,
 		logger,
-		externalScalerConfig.HostName(baseConfig.CurrentNamespace),
+		externalScalerURI,
 		httpso,
 	)
 }

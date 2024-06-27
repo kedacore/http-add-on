@@ -17,15 +17,16 @@ func SaveStatus(
 	ctx context.Context,
 	logger logr.Logger,
 	cl client.Client,
-	httpso *httpv1alpha1.HTTPScaledObject,
+	httpObject client.Object,
 ) {
-	logger.Info("Updating status on HTTPScaledObject", "resource version", httpso.ResourceVersion)
+	resourceType := httpObject.GetObjectKind().GroupVersionKind().String()
+	logger.Info("Updating status", "resource", httpObject.GetName(), "resourceType", resourceType, "resource version", httpObject.GetResourceVersion())
 
-	err := cl.Status().Update(ctx, httpso)
+	err := cl.Status().Update(ctx, httpObject)
 	if err != nil {
-		logger.Error(err, "failed to update status on HTTPScaledObject", "httpso", httpso)
+		logger.Error(err, "failed to update status", "object", httpObject)
 	} else {
-		logger.Info("Updated status on HTTPScaledObject", "resource version", httpso.ResourceVersion)
+		logger.Info("Updated status", "resource", httpObject.GetName(), "resourceType", resourceType, "resource version", httpObject.GetResourceVersion())
 	}
 }
 

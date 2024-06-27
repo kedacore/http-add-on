@@ -25,13 +25,14 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 	"github.com/kedacore/http-add-on/operator/controllers/util"
 )
@@ -59,7 +60,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	logger := log.FromContext(ctx, "httpscaledobject", req.NamespacedName)
 	logger.Info("Reconciliation start")
 
-	httpso := &httpv1alpha1.HTTPScaledObject{}
+	httpso := &v1alpha1.HTTPScaledObject{}
 	if err := r.Client.Get(ctx, req.NamespacedName, httpso); err != nil {
 		if k8serrors.IsNotFound(err) {
 			// If the HTTPScaledObject wasn't found, it might have
@@ -113,8 +114,6 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		ctx,
 		logger,
 		r.Client,
-		r.BaseConfig,
-		r.ExternalScalerConfig,
 		httpso,
 	)
 	if err != nil {
@@ -129,9 +128,9 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			httpso,
 			*SetMessage(
 				CreateCondition(
-					httpv1alpha1.Ready,
+					v1alpha1.Ready,
 					v1.ConditionTrue,
-					httpv1alpha1.HTTPScaledObjectIsReady,
+					v1alpha1.HTTPScaledObjectIsReady,
 				),
 				"Finished object creation",
 			),
@@ -146,7 +145,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // SetupWithManager sets up the controller with the Manager.
 func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&httpv1alpha1.HTTPScaledObject{}, builder.WithPredicates(
+		For(&v1alpha1.HTTPScaledObject{}, builder.WithPredicates(
 			predicate.Or(
 				predicate.GenerationChangedPredicate{},
 				util.HTTPScaledObjectReadyConditionPredicate{},
@@ -161,4 +160,41 @@ func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.ScaledObjectSpecChangedPredicate{},
 			))).
 		Complete(r)
+}
+
+func (r *HTTPScaledObjectReconciler) getExternalScalerURI(ctx context.Context, namespace string, httpso *v1alpha1.HTTPScaledObject) (string, error) {
+	serviceName := r.ExternalScalerConfig.ServiceName
+	port := r.ExternalScalerConfig.Port
+	scalingSetRef := httpso.Spec.GetHTTPSalingSetTargetRef()
+
+	// If the HTTPScaledObject defines the ScalingSet
+	// we have to check the kind and recover the info
+	// to generate the external scaler uri
+	if scalingSetRef.Name != "" {
+		scalingSetSpec := v1alpha1.HTTPScalingSetSpec{}
+		if scalingSetRef.Kind == v1alpha1.ClusterHTTPScalingSetKind {
+			scalingSet := &v1alpha1.ClusterHTTPScalingSet{}
+			err := r.Client.Get(ctx, types.NamespacedName{Name: httpso.Spec.ScalingSet.Name}, scalingSet)
+			if err != nil {
+				return "", err
+			}
+			scalingSetSpec = scalingSet.Spec
+		} else {
+			scalingSet := &v1alpha1.HTTPScalingSet{}
+			err := r.Client.Get(ctx, types.NamespacedName{Name: httpso.Spec.ScalingSet.Name, Namespace: httpso.Namespace}, scalingSet)
+			if err != nil {
+				return "", err
+			}
+			scalingSetSpec = scalingSet.Spec
+			namespace = httpso.Namespace
+		}
+		serviceName = fmt.Sprintf("%s-%s", scalingSetRef.Name, externalScaler)
+		port = scalingSetSpec.Scaler.GetPort()
+	}
+	return fmt.Sprintf(
+		"%s.%s:%d",
+		serviceName,
+		namespace,
+		port,
+	), nil
 }

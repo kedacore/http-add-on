@@ -44,7 +44,6 @@ func main() {
 	grpcPort := cfg.GRPCPort
 	namespace := cfg.TargetNamespace
 	svcName := cfg.TargetService
-	deplName := cfg.TargetDeployment
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
 	targetPendingRequests := cfg.TargetPendingRequests
 
@@ -69,7 +68,6 @@ func main() {
 		k8s.EndpointsFuncForK8sClientset(k8sCl),
 		namespace,
 		svcName,
-		deplName,
 		targetPortStr,
 	)
 

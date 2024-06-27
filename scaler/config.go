@@ -16,8 +16,6 @@ type config struct {
 	TargetNamespace string `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE" required:"true"`
 	// TargetService is the name of the service to issue metrics RPC requests to interceptors
 	TargetService string `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE" required:"true"`
-	// TargetDeployment is the name of the deployment to issue metrics RPC requests to interceptors
-	TargetDeployment string `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT" required:"true"`
 	// TargetPort is the port on TargetService to which to issue metrics RPC requests to
 	// interceptors
 	TargetPort int `envconfig:"KEDA_HTTP_SCALER_TARGET_ADMIN_PORT" required:"true"`

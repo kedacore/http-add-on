@@ -18,6 +18,14 @@ limitations under the License.
 
 package v1alpha1
 
+// ClusterHTTPScalingSetListerExpansion allows custom methods to be added to
+// ClusterHTTPScalingSetLister.
+type ClusterHTTPScalingSetListerExpansion interface{}
+
+// ClusterHTTPScalingSetNamespaceListerExpansion allows custom methods to be added to
+// ClusterHTTPScalingSetNamespaceLister.
+type ClusterHTTPScalingSetNamespaceListerExpansion interface{}
+
 // HTTPScaledObjectListerExpansion allows custom methods to be added to
 // HTTPScaledObjectLister.
 type HTTPScaledObjectListerExpansion interface{}
@@ -25,3 +33,11 @@ type HTTPScaledObjectListerExpansion interface{}
 // HTTPScaledObjectNamespaceListerExpansion allows custom methods to be added to
 // HTTPScaledObjectNamespaceLister.
 type HTTPScaledObjectNamespaceListerExpansion interface{}
+
+// HTTPScalingSetListerExpansion allows custom methods to be added to
+// HTTPScalingSetLister.
+type HTTPScalingSetListerExpansion interface{}
+
+// HTTPScalingSetNamespaceListerExpansion allows custom methods to be added to
+// HTTPScalingSetNamespaceLister.
+type HTTPScalingSetNamespaceListerExpansion interface{}
