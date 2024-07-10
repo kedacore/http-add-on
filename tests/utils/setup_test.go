@@ -180,7 +180,7 @@ func TestSetupEnvoyGateway(t *testing.T) {
 	_, err := ExecuteCommand("helm version")
 	require.NoErrorf(t, err, "helm is not installed - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm install %s oci://docker.io/envoyproxy/gateway-helm --version v1.0.1 -n %s --create-namespace", EnvoyReleaseName, EnvoyNamespace))
+	_, err = ExecuteCommand(fmt.Sprintf("helm install %s oci://docker.io/envoyproxy/gateway-helm --version v1.0.2 -n %s --create-namespace", EnvoyReleaseName, EnvoyNamespace))
 	require.NoErrorf(t, err, "cannot install envoy gateway - %s", err)
 
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "envoy-gateway", "envoy-gateway-system", 1, 30, 6))
