@@ -6,7 +6,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
-	github.com/kedacore/keda/v2 v2.14.1-0.20240429185716-c55e306af94b
+	github.com/kedacore/keda/v2 v2.15.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
