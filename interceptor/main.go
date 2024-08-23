@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -168,7 +171,7 @@ func main() {
 	// start a proxy server with TLS
 	if proxyTLSEnabled {
 		eg.Go(func() error {
-			proxyTLSConfig := map[string]string{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath}
+			proxyTLSConfig := map[string]string{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath, "certstorePaths": servingCfg.TLSCertStorePaths}
 			proxyTLSPort := servingCfg.TLSPort
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
@@ -219,7 +222,7 @@ func runAdminServer(
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, adminServer, false, nil)
+	return kedahttp.ServeContext(ctx, addr, adminServer, nil)
 }
 
 func runMetricsServer(
@@ -229,7 +232,135 @@ func runMetricsServer(
 ) error {
 	lggr.Info("starting the prometheus metrics server", "port", metricsCfg.OtelPrometheusExporterPort, "path", "/metrics")
 	addr := fmt.Sprintf("0.0.0.0:%d", metricsCfg.OtelPrometheusExporterPort)
-	return kedahttp.ServeContext(ctx, addr, promhttp.Handler(), false, nil)
+	return kedahttp.ServeContext(ctx, addr, promhttp.Handler(), nil)
+}
+
+// addCert adds a certificate to the map of certificates based on the certificate's SANs
+func addCert(m map[string]tls.Certificate, certPath, keyPath string, logger logr.Logger) (*tls.Certificate, error) {
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("error loading certificate and key: %w", err)
+	}
+	if cert.Leaf == nil {
+		if len(cert.Certificate) == 0 {
+			return nil, fmt.Errorf("no certificate found in certificate chain")
+		}
+		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("error parsing certificate: %w", err)
+		}
+	}
+	for _, d := range cert.Leaf.DNSNames {
+		logger.Info("adding certificate", "dns", d)
+		m[d] = cert
+	}
+	for _, ip := range cert.Leaf.IPAddresses {
+		logger.Info("adding certificate", "ip", ip.String())
+		m[ip.String()] = cert
+	}
+	for _, uri := range cert.Leaf.URIs {
+		logger.Info("adding certificate", "uri", uri.String())
+		m[uri.String()] = cert
+	}
+	return &cert, nil
+}
+
+func defaultCertPool(logger logr.Logger) *x509.CertPool {
+	systemCAs, err := x509.SystemCertPool()
+	if err == nil {
+		return systemCAs
+	}
+
+	logger.Info("error loading system CA pool, using empty pool", "error", err)
+	return x509.NewCertPool()
+}
+
+// getTLSConfig creates a TLS config from KEDA_HTTP_PROXY_TLS_CERT_PATH, KEDA_HTTP_PROXY_TLS_KEY_PATH and KEDA_HTTP_PROXY_TLS_CERTSTORE_PATHS
+// The matching between request and certificate is performed by comparing TLS/SNI server name with x509 SANs
+func getTLSConfig(tlsConfig map[string]string, logger logr.Logger) (*tls.Config, error) {
+	certPath := tlsConfig["certificatePath"]
+	keyPath := tlsConfig["keyPath"]
+	certStorePaths := tlsConfig["certstorePaths"]
+	servingTLS := &tls.Config{
+		RootCAs: defaultCertPool(logger),
+	}
+	var defaultCert *tls.Certificate
+
+	uriDomainsToCerts := make(map[string]tls.Certificate)
+	if certPath != "" && keyPath != "" {
+		cert, err := addCert(uriDomainsToCerts, certPath, keyPath, logger)
+		if err != nil {
+			return servingTLS, fmt.Errorf("error adding certificate and key: %w", err)
+		}
+		defaultCert = cert
+		rawCert, err := os.ReadFile(certPath)
+		if err != nil {
+			return servingTLS, fmt.Errorf("error reading certificate: %w", err)
+		}
+		servingTLS.RootCAs.AppendCertsFromPEM(rawCert)
+	}
+
+	if certStorePaths != "" {
+		certFiles := make(map[string]string)
+		keyFiles := make(map[string]string)
+		dirPaths := strings.Split(certStorePaths, ",")
+		for _, dir := range dirPaths {
+			err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
+				}
+				switch {
+				case strings.HasSuffix(path, "-key.pem"):
+					certID := path[:len(path)-8]
+					keyFiles[certID] = path
+				case strings.HasSuffix(path, ".pem"):
+					certID := path[:len(path)-4]
+					certFiles[certID] = path
+				case strings.HasSuffix(path, ".key"):
+					certID := path[:len(path)-4]
+					keyFiles[certID] = path
+				case strings.HasSuffix(path, ".crt"):
+					certID := path[:len(path)-4]
+					certFiles[certID] = path
+				}
+				return nil
+			})
+			if err != nil {
+				return servingTLS, fmt.Errorf("error walking certificate store: %w", err)
+			}
+		}
+
+		for certID, certPath := range certFiles {
+			logger.Info("adding certificate", "certID", certID, "certPath", certPath)
+			keyPath, ok := keyFiles[certID]
+			if !ok {
+				return servingTLS, fmt.Errorf("no key found for certificate %s", certPath)
+			}
+			if _, err := addCert(uriDomainsToCerts, certPath, keyPath, logger); err != nil {
+				return servingTLS, fmt.Errorf("error adding certificate %s: %w", certPath, err)
+			}
+			rawCert, err := os.ReadFile(certPath)
+			if err != nil {
+				return servingTLS, fmt.Errorf("error reading certificate: %w", err)
+			}
+			servingTLS.RootCAs.AppendCertsFromPEM(rawCert)
+		}
+	}
+
+	servingTLS.GetCertificate = func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		if cert, ok := uriDomainsToCerts[hello.ServerName]; ok {
+			return &cert, nil
+		}
+		if defaultCert != nil {
+			return defaultCert, nil
+		}
+		return nil, fmt.Errorf("no certificate found for %s", hello.ServerName)
+	}
+	servingTLS.Certificates = maps.Values(uriDomainsToCerts)
+	return servingTLS, nil
 }
 
 func runProxyServer(
@@ -251,33 +382,29 @@ func runProxyServer(
 	})
 	go probeHandler.Start(ctx)
 
-	tlsCfg := tls.Config{}
+	var tlsCfg *tls.Config
 	if tlsEnabled {
-		caCert, err := os.ReadFile(tlsConfig["certificatePath"])
+		cfg, err := getTLSConfig(tlsConfig, logger)
 		if err != nil {
-			logger.Error(fmt.Errorf("error reading file from TLSCertPath"), "error", err)
+			logger.Error(fmt.Errorf("error creating certGetter for proxy server"), "error", err)
 			os.Exit(1)
 		}
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
-		cert, err := tls.LoadX509KeyPair(tlsConfig["certificatePath"], tlsConfig["keyPath"])
-
-		if err != nil {
-			logger.Error(fmt.Errorf("error creating TLS configuration for proxy server"), "error", err)
-			os.Exit(1)
-		}
-
-		tlsCfg.RootCAs = caCertPool
-		tlsCfg.Certificates = []tls.Certificate{cert}
+		tlsCfg = cfg
 	}
 
 	var upstreamHandler http.Handler
+	forwardingTLSCfg := &tls.Config{}
+	if tlsCfg != nil {
+		forwardingTLSCfg.RootCAs = tlsCfg.RootCAs
+		forwardingTLSCfg.Certificates = tlsCfg.Certificates
+	}
+
 	upstreamHandler = newForwardingHandler(
 		logger,
 		dialContextFunc,
 		waitFunc,
 		newForwardingConfigFromTimeouts(timeouts),
-		&tlsCfg,
+		forwardingTLSCfg,
 	)
 	upstreamHandler = middleware.NewCountingMiddleware(
 		q,
@@ -302,5 +429,8 @@ func runProxyServer(
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	logger.Info("proxy server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, rootHandler, tlsEnabled, tlsConfig)
+	if tlsEnabled {
+		return kedahttp.ServeContext(ctx, addr, rootHandler, tlsCfg)
+	}
+	return kedahttp.ServeContext(ctx, addr, rootHandler, nil)
 }

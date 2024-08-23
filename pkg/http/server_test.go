@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net/http"
 	"testing"
@@ -29,7 +30,7 @@ func TestServeContext(t *testing.T) {
 		done()
 	}()
 	start := time.Now()
-	err := ServeContext(ctx, addr, hdl, false, map[string]string{})
+	err := ServeContext(ctx, addr, hdl, nil)
 	elapsed := time.Since(start)
 
 	r.Error(err)
@@ -57,7 +58,13 @@ func TestServeContextWithTLS(t *testing.T) {
 		done()
 	}()
 	start := time.Now()
-	err := ServeContext(ctx, addr, hdl, true, map[string]string{"certificatePath": "../../certs/tls.crt", "keyPath": "../../certs/tls.key"})
+	tlsConfig := tls.Config{
+		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			cert, err := tls.LoadX509KeyPair("../../certs/tls.crt", "../../certs/tls.key")
+			return &cert, err
+		},
+	}
+	err := ServeContext(ctx, addr, hdl, &tlsConfig)
 	elapsed := time.Since(start)
 
 	r.Error(err)

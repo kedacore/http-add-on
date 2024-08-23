@@ -251,6 +251,9 @@ func TestSetupTLSConfiguration(t *testing.T) {
 
 	_, err = ExecuteCommand("kubectl -n keda create secret tls keda-tls --cert ../../certs/tls.crt --key ../../certs/tls.key")
 	require.NoErrorf(t, err, "could not create tls cert secret in keda namespace - %s", err)
+
+	_, err = ExecuteCommand("kubectl -n keda create secret tls abc-certs --cert ../../certs/abc.tls.crt --key ../../certs/abc.tls.key")
+	require.NoErrorf(t, err, "could not create tls cert secret in keda namespace - %s", err)
 }
 
 func TestDeployKEDAHttpAddOn(t *testing.T) {

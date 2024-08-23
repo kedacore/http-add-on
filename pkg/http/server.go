@@ -2,15 +2,17 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-func ServeContext(ctx context.Context, addr string, hdl http.Handler, tlsEnabled bool, tlsConfig map[string]string) error {
+func ServeContext(ctx context.Context, addr string, hdl http.Handler, tlsConfig *tls.Config) error {
 	srv := &http.Server{
-		Handler: hdl,
-		Addr:    addr,
+		Handler:   hdl,
+		Addr:      addr,
+		TLSConfig: tlsConfig,
 	}
 
 	go func() {
@@ -22,8 +24,8 @@ func ServeContext(ctx context.Context, addr string, hdl http.Handler, tlsEnabled
 		}
 	}()
 
-	if tlsEnabled {
-		return srv.ListenAndServeTLS(tlsConfig["certificatePath"], tlsConfig["keyPath"])
+	if tlsConfig != nil {
+		return srv.ListenAndServeTLS("", "")
 	}
 
 	return srv.ListenAndServe()
