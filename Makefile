@@ -79,6 +79,9 @@ test: fmt vet test-certs
 e2e-test:
 	go run -tags e2e ./tests/run-all.go
 
+e2e-test-setup:
+	ONLY_SETUP=true go run -tags e2e ./tests/run-all.go
+
 e2e-test-local:
 	SKIP_SETUP=true go run -tags e2e ./tests/run-all.go
 
