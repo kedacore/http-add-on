@@ -45,6 +45,15 @@ DNS.3 = *.interceptor-tls-test-ns
 endef
 export DOMAINS
 
+define ABC_DOMAINS
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = abc
+endef
+export ABC_DOMAINS
+
 # Build targets
 
 build-operator:
@@ -68,6 +77,9 @@ test-certs: rootca-test-certs
 	echo "$$DOMAINS" > certs/domains.ext
 	openssl req -new -nodes -newkey rsa:2048 -keyout certs/tls.key -out certs/tls.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Keda-Certificates/CN=keda.local"
 	openssl x509 -req -sha256 -days 1024 -in certs/tls.csr -CA certs/RootCA.pem -CAkey certs/RootCA.key -CAcreateserial -extfile certs/domains.ext -out certs/tls.crt
+	echo "$$ABC_DOMAINS" > certs/abc_domains.ext
+	openssl req -new -nodes -newkey rsa:2048 -keyout certs/abc.tls.key -out certs/abc.tls.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Keda-Certificates/CN=abc"
+	openssl x509 -req -sha256 -days 1024 -in certs/abc.tls.csr -CA certs/RootCA.pem -CAkey certs/RootCA.key -CAcreateserial -extfile certs/abc_domains.ext -out certs/abc.tls.crt
 
 clean-test-certs:
 	rm -r certs || true

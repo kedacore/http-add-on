@@ -18,13 +18,21 @@ spec:
           value: "/certs/tls.crt"
         - name: KEDA_HTTP_PROXY_TLS_KEY_PATH
           value: "/certs/tls.key"
+        - name: KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS
+          value: "/additional-certs"
         - name: KEDA_HTTP_PROXY_TLS_PORT
           value: "8443"
         volumeMounts:
           - readOnly: true
             mountPath: "/certs"
             name: certs
+          - readOnly: true
+            mountPath: "/additional-certs/abc-certs"
+            name: abc-certs
       volumes:
         - name: certs
           secret:
             secretName: keda-tls
+        - name: abc-certs
+          secret:
+            secretName: abc-certs
