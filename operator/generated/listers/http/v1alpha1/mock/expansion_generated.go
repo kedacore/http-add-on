@@ -34,6 +34,7 @@ import (
 type MockHTTPScaledObjectListerExpansion struct {
 	ctrl     *gomock.Controller
 	recorder *MockHTTPScaledObjectListerExpansionMockRecorder
+	isgomock struct{}
 }
 
 // MockHTTPScaledObjectListerExpansionMockRecorder is the mock recorder for MockHTTPScaledObjectListerExpansion.
@@ -57,6 +58,7 @@ func (m *MockHTTPScaledObjectListerExpansion) EXPECT() *MockHTTPScaledObjectList
 type MockHTTPScaledObjectNamespaceListerExpansion struct {
 	ctrl     *gomock.Controller
 	recorder *MockHTTPScaledObjectNamespaceListerExpansionMockRecorder
+	isgomock struct{}
 }
 
 // MockHTTPScaledObjectNamespaceListerExpansionMockRecorder is the mock recorder for MockHTTPScaledObjectNamespaceListerExpansion.

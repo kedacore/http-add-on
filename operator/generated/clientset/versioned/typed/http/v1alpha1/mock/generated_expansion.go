@@ -34,6 +34,7 @@ import (
 type MockHTTPScaledObjectExpansion struct {
 	ctrl     *gomock.Controller
 	recorder *MockHTTPScaledObjectExpansionMockRecorder
+	isgomock struct{}
 }
 
 // MockHTTPScaledObjectExpansionMockRecorder is the mock recorder for MockHTTPScaledObjectExpansion.

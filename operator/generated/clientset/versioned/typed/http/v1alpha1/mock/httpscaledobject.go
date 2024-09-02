@@ -42,6 +42,7 @@ import (
 type MockHTTPScaledObjectsGetter struct {
 	ctrl     *gomock.Controller
 	recorder *MockHTTPScaledObjectsGetterMockRecorder
+	isgomock struct{}
 }
 
 // MockHTTPScaledObjectsGetterMockRecorder is the mock recorder for MockHTTPScaledObjectsGetter.
@@ -79,6 +80,7 @@ func (mr *MockHTTPScaledObjectsGetterMockRecorder) HTTPScaledObjects(namespace a
 type MockHTTPScaledObjectInterface struct {
 	ctrl     *gomock.Controller
 	recorder *MockHTTPScaledObjectInterfaceMockRecorder
+	isgomock struct{}
 }
 
 // MockHTTPScaledObjectInterfaceMockRecorder is the mock recorder for MockHTTPScaledObjectInterface.
