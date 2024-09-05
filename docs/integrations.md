@@ -61,8 +61,6 @@ spec:
    - A PR is in progress to add this support: [https://github.com/kedacore/keda/pull/5478](https://github.com/kedacore/keda/pull/5478)
    - As a workaround, keep `minReplica` initially as 1 and update it to 0 after the desired delay.
 
-  Here's your updated and concise section for **FrontDoor - AKS Integration** under **Integrations**:
-
 ---
 
 ## Azure Front Door
