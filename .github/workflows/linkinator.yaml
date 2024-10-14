@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-      - uses: JustinBeckwith/linkinator-action@39e601e8efc0c24b7228ec87e43f4b9abebf3b25 # v1
+      - uses: JustinBeckwith/linkinator-action@3d5ba091319fa7b0ac14703761eebb7d100e6f6d # v1
         with:
           paths: "**/*.md"
           markdown: true
