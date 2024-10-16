@@ -114,7 +114,7 @@ func (t *RequestsBuckets) WindowAverage(now time.Time) float64 {
 		}
 		numB := math.Min(
 			float64(t.lastWrite.Sub(t.firstWrite)/t.granularity)+1, // +1 since the times are inclusive.
-			float64(len(t.buckets)-(eIdx-stIdx)))
+			float64(len(t.buckets)))
 		return roundToNDigits(precision, float64(ret)/numB)
 	default: // Nothing for more than a window time, just 0.
 		return 0.

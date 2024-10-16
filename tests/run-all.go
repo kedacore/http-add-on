@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ type TestResult struct {
 func main() {
 	ctx := context.Background()
 	skipSetup := os.Getenv("SKIP_SETUP") == "true"
+	onlySetup := os.Getenv("ONLY_SETUP") == "true"
 	//
 	// Install KEDA HTTP Add-on
 	//
@@ -50,27 +52,29 @@ func main() {
 		}
 	}
 
-	//
-	// Execute tests
-	//
-	testResults := executeTestCases(ctx)
+	if !onlySetup {
+		//
+		// Execute tests
+		//
+		testResults := executeTestCases(ctx)
 
-	//
-	// Uninstall KEDA
-	//
-	if !skipSetup {
-		passed := uninstallKeda(ctx)
-		if !passed {
-			os.Exit(1)
+		//
+		// Uninstall KEDA
+		//
+		if !skipSetup {
+			passed := uninstallKeda(ctx)
+			if !passed {
+				os.Exit(1)
+			}
 		}
+
+		//
+		// Generate execution outcome
+		//
+		exitCode := evaluateExecution(testResults)
+
+		os.Exit(exitCode)
 	}
-
-	//
-	// Generate execution outcome
-	//
-	exitCode := evaluateExecution(testResults)
-
-	os.Exit(exitCode)
 }
 
 func executeTest(ctx context.Context, file string, timeout string, tries int) TestResult {
@@ -102,14 +106,25 @@ func executeTest(ctx context.Context, file string, timeout string, tries int) Te
 func getTestFiles() []string {
 	testFiles := []string{}
 
-	err := filepath.Walk("tests",
+	e2eRegex := os.Getenv("E2E_TEST_REGEX")
+	if e2eRegex == "" {
+		e2eRegex = ".*"
+	}
+	regex, err := regexp.Compile(e2eRegex)
+	if err != nil {
+		fmt.Printf("Error compiling regex: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = filepath.Walk("tests",
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
 			if strings.Contains(path, "checks") &&
-				strings.HasSuffix(info.Name(), "_test.go") {
+				strings.HasSuffix(info.Name(), "_test.go") &&
+				regex.MatchString(info.Name()) {
 				testFiles = append(testFiles, path)
 			}
 			return nil

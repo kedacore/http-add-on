@@ -60,3 +60,35 @@ spec:
    - There's currently no built-in mechanism to delay this initial scaling.
    - A PR is in progress to add this support: [https://github.com/kedacore/keda/pull/5478](https://github.com/kedacore/keda/pull/5478)
    - As a workaround, keep `minReplica` initially as 1 and update it to 0 after the desired delay.
+
+---
+
+## Azure Front Door
+
+### Configuration Steps
+
+1. **Service Setup in Front Door:**
+   - Set up Azure Front Door to route traffic to your AKS cluster.
+   - Ensure that the `Origin Host` header matches the actual AKS host. Front Door enforces case-sensitive routing, so configure the `Origin Host` exactly as the AKS host name.
+
+2. **KEDA HTTP Add-on Integration:**
+   - Use an `HTTPScaledObject` to manage scaling based on incoming traffic.
+   - Front Door should route traffic to the KEDA HTTP Add-on interceptor service in your AKS cluster.
+
+3. **Case-Sensitive Hostnames:**
+   - Be mindful that Azure Front Door treats the `Origin Host` header in a case-sensitive manner.
+   - Ensure consistency between the AKS ingress hostname (e.g., `foo.bar.com`) and Front Door configuration.
+
+### Troubleshooting Tips
+
+- **404 Error for Hostnames with Different Case:**
+   - Requests routed with inconsistent casing (e.g., `foo.Bar.com` vs. `foo.bar.com`) will trigger 404 errors. Make sure the `Origin Host` header matches the AKS ingress host exactly.
+   - If you encounter errors like `PANIC=value method k8s.io/apimachinery/pkg/types.NamespacedName.MarshalLog called using nil *NamespacedName pointer`, verify the `Origin Host` header configuration.
+
+### Expected Behavior
+
+- Azure Front Door routes traffic to AKS based on a case-sensitive host header.
+- The KEDA HTTP Add-on scales the workload in response to traffic, based on predefined scaling rules.
+
+
+---

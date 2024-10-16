@@ -41,6 +41,8 @@ type Serving struct {
 	TLSCertPath string `envconfig:"KEDA_HTTP_PROXY_TLS_CERT_PATH" default:"/certs/tls.crt"`
 	// TLSKeyPath is the path to read the private key file from for the TLS server
 	TLSKeyPath string `envconfig:"KEDA_HTTP_PROXY_TLS_KEY_PATH" default:"/certs/tls.key"`
+	// TLSCertStorePaths is a comma separated list of paths to read the certificate/key pairs for the TLS server
+	TLSCertStorePaths string `envconfig:"KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS" default:""`
 	// TLSPort is the port that the server should serve on if TLS is enabled
 	TLSPort int `envconfig:"KEDA_HTTP_PROXY_TLS_PORT" default:"8443"`
 }

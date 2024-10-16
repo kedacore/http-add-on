@@ -84,7 +84,7 @@ You should install the `xkcd` helm chart with `--set httproute=true` as [explain
 
 The helm chart is publically available and hosted by DockerHub
 ```console
-helm install eg oci://docker.io/envoyproxy/gateway-helm --version v1.0.1 -n envoy-gateway-system --create-namespace
+helm install eg oci://docker.io/envoyproxy/gateway-helm --version v1.0.2 -n envoy-gateway-system --create-namespace
 ```
 Before creating new `Gateway`, wait for Envoy Gateway to become available
 ```console

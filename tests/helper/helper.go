@@ -28,6 +28,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayapiv1clientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1"
 )
 
 const (
@@ -36,6 +38,8 @@ const (
 	ArgoRolloutsName      = "argo-rollouts"
 	IngressNamespace      = "ingress"
 	IngressReleaseName    = "ingress"
+	EnvoyNamespace        = "envoy-gateway-system"
+	EnvoyReleaseName      = "eg"
 
 	StringFalse = "false"
 	StringTrue  = "true"
@@ -46,6 +50,7 @@ var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 var (
 	KubeClient     *kubernetes.Clientset
 	KedaKubeClient *v1alpha1.KedaV1alpha1Client
+	GWClient       *gatewayapiv1clientset.GatewayV1Client
 	KubeConfig     *rest.Config
 )
 
@@ -166,6 +171,21 @@ func GetKubernetesClient(t *testing.T) *kubernetes.Clientset {
 	assert.NoErrorf(t, err, "cannot create kubernetes client - %s", err)
 
 	return KubeClient
+}
+
+func GetGatewayClient(t *testing.T) *gatewayapiv1clientset.GatewayV1Client {
+	if GWClient != nil && KubeConfig != nil {
+		return GWClient
+	}
+
+	var err error
+	KubeConfig, err = config.GetConfig()
+	assert.NoErrorf(t, err, "cannot fetch kube config file - %s", err)
+
+	GWClient, err = gatewayapiv1clientset.NewForConfig(KubeConfig)
+	assert.NoErrorf(t, err, "cannot create gateway client - %s", err)
+
+	return GWClient
 }
 
 func GetKedaKubernetesClient(t *testing.T) *v1alpha1.KedaV1alpha1Client {
@@ -385,6 +405,23 @@ func WaitForIngressReady(t *testing.T, kc *kubernetes.Clientset, name, namespace
 		time.Sleep(time.Duration(intervalSeconds) * time.Second)
 	}
 
+	return false
+}
+
+func WaitForHTTPRouteAccepted(t *testing.T, gc *gatewayapiv1clientset.GatewayV1Client, name, namespace string, iterations, intervalSeconds int) bool {
+	for i := 0; i < iterations; i++ {
+		httpRoute, _ := gc.HTTPRoutes(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		for _, parent := range httpRoute.Status.Parents {
+			for _, condition := range parent.Conditions {
+				if condition.Type == string(gatewayapiv1.RouteConditionAccepted) && condition.Status == metav1.ConditionTrue {
+					return true
+				}
+			}
+		}
+		t.Log("Waiting for accepted HTTPRoute")
+
+		time.Sleep(time.Duration(intervalSeconds) * time.Second)
+	}
 	return false
 }
 

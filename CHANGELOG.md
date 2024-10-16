@@ -23,6 +23,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
+- **General**: Support setting multiple TLS certs for different domains on the interceptor proxy ([#1116](https://github.com/kedacore/http-add-on/issues/1116))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Improvements
@@ -32,6 +33,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: Align the interceptor metrics env var configuration with the OTEL spec ([#1031](https://github.com/kedacore/http-add-on/issues/1031))
+- **General**: Include trailing 0 window buckets in RPS calculation ([#1075](https://github.com/kedacore/http-add-on/issues/1075))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Deprecations

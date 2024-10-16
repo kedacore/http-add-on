@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	. "github.com/onsi/gomega"
 )
 
 const granularity = time.Second
@@ -177,7 +178,7 @@ func TestRequestsBucketsWindowAverage(t *testing.T) {
 	}
 
 	// Check with short hole.
-	if got, want := buckets.WindowAverage(now.Add(6*time.Second)), (15.-1-2)/(5-2); got != want {
+	if got, want := buckets.WindowAverage(now.Add(6*time.Second)), (15.-1-2)/(5); got != want {
 		t.Errorf("WindowAverage = %v, want: %v", got, want)
 	}
 
@@ -250,6 +251,87 @@ func TestDescendingRecord(t *testing.T) {
 		// so the average _should_ be 5.
 		t.Errorf("WindowAverage = %v, want: %v", got, want)
 	}
+}
+
+func TestRequestsSuddenStop(t *testing.T) {
+	RegisterTestingT(t)
+	now := time.Date(2024, 6, 26, 12, 0, 0, 0, time.UTC)
+	buckets := NewRequestsBuckets(5*time.Second, granularity)
+
+	// empty window
+	Expect(buckets.buckets).To(Equal([]int{0, 0, 0, 0, 0}))
+	Expect(buckets.WindowAverage(now)).To(Equal(0.0))
+
+	// first bucket with 1 request
+	buckets.Record(now, 1)
+	Expect(buckets.WindowAverage(now)).To(Equal(1.0))
+	Expect(buckets.buckets).To(Equal([]int{1, 0, 0, 0, 0}))
+
+	// second bucket with 2 requests
+	buckets.Record(now.Add(1*time.Second), 2)
+	Expect(buckets.WindowAverage(now.Add(1 * time.Second))).To(Equal(1.5))
+	Expect(buckets.buckets).To(Equal([]int{1, 2, 0, 0, 0}))
+
+	// third bucket with 3 requests
+	buckets.Record(now.Add(2*time.Second), 3)
+	Expect(buckets.WindowAverage(now.Add(2 * time.Second))).To(Equal(2.0))
+	Expect(buckets.buckets).To(Equal([]int{1, 2, 3, 0, 0}))
+
+	// fourth bucket with 4 requests
+	buckets.Record(now.Add(3*time.Second), 4)
+	Expect(buckets.WindowAverage(now.Add(3 * time.Second))).To(Equal(2.5))
+	Expect(buckets.buckets).To(Equal([]int{1, 2, 3, 4, 0}))
+
+	// fifth bucket with 5 requests
+	buckets.Record(now.Add(4*time.Second), 5)
+	Expect(buckets.WindowAverage(now.Add(4 * time.Second))).To(Equal(3.0))
+	Expect(buckets.buckets).To(Equal([]int{1, 2, 3, 4, 5}))
+
+	// first bucket (sixth time window), we don't have any requests, so the average should be 0+2+3+4+5/5 = 2.8
+	// but the buckets don't change until new value is recorded or until the window expires
+	Expect(buckets.WindowAverage(now.Add(5 * time.Second))).To(Equal(2.8))
+	Expect(buckets.buckets).To(Equal([]int{1, 2, 3, 4, 5}))
+
+	// second bucket, also no requests
+	Expect(buckets.WindowAverage(now.Add(6 * time.Second))).To(Equal(2.4))
+	Expect(buckets.buckets).To(Equal([]int{1, 2, 3, 4, 5}))
+
+	// third bucket, 8 requests
+	buckets.Record(now.Add(7*time.Second), 8)
+	Expect(buckets.WindowAverage(now.Add(7 * time.Second))).To(Equal(3.4))
+	Expect(buckets.buckets).To(Equal([]int{0, 0, 8, 4, 5}))
+
+	// fourth bucket, 9 requests
+	buckets.Record(now.Add(8*time.Second), 9)
+	Expect(buckets.WindowAverage(now.Add(8 * time.Second))).To(Equal(4.4))
+	Expect(buckets.buckets).To(Equal([]int{0, 0, 8, 9, 5}))
+
+	// fifth bucket, 10 requests
+	buckets.Record(now.Add(9*time.Second), 10)
+	Expect(buckets.WindowAverage(now.Add(9 * time.Second))).To(Equal(5.4))
+	Expect(buckets.buckets).To(Equal([]int{0, 0, 8, 9, 10}))
+
+	// first bucket, 11 requests
+	buckets.Record(now.Add(10*time.Second), 11)
+	Expect(buckets.WindowAverage(now.Add(10 * time.Second))).To(Equal(7.6))
+	Expect(buckets.buckets).To(Equal([]int{11, 0, 8, 9, 10}))
+
+	// second bucket, 12 requests
+	buckets.Record(now.Add(11*time.Second), 12)
+	Expect(buckets.WindowAverage(now.Add(11 * time.Second))).To(Equal(10.0))
+	Expect(buckets.buckets).To(Equal([]int{11, 12, 8, 9, 10}))
+
+	// now requests stop entirely and time window average decreases all the way to 0
+	Expect(buckets.WindowAverage(now.Add(12 * time.Second))).To(Equal(8.4))
+	Expect(buckets.WindowAverage(now.Add(13 * time.Second))).To(Equal(6.6))
+	Expect(buckets.WindowAverage(now.Add(14 * time.Second))).To(Equal(4.6))
+	Expect(buckets.WindowAverage(now.Add(15 * time.Second))).To(Equal(2.4))
+	Expect(buckets.WindowAverage(now.Add(16 * time.Second))).To(Equal(0.0))
+
+	// and single request is recorded after avg dropped to 0, this should restart the window
+	buckets.Record(now.Add(17*time.Second), 1)
+	Expect(buckets.WindowAverage(now.Add(17 * time.Second))).To(Equal(1.0))
+	Expect(buckets.buckets).To(Equal([]int{0, 0, 1, 0, 0}))
 }
 
 func TestRequestsBucketsHoles(t *testing.T) {
