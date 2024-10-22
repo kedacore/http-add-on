@@ -34,6 +34,8 @@ import (
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/util"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 var (
@@ -104,7 +106,24 @@ func main() {
 
 	queues := queue.NewMemory()
 
-	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, servingCfg.ConfigMapCacheRsyncPeriod)
+	var labelSelector labels.Selector
+	if servingCfg.WatchLabel != "" {
+		labelSelector, err = labels.Parse(servingCfg.WatchLabel)
+		if err != nil {
+			setupLog.Error(err, "invalid WatchLabel format")
+			os.Exit(1)
+		}
+		setupLog.Info("watching label", "label", servingCfg.WatchLabel)
+	} else {
+		labelSelector = labels.Everything()
+		setupLog.Info("watching all labels")
+	}
+
+	sharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(httpCl, servingCfg.ConfigMapCacheRsyncPeriod,
+		informers.WithTweakListOptions(func(options *v1.ListOptions) {
+			options.LabelSelector = labelSelector.String()
+		}),
+	)
 	routingTable, err := routing.NewTable(sharedInformerFactory, servingCfg.WatchNamespace, queues)
 	if err != nil {
 		setupLog.Error(err, "fetching routing table")
