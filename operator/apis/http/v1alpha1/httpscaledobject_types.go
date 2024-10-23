@@ -31,10 +31,10 @@ type ScaleTargetRef struct {
 	// The name of the service to route to
 	Service string `json:"service"`
 	// The port to route to
-	// +optional
+	// +kubebuilder:validation:XValidation:rule=!has(self.PortName) && has(self.Port)
 	Port int32 `json:"port,omitempty"`
 	// The port to route to referenced by name
-	// +optional
+	// +kubebuilder:validation:XValidation:rule=!has(self.Port) && has(self.PortName)
 	PortName string `json:"portName,omitempty"`
 }
 
