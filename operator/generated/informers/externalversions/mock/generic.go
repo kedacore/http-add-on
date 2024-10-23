@@ -37,6 +37,7 @@ import (
 type MockGenericInformer struct {
 	ctrl     *gomock.Controller
 	recorder *MockGenericInformerMockRecorder
+	isgomock struct{}
 }
 
 // MockGenericInformerMockRecorder is the mock recorder for MockGenericInformer.

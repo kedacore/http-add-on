@@ -38,6 +38,7 @@ import (
 type MockHttpV1alpha1Interface struct {
 	ctrl     *gomock.Controller
 	recorder *MockHttpV1alpha1InterfaceMockRecorder
+	isgomock struct{}
 }
 
 // MockHttpV1alpha1InterfaceMockRecorder is the mock recorder for MockHttpV1alpha1Interface.

@@ -10,7 +10,7 @@ concurrency:
 jobs:
   build_scaler:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.22.2
+    container: ghcr.io/kedacore/keda-tools:1.22.7
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       - name: Register workspace path
@@ -22,7 +22,7 @@ jobs:
 
   build_operator:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.22.2
+    container: ghcr.io/kedacore/keda-tools:1.22.7
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       - name: Register workspace path
@@ -34,7 +34,7 @@ jobs:
 
   build_interceptor:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.22.2
+    container: ghcr.io/kedacore/keda-tools:1.22.7
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       - name: Register workspace path

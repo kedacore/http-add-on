@@ -42,6 +42,7 @@ import (
 type MockSharedInformerFactory struct {
 	ctrl     *gomock.Controller
 	recorder *MockSharedInformerFactoryMockRecorder
+	isgomock struct{}
 }
 
 // MockSharedInformerFactoryMockRecorder is the mock recorder for MockSharedInformerFactory.
