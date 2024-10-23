@@ -31,7 +31,11 @@ type ScaleTargetRef struct {
 	// The name of the service to route to
 	Service string `json:"service"`
 	// The port to route to
-	Port int32 `json:"port"`
+	// +optional
+	Port int32 `json:"port,omitempty"`
+	// The port to route to referenced by name
+	// +optional
+	PortName string `json:"portName,omitempty"`
 }
 
 // ReplicaStruct contains the minimum and maximum amount of replicas to have in the deployment

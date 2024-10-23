@@ -308,6 +308,7 @@ func newHarness(
 			respHeaderTimeout: time.Second,
 		},
 		&tls.Config{}),
+		endpCache,
 		false,
 	)
 
