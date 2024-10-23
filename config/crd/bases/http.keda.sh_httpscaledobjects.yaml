@@ -106,11 +106,17 @@ spec:
                     description: The port to route to
                     format: int32
                     type: integer
+                    x-kubernetes-validations:
+                    - rule: '!has(self.PortName) && has(self.Port)'
+                  portName:
+                    description: The port to route to referenced by name
+                    type: string
+                    x-kubernetes-validations:
+                    - rule: '!has(self.Port) && has(self.PortName)'
                   service:
                     description: The name of the service to route to
                     type: string
                 required:
-                - port
                 - service
                 type: object
               scaledownPeriod:
