@@ -63,7 +63,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	// server
 	routingTable := routingtest.NewTable()
 	routingTable.Memory[host] = httpso
-	endpointsCache := k8s.NewFakeEndpointsCache()
+	svcCache := k8s.NewFakeServiceCache()
 
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
@@ -78,7 +78,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 			q,
 			waitFunc,
 			routingTable,
-			endpointsCache,
+			svcCache,
 			timeouts,
 			port,
 			false,
@@ -196,7 +196,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 	// server
 	routingTable := routingtest.NewTable()
 	routingTable.Memory[host] = httpso
-	endpointsCache := k8s.NewFakeEndpointsCache()
+	svcCache := k8s.NewFakeServiceCache()
 
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
@@ -212,7 +212,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 			q,
 			waitFunc,
 			routingTable,
-			endpointsCache,
+			svcCache,
 			timeouts,
 			port,
 			true,
@@ -343,7 +343,7 @@ func TestRunProxyServerWithMultipleCertsTLSCountMiddleware(t *testing.T) {
 	// server
 	routingTable := routingtest.NewTable()
 	routingTable.Memory[host] = httpso
-	endpointsCache := k8s.NewFakeEndpointsCache()
+	svcCache := k8s.NewFakeServiceCache()
 
 	timeouts := &config.Timeouts{}
 	waiterCh := make(chan struct{})
@@ -359,7 +359,7 @@ func TestRunProxyServerWithMultipleCertsTLSCountMiddleware(t *testing.T) {
 			q,
 			waitFunc,
 			routingTable,
-			endpointsCache,
+			svcCache,
 			timeouts,
 			port,
 			true,

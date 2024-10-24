@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
+	k8sinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -42,6 +43,7 @@ var (
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 
 func main() {
 	timeoutCfg := config.MustParseTimeouts()
@@ -85,11 +87,10 @@ func main() {
 		setupLog.Error(err, "creating new Kubernetes ClientSet")
 		os.Exit(1)
 	}
-	endpointsCache := k8s.NewInformerBackedEndpointsCache(
-		ctrl.Log,
-		cl,
-		time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS),
-	)
+
+	k8sSharedInformerFactory := k8sinformers.NewSharedInformerFactory(cl, time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS))
+	svcCache := k8s.NewInformerBackedServiceCache(ctrl.Log, cl, k8sSharedInformerFactory)
+	endpointsCache := k8s.NewInformerBackedEndpointsCache(ctrl.Log, cl, time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS))
 	if err != nil {
 		setupLog.Error(err, "creating new endpoints cache")
 		os.Exit(1)
@@ -123,6 +124,7 @@ func main() {
 		setupLog.Info("starting the endpoints cache")
 
 		endpointsCache.Start(ctx)
+		k8sSharedInformerFactory.Start(ctx.Done())
 		return nil
 	})
 
@@ -173,10 +175,11 @@ func main() {
 		eg.Go(func() error {
 			proxyTLSConfig := map[string]string{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath, "certstorePaths": servingCfg.TLSCertStorePaths}
 			proxyTLSPort := servingCfg.TLSPort
+			k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, endpointsCache, timeoutCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -186,9 +189,11 @@ func main() {
 
 	// start a proxy server without TLS.
 	eg.Go(func() error {
+		k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
 		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
 
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, endpointsCache, timeoutCfg, proxyPort, false, nil); !util.IsIgnoredErr(err) {
+		k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, proxyPort, false, nil); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -369,7 +374,7 @@ func runProxyServer(
 	q queue.Counter,
 	waitFunc forwardWaitFunc,
 	routingTable routing.Table,
-	endpointsCache k8s.EndpointsCache,
+	svcCache k8s.ServiceCache,
 	timeouts *config.Timeouts,
 	port int,
 	tlsEnabled bool,
@@ -417,7 +422,7 @@ func runProxyServer(
 		routingTable,
 		probeHandler,
 		upstreamHandler,
-		endpointsCache,
+		svcCache,
 		tlsEnabled,
 	)
 	rootHandler = middleware.NewLogging(

@@ -6,6 +6,7 @@ package internal_service_port_name_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes"
@@ -150,6 +151,7 @@ func TestCheck(t *testing.T) {
 func testScaleOut(t *testing.T, kc *kubernetes.Clientset, data templateData) {
 	t.Log("--- testing scale out ---")
 
+	time.Sleep(5 * time.Second)
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 6, 10),
