@@ -31,10 +31,8 @@ type ScaleTargetRef struct {
 	// The name of the service to route to
 	Service string `json:"service"`
 	// The port to route to
-	// +kubebuilder:validation:XValidation:rule=!has(self.PortName) && has(self.Port)
 	Port int32 `json:"port,omitempty"`
 	// The port to route to referenced by name
-	// +kubebuilder:validation:XValidation:rule=!has(self.Port) && has(self.PortName)
 	PortName string `json:"portName,omitempty"`
 }
 
@@ -92,6 +90,8 @@ type HTTPScaledObjectSpec struct {
 	// +optional
 	PathPrefixes []string `json:"pathPrefixes,omitempty"`
 	// The name of the deployment to route HTTP requests to (and to autoscale).
+	// Including validation as a requirement to define either the PortName or the Port
+	// +kubebuilder:validation:XValidation:rule="has(self.portName) != has(self.port)",message="must define either the 'portName' or the 'port'"
 	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
 	// (optional) Replica information
 	// +optional
