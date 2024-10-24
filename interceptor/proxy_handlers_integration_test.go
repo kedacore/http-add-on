@@ -281,6 +281,7 @@ func newHarness(
 		},
 	)
 
+	svcCache := k8s.NewFakeServiceCache()
 	endpCache := k8s.NewFakeEndpointsCache()
 	waitFunc := newWorkloadReplicasForwardWaitFunc(
 		logr.Discard(),
@@ -308,6 +309,7 @@ func newHarness(
 			respHeaderTimeout: time.Second,
 		},
 		&tls.Config{}),
+		svcCache,
 		false,
 	)
 
