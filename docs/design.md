@@ -29,7 +29,7 @@ When the `HTTPScaledObject` is deleted, the operator reverses all of the aforeme
 
 ### Autoscaling for HTTP Apps
 
-After an `HTTPScaledObject` is created and the operator creates the appropriate resources, you must send HTTP requests through the interceptor so that the application is scaled. A Kubernetes `Service` called `keda-add-ons-http-interceptor-proxy` was created when you `helm install`ed the add-on. Send requests to that service.
+After an `HTTPScaledObject` is created and the operator creates the appropriate resources, you must send HTTP requests through the interceptor so that the application is scaled. A Kubernetes `Service` called `keda-http-add-on-interceptor-proxy` was created when you `helm install`ed the add-on. Send requests to that service.
 
 The interceptor keeps track of the number of pending HTTP requests - HTTP requests that it has forwarded but the app hasn't returned. The scaler periodically makes HTTP requests to the interceptor via an internal RPC endpoint - on a separate port from the public server - to get the size of the pending queue. Based on this queue size, it reports scaling metrics as appropriate to KEDA. As the queue size increases, the scaler instructs KEDA to scale up as appropriate. Similarly, as the queue size decreases, the scaler instructs KEDA to scale down.
 
