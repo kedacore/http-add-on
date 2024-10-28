@@ -33,7 +33,7 @@ func NewKeyFromURL(url *url.URL) Key {
 	return NewKey(url.Host, url.Path)
 }
 
-func NewKeyFromRequest(req *http.Request) Key {
+func NewKeyFromRequest(req *http.Request, httpRoutingHeaderKey string) Key {
 	if req == nil {
 		return nil
 	}
@@ -46,6 +46,12 @@ func NewKeyFromRequest(req *http.Request) Key {
 	keyURL := *reqURL
 	if reqHost := req.Host; reqHost != "" {
 		keyURL.Host = reqHost
+	}
+
+	if httpRoutingHeaderKey != "" {
+		if httpRoutingHeaderValue := req.Header.Get(httpRoutingHeaderKey); httpRoutingHeaderValue != "" {
+			keyURL.Host = httpRoutingHeaderValue
+		}
 	}
 
 	return NewKeyFromURL(&keyURL)
