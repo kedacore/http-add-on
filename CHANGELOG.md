@@ -25,7 +25,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: Support portName in HTTPScaledObject service scaleTargetRef ([#1174](https://github.com/kedacore/http-add-on/issues/1174))
 - **General**: Support setting multiple TLS certs for different domains on the interceptor proxy ([#1116](https://github.com/kedacore/http-add-on/issues/1116))
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Support for http header routing ([#1177](https://github.com/kedacore/http-add-on/issues/1177))
 
 ### Improvements
 
