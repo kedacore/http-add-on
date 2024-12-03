@@ -17,6 +17,7 @@ import (
 var (
 	kubernetesProbeUserAgent = regexp.MustCompile(`(^|\s)kube-probe/`)
 	googleHCUserAgent        = regexp.MustCompile(`(^|\s)GoogleHC/`)
+	awsELBserAgent           = regexp.MustCompile(`(^|\s)ELB-HealthChecker/`)
 )
 
 type Routing struct {
@@ -112,5 +113,5 @@ func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HT
 func (rm *Routing) isProbe(r *http.Request) bool {
 	ua := r.UserAgent()
 
-	return kubernetesProbeUserAgent.Match([]byte(ua)) || googleHCUserAgent.Match([]byte(ua))
+	return kubernetesProbeUserAgent.Match([]byte(ua)) || googleHCUserAgent.Match([]byte(ua)) || awsELBserAgent.Match([]byte(ua))
 }
