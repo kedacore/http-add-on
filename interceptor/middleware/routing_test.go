@@ -304,7 +304,19 @@ var _ = Describe("RoutingMiddleware", func() {
 			Expect(b).To(BeTrue())
 		})
 
-		It("returns false if the request is not from kube-probe or GoogleHC", func() {
+		It("returns true if the request is from AWS ELB", func() {
+			const (
+				uaVal = "Go-http-client/1.1 ELB-HealthChecker/2.0 (linux/amd64) kubernetes/4c94112"
+			)
+
+			r.Header.Set(uaKey, uaVal)
+
+			var rm Routing
+			b := rm.isProbe(r)
+			Expect(b).To(BeTrue())
+		})
+
+		It("returns false if the request is not from kube-probe or GoogleHC or ELB-HealthChecker", func() {
 			const (
 				uaVal = "Go-http-client/1.1 kubectl/v1.27.1 (linux/amd64) kubernetes/4c94112"
 			)
