@@ -123,7 +123,7 @@ func (r *Memory) Current() (*Counts, error) {
 	for key, concurrency := range r.concurrentMap {
 		rpsItem, ok := r.rpsMap[key]
 		if !ok {
-			return nil, fmt.Errorf(fmt.Sprintf("rps map doesn't contain the key '%s'", key))
+			return nil, fmt.Errorf("rps map doesn't contain the key '%s'", key)
 		}
 		cts.Counts[key] = Count{
 			Concurrency: concurrency,
