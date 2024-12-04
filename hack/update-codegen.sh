@@ -23,25 +23,17 @@ CODEGEN_PKG="${CODEGEN_PKG:-$(go list -f '{{ .Dir }}' -m k8s.io/code-generator 2
 SCRIPT_ROOT="$(dirname "${BASH_SOURCE[0]}")/.."
 OUTPUT_BASE="$(mktemp -d)"
 
-
 GO_PACKAGE='github.com/kedacore/http-add-on'
-GEN_SUFFIX='operator/generated'
-API_SUFFIX='operator/apis'
 
-# (JorTurFer): We need to add execution permission to the old file to continue using it until the new way works
-# supporting all the scenarios (eg: not all the public types within the same types.go file)
-chmod +x "${CODEGEN_PKG}/generate-internal-groups.sh"
+source "${CODEGEN_PKG}/kube_codegen.sh"
 
-bash "${CODEGEN_PKG}/generate-groups.sh" \
-  'client,informer,lister' \
-  "${GO_PACKAGE}/${GEN_SUFFIX}" \
-  "${GO_PACKAGE}/${API_SUFFIX}" \
-  'http:v1alpha1' \
-  --go-header-file "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-  --output-base "${OUTPUT_BASE}"
+kube::codegen::gen_helpers \
+    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+    "${SCRIPT_ROOT}/operator/apis"
 
-
-rm -fR "${SCRIPT_ROOT}/${GEN_SUFFIX}"
-mv -nT "${OUTPUT_BASE}/${GO_PACKAGE}/${GEN_SUFFIX}" "${SCRIPT_ROOT}/${GEN_SUFFIX}"
-
-rm -fR "${OUTPUT_BASE}"
+kube::codegen::gen_client \
+    --with-watch \
+    --output-dir "${SCRIPT_ROOT}/operator/generated" \
+    --output-pkg "github.com/kedacore/http-add-on/operator/generated" \
+    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+    "${SCRIPT_ROOT}/operator/apis"

@@ -16,14 +16,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetesVersion: [v1.30, v1.29, v1.28]
+        kubernetesVersion: [v1.31, v1.30, v1.29]
         include:
+        - kubernetesVersion: v1.31
+          kindImage: kindest/node:v1.31.2
         - kubernetesVersion: v1.30
-          kindImage: kindest/node:v1.30.0@sha256:047357ac0cfea04663786a612ba1eaba9702bef25227a794b52890dd8bcd692e
+          kindImage: kindest/node:v1.30.6
         - kubernetesVersion: v1.29
-          kindImage: kindest/node:v1.29.4@sha256:3abb816a5b1061fb15c6e9e60856ec40d56b7b52bcea5f5f1350bc6e2320b6f8
-        - kubernetesVersion: v1.28
-          kindImage: kindest/node:v1.28.9@sha256:dca54bc6a6079dd34699d53d7d4ffa2e853e46a20cd12d619a09207e35300bd0
+          kindImage: kindest/node:v1.29.10
     steps:
       - name: Install prerequisites
         run: |
@@ -36,7 +36,7 @@ jobs:
 
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v4.1
         with:
-          go-version: "1.22"
+          go-version: "1.23"
 
       - name: Helm install
         uses: Azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814 # v4.2.0
@@ -94,20 +94,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetesVersion: [v1.30, v1.29, v1.28]
+        kubernetesVersion: [v1.31, v1.30, v1.29]
         include:
+        - kubernetesVersion: v1.31
+          kindImage: kindest/node:v1.31.2
         - kubernetesVersion: v1.30
-          kindImage: kindest/node:v1.30.0@sha256:047357ac0cfea04663786a612ba1eaba9702bef25227a794b52890dd8bcd692e
+          kindImage: kindest/node:v1.30.6
         - kubernetesVersion: v1.29
-          kindImage: kindest/node:v1.29.4@sha256:3abb816a5b1061fb15c6e9e60856ec40d56b7b52bcea5f5f1350bc6e2320b6f8
-        - kubernetesVersion: v1.28
-          kindImage: kindest/node:v1.28.9@sha256:dca54bc6a6079dd34699d53d7d4ffa2e853e46a20cd12d619a09207e35300bd0
+          kindImage: kindest/node:v1.29.10
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v4.1
         with:
-          go-version: "1.22"
+          go-version: "1.23"
 
       - name: Helm install
         uses: Azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814 # v4.2.0
