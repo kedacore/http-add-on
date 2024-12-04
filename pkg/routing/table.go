@@ -42,14 +42,16 @@ type table struct {
 	memoryHolder                             util.AtomicValue[TableMemory]
 	memorySignaler                           util.Signaler
 	queueCounter                             queue.Counter
+	routingHeader                            string
 }
 
-func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string, counter queue.Counter) (Table, error) {
+func NewTable(sharedInformerFactory externalversions.SharedInformerFactory, namespace string, counter queue.Counter, routingHeader string) (Table, error) {
 	httpScaledObjects := informershttpv1alpha1.New(sharedInformerFactory, namespace, nil).HTTPScaledObjects()
 
 	t := table{
 		httpScaledObjects: make(map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject),
 		memorySignaler:    util.NewSignaler(),
+		routingHeader:     routingHeader,
 	}
 
 	informer, ok := httpScaledObjects.Informer().(sharedIndexInformer)
@@ -134,7 +136,7 @@ func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
 		return nil
 	}
 
-	key := NewKeyFromRequest(req)
+	key := NewKeyFromRequest(req, t.routingHeader)
 	return tm.Route(key)
 }
 

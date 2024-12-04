@@ -23,6 +23,8 @@ var _ = Describe("ServeHTTP", func() {
 		st = http.StatusText(sc)
 
 		se = errors.New("test error")
+
+		rh = ""
 	)
 
 	BeforeEach(func() {
@@ -47,7 +49,7 @@ var _ = Describe("ServeHTTP", func() {
 				err := json.Unmarshal([]byte(obj), &m)
 				Expect(err).NotTo(HaveOccurred())
 
-				rk := routing.NewKeyFromRequest(r)
+				rk := routing.NewKeyFromRequest(r, rh)
 				Expect(m).To(HaveKeyWithValue("error", se.Error()))
 				Expect(m).To(HaveKeyWithValue("msg", st))
 				Expect(m).To(HaveKeyWithValue("routingKey", rk.String()))

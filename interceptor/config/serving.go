@@ -45,6 +45,9 @@ type Serving struct {
 	TLSCertStorePaths string `envconfig:"KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS" default:""`
 	// TLSPort is the port that the server should serve on if TLS is enabled
 	TLSPort int `envconfig:"KEDA_HTTP_PROXY_TLS_PORT" default:"8443"`
+	// RoutingHeader is an optional header that can be used to route requests
+	// to different backends when set and sent in the HTTP request
+	RoutingHeader string `envconfig:"KEDA_HTTP_ROUTING_HEADER" default:""`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the
