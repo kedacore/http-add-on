@@ -41,22 +41,24 @@ var httpscaledobjectsKind = v1alpha1.SchemeGroupVersion.WithKind("HTTPScaledObje
 
 // Get takes name of the hTTPScaledObject, and returns the corresponding hTTPScaledObject object, and an error if there is any.
 func (c *FakeHTTPScaledObjects) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.HTTPScaledObject, err error) {
+	emptyResult := &v1alpha1.HTTPScaledObject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(httpscaledobjectsResource, c.ns, name), &v1alpha1.HTTPScaledObject{})
+		Invokes(testing.NewGetActionWithOptions(httpscaledobjectsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.HTTPScaledObject), err
 }
 
 // List takes label and field selectors, and returns the list of HTTPScaledObjects that match those selectors.
 func (c *FakeHTTPScaledObjects) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.HTTPScaledObjectList, err error) {
+	emptyResult := &v1alpha1.HTTPScaledObjectList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(httpscaledobjectsResource, httpscaledobjectsKind, c.ns, opts), &v1alpha1.HTTPScaledObjectList{})
+		Invokes(testing.NewListActionWithOptions(httpscaledobjectsResource, httpscaledobjectsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -75,40 +77,43 @@ func (c *FakeHTTPScaledObjects) List(ctx context.Context, opts v1.ListOptions) (
 // Watch returns a watch.Interface that watches the requested hTTPScaledObjects.
 func (c *FakeHTTPScaledObjects) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(httpscaledobjectsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(httpscaledobjectsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a hTTPScaledObject and creates it.  Returns the server's representation of the hTTPScaledObject, and an error, if there is any.
 func (c *FakeHTTPScaledObjects) Create(ctx context.Context, hTTPScaledObject *v1alpha1.HTTPScaledObject, opts v1.CreateOptions) (result *v1alpha1.HTTPScaledObject, err error) {
+	emptyResult := &v1alpha1.HTTPScaledObject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(httpscaledobjectsResource, c.ns, hTTPScaledObject), &v1alpha1.HTTPScaledObject{})
+		Invokes(testing.NewCreateActionWithOptions(httpscaledobjectsResource, c.ns, hTTPScaledObject, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.HTTPScaledObject), err
 }
 
 // Update takes the representation of a hTTPScaledObject and updates it. Returns the server's representation of the hTTPScaledObject, and an error, if there is any.
 func (c *FakeHTTPScaledObjects) Update(ctx context.Context, hTTPScaledObject *v1alpha1.HTTPScaledObject, opts v1.UpdateOptions) (result *v1alpha1.HTTPScaledObject, err error) {
+	emptyResult := &v1alpha1.HTTPScaledObject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(httpscaledobjectsResource, c.ns, hTTPScaledObject), &v1alpha1.HTTPScaledObject{})
+		Invokes(testing.NewUpdateActionWithOptions(httpscaledobjectsResource, c.ns, hTTPScaledObject, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.HTTPScaledObject), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeHTTPScaledObjects) UpdateStatus(ctx context.Context, hTTPScaledObject *v1alpha1.HTTPScaledObject, opts v1.UpdateOptions) (*v1alpha1.HTTPScaledObject, error) {
+func (c *FakeHTTPScaledObjects) UpdateStatus(ctx context.Context, hTTPScaledObject *v1alpha1.HTTPScaledObject, opts v1.UpdateOptions) (result *v1alpha1.HTTPScaledObject, err error) {
+	emptyResult := &v1alpha1.HTTPScaledObject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(httpscaledobjectsResource, "status", c.ns, hTTPScaledObject), &v1alpha1.HTTPScaledObject{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(httpscaledobjectsResource, "status", c.ns, hTTPScaledObject, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.HTTPScaledObject), err
 }
@@ -123,7 +128,7 @@ func (c *FakeHTTPScaledObjects) Delete(ctx context.Context, name string, opts v1
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeHTTPScaledObjects) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(httpscaledobjectsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(httpscaledobjectsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.HTTPScaledObjectList{})
 	return err
@@ -131,11 +136,12 @@ func (c *FakeHTTPScaledObjects) DeleteCollection(ctx context.Context, opts v1.De
 
 // Patch applies the patch and returns the patched hTTPScaledObject.
 func (c *FakeHTTPScaledObjects) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.HTTPScaledObject, err error) {
+	emptyResult := &v1alpha1.HTTPScaledObject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(httpscaledobjectsResource, c.ns, name, pt, data, subresources...), &v1alpha1.HTTPScaledObject{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(httpscaledobjectsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.HTTPScaledObject), err
 }

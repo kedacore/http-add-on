@@ -20,8 +20,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type HTTPScaledObjectLister interface {
 
 // hTTPScaledObjectLister implements the HTTPScaledObjectLister interface.
 type hTTPScaledObjectLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.HTTPScaledObject]
 }
 
 // NewHTTPScaledObjectLister returns a new HTTPScaledObjectLister.
 func NewHTTPScaledObjectLister(indexer cache.Indexer) HTTPScaledObjectLister {
-	return &hTTPScaledObjectLister{indexer: indexer}
-}
-
-// List lists all HTTPScaledObjects in the indexer.
-func (s *hTTPScaledObjectLister) List(selector labels.Selector) (ret []*v1alpha1.HTTPScaledObject, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.HTTPScaledObject))
-	})
-	return ret, err
+	return &hTTPScaledObjectLister{listers.New[*v1alpha1.HTTPScaledObject](indexer, v1alpha1.Resource("httpscaledobject"))}
 }
 
 // HTTPScaledObjects returns an object that can list and get HTTPScaledObjects.
 func (s *hTTPScaledObjectLister) HTTPScaledObjects(namespace string) HTTPScaledObjectNamespaceLister {
-	return hTTPScaledObjectNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return hTTPScaledObjectNamespaceLister{listers.NewNamespaced[*v1alpha1.HTTPScaledObject](s.ResourceIndexer, namespace)}
 }
 
 // HTTPScaledObjectNamespaceLister helps list and get HTTPScaledObjects.
@@ -74,26 +66,5 @@ type HTTPScaledObjectNamespaceLister interface {
 // hTTPScaledObjectNamespaceLister implements the HTTPScaledObjectNamespaceLister
 // interface.
 type hTTPScaledObjectNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all HTTPScaledObjects in the indexer for a given namespace.
-func (s hTTPScaledObjectNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.HTTPScaledObject, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.HTTPScaledObject))
-	})
-	return ret, err
-}
-
-// Get retrieves the HTTPScaledObject from the indexer for a given namespace and name.
-func (s hTTPScaledObjectNamespaceLister) Get(name string) (*v1alpha1.HTTPScaledObject, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("httpscaledobject"), name)
-	}
-	return obj.(*v1alpha1.HTTPScaledObject), nil
+	listers.ResourceIndexer[*v1alpha1.HTTPScaledObject]
 }
