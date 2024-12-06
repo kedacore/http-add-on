@@ -97,7 +97,7 @@ K9s integrates Hey, a CLI tool to benchmark HTTP endpoints similar to AB bench. 
 
   (b) search for services using - “:service”
 
-  (c) HTTP traffic needs to route through the Service that the add on has set up. Find interceptor proxy service i.e. ‘keda-add-ons-http-interceptor-proxy’ and port forward it using <SHIFT+F>
+  (c) HTTP traffic needs to route through the Service that the add on has set up. Find interceptor proxy service i.e. ‘keda-http-add-on-interceptor-proxy’ and port forward it using <SHIFT+F>
 
   (d) Search for the same port-forward in the list you get by command - “:pf”
 
