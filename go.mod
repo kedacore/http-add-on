@@ -24,7 +24,7 @@ require (
 	k8s.io/code-generator v0.31.3
 	k8s.io/utils v0.0.0-20241104163129-6fe5fd82f078
 	sigs.k8s.io/controller-runtime v0.19.3
-	sigs.k8s.io/gateway-api v1.1.0
+	sigs.k8s.io/gateway-api v1.2.1
 	sigs.k8s.io/kustomize/kustomize/v5 v5.5.0
 )
 
