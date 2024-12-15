@@ -35,9 +35,9 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v4.1
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v4.1
         with:
           go-version: "1.23"
 
@@ -80,7 +80,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Generate images
         run: |
@@ -106,9 +106,9 @@ jobs:
         - kubernetesVersion: v1.29
           kindImage: kindest/node:v1.29.10
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v4.1
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v4.1
         with:
           go-version: "1.23"
 
