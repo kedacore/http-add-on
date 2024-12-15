@@ -4,6 +4,9 @@ on:
   push:
     tags: ["v[0-9].[0-9].[0-9]"]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-20.04
@@ -49,7 +52,7 @@ jobs:
 
       # https://github.com/sigstore/cosign-installer
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - name: Check Cosign install!
         run: cosign version
