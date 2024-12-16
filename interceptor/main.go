@@ -106,7 +106,7 @@ func main() {
 	queues := queue.NewMemory()
 
 	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, servingCfg.ConfigMapCacheRsyncPeriod)
-	routingTable, err := routing.NewTable(sharedInformerFactory, servingCfg.WatchNamespace, queues)
+	routingTable, err := routing.NewTable(sharedInformerFactory, servingCfg.WatchNamespace, queues, servingCfg.RoutingHeader)
 	if err != nil {
 		setupLog.Error(err, "fetching routing table")
 		os.Exit(1)

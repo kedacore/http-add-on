@@ -22,7 +22,8 @@ import (
 
 var _ = Describe("Table", func() {
 	const (
-		namespace = "default"
+		namespace     = "default"
+		routingHeader = "X-HTTP-Routing"
 	)
 
 	var (
@@ -111,7 +112,7 @@ var _ = Describe("Table", func() {
 
 	Context("New", func() {
 		It("returns a table with fields initialized", func() {
-			i, err := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter())
+			i, err := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter(), routingHeader)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(i).NotTo(BeNil())
 
@@ -136,7 +137,7 @@ var _ = Describe("Table", func() {
 		)
 
 		BeforeEach(func() {
-			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter())
+			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter(), routingHeader)
 			t = i.(*table)
 		})
 
@@ -181,7 +182,7 @@ var _ = Describe("Table", func() {
 		)
 
 		BeforeEach(func() {
-			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter())
+			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter(), routingHeader)
 			t = i.(*table)
 		})
 
@@ -279,7 +280,7 @@ var _ = Describe("Table", func() {
 		)
 
 		BeforeEach(func() {
-			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter())
+			i, _ := NewTable(sharedInformerFactory, namespace, queue.NewFakeCounter(), routingHeader)
 			t = i.(*table)
 		})
 

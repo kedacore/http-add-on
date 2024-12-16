@@ -31,7 +31,7 @@ func (sh *Static) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stream := util.StreamFromContext(ctx)
 
 	statusText := http.StatusText(sh.statusCode)
-	routingKey := routing.NewKeyFromRequest(r)
+	routingKey := routing.NewKeyFromRequest(r, "")
 	namespacedName := k8s.NamespacedNameFromObject(httpso)
 	logger.Error(sh.err, statusText, "routingKey", routingKey, "namespacedName", namespacedName, "stream", stream)
 

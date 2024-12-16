@@ -2,13 +2,11 @@ package routing
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
-
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	"net/http"
+	"net/url"
 )
 
 var _ = Describe("Key", func() {
@@ -125,23 +123,36 @@ var _ = Describe("Key", func() {
 	})
 
 	Context("NewFromRequest", func() {
-		It("returns expected key for Request", func() {
-			const (
-				host = "kubernetes.io"
-				path = "abc/def"
-				norm = "//kubernetes.io/abc/def/"
-			)
+		const (
+			host          = "kubernetes.io"
+			path          = "abc/def"
+			norm0         = "//kubernetes.io/abc/def/"
+			norm1         = "//get-thing/abc/def/"
+			serviceHeader = "x-service-action-a"
+			serviceHost   = "get-thing"
+		)
 
+		It("returns expected key for Request", func() {
 			r, err := http.NewRequest("GET", fmt.Sprintf("https://%s:443/%s?123=456#789", host, path), nil)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(r).NotTo(BeNil())
 
-			key := NewKeyFromRequest(r)
-			Expect(key).To(Equal(Key(norm)))
+			key := NewKeyFromRequest(r, "")
+			Expect(key).To(Equal(Key(norm0)))
+		})
+
+		It("returns service host for Request with http routing header", func() {
+			r, err := http.NewRequest("GET", fmt.Sprintf("https://%s:443/%s?123=456#789", host, path), nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(r).NotTo(BeNil())
+			r.Header.Set(serviceHeader, serviceHost)
+
+			key := NewKeyFromRequest(r, serviceHeader)
+			Expect(key).To(Equal(Key(norm1)))
 		})
 
 		It("returns nil for nil Request", func() {
-			key := NewKeyFromRequest(nil)
+			key := NewKeyFromRequest(nil, "")
 			Expect(key).To(BeNil())
 		})
 	})
