@@ -135,7 +135,7 @@ func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
 	}
 
 	key := NewKeyFromRequest(req)
-	return tm.Route(key)
+	return tm.Route(key, req.Header)
 }
 
 func (t *table) HasSynced() bool {
