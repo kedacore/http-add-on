@@ -27,7 +27,7 @@ func NewScaledObject(
 	minReplicas *int32,
 	maxReplicas *int32,
 	cooldownPeriod *int32,
-	initialCooldownPeriod int32,
+	initialCooldownPeriod *int32,
 ) *kedav1alpha1.ScaledObject {
 	return &kedav1alpha1.ScaledObject{
 		TypeMeta: metav1.TypeMeta{
