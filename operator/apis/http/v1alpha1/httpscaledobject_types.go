@@ -104,7 +104,7 @@ type HTTPScaledObjectSpec struct {
 	CooldownPeriod *int32 `json:"scaledownPeriod,omitempty" description:"Cooldown period (seconds) for resources to scale down (Default 300)"`
 	// (optional) Initial period before scaling
 	// +optional
-	InitialCooldownPeriod int32 `json:"initialCooldownPeriod,omitempty" description:"Initial period (seconds) before scaling (Default 0)"`
+	InitialCooldownPeriod *int32 `json:"initialCooldownPeriod,omitempty" description:"Initial period (seconds) before scaling (Default 0)"`
 	// (optional) Configuration for the metric used for scaling
 	// +optional
 	ScalingMetric *ScalingMetricSpec `json:"scalingMetric,omitempty" description:"Configuration for the metric used for scaling. If empty 'concurrency' will be used"`
