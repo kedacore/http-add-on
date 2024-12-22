@@ -154,7 +154,13 @@ type HTTPScaledObject struct {
 type HTTPScaledObjectList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []HTTPScaledObject `json:"items"`
+	Items           []*HTTPScaledObject `json:"items"`
+}
+
+func NewHTTPScaledObjectList(httpScaledObjects []*HTTPScaledObject) *HTTPScaledObjectList {
+	return &HTTPScaledObjectList{
+		Items: httpScaledObjects,
+	}
 }
 
 func init() {
