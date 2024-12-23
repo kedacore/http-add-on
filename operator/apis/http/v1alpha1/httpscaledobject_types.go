@@ -76,6 +76,11 @@ type RateMetricSpec struct {
 	Granularity metav1.Duration `json:"granularity" description:"Time granularity for rate calculation"`
 }
 
+type Header struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -96,7 +101,7 @@ type HTTPScaledObjectSpec struct {
 	// If the headers can't be matched, then use first one without .spec.headers supplied
 	// If that doesn't exist then routing will fail.
 	// +optional
-	Headers map[string]string `json:"headers,omitempty"`
+	Headers []Header `json:"headers,omitempty"`
 	// The name of the deployment to route HTTP requests to (and to autoscale).
 	// Including validation as a requirement to define either the PortName or the Port
 	// +kubebuilder:validation:XValidation:rule="has(self.portName) != has(self.port)",message="must define either the 'portName' or the 'port'"

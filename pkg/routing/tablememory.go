@@ -106,10 +106,10 @@ func (tm tableMemory) RouteWithHeaders(key Key, httpHeaders map[string][]string)
 	// route to first httpso which has a matching header
 	for _, httpso := range httpsoList.Items {
 		if httpso.Spec.Headers != nil {
-			for k, v1 := range httpso.Spec.Headers {
-				if headerValues, exists := httpHeaders[k]; exists {
-					for _, v2 := range headerValues {
-						if v1 == v2 {
+			for _, header := range httpso.Spec.Headers {
+				if headerValues, exists := httpHeaders[header.Name]; exists {
+					for _, v := range headerValues {
+						if header.Value == v {
 							return httpso
 						}
 					}
