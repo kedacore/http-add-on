@@ -25,7 +25,7 @@ Add the new released version to the list in `KEDA Version` dropdown in [2_bug_re
 Update the links to current version within the file `walkthrough.md`
 
 > ```console
-> kubectl create -n $NAMESPACE -f examples/v0.7.0/httpscaledobject.yaml
+> kubectl apply -n $NAMESPACE -f examples/v0.9.0/httpscaledobject.yaml
 > ```
 
 > >If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](THE REFERENCE).

@@ -1,6 +1,6 @@
 # The `HTTPScaledObject`
 
->This document reflects the specification of the `HTTPScaledObject` resource for the `v0.8.1` version.
+>This document reflects the specification of the `HTTPScaledObject` resource for the `vX.X.X` version.
 
 Each `HTTPScaledObject` looks approximately like the below:
 
@@ -60,10 +60,6 @@ This is the primary and most important part of the `spec` because it describes:
 2. What workload to scale.
 3. The service to which to route HTTP traffic.
 
-### `deployment` (DEPRECTATED: removed as part of v0.9.0)
-
-This is the name of the `Deployment` to scale. It must exist in the same namespace as this `HTTPScaledObject` and shouldn't be managed by any other autoscaling system. This means that there should not be any `ScaledObject` already created for this `Deployment`. The HTTP Add-on will manage a `ScaledObject` internally.
-
 ### `name`
 
 This is the name of the workload to scale. It must exist in the same namespace as this `HTTPScaledObject` and shouldn't be managed by any other autoscaling system. This means that there should not be any `ScaledObject` already created for this workload. The HTTP Add-on will manage a `ScaledObject` internally.
@@ -82,19 +78,11 @@ This is the name of the service to route traffic to. The add-on will create auto
 
 ### `port`
 
-This is the port to route to on the service that you specified in the `service` field. It should be exposed on the service and should route to a valid `containerPort` on the `Deployment` you gave in the `deployment` field.
+This is the port to route to on the service that you specified in the `service` field. It should be exposed on the service and should route to a valid `containerPort` on the workload you gave.
 
 ### `portName`
 
 Alternatively, the port can be referenced using it's `name` as defined in the `Service`.
-
-### `targetPendingRequests` (DEPRECTATED: removed as part of v0.9.0)
-
->Default: 100
-
-This is the number of _pending_ (or in-progress) requests that your application needs to have before the HTTP Add-on will scale it. Conversely, if your application has below this number of pending requests, the HTTP add-on will scale it down.
-
-For example, if you set this field to 100, the HTTP Add-on will scale your app up if it sees that there are 200 in-progress requests. On the other hand, it will scale down if it sees that there are only 20 in-progress requests. Note that it will _never_ scale your app to zero replicas unless there are _no_ requests in-progress. Even if you set this value to a very high number and only have a single in-progress request, your app will still have one replica.
 
 ### `scaledownPeriod`
 
