@@ -69,6 +69,10 @@ spec:
                 items:
                   type: string
                 type: array
+              initialCooldownPeriod:
+                description: (optional) Initial period before scaling
+                format: int32
+                type: integer
               pathPrefixes:
                 description: |-
                   The paths to route. All requests which the Request Target matches any
