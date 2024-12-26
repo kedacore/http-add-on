@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.9.0](#v090)
 - [v0.8.0](#v080)
 - [v0.7.0](#v070)
 - [v0.6.0](#v060)
@@ -19,15 +20,11 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
-- **General**: Drop support for deprecated field `spec.scaleTargetRef.deployment` ([#1061](https://github.com/kedacore/http-add-on/issues/1061))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### New
 
-- **General**: Support portName in HTTPScaledObject service scaleTargetRef ([#1174](https://github.com/kedacore/http-add-on/issues/1174))
-- **General**: Support setting multiple TLS certs for different domains on the interceptor proxy ([#1116](https://github.com/kedacore/http-add-on/issues/1116))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-
-- **Interceptor**: Add support for for AWS ELB healthcheck probe ([#1198](https://github.com/kedacore/http-add-on/issues/1198))
 
 ### Improvements
 
@@ -35,13 +32,32 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: Align the interceptor metrics env var configuration with the OTEL spec ([#1031](https://github.com/kedacore/http-add-on/issues/1031))
-- **General**: Include trailing 0 window buckets in RPS calculation ([#1075](https://github.com/kedacore/http-add-on/issues/1075))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Deprecations
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.9.0
+
+### Breaking Changes
+
+- **General**: Drop support for deprecated field `spec.scaleTargetRef.deployment` ([#1061](https://github.com/kedacore/http-add-on/issues/1061))
+
+### New
+
+- **General**: Support portName in HTTPScaledObject service scaleTargetRef ([#1174](https://github.com/kedacore/http-add-on/issues/1174))
+- **General**: Support setting multiple TLS certs for different domains on the interceptor proxy ([#1116](https://github.com/kedacore/http-add-on/issues/1116))
+- **Interceptor**: Add support for for AWS ELB healthcheck probe ([#1198](https://github.com/kedacore/http-add-on/issues/1198))
+
+### Fixes
+
+- **General**: Align the interceptor metrics env var configuration with the OTEL spec ([#1031](https://github.com/kedacore/http-add-on/issues/1031))
+- **General**: Include trailing 0 window buckets in RPS calculation ([#1075](https://github.com/kedacore/http-add-on/issues/1075))
 
 ### Other
 
