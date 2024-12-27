@@ -107,9 +107,9 @@ func (in *HTTPScaledObjectList) DeepCopyInto(out *HTTPScaledObjectList) {
 	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]HTTPScaledObject, len(*in))
+		*out = make([]*HTTPScaledObject, len(*in))
 		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+			(*in)[i].DeepCopyInto((*out)[i])
 		}
 	}
 }
