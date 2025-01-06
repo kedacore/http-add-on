@@ -8,7 +8,7 @@ require (
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/kedacore/keda/v2 v2.16.1
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/onsi/ginkgo/v2 v2.22.1
+	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/otel v1.33.0
