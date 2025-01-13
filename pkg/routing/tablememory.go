@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"net/textproto"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
@@ -103,11 +105,14 @@ func (tm tableMemory) RouteWithHeaders(key Key, httpHeaders map[string][]string)
 		return httpsoList.Items[0]
 	}
 	var httpsoWithoutHeaders *httpv1alpha1.HTTPScaledObject
+
 	// route to first httpso which has a matching header
 	for _, httpso := range httpsoList.Items {
 		if httpso.Spec.Headers != nil {
 			for _, header := range httpso.Spec.Headers {
-				if headerValues, exists := httpHeaders[header.Name]; exists {
+				// normalize header spacing how golang does it
+				canonicalHeaderName := textproto.CanonicalMIMEHeaderKey(header.Name)
+				if headerValues, exists := httpHeaders[canonicalHeaderName]; exists {
 					for _, v := range headerValues {
 						if header.Value == v {
 							return httpso
@@ -124,7 +129,6 @@ func (tm tableMemory) RouteWithHeaders(key Key, httpHeaders map[string][]string)
 	if httpsoWithoutHeaders != nil {
 		return httpsoWithoutHeaders
 	}
-
 	// otherwise routing fails
 	return nil
 }

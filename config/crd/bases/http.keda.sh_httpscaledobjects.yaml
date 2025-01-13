@@ -97,7 +97,6 @@ spec:
                     - name
                     - value
                 type: array
-                uniqueItems: true
               replicas:
                 description: (optional) Replica information
                 properties:
