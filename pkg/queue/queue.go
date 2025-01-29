@@ -76,7 +76,25 @@ func (r *Memory) Increase(host string, delta int) error {
 func (r *Memory) Decrease(host string, delta int) error {
 	r.mut.Lock()
 	defer r.mut.Unlock()
-	r.concurrentMap[host] -= delta
+
+	current, exists := r.concurrentMap[host]
+	if !exists {
+		// Key doesn't exist; nothing to do
+		return nil
+	}
+
+	// Decrement and clamp concurrency to zero
+	newVal := current - delta
+	if newVal < 0 {
+		newVal = 0
+	}
+	r.concurrentMap[host] = newVal
+
+	// Update rpsMap if the key exists
+	if rpsItem, ok := r.rpsMap[host]; ok {
+		rpsItem.Record(time.Now(), -delta)
+	}
+
 	return nil
 }
 
