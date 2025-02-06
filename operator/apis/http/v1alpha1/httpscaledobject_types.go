@@ -76,6 +76,11 @@ type RateMetricSpec struct {
 	Granularity metav1.Duration `json:"granularity" description:"Time granularity for rate calculation"`
 }
 
+type Header struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -89,6 +94,14 @@ type HTTPScaledObjectSpec struct {
 	// the scaleTargetRef.
 	// +optional
 	PathPrefixes []string `json:"pathPrefixes,omitempty"`
+	// The custom headers used to route. Once Hosts and PathPrefixes have been matched,
+	// if at least one header in the http request matches at least one header
+	// in .spec.headers, it will be routed to the Service and Port specified in
+	// the scaleTargetRef. First header it matches with, it will be routed to.
+	// If the headers can't be matched, then use first one without .spec.headers supplied
+	// If that doesn't exist then routing will fail.
+	// +optional
+	Headers []Header `json:"headers,omitempty"`
 	// The name of the deployment to route HTTP requests to (and to autoscale).
 	// Including validation as a requirement to define either the PortName or the Port
 	// +kubebuilder:validation:XValidation:rule="has(self.portName) != has(self.port)",message="must define either the 'portName' or the 'port'"
@@ -146,7 +159,13 @@ type HTTPScaledObject struct {
 type HTTPScaledObjectList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []HTTPScaledObject `json:"items"`
+	Items           []*HTTPScaledObject `json:"items"`
+}
+
+func NewHTTPScaledObjectList(httpScaledObjects []*HTTPScaledObject) *HTTPScaledObjectList {
+	return &HTTPScaledObjectList{
+		Items: httpScaledObjects,
+	}
 }
 
 func init() {

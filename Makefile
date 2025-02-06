@@ -3,9 +3,9 @@
 ##################################################
 SHELL           = /bin/bash
 
-IMAGE_REGISTRY 	?= ghcr.io
+IMAGE_REGISTRY 	?= navigation-docker.artifactory.teslamotors.com
 IMAGE_REPO     	?= kedacore
-VERSION 		?= main
+VERSION 		?= header-based-routing
 
 IMAGE_OPERATOR 		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
 IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
