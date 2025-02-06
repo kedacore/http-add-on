@@ -18,6 +18,8 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ## Unreleased
 
+- **General**: Fix infrastructure crashes when deleting ScaledObject while scaling
+
 ### Breaking Changes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
