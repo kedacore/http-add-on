@@ -73,14 +73,15 @@ helm upgrade kedahttp ./charts/keda-add-ons-http \
 
 ## Compatibility Table
 
-| HTTP Add-On version | KEDA version | Kubernetes version |
-|---------------------|--------------|--------------------|
-| main                | v2.14        | v1.28 - v1.30      |
-| 0.8.0               | v2.14        | v1.27 - v1.29      |
-| 0.7.0               | v2.13        | v1.27 - v1.29      |
-| 0.6.0               | v2.12        | v1.26 - v1.28      |
-| 0.5.1               | v2.10        | v1.24 - v1.26      |
-| 0.5.0               | v2.9         | v1.23 - v1.25      |
+| HTTP Add-On version | KEDA version      | Kubernetes version |
+|---------------------|-------------------|--------------------|
+| main                | v2.16             | v1.29 - v1.31      |
+| 0.9.0               | v2.14 - v2.16     | v1.29 - v1.31      |
+| 0.8.0               | v2.14             | v1.27 - v1.29      |
+| 0.7.0               | v2.13             | v1.27 - v1.29      |
+| 0.6.0               | v2.12             | v1.26 - v1.28      |
+| 0.5.1               | v2.10             | v1.24 - v1.26      |
+| 0.5.0               | v2.9              | v1.23 - v1.25      |
 
 ## Next Steps
 
