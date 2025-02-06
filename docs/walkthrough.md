@@ -53,7 +53,7 @@ As said above, you need to route your HTTP traffic to the `Service` that the add
 keda-add-ons-http-interceptor-proxy
 ```
 
-> This is installed by raw manifests. If you are using the [Helm chart](https://github.com/kedacore/charts/tree/main/http-add-on) to install the add-on, it crates a service named `keda-add-ons-http-interceptor-proxy` as a `ClusterIP` by default.
+> This is installed by raw manifests. If you are using the [Helm chart](https://github.com/kedacore/charts/tree/main/http-add-on) to install the add-on, it crates a service named `keda-http-add-on-interceptor-proxy` as a `ClusterIP` by default.
 
 #### Installing and Using the [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/#using-helm) Ingress Controller
 
