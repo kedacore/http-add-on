@@ -127,7 +127,7 @@ type HTTPScaledObjectStatus struct {
 // +kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.replicas.min"
 // +kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.replicas.max"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:printcolumn:name="Active",type="string",JSONPath=".status.conditions[?(@.type==\"HTTPScaledObjectIsReady\")].status"
+// +kubebuilder:printcolumn:name="Active",type="string",JSONPath=".status.conditions[?(@.reason==\"HTTPScaledObjectIsReady\")].status"
 // +kubebuilder:resource:shortName=httpso
 // +kubebuilder:subresource:status
 
