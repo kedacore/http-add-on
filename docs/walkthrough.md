@@ -42,7 +42,7 @@ kubectl apply -n $NAMESPACE -f examples/v0.9.0/httpscaledobject.yaml
 You've now installed a web application and activated autoscaling by creating an `HTTPScaledObject` for it. For autoscaling to work properly, HTTP traffic needs to route through the `Service` that the add-on has set up. You can use `kubectl port-forward` to quickly test things out:
 
 ```console
-kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080:8080
+kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8080:8080
 ```
 
 ### Routing to the Right `Service`
@@ -50,7 +50,7 @@ kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080
 As said above, you need to route your HTTP traffic to the `Service` that the add-on has created during the installation. If you have existing systems - like an ingress controller - you'll need to anticipate the name of these created `Service`s. Each one will be named consistently like so, in the same namespace as the `HTTPScaledObject` and your application (i.e. `$NAMESPACE`):
 
 ```console
-keda-http-add-on-interceptor-proxy
+keda-add-ons-http-interceptor-proxy
 ```
 
 > This is installed by raw manifests. If you are using the [Helm chart](https://github.com/kedacore/charts/tree/main/http-add-on) to install the add-on, it crates a service named `keda-add-ons-http-interceptor-proxy` as a `ClusterIP` by default.
@@ -144,7 +144,7 @@ curl -H "Host: myhost.com" <Your IP>/path1
 You can also use port-forward to interceptor service for making the request:
 
 ```console
-kubectl port-forward svc/keda-http-add-on-interceptor-proxy -n ${NAMESPACE} 8080:8080
+kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8080:8080
 curl -H "Host: myhost.com" localhost:8080/path1
 ```
 
@@ -172,7 +172,7 @@ For example:
   - type: external-push
     metadata:
       httpScaledObject: YOUR_HTTPSCALEDOBJECT_NAME
-      scalerAddress: keda-http-add-on-external-scaler.keda:9090
+      scalerAddress: keda-add-ons-http-external-scaler.keda:9090
 ```
 
 3. Apply the `"httpscaledobject.keda.sh/skip-scaledobject-creation"` annotation with `true` and apply the change. This will remove the originally created `ScaledObject` allowing you to create your own.
