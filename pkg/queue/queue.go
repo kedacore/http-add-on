@@ -90,11 +90,6 @@ func (r *Memory) Decrease(host string, delta int) error {
 	}
 	r.concurrentMap[host] = newVal
 
-	// Update rpsMap if the key exists
-	if rpsItem, ok := r.rpsMap[host]; ok {
-		rpsItem.Record(time.Now(), -delta)
-	}
-
 	return nil
 }
 
