@@ -27,6 +27,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### New
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Fix kubectl active printcolumn ([#1211](https://github.com/kedacore/http-add-on/issues/1211))
 
 ### Improvements
 
