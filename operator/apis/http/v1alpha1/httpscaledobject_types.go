@@ -102,6 +102,9 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Cooldown period value
 	// +optional
 	CooldownPeriod *int32 `json:"scaledownPeriod,omitempty" description:"Cooldown period (seconds) for resources to scale down (Default 300)"`
+	// (optional) Configuration for the polling interval of the scaling metric
+	// +optional
+	PollingInterval *int32 `json:"pollingInterval,omitempty" description:"Polling interval (seconds) for the metric used for scaling (Default 15)"`
 	// (optional) Configuration for the metric used for scaling
 	// +optional
 	ScalingMetric *ScalingMetricSpec `json:"scalingMetric,omitempty" description:"Configuration for the metric used for scaling. If empty 'concurrency' will be used"`

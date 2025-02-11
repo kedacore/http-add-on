@@ -78,6 +78,11 @@ spec:
                 items:
                   type: string
                 type: array
+              pollingInterval:
+                description: (optional) Configuration for the polling interval of
+                  the scaling metric
+                format: int32
+                type: integer
               replicas:
                 description: (optional) Replica information
                 properties:

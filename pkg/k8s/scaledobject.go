@@ -27,7 +27,12 @@ func NewScaledObject(
 	minReplicas *int32,
 	maxReplicas *int32,
 	cooldownPeriod *int32,
+	pollingInterval *int32,
 ) *kedav1alpha1.ScaledObject {
+	if pollingInterval == nil {
+		pollingInterval = ptr.To[int32](soPollingInterval)
+	}
+
 	return &kedav1alpha1.ScaledObject{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: kedav1alpha1.SchemeGroupVersion.Identifier(),
@@ -45,7 +50,7 @@ func NewScaledObject(
 				Kind:       workloadRef.Kind,
 				Name:       workloadRef.Name,
 			},
-			PollingInterval: ptr.To[int32](soPollingInterval),
+			PollingInterval: pollingInterval,
 			CooldownPeriod:  cooldownPeriod,
 			MinReplicaCount: minReplicas,
 			MaxReplicaCount: maxReplicas,
