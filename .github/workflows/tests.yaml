@@ -16,7 +16,7 @@ jobs:
   validate:
     name: validate - ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
-    container: ghcr.io/kedacore/keda-tools:1.23.3
+    container: ghcr.io/kedacore/keda-tools:1.23.6
     strategy:
       matrix:
         include:

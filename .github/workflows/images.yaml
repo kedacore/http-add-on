@@ -13,7 +13,7 @@ permissions:
 jobs:
   build_scaler:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.23.4
+    container: ghcr.io/kedacore/keda-tools:1.23.6
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Register workspace path
@@ -25,7 +25,7 @@ jobs:
 
   build_operator:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.23.4
+    container: ghcr.io/kedacore/keda-tools:1.23.6
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Register workspace path
@@ -37,7 +37,7 @@ jobs:
 
   build_interceptor:
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.23.4
+    container: ghcr.io/kedacore/keda-tools:1.23.6
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Register workspace path
