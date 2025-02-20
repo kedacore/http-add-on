@@ -15,34 +15,33 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.34.0
 	go.opentelemetry.io/otel/sdk v1.34.0
 	go.uber.org/mock v0.5.0
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.11.0
 	google.golang.org/grpc v1.70.0
-	google.golang.org/protobuf v1.36.4
-	k8s.io/api v0.31.3
-	k8s.io/apimachinery v0.31.3
-	k8s.io/client-go v0.31.3
-	k8s.io/code-generator v0.31.3
-	k8s.io/utils v0.0.0-20241104163129-6fe5fd82f078
-	sigs.k8s.io/controller-runtime v0.19.3
+	google.golang.org/protobuf v1.36.5
+	k8s.io/api v0.31.6
+	k8s.io/apimachinery v0.31.6
+	k8s.io/client-go v0.31.6
+	k8s.io/code-generator v0.31.6
+	k8s.io/utils v0.0.0-20240921022957-49e7df575cb6
+	sigs.k8s.io/controller-runtime v0.19.6
 	sigs.k8s.io/gateway-api v1.2.1
 	sigs.k8s.io/kustomize/kustomize/v5 v5.6.0
 )
 
-require go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-
 replace (
-	// pin k8s.io to v0.31.3
+	// pin k8s.io to v0.31.6
 	github.com/google/cel-go => github.com/google/cel-go v0.20.1
-	k8s.io/api => k8s.io/api v0.31.3
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.31.3
-	k8s.io/apimachinery => k8s.io/apimachinery v0.31.3
-	k8s.io/apiserver => k8s.io/apiserver v0.31.3
-	k8s.io/client-go => k8s.io/client-go v0.31.3
-	k8s.io/code-generator => k8s.io/code-generator v0.31.3
-	k8s.io/component-base => k8s.io/component-base v0.31.3
-	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00
-	k8s.io/metrics => k8s.io/metrics v0.31.3
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.3
+	k8s.io/api => k8s.io/api v0.31.6
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.31.6
+	k8s.io/apimachinery => k8s.io/apimachinery v0.31.6
+	k8s.io/apiserver => k8s.io/apiserver v0.31.6
+	k8s.io/client-go => k8s.io/client-go v0.31.6
+	k8s.io/code-generator => k8s.io/code-generator v0.31.6
+	k8s.io/component-base => k8s.io/component-base v0.31.6
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340
+	k8s.io/metrics => k8s.io/metrics v0.31.6
+	k8s.io/utils => k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.6
 )
 
 require (
@@ -54,6 +53,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/expr-lang/expr v1.16.9 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -97,6 +97,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel/exporters/prometheus v0.56.0
 	go.opentelemetry.io/otel/metric v1.34.0
 	go.opentelemetry.io/otel/sdk/metric v1.34.0
@@ -121,7 +122,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.31.3 // indirect
-	k8s.io/gengo v0.0.0-20240404160639-a0386bf69313 // indirect
 	k8s.io/gengo/v2 v2.0.0-20240228010128-51d4e06bde70 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20241212222426-2c72e554b1e7 // indirect
