@@ -161,6 +161,11 @@ func (in *HTTPScaledObjectSpec) DeepCopyInto(out *HTTPScaledObjectSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.InitialCooldownPeriod != nil {
+		in, out := &in.InitialCooldownPeriod, &out.InitialCooldownPeriod
+		*out = new(int32)
+		**out = **in
+	}
 	if in.ScalingMetric != nil {
 		in, out := &in.ScalingMetric, &out.ScalingMetric
 		*out = new(ScalingMetricSpec)
