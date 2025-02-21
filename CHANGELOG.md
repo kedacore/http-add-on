@@ -28,6 +28,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **General**: Fix kubectl active printcolumn ([#1211](https://github.com/kedacore/http-add-on/issues/1211))
+- **General**: Support InitialCooldownPeriod for HTTPScaledObject [#1213](https://github.com/kedacore/http-add-on/issues/1213)
 
 ### Improvements
 

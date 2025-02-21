@@ -44,6 +44,7 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 		minReplicaCount,
 		maxReplicaCount,
 		httpso.Spec.CooldownPeriod,
+		httpso.Spec.InitialCooldownPeriod,
 	)
 
 	// Set HTTPScaledObject instance as the owner and controller
