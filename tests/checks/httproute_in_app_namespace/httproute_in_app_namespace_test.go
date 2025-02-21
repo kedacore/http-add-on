@@ -63,7 +63,7 @@ spec:
   rules:
     - backendRefs:
         - kind: Service
-          name: keda-http-add-on-interceptor-proxy
+          name: keda-add-ons-http-interceptor-proxy
           namespace: keda
           port: 8080
       matches:
@@ -86,7 +86,7 @@ spec:
   to:
   - group: ""
     kind: Service
-    name: keda-http-add-on-interceptor-proxy
+    name: keda-add-ons-http-interceptor-proxy
 `
 	serviceTemplate = `
 apiVersion: v1

@@ -14,7 +14,7 @@ import (
 
 const (
 	kedaNamespace               = "keda"
-	interceptorScaledObjectName = "keda-http-add-on-interceptor"
+	interceptorScaledObjectName = "keda-add-ons-http-interceptor"
 	scaledObject                = "scaledobject"
 )
 

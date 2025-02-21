@@ -111,7 +111,7 @@ spec:
           - "1"
           - "-H"
           - "Host: {{.Host}}"
-          - "http://keda-http-add-on-interceptor-proxy.keda:8080/"
+          - "http://keda-add-ons-http-interceptor-proxy.keda:8080/"
       restartPolicy: Never
       terminationGracePeriodSeconds: 5
   activeDeadlineSeconds: 600
@@ -162,7 +162,7 @@ spec:
   - type: external-push
     metadata:
       httpScaledObject: {{.HTTPScaledObjectName}}
-      scalerAddress: keda-http-add-on-external-scaler.keda:9090
+      scalerAddress: keda-add-ons-http-external-scaler.keda:9090
 `
 )
 
