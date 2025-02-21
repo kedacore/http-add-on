@@ -89,7 +89,7 @@ K9s integrates Hey, a CLI tool to benchmark HTTP endpoints similar to AB bench. 
   ```
 - You'll need to clone the repository to get access to this chart. If you have your own Deployment and Service installed, you can go right to creating an HTTPScaledObject. We use the provided sample HTTPScaledObject -
   ```
-  $ kubectl apply -n $NAMESPACE -f examples/v0.9.0/httpscaledobject.yaml
+  $ kubectl apply -n $NAMESPACE -f examples/v0.10.0/httpscaledobject.yaml
   ```
 - Testing Your Installation using k9s:
   ```

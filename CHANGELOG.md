@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.10.0](#v0100)
 - [v0.9.0](#v090)
 - [v0.8.0](#v080)
 - [v0.7.0](#v070)
@@ -18,8 +19,6 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ## Unreleased
 
-- **General**: Fix infrastructure crashes when deleting ScaledObject while scaling
-
 ### Breaking Changes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
@@ -27,8 +26,6 @@ This changelog keeps track of work items that have been completed and are ready 
 ### New
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-- **General**: Fix kubectl active printcolumn ([#1211](https://github.com/kedacore/http-add-on/issues/1211))
-- **General**: Support InitialCooldownPeriod for HTTPScaledObject [#1213](https://github.com/kedacore/http-add-on/issues/1213)
 
 ### Improvements
 
@@ -41,6 +38,18 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Deprecations
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **Documentation**: Correct the service name used in the walkthrough documentation ([#1244](https://github.com/kedacore/http-add-on/pull/1244))
+
+## v0.10.0
+
+### New
+
+- **General**: Fix infrastructure crashes when deleting ScaledObject while scaling
+- **General**: Fix kubectl active printcolumn ([#1211](https://github.com/kedacore/http-add-on/issues/1211))
+- **General**: Support InitialCooldownPeriod for HTTPScaledObject [#1213](https://github.com/kedacore/http-add-on/issues/1213)
 
 ### Other
 
