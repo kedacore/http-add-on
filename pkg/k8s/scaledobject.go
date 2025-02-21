@@ -29,7 +29,7 @@ func NewScaledObject(
 	cooldownPeriod *int32,
 	initialCooldownPeriod *int32,
 ) *kedav1alpha1.ScaledObject {
-	return &kedav1alpha1.ScaledObject{
+	so := &kedav1alpha1.ScaledObject{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: kedav1alpha1.SchemeGroupVersion.Identifier(),
 			Kind:       ObjectKind(&kedav1alpha1.ScaledObject{}),
@@ -46,11 +46,10 @@ func NewScaledObject(
 				Kind:       workloadRef.Kind,
 				Name:       workloadRef.Name,
 			},
-			PollingInterval:       ptr.To[int32](soPollingInterval),
-			CooldownPeriod:        cooldownPeriod,
-			InitialCooldownPeriod: initialCooldownPeriod,
-			MinReplicaCount:       minReplicas,
-			MaxReplicaCount:       maxReplicas,
+			PollingInterval: ptr.To[int32](soPollingInterval),
+			CooldownPeriod:  cooldownPeriod,
+			MinReplicaCount: minReplicas,
+			MaxReplicaCount: maxReplicas,
 			Advanced: &kedav1alpha1.AdvancedConfig{
 				RestoreToOriginalReplicaCount: true,
 			},
@@ -65,4 +64,8 @@ func NewScaledObject(
 			},
 		},
 	}
+	if initialCooldownPeriod != nil {
+		so.Spec.InitialCooldownPeriod = *initialCooldownPeriod
+	}
+	return so
 }
