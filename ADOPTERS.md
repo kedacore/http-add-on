@@ -7,6 +7,7 @@ This page contains a list of organizations who are using KEDA's HTTP Add-on in p
 | Organization | Status | More Information (Blog post, etc.) |
 | ------------ | ---------| ---------------|
 | PropulsionAI |![testing](https://img.shields.io/badge/-development%20&%20testing-green?style=flat)|[PropulsionAI](https://propulsionhq.com) allows you to add AI to your apps, without writing code.|
+| REWE Digital |![testing](https://img.shields.io/badge/-development%20&%20testing-green?style=flat)|From delivery service to market — [REWE Digital](https://www.rewe-digital.com) strengthens leading technological position of REWE Group in food retail sector. |
 
 ## Become an adopter!
 
