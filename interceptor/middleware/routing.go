@@ -43,7 +43,9 @@ var _ http.Handler = (*Routing)(nil)
 func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = util.RequestWithLoggerWithName(r, "RoutingMiddleware")
 
+	// logger := util.LoggerFromContext(r.Context())
 	httpso := rm.routingTable.Route(r)
+
 	if httpso == nil {
 		if rm.isProbe(r) {
 			rm.probeHandler.ServeHTTP(w, r)

@@ -33,7 +33,7 @@ var _ = Describe("Table", func() {
 
 		ctx        = context.Background()
 		httpsoList = httpv1alpha1.HTTPScaledObjectList{
-			Items: []httpv1alpha1.HTTPScaledObject{
+			Items: []*httpv1alpha1.HTTPScaledObject{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: namespace,
@@ -192,8 +192,8 @@ var _ = Describe("Table", func() {
 			for _, httpso := range httpsoList.Items {
 				httpso := httpso
 
-				key := *k8s.NamespacedNameFromObject(&httpso)
-				t.httpScaledObjects[key] = &httpso
+				key := *k8s.NamespacedNameFromObject(httpso)
+				t.httpScaledObjects[key] = httpso
 			}
 
 			go util.IgnoringError(util.ApplyContext(t.runInformer, ctx))
@@ -205,9 +205,9 @@ var _ = Describe("Table", func() {
 			Expect(tm).NotTo(BeNil())
 
 			for _, httpso := range httpsoList.Items {
-				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+				namespacedName := k8s.NamespacedNameFromObject(httpso)
 				ret := tm.Recall(namespacedName)
-				Expect(ret).To(Equal(&httpso))
+				Expect(ret).To(Equal(httpso))
 			}
 		})
 
@@ -218,8 +218,8 @@ var _ = Describe("Table", func() {
 			for _, httpso := range httpsoList.Items {
 				httpso := httpso
 
-				key := *k8s.NamespacedNameFromObject(&httpso)
-				t.httpScaledObjects[key] = &httpso
+				key := *k8s.NamespacedNameFromObject(httpso)
+				t.httpScaledObjects[key] = httpso
 			}
 
 			go util.IgnoringError(util.ApplyContext(t.runInformer, ctx))
@@ -227,7 +227,7 @@ var _ = Describe("Table", func() {
 
 			time.Sleep(2 * time.Second)
 
-			httpso := httpv1alpha1.HTTPScaledObject{
+			httpso := &httpv1alpha1.HTTPScaledObject{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: namespace,
 					Name:      "azure-com",
@@ -241,10 +241,10 @@ var _ = Describe("Table", func() {
 					},
 				},
 			}
-			t.httpScaledObjects[*k8s.NamespacedNameFromObject(&httpso)] = &httpso
+			t.httpScaledObjects[*k8s.NamespacedNameFromObject(httpso)] = httpso
 
 			first := httpsoList.Items[0]
-			delete(t.httpScaledObjects, *k8s.NamespacedNameFromObject(&first))
+			delete(t.httpScaledObjects, *k8s.NamespacedNameFromObject(first))
 
 			t.memorySignaler.Signal()
 
@@ -254,12 +254,12 @@ var _ = Describe("Table", func() {
 			Expect(tm).NotTo(BeNil())
 
 			for _, httpso := range append(httpsoList.Items[1:], httpso) {
-				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+				namespacedName := k8s.NamespacedNameFromObject(httpso)
 				ret := tm.Recall(namespacedName)
-				Expect(ret).To(Equal(&httpso))
+				Expect(ret).To(Equal(httpso))
 			}
 
-			namespacedName := k8s.NamespacedNameFromObject(&first)
+			namespacedName := k8s.NamespacedNameFromObject(first)
 			ret := tm.Recall(namespacedName)
 			Expect(ret).To(BeNil())
 		})
@@ -287,17 +287,17 @@ var _ = Describe("Table", func() {
 			for _, httpso := range httpsoList.Items {
 				httpso := httpso
 
-				key := *k8s.NamespacedNameFromObject(&httpso)
-				t.httpScaledObjects[key] = &httpso
+				key := *k8s.NamespacedNameFromObject(httpso)
+				t.httpScaledObjects[key] = httpso
 			}
 
 			tm := t.newMemoryFromHTTPSOs()
 
 			for _, httpso := range httpsoList.Items {
-				namespacedName := k8s.NamespacedNameFromObject(&httpso)
+				namespacedName := k8s.NamespacedNameFromObject(httpso)
 
 				ret := tm.Recall(namespacedName)
-				Expect(ret).To(Equal(&httpso))
+				Expect(ret).To(Equal(httpso))
 			}
 		})
 	})

@@ -1,7 +1,8 @@
 package routing
 
 import (
-	iradix "github.com/hashicorp/go-immutable-radix/v2"
+	"net/textproto"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
@@ -13,17 +14,25 @@ type TableMemory interface {
 	Recall(namespacedName *types.NamespacedName) *httpv1alpha1.HTTPScaledObject
 	Forget(namespacedName *types.NamespacedName) TableMemory
 	Route(key Key) *httpv1alpha1.HTTPScaledObject
+	RouteWithHeaders(key Key, httpHeaders map[string][]string) *httpv1alpha1.HTTPScaledObject
 }
 
 type tableMemory struct {
-	index *iradix.Tree[*httpv1alpha1.HTTPScaledObject]
-	store *iradix.Tree[*httpv1alpha1.HTTPScaledObject]
+	index *httpSOIndex
+	store *httpSOStore
+}
+
+func newTableMemory() tableMemory {
+	return tableMemory{
+		index: newHTTPSOIndex(),
+		store: newHTTPSOStore(),
+	}
 }
 
 func NewTableMemory() TableMemory {
 	return tableMemory{
-		index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-		store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+		index: newHTTPSOIndex(),
+		store: newHTTPSOStore(),
 	}
 }
 
@@ -36,21 +45,13 @@ func (tm tableMemory) Remember(httpso *httpv1alpha1.HTTPScaledObject) TableMemor
 	httpso = httpso.DeepCopy()
 
 	indexKey := newTableMemoryIndexKeyFromHTTPSO(httpso)
-	index, _, _ := tm.index.Insert(indexKey, httpso)
+	index, _, _ := tm.index.insert(indexKey, httpso)
 
 	keys := NewKeysFromHTTPSO(httpso)
 	store := tm.store
 	for _, key := range keys {
-		newStore, oldHTTPSO, _ := store.Insert(key, httpso)
-
-		// oldest HTTPScaledObject has precedence
-		if oldHTTPSO != nil && httpso.GetCreationTimestamp().Time.After(oldHTTPSO.GetCreationTimestamp().Time) {
-			continue
-		}
-
-		store = newStore
+		store = store.append(key, httpso)
 	}
-
 	return tableMemory{
 		index: index,
 		store: store,
@@ -63,7 +64,7 @@ func (tm tableMemory) Recall(namespacedName *types.NamespacedName) *httpv1alpha1
 	}
 
 	indexKey := newTableMemoryIndexKey(namespacedName)
-	httpso, _ := tm.index.Get(indexKey)
+	httpso, _ := tm.index.get(indexKey)
 	if httpso == nil {
 		return nil
 	}
@@ -75,26 +76,12 @@ func (tm tableMemory) Forget(namespacedName *types.NamespacedName) TableMemory {
 	if namespacedName == nil {
 		return nil
 	}
-
 	indexKey := newTableMemoryIndexKey(namespacedName)
-	index, httpso, _ := tm.index.Delete(indexKey)
-	if httpso == nil {
+	index, httpso, oldSet := tm.index.delete(indexKey)
+	if httpso == nil || oldSet == false {
 		return tm
 	}
-
-	keys := NewKeysFromHTTPSO(httpso)
-	store := tm.store
-	for _, key := range keys {
-		newStore, oldHTTPSO, _ := store.Delete(key)
-
-		// delete only if namespaced names match
-		if oldNamespacedName := k8s.NamespacedNameFromObject(oldHTTPSO); oldNamespacedName == nil || *oldNamespacedName != *namespacedName {
-			continue
-		}
-
-		store = newStore
-	}
-
+	store := tm.store.DeleteAllInstancesOfHTTPSO(httpso)
 	return tableMemory{
 		index: index,
 		store: store,
@@ -102,8 +89,48 @@ func (tm tableMemory) Forget(namespacedName *types.NamespacedName) TableMemory {
 }
 
 func (tm tableMemory) Route(key Key) *httpv1alpha1.HTTPScaledObject {
-	_, httpso, _ := tm.store.Root().LongestPrefix(key)
-	return httpso
+	_, httpsoList, _ := tm.store.GetLongestPrefix(key)
+	if httpsoList == nil || len(httpsoList.Items) == 0 {
+		return nil
+	}
+	return httpsoList.Items[0]
+}
+
+func (tm tableMemory) RouteWithHeaders(key Key, httpHeaders map[string][]string) *httpv1alpha1.HTTPScaledObject {
+	_, httpsoList, _ := tm.store.GetLongestPrefix(key)
+	if httpsoList == nil || len(httpsoList.Items) == 0 {
+		return nil
+	}
+	if httpHeaders == nil || len(httpHeaders) == 0 {
+		return httpsoList.Items[0]
+	}
+	var httpsoWithoutHeaders *httpv1alpha1.HTTPScaledObject
+
+	// route to first httpso which has a matching header
+	for _, httpso := range httpsoList.Items {
+		if httpso.Spec.Headers != nil {
+			for _, header := range httpso.Spec.Headers {
+				// normalize header spacing how golang does it
+				canonicalHeaderName := textproto.CanonicalMIMEHeaderKey(header.Name)
+				if headerValues, exists := httpHeaders[canonicalHeaderName]; exists {
+					for _, v := range headerValues {
+						if header.Value == v {
+							return httpso
+						}
+					}
+				}
+			}
+		} else if httpsoWithoutHeaders == nil {
+			httpsoWithoutHeaders = httpso
+		}
+	}
+
+	// if no matches via header, route to httpso without headers supplied
+	if httpsoWithoutHeaders != nil {
+		return httpsoWithoutHeaders
+	}
+	// otherwise routing fails
+	return nil
 }
 
 type tableMemoryIndexKey []byte
