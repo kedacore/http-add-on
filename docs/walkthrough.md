@@ -134,7 +134,7 @@ Now that you have your application running and your ingress configured, you can 
 Regardless, you can use the below `curl` command to make a request to your application:
 
 ```console
-curl -H "Host: myhost.com" <Your IP>/path1
+curl -H "Host: myhost.com" <Your IP>/test
 ```
 
 >Note the `-H` flag above to specify the `Host` header. This is needed to tell the interceptor how to route the request. If you have a DNS name set up for the IP, you don't need this header.
@@ -143,7 +143,7 @@ You can also use port-forward to interceptor service for making the request:
 
 ```console
 kubectl port-forward svc/keda-add-ons-http-interceptor-proxy -n ${NAMESPACE} 8080:8080
-curl -H "Host: myhost.com" localhost:8080/path1
+curl -H "Host: myhost.com" localhost:8080/test
 ```
 
 ### Integrating HTTP Add-On Scaler with other KEDA scalers
