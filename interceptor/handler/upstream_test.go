@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -9,12 +11,226 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/interceptor/tracing"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
+
+const (
+	traceID              = "a8419b25ec2051e5"
+	fullW3CLengthTraceID = "29b3290dc5a93f2618b17502ccb2a728"
+	spanID               = "97337bce1bc3e368"
+	parentSpanID         = "2890e7e08fc6592b"
+	sampled              = "1"
+	w3cPadding           = "0000000000000000"
+)
+
+func TestB3MultiPropagation(t *testing.T) {
+	// Given
+	r := require.New(t)
+
+	microservice, microserviceURL, closeServer := startMicroservice(t)
+	defer closeServer()
+
+	exporter, tracerProvider := setupOTelSDKForTesting()
+	instrumentedServeHTTP := withAutoInstrumentation(serveHTTP)
+
+	request, responseWriter := createRequestAndResponse("GET", microserviceURL)
+
+	request.Header.Set("X-B3-Traceid", traceID)
+	request.Header.Set("X-B3-Spanid", spanID)
+	request.Header.Set("X-B3-Parentspanid", parentSpanID)
+	request.Header.Set("X-B3-Sampled", sampled)
+
+	defer func(traceProvider *trace.TracerProvider, ctx context.Context) {
+		_ = traceProvider.Shutdown(ctx)
+	}(tracerProvider, request.Context())
+
+	// When
+	instrumentedServeHTTP.ServeHTTP(responseWriter, request)
+
+	// Then
+	receivedRequest := microservice.IncomingRequests()[0]
+	receivedHeaders := receivedRequest.Header
+
+	r.Equal(receivedHeaders.Get("X-B3-Parentspanid"), parentSpanID)
+	r.Equal(receivedHeaders.Get("X-B3-Traceid"), traceID)
+	r.Equal(receivedHeaders.Get("X-B3-Spanid"), spanID)
+	r.Equal(receivedHeaders.Get("X-B3-Sampled"), sampled)
+
+	r.NotContains(receivedHeaders, "Traceparent")
+	r.NotContains(receivedHeaders, "B3")
+	r.NotContains(receivedHeaders, "b3")
+
+	_ = tracerProvider.ForceFlush(request.Context())
+
+	exportedSpans := exporter.GetSpans()
+	if len(exportedSpans) != 1 {
+		t.Fatalf("Expected 1 Span, got %d", len(exportedSpans))
+	}
+	sc := exportedSpans[0].SpanContext
+	r.Equal(w3cPadding+traceID, sc.TraceID().String())
+	r.NotEqual(sc.SpanID().String(), spanID)
+}
+
+func TestW3CAndB3MultiPropagation(t *testing.T) {
+	// Given
+	r := require.New(t)
+
+	microservice, microserviceURL, closeServer := startMicroservice(t)
+	defer closeServer()
+
+	exporter, tracerProvider := setupOTelSDKForTesting()
+	instrumentedServeHTTP := withAutoInstrumentation(serveHTTP)
+
+	request, responseWriter := createRequestAndResponse("GET", microserviceURL)
+
+	request.Header.Set("X-B3-Traceid", traceID)
+	request.Header.Set("X-B3-Spanid", spanID)
+	request.Header.Set("X-B3-Parentspanid", parentSpanID)
+	request.Header.Set("X-B3-Sampled", sampled)
+	request.Header.Set("Traceparent", w3cPadding+traceID)
+
+	defer func(traceProvider *trace.TracerProvider, ctx context.Context) {
+		_ = traceProvider.Shutdown(ctx)
+	}(tracerProvider, request.Context())
+
+	// When
+	instrumentedServeHTTP.ServeHTTP(responseWriter, request)
+
+	// Then
+	receivedRequest := microservice.IncomingRequests()[0]
+	receivedHeaders := receivedRequest.Header
+
+	r.Equal(receivedHeaders.Get("X-B3-Parentspanid"), parentSpanID)
+	r.Equal(receivedHeaders.Get("X-B3-Traceid"), traceID)
+	r.Equal(receivedHeaders.Get("X-B3-Spanid"), spanID)
+	r.Equal(receivedHeaders.Get("X-B3-Sampled"), sampled)
+	r.Equal(receivedHeaders.Get("Traceparent"), w3cPadding+traceID)
+
+	r.NotContains(receivedHeaders, "B3")
+	r.NotContains(receivedHeaders, "b3")
+
+	_ = tracerProvider.ForceFlush(request.Context())
+
+	exportedSpans := exporter.GetSpans()
+	if len(exportedSpans) != 1 {
+		t.Fatalf("Expected 1 Span, got %d", len(exportedSpans))
+	}
+	sc := exportedSpans[0].SpanContext
+	r.Equal(w3cPadding+traceID, sc.TraceID().String())
+	r.NotEqual(sc.SpanID().String(), spanID)
+}
+
+func TestW3CPropagation(t *testing.T) {
+	// Given
+	r := require.New(t)
+
+	microservice, microserviceURL, closeServer := startMicroservice(t)
+	defer closeServer()
+
+	exporter, tracerProvider := setupOTelSDKForTesting()
+	instrumentedServeHTTP := withAutoInstrumentation(serveHTTP)
+
+	request, responseWriter := createRequestAndResponse("GET", microserviceURL)
+
+	traceParent := fmt.Sprintf("00-%s-%s-01", fullW3CLengthTraceID, spanID)
+	request.Header.Set("Traceparent", traceParent)
+
+	defer func(traceProvider *trace.TracerProvider, ctx context.Context) {
+		_ = traceProvider.Shutdown(ctx)
+	}(tracerProvider, request.Context())
+
+	// When
+	instrumentedServeHTTP.ServeHTTP(responseWriter, request)
+
+	// Then
+	receivedRequest := microservice.IncomingRequests()[0]
+	receivedHeaders := receivedRequest.Header
+
+	r.Equal(receivedHeaders.Get("Traceparent"), traceParent)
+
+	r.NotContains(receivedHeaders, "B3")
+	r.NotContains(receivedHeaders, "b3")
+	r.NotContains(receivedHeaders, "X-B3-Parentspanid")
+	r.NotContains(receivedHeaders, "X-B3-Traceid")
+	r.NotContains(receivedHeaders, "X-B3-Spanid")
+	r.NotContains(receivedHeaders, "X-B3-Sampled")
+
+	_ = tracerProvider.ForceFlush(request.Context())
+
+	exportedSpans := exporter.GetSpans()
+	if len(exportedSpans) != 1 {
+		t.Fatalf("Expected 1 Span, got %d", len(exportedSpans))
+	}
+	sc := exportedSpans[0].SpanContext
+	r.Equal(fullW3CLengthTraceID, sc.TraceID().String())
+	r.Equal(true, sc.IsSampled())
+	r.NotEqual(sc.SpanID().String(), spanID)
+}
+
+func TestPropagationWhenNoHeaders(t *testing.T) {
+	// Given
+	r := require.New(t)
+
+	microservice, microserviceURL, closeServer := startMicroservice(t)
+	defer closeServer()
+
+	exporter, tracerProvider := setupOTelSDKForTesting()
+	instrumentedServeHTTP := withAutoInstrumentation(serveHTTP)
+
+	request, responseWriter := createRequestAndResponse("GET", microserviceURL)
+
+	defer func(traceProvider *trace.TracerProvider, ctx context.Context) {
+		_ = traceProvider.Shutdown(ctx)
+	}(tracerProvider, request.Context())
+
+	// When
+	instrumentedServeHTTP.ServeHTTP(responseWriter, request)
+
+	// Then
+	receivedRequest := microservice.IncomingRequests()[0]
+	receivedHeaders := receivedRequest.Header
+
+	r.NotContains(receivedHeaders, "Traceparent")
+	r.NotContains(receivedHeaders, "B3")
+	r.NotContains(receivedHeaders, "b3")
+	r.NotContains(receivedHeaders, "X-B3-Parentspanid")
+	r.NotContains(receivedHeaders, "X-B3-Traceid")
+	r.NotContains(receivedHeaders, "X-B3-Spanid")
+	r.NotContains(receivedHeaders, "X-B3-Sampled")
+
+	_ = tracerProvider.ForceFlush(request.Context())
+
+	exportedSpans := exporter.GetSpans()
+	if len(exportedSpans) != 1 {
+		t.Fatalf("Expected 1 Span, got %d", len(exportedSpans))
+	}
+	sc := exportedSpans[0].SpanContext
+	r.NotEmpty(sc.SpanID())
+	r.NotEmpty(sc.TraceID())
+
+	hasServiceAttribute := false
+	hasColdStartAttribute := false
+	for _, attribute := range exportedSpans[0].Attributes {
+		if attribute.Key == "service" && attribute.Value.AsString() == "keda-http-interceptor-proxy-upstream" {
+			hasServiceAttribute = true
+		}
+
+		if attribute.Key == "cold-start" {
+			hasColdStartAttribute = true
+		}
+	}
+	r.True(hasServiceAttribute)
+	r.True(hasColdStartAttribute)
+}
 
 func TestForwarderSuccess(t *testing.T) {
 	r := require.New(t)
@@ -43,7 +259,7 @@ func TestForwarderSuccess(t *testing.T) {
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, &config.Tracing{})
 	uh.ServeHTTP(res, req)
 
 	r.True(
@@ -88,7 +304,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, &config.Tracing{})
 	uh.ServeHTTP(res, req)
 
 	forwardedRequests := hdl.IncomingRequests()
@@ -138,7 +354,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, &config.Tracing{})
 	uh.ServeHTTP(res, req)
 	// wait for the goroutine above to finish, with a little cusion
 	ensureSignalBeforeTimeout(originWaitCh, originDelay*2)
@@ -161,7 +377,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, noSuchURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, &config.Tracing{})
 
 	start := time.Now()
 	uh.ServeHTTP(res, req)
@@ -217,7 +433,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, srvURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, &config.Tracing{})
 	uh.ServeHTTP(res, req)
 	r.Equal(301, res.Code)
 	r.Equal("abc123.com", res.Header().Get("Location"))
@@ -280,4 +496,57 @@ func ensureSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) 
 	case <-signalCh:
 		return true
 	}
+}
+
+func serveHTTP(w http.ResponseWriter, r *http.Request) {
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
+	upstream := NewUpstream(rt, &config.Tracing{Enabled: true})
+
+	upstream.ServeHTTP(w, r)
+}
+
+func setupOTelSDKForTesting() (*tracetest.InMemoryExporter, *trace.TracerProvider) {
+	exporter := tracetest.NewInMemoryExporter()
+	traceProvider := trace.NewTracerProvider(trace.WithBatcher(exporter, trace.WithBatchTimeout(time.Second)))
+	otel.SetTracerProvider(traceProvider)
+	prop := tracing.NewPropagator()
+	otel.SetTextMapPropagator(prop)
+	return exporter, traceProvider
+}
+
+func startMicroservice(t *testing.T) (*kedanet.TestHTTPHandlerWrapper, *url.URL, func()) {
+	assert := require.New(t)
+	requestReceiveChannel := make(chan struct{})
+
+	const respCode = 200
+	const respBody = "Success Response"
+	microservice := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			close(requestReceiveChannel)
+			w.WriteHeader(respCode)
+			_, err := w.Write([]byte(respBody))
+			assert.NoError(err)
+		}),
+	)
+	server := httptest.NewServer(microservice)
+
+	url, err := url.Parse(server.URL)
+	assert.NoError(err)
+
+	return microservice, url, func() {
+		server.Close()
+	}
+}
+
+func createRequestAndResponse(method string, url *url.URL) (*http.Request, http.ResponseWriter) {
+	ctx := util.ContextWithStream(context.Background(), url)
+	request, _ := http.NewRequestWithContext(ctx, method, url.String(), nil)
+	recorder := httptest.NewRecorder()
+	return request, recorder
+}
+
+func withAutoInstrumentation(sut func(w http.ResponseWriter, r *http.Request)) http.Handler {
+	return otelhttp.NewHandler(http.HandlerFunc(sut), "SystemUnderTest")
 }
