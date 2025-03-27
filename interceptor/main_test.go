@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/interceptor/tracing"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
@@ -71,6 +72,15 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 		<-waiterCh
 		return false, nil
 	}
+
+	tracingCfg := config.Tracing{Enabled: true, Exporter: "otlphttp"}
+
+	_, err = tracing.SetupOTelSDK(ctx, &tracingCfg)
+
+	if err != nil {
+		fmt.Println(err, "Error setting up tracer")
+	}
+
 	g.Go(func() error {
 		return runProxyServer(
 			ctx,
@@ -83,6 +93,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 			port,
 			false,
 			map[string]string{},
+			&tracingCfg,
 		)
 	})
 	// wait for server to start
@@ -111,7 +122,11 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 				resp.StatusCode,
 			)
 		}
-		if resp.Header.Get("X-KEDA-HTTP-Cold-Start") != falseStr {
+		if _, ok := resp.Header["Traceparent"]; !ok {
+			return fmt.Errorf("expected Traceparent header to exist, but the header wasn't found")
+		}
+
+		if resp.Header.Get("X-KEDA-HTTP-Cold-Start") != "false" {
 			return fmt.Errorf("expected X-KEDA-HTTP-Cold-Start false, but got %s", resp.Header.Get("X-KEDA-HTTP-Cold-Start"))
 		}
 		return nil
@@ -204,6 +219,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 		<-waiterCh
 		return false, nil
 	}
+	tracingCfg := config.Tracing{Enabled: true, Exporter: "otlphttp"}
 
 	g.Go(func() error {
 		return runProxyServer(
@@ -217,6 +233,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 			port,
 			true,
 			map[string]string{"certificatePath": "../certs/tls.crt", "keyPath": "../certs/tls.key"},
+			&tracingCfg,
 		)
 	})
 
@@ -352,6 +369,8 @@ func TestRunProxyServerWithMultipleCertsTLSCountMiddleware(t *testing.T) {
 		return false, nil
 	}
 
+	tracingCfg := config.Tracing{Enabled: true, Exporter: "otlphttp"}
+
 	g.Go(func() error {
 		return runProxyServer(
 			ctx,
@@ -364,6 +383,7 @@ func TestRunProxyServerWithMultipleCertsTLSCountMiddleware(t *testing.T) {
 			port,
 			true,
 			map[string]string{"certstorePaths": "../certs"},
+			&tracingCfg,
 		)
 	})
 

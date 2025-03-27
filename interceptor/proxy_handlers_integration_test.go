@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/middleware"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
@@ -308,7 +309,8 @@ func newHarness(
 			waitTimeout:       activeEndpointsTimeout,
 			respHeaderTimeout: time.Second,
 		},
-		&tls.Config{}),
+		&tls.Config{},
+		&config.Tracing{}),
 		svcCache,
 		false,
 	)
