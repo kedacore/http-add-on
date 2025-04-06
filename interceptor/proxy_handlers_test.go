@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -147,6 +148,76 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 	hdl.ServeHTTP(res, req)
 
 	r.Equal("false", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start false")
+	r.Equal(200, res.Code, "expected response code 200")
+	r.Equal("test response", res.Body.String())
+}
+
+// the proxy should successfully forward a request to the failover when the server is not reachable
+func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
+	host := fmt.Sprintf("%s.testing", t.Name())
+	r := require.New(t)
+
+	initialStream, err := url.Parse("http://0.0.0.0:0")
+	r.NoError(err)
+
+	failoverHdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			w.WriteHeader(200)
+			_, err := w.Write([]byte("test response"))
+			r.NoError(err)
+		}),
+	)
+	srv, failoverURL, err := kedanet.StartTestServer(failoverHdl)
+	r.NoError(err)
+	defer srv.Close()
+	failoverPort, err := strconv.Atoi(failoverURL.Port())
+	r.NoError(err)
+
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	waitFunc := func(ctx context.Context, _ string, _ string) (bool, error) {
+		return false, errors.New("nothing")
+	}
+	hdl := newForwardingHandler(
+		logr.Discard(),
+		dialCtxFunc,
+		waitFunc,
+		forwardingConfig{
+			waitTimeout:       0,
+			respHeaderTimeout: timeouts.ResponseHeader,
+		},
+		&tls.Config{},
+		&config.Tracing{},
+	)
+	const path = "/testfwd"
+	res, req, err := reqAndRes(path)
+	r.NoError(err)
+	req = util.RequestWithHTTPSO(req,
+		&httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "@" + host,
+			},
+			Spec: httpv1alpha1.HTTPScaledObjectSpec{
+				ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+					Name:    "testdepl",
+					Service: "testsvc",
+					Port:    int32(456),
+				},
+				ColdStartTimeoutFailoverRef: &httpv1alpha1.ColdStartTimeoutFailoverRef{
+					Service:        "testsvc",
+					Port:           int32(failoverPort),
+					TimeoutSeconds: 30,
+				},
+				TargetPendingRequests: ptr.To[int32](123),
+			},
+		},
+	)
+	req = util.RequestWithStream(req, initialStream)
+	req = util.RequestWithFailoverStream(req, failoverURL)
+	req.Host = host
+
+	hdl.ServeHTTP(res, req)
+
 	r.Equal(200, res.Code, "expected response code 200")
 	r.Equal("test response", res.Body.String())
 }

@@ -36,3 +36,10 @@ func RequestWithStream(r *http.Request, stream *url.URL) *http.Request {
 
 	return r.WithContext(ctx)
 }
+
+func RequestWithFailoverStream(r *http.Request, stream *url.URL) *http.Request {
+	ctx := r.Context()
+	ctx = ContextWithFailoverStream(ctx, stream)
+
+	return r.WithContext(ctx)
+}

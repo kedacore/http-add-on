@@ -259,7 +259,7 @@ func TestForwarderSuccess(t *testing.T) {
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, &config.Tracing{})
+	uh := NewUpstream(rt, &config.Tracing{}, false)
 	uh.ServeHTTP(res, req)
 
 	r.True(
@@ -304,7 +304,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, &config.Tracing{})
+	uh := NewUpstream(rt, &config.Tracing{}, false)
 	uh.ServeHTTP(res, req)
 
 	forwardedRequests := hdl.IncomingRequests()
@@ -354,7 +354,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, &config.Tracing{})
+	uh := NewUpstream(rt, &config.Tracing{}, false)
 	uh.ServeHTTP(res, req)
 	// wait for the goroutine above to finish, with a little cusion
 	ensureSignalBeforeTimeout(originWaitCh, originDelay*2)
@@ -377,7 +377,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, noSuchURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, &config.Tracing{})
+	uh := NewUpstream(rt, &config.Tracing{}, false)
 
 	start := time.Now()
 	uh.ServeHTTP(res, req)
@@ -433,7 +433,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, srvURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, &config.Tracing{})
+	uh := NewUpstream(rt, &config.Tracing{}, false)
 	uh.ServeHTTP(res, req)
 	r.Equal(301, res.Code)
 	r.Equal("abc123.com", res.Header().Get("Location"))
@@ -502,7 +502,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	upstream := NewUpstream(rt, &config.Tracing{Enabled: true})
+	upstream := NewUpstream(rt, &config.Tracing{Enabled: true}, false)
 
 	upstream.ServeHTTP(w, r)
 }

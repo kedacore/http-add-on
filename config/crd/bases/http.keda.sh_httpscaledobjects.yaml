@@ -60,6 +60,32 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
+              coldStartTimeoutFailoverRef:
+                description: (optional) The name of the failover service to route
+                  HTTP requests to when the target is not available
+                properties:
+                  port:
+                    description: The port to route to
+                    format: int32
+                    type: integer
+                  portName:
+                    description: The port to route to referenced by name
+                    type: string
+                  service:
+                    description: The name of the service to route to
+                    type: string
+                  timeoutSeconds:
+                    default: 30
+                    description: The timeout in seconds to wait before routing to
+                      the failover service (Default 30)
+                    format: int32
+                    type: integer
+                required:
+                - service
+                type: object
+                x-kubernetes-validations:
+                - message: must define either the 'portName' or the 'port'
+                  rule: has(self.portName) != has(self.port)
               hosts:
                 description: |-
                   The hosts to route. All requests which the "Host" header
