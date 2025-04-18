@@ -162,6 +162,22 @@ spec:
                   metric value
                 format: int32
                 type: integer
+              timeouts:
+                description: (optional) Timeouts that override the global ones
+                properties:
+                  conditionWait:
+                    description: How long to wait for the backing workload to have
+                      1 or more replicas before connecting and sending the HTTP request
+                      (Default is set by the KEDA_CONDITION_WAIT_TIMEOUT environment
+                      variable)
+                    type: string
+                  responseHeader:
+                    description: How long to wait between when the HTTP request is
+                      sent to the backing app and when response headers need to arrive
+                      (Default is set by the KEDA_RESPONSE_HEADER_TIMEOUT environment
+                      variable)
+                    type: string
+                type: object
             required:
             - scaleTargetRef
             type: object
