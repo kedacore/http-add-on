@@ -53,23 +53,35 @@ func newForwardingHandler(
 	tlsCfg *tls.Config,
 	tracingCfg *config.Tracing,
 ) http.Handler {
-	roundTripper := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           dialCtxFunc,
-		ForceAttemptHTTP2:     fwdCfg.forceAttemptHTTP2,
-		MaxIdleConns:          fwdCfg.maxIdleConns,
-		IdleConnTimeout:       fwdCfg.idleConnTimeout,
-		TLSHandshakeTimeout:   fwdCfg.tlsHandshakeTimeout,
-		ExpectContinueTimeout: fwdCfg.expectContinueTimeout,
-		ResponseHeaderTimeout: fwdCfg.respHeaderTimeout,
-		TLSClientConfig:       tlsCfg,
-	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var uh *handler.Upstream
 		ctx := r.Context()
 		httpso := util.HTTPSOFromContext(ctx)
 
-		waitFuncCtx, done := context.WithTimeout(ctx, fwdCfg.waitTimeout)
+		conditionWaitTimeout := fwdCfg.waitTimeout
+		roundTripper := &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			DialContext:           dialCtxFunc,
+			ForceAttemptHTTP2:     fwdCfg.forceAttemptHTTP2,
+			MaxIdleConns:          fwdCfg.maxIdleConns,
+			IdleConnTimeout:       fwdCfg.idleConnTimeout,
+			TLSHandshakeTimeout:   fwdCfg.tlsHandshakeTimeout,
+			ExpectContinueTimeout: fwdCfg.expectContinueTimeout,
+			ResponseHeaderTimeout: fwdCfg.respHeaderTimeout,
+			TLSClientConfig:       tlsCfg,
+		}
+
+		if httpso.Spec.Timeouts != nil {
+			if httpso.Spec.Timeouts.ConditionWait.Duration > 0 {
+				conditionWaitTimeout = httpso.Spec.Timeouts.ConditionWait.Duration
+			}
+
+			if httpso.Spec.Timeouts.ResponseHeader.Duration > 0 {
+				roundTripper.ResponseHeaderTimeout = httpso.Spec.Timeouts.ResponseHeader.Duration
+			}
+		}
+
+		waitFuncCtx, done := context.WithTimeout(ctx, conditionWaitTimeout)
 		defer done()
 		isColdStart, err := waitFunc(
 			waitFuncCtx,
