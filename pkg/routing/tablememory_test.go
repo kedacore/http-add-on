@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"time"
 
-	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +48,7 @@ var _ = Describe("TableMemory", func() {
 		httpso1NamespacedName = *k8s.NamespacedNameFromObject(&httpso1)
 
 		httpsoList = httpv1alpha1.HTTPScaledObjectList{
-			Items: []httpv1alpha1.HTTPScaledObject{
+			Items: []*httpv1alpha1.HTTPScaledObject{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "/",
@@ -118,7 +117,7 @@ var _ = Describe("TableMemory", func() {
 
 			namespacedName := k8s.NamespacedNameFromObject(input)
 			indexKey := newTableMemoryIndexKey(namespacedName)
-			httpso, ok := tm.index.Get(indexKey)
+			httpso, ok := tm.index.get(indexKey)
 			Expect(ok).To(okMatcher)
 			Expect(httpso).To(httpsoMatcher)
 		}
@@ -129,16 +128,20 @@ var _ = Describe("TableMemory", func() {
 				okMatcher = BeFalse()
 			}
 
-			httpsoMatcher := Equal(expected)
+			httpsoMatcher := ContainElements(expected)
 			if expected == nil {
 				httpsoMatcher = BeNil()
 			}
 
 			storeKeys := NewKeysFromHTTPSO(input)
 			for _, storeKey := range storeKeys {
-				httpso, ok := tm.store.Get(storeKey)
+				httpSOList, ok := tm.store.get(storeKey)
 				Expect(ok).To(okMatcher)
-				Expect(httpso).To(httpsoMatcher)
+				if httpSOList == nil {
+					Expect(httpSOList).To(httpsoMatcher)
+				} else {
+					Expect(httpSOList.Items).To(httpsoMatcher)
+				}
 			}
 		}
 
@@ -150,7 +153,7 @@ var _ = Describe("TableMemory", func() {
 		insertIndex = func(tm tableMemory, httpso *httpv1alpha1.HTTPScaledObject) tableMemory {
 			namespacedName := k8s.NamespacedNameFromObject(httpso)
 			indexKey := newTableMemoryIndexKey(namespacedName)
-			tm.index, _, _ = tm.index.Insert(indexKey, httpso)
+			tm.index, _, _ = tm.index.insert(indexKey, httpso)
 
 			return tm
 		}
@@ -158,9 +161,8 @@ var _ = Describe("TableMemory", func() {
 		insertStore = func(tm tableMemory, httpso *httpv1alpha1.HTTPScaledObject) tableMemory {
 			storeKeys := NewKeysFromHTTPSO(httpso)
 			for _, storeKey := range storeKeys {
-				tm.store, _, _ = tm.store.Insert(storeKey, httpso)
+				tm.store, _, _ = tm.store.insert(storeKey, httpv1alpha1.NewHTTPScaledObjectList([]*httpv1alpha1.HTTPScaledObject{httpso}))
 			}
-
 			return tm
 		}
 
@@ -184,20 +186,14 @@ var _ = Describe("TableMemory", func() {
 
 	Context("Remember", func() {
 		It("returns a tableMemory with new object inserted", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = tm.Remember(&httpso0).(tableMemory)
 
 			assertTrees(tm, &httpso0, &httpso0)
 		})
 
 		It("returns a tableMemory with new object inserted and other objects retained", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = tm.Remember(&httpso0).(tableMemory)
 			tm = tm.Remember(&httpso1).(tableMemory)
 
@@ -206,10 +202,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns a tableMemory with old object of same key replaced", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = tm.Remember(&httpso0).(tableMemory)
 
 			httpso1 := *httpso0.DeepCopy()
@@ -220,10 +213,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns a tableMemory with old object of same key replaced and other objects retained", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = tm.Remember(&httpso0).(tableMemory)
 			tm = tm.Remember(&httpso1).(tableMemory)
 
@@ -236,10 +226,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns a tableMemory with deep-copied object", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 
 			httpso := *httpso0.DeepCopy()
 			tm = tm.Remember(&httpso).(tableMemory)
@@ -249,10 +236,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("gives precedence to the oldest object on conflict", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 
 			t0 := time.Now()
 
@@ -290,10 +274,7 @@ var _ = Describe("TableMemory", func() {
 
 	Context("Forget", func() {
 		It("returns a tableMemory with old object deleted", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 
 			tm = tm.Forget(&httpso0NamespacedName).(tableMemory)
@@ -302,10 +283,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns a tableMemory with old object deleted and other objects retained", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 			tm = insertTrees(tm, &httpso1)
 
@@ -316,10 +294,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns unchanged tableMemory when object is absent", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 
 			index0 := *tm.index
@@ -332,10 +307,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("forgets only when namespaced names match on conflict", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 
 			t0 := time.Now()
@@ -377,10 +349,7 @@ var _ = Describe("TableMemory", func() {
 
 	Context("Recall", func() {
 		It("returns object with matching key", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 
 			httpso := tm.Recall(&httpso0NamespacedName)
@@ -388,10 +357,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns nil when object is absent", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 
 			httpso := tm.Recall(&httpso1NamespacedName)
@@ -399,10 +365,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns deep-copied object", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 
 			httpso := tm.Recall(&httpso0NamespacedName)
@@ -416,10 +379,7 @@ var _ = Describe("TableMemory", func() {
 
 	Context("Route", func() {
 		It("returns nil when no matching host for URL", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 
 			url, err := url.Parse(fmt.Sprintf("https://%s.br", httpso0.Spec.Hosts[0]))
@@ -432,10 +392,7 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns expected object with matching host for URL", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			tm = insertTrees(tm, &httpso0)
 			tm = insertTrees(tm, &httpso1)
 
@@ -462,11 +419,8 @@ var _ = Describe("TableMemory", func() {
 				httpsoFoo = httpsoList.Items[3]
 			)
 
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpsoFoo)
+			tm := newTableMemory()
+			tm = insertTrees(tm, httpsoFoo)
 
 			//goland:noinspection HttpUrlsUsage
 			url, err := url.Parse(fmt.Sprintf("http://%s/bar%s", httpsoFoo.Spec.Hosts[0], httpsoFoo.Spec.PathPrefixes[0]))
@@ -479,14 +433,11 @@ var _ = Describe("TableMemory", func() {
 		})
 
 		It("returns expected object with matching pathPrefix for URL", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
+			tm := newTableMemory()
 			for _, httpso := range httpsoList.Items {
 				httpso := httpso
 
-				tm = insertTrees(tm, &httpso)
+				tm = insertTrees(tm, httpso)
 			}
 
 			for _, httpso := range httpsoList.Items {
@@ -496,7 +447,7 @@ var _ = Describe("TableMemory", func() {
 				urlKey := NewKeyFromURL(url)
 				Expect(urlKey).NotTo(BeNil())
 				ret := tm.Route(urlKey)
-				Expect(ret).To(Equal(&httpso))
+				Expect(ret).To(Equal(httpso))
 			}
 
 			for _, httpso := range httpsoList.Items {
@@ -506,7 +457,7 @@ var _ = Describe("TableMemory", func() {
 				urlKey := NewKeyFromURL(url)
 				Expect(urlKey).NotTo(BeNil())
 				ret := tm.Route(urlKey)
-				Expect(ret).To(Equal(&httpso))
+				Expect(ret).To(Equal(httpso))
 			}
 		})
 	})
@@ -579,7 +530,7 @@ var _ = Describe("TableMemory", func() {
 			tm = tm.Remember(&httpso)
 
 			ret9 := tm.Route(url1Key)
-			Expect(ret9).To(Equal(&httpso))
+			Expect(ret9).To(Equal(&httpso1))
 		})
 	})
 })
