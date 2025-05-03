@@ -13,12 +13,14 @@ var (
 )
 
 type Upstream struct {
-	roundTripper http.RoundTripper
+	roundTripper   http.RoundTripper
+	shouldFailover bool
 }
 
-func NewUpstream(roundTripper http.RoundTripper) *Upstream {
+func NewUpstream(roundTripper http.RoundTripper, shouldFailover bool) *Upstream {
 	return &Upstream{
-		roundTripper: roundTripper,
+		roundTripper:   roundTripper,
+		shouldFailover: shouldFailover,
 	}
 }
 
@@ -29,6 +31,10 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	stream := util.StreamFromContext(ctx)
+	if uh.shouldFailover {
+		stream = util.FailoverStreamFromContext(ctx)
+	}
+
 	if stream == nil {
 		sh := NewStatic(http.StatusInternalServerError, errNilStream)
 		sh.ServeHTTP(w, r)

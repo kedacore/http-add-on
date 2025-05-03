@@ -15,6 +15,7 @@ const (
 	ckLogger contextKey = iota
 	ckHTTPSO
 	ckStream
+	ckFailoverStream
 )
 
 func ContextWithLogger(ctx context.Context, logger logr.Logger) context.Context {
@@ -41,5 +42,14 @@ func ContextWithStream(ctx context.Context, url *url.URL) context.Context {
 
 func StreamFromContext(ctx context.Context) *url.URL {
 	cv, _ := ctx.Value(ckStream).(*url.URL)
+	return cv
+}
+
+func ContextWithFailoverStream(ctx context.Context, url *url.URL) context.Context {
+	return context.WithValue(ctx, ckFailoverStream, url)
+}
+
+func FailoverStreamFromContext(ctx context.Context) *url.URL {
+	cv, _ := ctx.Value(ckFailoverStream).(*url.URL)
 	return cv
 }

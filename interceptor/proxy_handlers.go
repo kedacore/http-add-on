@@ -65,6 +65,7 @@ func newForwardingHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		httpso := util.HTTPSOFromContext(ctx)
+		hasFailover := httpso.Spec.ColdStartTimeoutFailoverRef != nil
 
 		waitFuncCtx, done := context.WithTimeout(r.Context(), fwdCfg.waitTimeout)
 		defer done()
@@ -73,7 +74,7 @@ func newForwardingHandler(
 			httpso.GetNamespace(),
 			httpso.Spec.ScaleTargetRef.Service,
 		)
-		if err != nil {
+		if err != nil && !hasFailover {
 			lggr.Error(err, "wait function failed, not forwarding request")
 			w.WriteHeader(http.StatusBadGateway)
 			if _, err := w.Write([]byte(fmt.Sprintf("error on backend (%s)", err))); err != nil {
@@ -83,7 +84,8 @@ func newForwardingHandler(
 		}
 		w.Header().Add("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
 
-		uh := handler.NewUpstream(roundTripper)
+		shouldFailover := hasFailover && err != nil
+		uh := handler.NewUpstream(roundTripper, shouldFailover)
 		uh.ServeHTTP(w, r)
 	})
 }

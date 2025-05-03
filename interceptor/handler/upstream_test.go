@@ -43,7 +43,7 @@ func TestForwarderSuccess(t *testing.T) {
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, false)
 	uh.ServeHTTP(res, req)
 
 	r.True(
@@ -88,7 +88,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, false)
 	uh.ServeHTTP(res, req)
 
 	forwardedRequests := hdl.IncomingRequests()
@@ -138,7 +138,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, false)
 	uh.ServeHTTP(res, req)
 	// wait for the goroutine above to finish, with a little cusion
 	ensureSignalBeforeTimeout(originWaitCh, originDelay*2)
@@ -161,7 +161,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, noSuchURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, false)
 
 	start := time.Now()
 	uh.ServeHTTP(res, req)
@@ -217,7 +217,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, srvURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt)
+	uh := NewUpstream(rt, false)
 	uh.ServeHTTP(res, req)
 	r.Equal(301, res.Code)
 	r.Equal("abc123.com", res.Header().Get("Location"))
