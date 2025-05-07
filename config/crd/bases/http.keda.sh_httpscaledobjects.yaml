@@ -60,6 +60,27 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
+              headers:
+                description: |-
+                  The custom headers used to route. Once Hosts and PathPrefixes have been matched,
+                  if at least one header in the http request matches at least one header
+                  in .spec.headers, it will be routed to the Service and Port specified in
+                  the scaleTargetRef. First header it matches with, it will be routed to.
+                  If the headers can't be matched, then use first one without .spec.headers supplied
+                  If that doesn't exist then routing will fail.
+                items:
+                  description: Header contains the definition for matching on header
+                    name and/or value
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
               hosts:
                 description: |-
                   The hosts to route. All requests which the "Host" header
