@@ -34,6 +34,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: Make interceptor request logging optional ([#1375](https://github.com/kedacore/http-add-on/pull/1375))
 - **Interceptor**: Add support for full-duplex HTTP1.1 ([#1386](https://github.com/kedacore/http-add-on/pull/1386))
+- **Interceptor**: Route requests by HTTP header matching ([#1177](https://github.com/kedacore/http-add-on/issues/1177))
 - **Interceptor**: Significant performance improvements ([#1403](https://github.com/kedacore/http-add-on/issues/1403))
 
 ### Fixes

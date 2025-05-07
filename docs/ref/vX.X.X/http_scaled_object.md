@@ -17,6 +17,9 @@ spec:
     - "*.example.com"
   pathPrefixes:
     - /test
+  headers:
+    - name: X-Custom-Header
+      value: CustomValue
   scaleTargetRef:
     name: xkcd
     kind: Deployment
@@ -55,6 +58,12 @@ An empty host or `*` acts as a catch-all that matches any hostname. This is usef
 > Default: "/"
 
 These are the paths to apply this scaling rule to. All incoming requests with one of these values as path prefix will be forwarded to the `Service` and port specified in the below `scaleTargetRef`, and that same `scaleTargetRef`'s workload will be scaled accordingly.
+
+## `headers`
+
+> Default: No headers
+
+To further refine which requests this scaling rule applies to, you can specify a list of HTTP headers. Headers can be specified with or without values—if a value is provided, it must match exactly; if no value is provided, only the header's presence is required. All incoming requests that satisfy these header conditions will be forwarded to the `Service` and port specified in the below `scaleTargetRef`, and that same `scaleTargetRef`'s workload will be scaled accordingly. Most specific matches take precedence over less specific ones.
 
 ## `scaleTargetRef`
 

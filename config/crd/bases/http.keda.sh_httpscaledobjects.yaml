@@ -86,6 +86,26 @@ spec:
                 x-kubernetes-validations:
                 - message: must define either the 'portName' or the 'port'
                   rule: has(self.portName) != has(self.port)
+              headers:
+                description: |-
+                  The custom headers used to route. Once Hosts and PathPrefixes have been matched,
+                  it will look for requests which have headers that match all the headers defined
+                  in .spec.headers, it will be routed to the Service and Port specified in
+                  the scaleTargetRef. Interceptor will take precedence for most specific header match.
+                  If the headers can't be matched, then use first one without .spec.headers supplied
+                  If that doesn't exist then routing will fail.
+                items:
+                  description: Header contains the definition for matching on header
+                    name and/or value
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               hosts:
                 description: |-
                   The hosts to route. All requests which the "Host" header
