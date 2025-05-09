@@ -46,6 +46,7 @@ const (
 )
 
 var random = rand.New(rand.NewSource(time.Now().UnixNano()))
+var MockBackendImage = fmt.Sprintf("ghcr.io/kedacore/mock-backend:%s", GetEnv("VERSION", "main"))
 
 var (
 	KubeClient     *kubernetes.Clientset
@@ -60,6 +61,13 @@ type ExecutionError struct {
 
 func (ee ExecutionError) Error() string {
 	return string(ee.StdError)
+}
+
+func GetEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }
 
 func ParseCommand(cmdWithArgs string) *exec.Cmd {

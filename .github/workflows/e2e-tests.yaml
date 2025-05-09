@@ -53,9 +53,7 @@ jobs:
       - name: Generate images and push to the cluster
         run: |
           make docker-build
-          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name cluster
-          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name cluster
-          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name cluster
+          KIND_CLUSTER=cluster make kind-load
         env:
           VERSION: ${{ github.sha }}
 
@@ -122,9 +120,7 @@ jobs:
 
       - name: Push images to the cluster
         run: |
-          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name ${{ runner.name }}
-          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name ${{ runner.name }}
-          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name ${{ runner.name }}
+          KIND_CLUSTER=${{ runner.name }} make kind-load
         env:
           VERSION: ${{ github.sha }}
 
