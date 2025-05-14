@@ -3,8 +3,8 @@ kind: ScaledObject
 metadata:
   name: interceptor
 spec:
-  minReplicaCount: 3
-  maxReplicaCount: 50
+  minReplicaCount: 1
+  maxReplicaCount: 1
   pollingInterval: 1
   scaleTargetRef:
     apiVersion: apps/v1
