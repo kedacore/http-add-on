@@ -54,14 +54,7 @@ type queuePinger struct {
 	status                 PingerStatus
 }
 
-func newQueuePinger(
-	lggr logr.Logger,
-	getEndpointsFn k8s.GetEndpointsFunc,
-	ns,
-	svcName,
-	deplName,
-	adminPort string,
-) *queuePinger {
+func newQueuePinger(lggr logr.Logger, getEndpointsFn k8s.GetEndpointsFunc, ns, svcName, deplName, adminPort string) *queuePinger {
 	pingMut := new(sync.RWMutex)
 	pinger := &queuePinger{
 		getEndpointsFn:         getEndpointsFn,
@@ -77,11 +70,7 @@ func newQueuePinger(
 }
 
 // start starts the queuePinger
-func (q *queuePinger) start(
-	ctx context.Context,
-	ticker *time.Ticker,
-	endpCache k8s.EndpointsCache,
-) error {
+func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker, endpCache k8s.EndpointsCache) error {
 	endpoWatchIface, err := endpCache.Watch(q.interceptorNS, q.interceptorServiceName)
 	if err != nil {
 		return err
@@ -132,14 +121,7 @@ func (q *queuePinger) counts() map[string]queue.Count {
 func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	q.pingMut.Lock()
 	defer q.pingMut.Unlock()
-	counts, err := fetchCounts(
-		ctx,
-		q.lggr,
-		q.getEndpointsFn,
-		q.interceptorNS,
-		q.interceptorSvcName,
-		q.adminPort,
-	)
+	counts, err := fetchCounts(ctx, q.lggr, q.getEndpointsFn, q.interceptorNS, q.interceptorSvcName, q.adminPort)
 	if err != nil {
 		q.lggr.Error(err, "getting request counts")
 		q.status = PingerERROR
@@ -161,23 +143,10 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 //
 // Upon any failure, a non-nil error is returned and the
 // other two return values are nil and 0, respectively.
-func fetchCounts(
-	ctx context.Context,
-	lggr logr.Logger,
-	endpointsFn k8s.GetEndpointsFunc,
-	ns,
-	svcName,
-	adminPort string,
-) (map[string]queue.Count, error) {
+func fetchCounts(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpointsFunc, ns, svcName, adminPort string) (map[string]queue.Count, error) {
 	lggr = lggr.WithName("queuePinger.requestCounts")
 
-	endpointURLs, err := k8s.EndpointsForService(
-		ctx,
-		ns,
-		svcName,
-		adminPort,
-		endpointsFn,
-	)
+	endpointURLs, err := k8s.EndpointsForService(ctx, ns, svcName, adminPort, endpointsFn)
 	if err != nil {
 		return nil, err
 	}

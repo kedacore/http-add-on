@@ -64,14 +64,7 @@ func main() {
 		setupLog.Error(err, "creating new Kubernetes ClientSet")
 		os.Exit(1)
 	}
-	pinger := newQueuePinger(
-		ctrl.Log,
-		k8s.EndpointsFuncForK8sClientset(k8sCl),
-		namespace,
-		svcName,
-		deplName,
-		targetPortStr,
-	)
+	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForK8sClientset(k8sCl), namespace, svcName, deplName, targetPortStr)
 
 	// create the endpoints informer
 	endpInformer := k8s.NewInformerBackedEndpointsCache(
@@ -141,15 +134,7 @@ func main() {
 	setupLog.Info("Bye!")
 }
 
-func startGrpcServer(
-	ctx context.Context,
-	cfg *config,
-	lggr logr.Logger,
-	port int,
-	pinger *queuePinger,
-	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer,
-	targetPendingRequests int64,
-) error {
+func startGrpcServer(ctx context.Context, cfg *config, lggr logr.Logger, port int, pinger *queuePinger, httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer, targetPendingRequests int64) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("starting grpc server", "address", addr)
 
@@ -188,20 +173,9 @@ func startGrpcServer(
 		}
 	}()
 
-	grpc_health_v1.RegisterHealthServer(
-		grpcServer,
-		hs,
-	)
+	grpc_health_v1.RegisterHealthServer(grpcServer, hs)
 
-	externalscaler.RegisterExternalScalerServer(
-		grpcServer,
-		newImpl(
-			lggr,
-			pinger,
-			httpsoInformer,
-			targetPendingRequests,
-		),
-	)
+	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(lggr, pinger, httpsoInformer, targetPendingRequests))
 
 	go func() {
 		<-ctx.Done()
