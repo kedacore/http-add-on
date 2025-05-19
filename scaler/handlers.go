@@ -45,12 +45,7 @@ type impl struct {
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(
-	lggr logr.Logger,
-	pinger *queuePinger,
-	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer,
-	defaultTargetMetric int64,
-) *impl {
+func newImpl(lggr logr.Logger, pinger *queuePinger, httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer, defaultTargetMetric int64) *impl {
 	return &impl{
 		lggr:           lggr,
 		pinger:         pinger,
@@ -63,10 +58,7 @@ func (e *impl) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 	return &emptypb.Empty{}, nil
 }
 
-func (e *impl) IsActive(
-	ctx context.Context,
-	sor *externalscaler.ScaledObjectRef,
-) (*externalscaler.IsActiveResponse, error) {
+func (e *impl) IsActive(ctx context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.IsActiveResponse, error) {
 	lggr := e.lggr.WithName("IsActive")
 
 	gmr, err := e.GetMetrics(ctx, &externalscaler.GetMetricsRequest{
@@ -91,10 +83,7 @@ func (e *impl) IsActive(
 	return res, nil
 }
 
-func (e *impl) StreamIsActive(
-	scaledObject *externalscaler.ScaledObjectRef,
-	server externalscaler.ExternalScaler_StreamIsActiveServer,
-) error {
+func (e *impl) StreamIsActive(scaledObject *externalscaler.ScaledObjectRef, server externalscaler.ExternalScaler_StreamIsActiveServer) error {
 	// this function communicates with KEDA via the 'server' parameter.
 	// we call server.Send (below) every streamInterval, which tells it to immediately
 	// ping our IsActive RPC
@@ -127,10 +116,7 @@ func (e *impl) StreamIsActive(
 	}
 }
 
-func (e *impl) GetMetricSpec(
-	_ context.Context,
-	sor *externalscaler.ScaledObjectRef,
-) (*externalscaler.GetMetricSpecResponse, error) {
+func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.GetMetricSpecResponse, error) {
 	lggr := e.lggr.WithName("GetMetricSpec")
 
 	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
@@ -189,10 +175,7 @@ func (e *impl) interceptorMetricSpec(metricName string, interceptorTargetPending
 	return res, nil
 }
 
-func (e *impl) GetMetrics(
-	_ context.Context,
-	metricRequest *externalscaler.GetMetricsRequest,
-) (*externalscaler.GetMetricsResponse, error) {
+func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMetricsRequest) (*externalscaler.GetMetricsResponse, error) {
 	lggr := e.lggr.WithName("GetMetrics")
 	sor := metricRequest.ScaledObjectRef
 
@@ -222,8 +205,7 @@ func (e *impl) GetMetrics(
 	count := e.pinger.counts()[key]
 
 	var metricValue int
-	if httpso.Spec.ScalingMetric != nil &&
-		httpso.Spec.ScalingMetric.Rate != nil {
+	if httpso.Spec.ScalingMetric != nil && httpso.Spec.ScalingMetric.Rate != nil {
 		metricValue = int(math.Ceil(count.RPS))
 		lggr.V(1).Info(fmt.Sprintf("%d rps for %s", metricValue, httpso.GetName()))
 	} else {
