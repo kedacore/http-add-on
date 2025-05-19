@@ -5,6 +5,12 @@ import (
 	"net/http"
 	"net/http/httputil"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -14,11 +20,13 @@ var (
 
 type Upstream struct {
 	roundTripper http.RoundTripper
+	tracingCfg   *config.Tracing
 }
 
-func NewUpstream(roundTripper http.RoundTripper) *Upstream {
+func NewUpstream(roundTripper http.RoundTripper, tracingCfg *config.Tracing) *Upstream {
 	return &Upstream{
 		roundTripper: roundTripper,
+		tracingCfg:   tracingCfg,
 	}
 }
 
@@ -27,6 +35,21 @@ var _ http.Handler = (*Upstream)(nil)
 func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = util.RequestWithLoggerWithName(r, "UpstreamHandler")
 	ctx := r.Context()
+
+	if uh.tracingCfg.Enabled {
+		p := otel.GetTextMapPropagator()
+		ctx = p.Extract(ctx, propagation.HeaderCarrier(r.Header))
+
+		p.Inject(ctx, propagation.HeaderCarrier(w.Header()))
+
+		span := trace.SpanFromContext(ctx)
+		defer span.End()
+
+		serviceValAttr := attribute.String("service", "keda-http-interceptor-proxy-upstream")
+		coldStartValAttr := attribute.String("cold-start", w.Header().Get("X-KEDA-HTTP-Cold-Start"))
+
+		span.SetAttributes(serviceValAttr, coldStartValAttr)
+	}
 
 	stream := util.StreamFromContext(ctx)
 	if stream == nil {

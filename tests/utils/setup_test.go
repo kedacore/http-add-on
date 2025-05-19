@@ -25,13 +25,19 @@ config:
       verbosity: basic
     prometheus:
       endpoint: 0.0.0.0:8889
+    zipkin:
+      endpoint: http://zipkin.zipkin:9411/api/v2/spans
   receivers:
     jaeger: null
     prometheus: null
     zipkin: null
   service:
     pipelines:
-      traces: null
+      traces:
+        receivers:
+          - otlp
+        exporters:
+          - zipkin
       metrics:
         receivers:
           - otlp

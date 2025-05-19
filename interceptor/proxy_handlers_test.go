@@ -78,6 +78,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&tls.Config{},
+		&config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -129,6 +130,7 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&TestTLSConfig,
+		&config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -174,6 +176,7 @@ func TestWaitFailedConnection(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&tls.Config{},
+		&config.Tracing{},
 	)
 	stream, err := url.Parse("http://0.0.0.0:0")
 	r.NoError(err)
@@ -224,6 +227,7 @@ func TestWaitFailedConnectionTLS(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&TestTLSConfig,
+		&config.Tracing{},
 	)
 	stream, err := url.Parse("http://0.0.0.0:0")
 	r.NoError(err)
@@ -275,6 +279,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&tls.Config{},
+		&config.Tracing{},
 	)
 	stream, err := url.Parse("http://1.1.1.1")
 	r.NoError(err)
@@ -347,6 +352,7 @@ func TestTimesOutOnWaitFuncTLS(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&TestTLSConfig,
+		&config.Tracing{},
 	)
 	stream, err := url.Parse("http://1.1.1.1")
 	r.NoError(err)
@@ -430,6 +436,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&tls.Config{},
+		&config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -496,6 +503,7 @@ func TestWaitsForWaitFuncTLS(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&TestTLSConfig,
+		&config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -566,6 +574,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&tls.Config{},
+		&config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -624,6 +633,7 @@ func TestWaitHeaderTimeoutTLS(t *testing.T) {
 			respHeaderTimeout: timeouts.ResponseHeader,
 		},
 		&TestTLSConfig,
+		&config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
