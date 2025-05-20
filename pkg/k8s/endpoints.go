@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	v1 "k8s.io/api/core/v1"
+	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,7 +17,7 @@ type GetEndpointsFunc func(
 	ctx context.Context,
 	namespace,
 	serviceName string,
-) (*v1.Endpoints, error)
+) (*discov1.EndpointSlice, error)
 
 func EndpointsForService(
 	ctx context.Context,
@@ -26,15 +26,15 @@ func EndpointsForService(
 	servicePort string,
 	endpointsFn GetEndpointsFunc,
 ) ([]*url.URL, error) {
-	endpoints, err := endpointsFn(ctx, ns, serviceName)
+	endpointsl, err := endpointsFn(ctx, ns, serviceName)
 	if err != nil {
 		return nil, fmt.Errorf("pkg.k8s.EndpointsForService: %w", err)
 	}
 	ret := []*url.URL{}
-	for _, subset := range endpoints.Subsets {
-		for _, addr := range subset.Addresses {
+	for _, endpoint := range endpointsl.Endpoints {
+		for _, addr := range endpoint.Addresses {
 			u, err := url.Parse(
-				fmt.Sprintf("http://%s:%s", addr.IP, servicePort),
+				fmt.Sprintf("http://%s:%s", addr, servicePort),
 			)
 			if err != nil {
 				return nil, err
@@ -55,15 +55,16 @@ func EndpointsFuncForControllerClient(
 		ctx context.Context,
 		namespace,
 		serviceName string,
-	) (*v1.Endpoints, error) {
-		endpts := &v1.Endpoints{}
-		if err := cl.Get(ctx, client.ObjectKey{
-			Namespace: namespace,
-			Name:      serviceName,
-		}, endpts); err != nil {
+	) (*discov1.EndpointSlice, error) {
+		ess := &discov1.EndpointSliceList{}
+
+		if err := cl.List(ctx, ess, client.InNamespace(namespace), client.MatchingLabels{discov1.LabelServiceName: serviceName}); err != nil {
 			return nil, err
 		}
-		return endpts, nil
+		if len(ess.Items) == 0 {
+			return nil, nil
+		}
+		return &ess.Items[0], nil
 	}
 }
 
@@ -74,8 +75,15 @@ func EndpointsFuncForK8sClientset(
 		ctx context.Context,
 		namespace,
 		serviceName string,
-	) (*v1.Endpoints, error) {
-		endpointsCl := cl.CoreV1().Endpoints(namespace)
-		return endpointsCl.Get(ctx, serviceName, metav1.GetOptions{})
+	) (*discov1.EndpointSlice, error) {
+		endpointSlCl := cl.DiscoveryV1().EndpointSlices(namespace)
+		ess, err := endpointSlCl.List(ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", discov1.LabelServiceName, serviceName)})
+		if err != nil {
+			return nil, err
+		}
+		if len(ess.Items) == 0 {
+			return nil, nil
+		}
+		return &ess.Items[0], nil
 	}
 }

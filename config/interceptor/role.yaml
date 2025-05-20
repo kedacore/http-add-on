@@ -7,16 +7,17 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - endpoints
+  - services
   verbs:
   - get
   - list
   - watch
 - apiGroups:
-  - ""
+  - discovery.k8s.io
   resources:
-  - services
+  - endpointslices
   verbs:
+  - deletecollection
   - get
   - list
   - watch

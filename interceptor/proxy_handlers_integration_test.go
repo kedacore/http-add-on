@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	v1 "k8s.io/api/core/v1"
+	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -55,13 +55,16 @@ func TestIntegrationHappyPath(t *testing.T) {
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
 
-	h.endpCache.Set(v1.Endpoints{
+	h.endpCache.Set(discov1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceName,
-			Namespace: target.GetNamespace(),
+			GenerateName: serviceName,
+			Namespace:    target.GetNamespace(),
+			Labels: map[string]string{
+				discov1.LabelServiceName: serviceName,
+			},
 		},
 	})
-	r.NoError(h.endpCache.SetSubsets(target.GetNamespace(), serviceName, 1))
+	r.NoError(h.endpCache.SetEndpoints(target.GetNamespace(), serviceName, 1))
 
 	// happy path
 	res, err := doRequest(
@@ -122,10 +125,13 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	h.routingTable.Memory[hostForTest(t)] = target
 
 	// 0 replicas
-	h.endpCache.Set(v1.Endpoints{
+	h.endpCache.Set(discov1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceName,
-			Namespace: target.GetNamespace(),
+			GenerateName: serviceName,
+			Namespace:    target.GetNamespace(),
+			Labels: map[string]string{
+				discov1.LabelServiceName: serviceName,
+			},
 		},
 	})
 
@@ -173,10 +179,13 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	// set up a endpoint with zero replicas and create
 	// a watcher we can use later to fake-send a endpoint
 	// event
-	h.endpCache.Set(v1.Endpoints{
+	h.endpCache.Set(discov1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceName,
-			Namespace: target.GetNamespace(),
+			GenerateName: serviceName,
+			Namespace:    target.GetNamespace(),
+			Labels: map[string]string{
+				discov1.LabelServiceName: serviceName,
+			},
 		},
 	})
 	endpoints, _ := h.endpCache.Get(target.GetNamespace(), serviceName)
@@ -207,10 +216,10 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 		t.Logf("Woke up, setting replicas to 10")
 
 		modifiedEndpoints := endpoints.DeepCopy()
-		modifiedEndpoints.Subsets = []v1.EndpointSubset{
+		modifiedEndpoints.Endpoints = []discov1.Endpoint{
 			{
-				Addresses: []v1.EndpointAddress{
-					{IP: "1.2.3.4"},
+				Addresses: []string{
+					"1.2.3.4",
 				},
 			},
 		}
