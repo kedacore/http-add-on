@@ -122,15 +122,22 @@ func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObject
 	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
 	metricName := MetricName(namespacedName)
 
-	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
-	if err != nil {
-		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
+	scalerMetadata := sor.GetScalerMetadata()
+	httpScaledObjectName, ok := scalerMetadata[k8s.HTTPScaledObjectKey]
+	if !ok {
+		if scalerMetadata != nil {
 			if interceptorTargetPendingRequests, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
 				return e.interceptorMetricSpec(metricName, interceptorTargetPendingRequests)
 			}
 		}
+		err := fmt.Errorf("unable to get HTTPScaledObject reference")
+		lggr.Error(err, "unable to get the linked HTTPScaledObject for ScaledObject", "name", sor.Name, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
+		return nil, err
+	}
 
-		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
+	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(httpScaledObjectName)
+	if err != nil {
+		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
 		return nil, err
 	}
 	targetValue := int64(ptr.Deref(httpso.Spec.TargetPendingRequests, 100))
@@ -185,19 +192,19 @@ func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMe
 	scalerMetadata := sor.GetScalerMetadata()
 	httpScaledObjectName, ok := scalerMetadata[k8s.HTTPScaledObjectKey]
 	if !ok {
-		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
+		if scalerMetadata != nil {
 			if _, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
 				return e.interceptorMetrics(metricName)
 			}
 		}
 		err := fmt.Errorf("unable to get HTTPScaledObject reference")
-		lggr.Error(err, "unable to get the linked HTTPScaledObject for ScaledObject", "name", sor.Name, "namespace", sor.Namespace)
+		lggr.Error(err, "unable to get the linked HTTPScaledObject for ScaledObject", "name", sor.Name, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
 		return nil, err
 	}
 
 	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(httpScaledObjectName)
 	if err != nil {
-		lggr.Error(err, "unable to get HTTPScaledObject", "name", httpScaledObjectName, "namespace", sor.Namespace)
+		lggr.Error(err, "unable to get HTTPScaledObject", "name", httpScaledObjectName, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
 		return nil, err
 	}
 

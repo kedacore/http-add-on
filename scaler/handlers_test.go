@@ -470,25 +470,31 @@ func TestGetMetricSpecTable(t *testing.T) {
 			name:                "valid host as single host value in scaler metadata",
 			defaultTargetMetric: 0,
 			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
-				informer, _, namespaceLister := newMocks(ctrl, nil)
+				namespaceLister := listershttpv1alpha1mock.NewMockHTTPScaledObjectNamespaceLister(ctrl)
+				lister := listershttpv1alpha1mock.NewMockHTTPScaledObjectLister(ctrl)
+				informer := informersexternalversionshttpv1alpha1mock.NewMockHTTPScaledObjectInformer(ctrl)
+
+				informer.EXPECT().
+					Lister().
+					Return(lister).
+					AnyTimes()
+				lister.EXPECT().
+					HTTPScaledObjects(ns).
+					Return(namespaceLister).
+					AnyTimes()
 
 				httpso := &httpv1alpha1.HTTPScaledObject{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-						Name:      t.Name(),
-					},
+					ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: validHTTPScaledObjectName},
 					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-							Name:    "testdepl",
-							Service: "testsrv",
-							Port:    8080,
-						},
+						ScaleTargetRef:        httpv1alpha1.ScaleTargetRef{Name: "testdepl", Service: "testsrv", Port: 8080},
 						TargetPendingRequests: ptr.To[int32](123),
 					},
 				}
-				namespaceLister.EXPECT().
-					Get(httpso.GetName()).
-					Return(httpso, nil)
+				namespaceLister.
+					EXPECT().
+					Get(validHTTPScaledObjectName).
+					Return(httpso, nil).
+					Times(1)
 
 				return informer
 			},
@@ -497,28 +503,36 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r := require.New(t)
 				r.NoError(err)
 				r.NotNil(res)
-				r.Equal(1, len(res.MetricSpecs))
+				r.Len(res.MetricSpecs, 1)
 				spec := res.MetricSpecs[0]
 				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
+			},
+			scalerMetadata: map[string]string{
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
 			name:                "valid hosts as multiple hosts value in scaler metadata",
 			defaultTargetMetric: 0,
 			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
-				informer, _, namespaceLister := newMocks(ctrl, nil)
+				namespaceLister := listershttpv1alpha1mock.NewMockHTTPScaledObjectNamespaceLister(ctrl)
+				lister := listershttpv1alpha1mock.NewMockHTTPScaledObjectLister(ctrl)
+				informer := informersexternalversionshttpv1alpha1mock.NewMockHTTPScaledObjectInformer(ctrl)
+
+				informer.EXPECT().
+					Lister().
+					Return(lister).
+					AnyTimes()
+				lister.EXPECT().
+					HTTPScaledObjects(ns).
+					Return(namespaceLister).
+					AnyTimes()
 
 				httpso := &httpv1alpha1.HTTPScaledObject{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-						Name:      t.Name(),
-					},
+					ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: validHTTPScaledObjectName},
 					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						Hosts: []string{
-							"validHost1",
-							"validHost2",
-						},
+						Hosts: []string{"validHost1", "validHost2"},
 						ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
 							Name:    "testdepl",
 							Service: "testsrv",
@@ -527,9 +541,11 @@ func TestGetMetricSpecTable(t *testing.T) {
 						TargetPendingRequests: ptr.To[int32](123),
 					},
 				}
-				namespaceLister.EXPECT().
-					Get(httpso.GetName()).
-					Return(httpso, nil)
+				namespaceLister.
+					EXPECT().
+					Get(validHTTPScaledObjectName).
+					Return(httpso, nil).
+					Times(1)
 
 				return informer
 			},
@@ -538,23 +554,31 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r := require.New(t)
 				r.NoError(err)
 				r.NotNil(res)
-				r.Equal(1, len(res.MetricSpecs))
+				r.Len(res.MetricSpecs, 1)
 				spec := res.MetricSpecs[0]
 				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
+			},
+			scalerMetadata: map[string]string{
+				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
 			},
 		},
 		{
 			name:                "interceptor",
 			defaultTargetMetric: 0,
 			newInformer: func(t *testing.T, ctrl *gomock.Controller) *informersexternalversionshttpv1alpha1mock.MockHTTPScaledObjectInformer {
-				informer, _, namespaceLister := newMocks(ctrl, nil)
+				namespaceLister := listershttpv1alpha1mock.NewMockHTTPScaledObjectNamespaceLister(ctrl)
+				lister := listershttpv1alpha1mock.NewMockHTTPScaledObjectLister(ctrl)
+				informer := informersexternalversionshttpv1alpha1mock.NewMockHTTPScaledObjectInformer(ctrl)
 
-				namespaceLister.EXPECT().
-					Get(gomock.Any()).
-					DoAndReturn(func(name string) (*httpv1alpha1.HTTPScaledObject, error) {
-						return nil, errors.NewNotFound(httpv1alpha1.Resource("httpscaledobject"), name)
-					})
+				informer.EXPECT().
+					Lister().
+					Return(lister).
+					AnyTimes()
+				lister.EXPECT().
+					HTTPScaledObjects(ns).
+					Return(namespaceLister).
+					AnyTimes()
 
 				return informer
 			},
@@ -563,7 +587,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r := require.New(t)
 				r.NoError(err)
 				r.NotNil(res)
-				r.Equal(1, len(res.MetricSpecs))
+				r.Len(res.MetricSpecs, 1)
 				spec := res.MetricSpecs[0]
 				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), spec.MetricName)
 				r.Equal(int64(1000), spec.TargetSize)
@@ -574,11 +598,8 @@ func TestGetMetricSpecTable(t *testing.T) {
 		},
 	}
 
-	for i, c := range cases {
-		testName := fmt.Sprintf("test case #%d: %s", i, c.name)
-		// capture tc in scope so that we can run the below test
-		// in parallel
-		testCase := c
+	for i, tc := range cases {
+		testName := fmt.Sprintf("test case #%d: %s", i, tc.name)
 		t.Run(testName, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -586,28 +607,22 @@ func TestGetMetricSpecTable(t *testing.T) {
 			ctx := context.Background()
 			t.Parallel()
 			lggr := logr.Discard()
-			informer := testCase.newInformer(t, ctrl)
+			informer := tc.newInformer(t, ctrl)
+
 			ticker, pinger, err := newFakeQueuePinger(lggr)
 			if err != nil {
-				t.Fatalf(
-					"error creating new fake queue pinger and related components: %s",
-					err,
-				)
+				t.Fatalf("error creating new fake queue pinger: %s", err)
 			}
 			defer ticker.Stop()
-			hdl := newImpl(
-				lggr,
-				pinger,
-				informer,
-				testCase.defaultTargetMetric,
-			)
+
+			hdl := newImpl(lggr, pinger, informer, tc.defaultTargetMetric)
 			scaledObjectRef := externalscaler.ScaledObjectRef{
 				Namespace:      ns,
 				Name:           t.Name(),
-				ScalerMetadata: testCase.scalerMetadata,
+				ScalerMetadata: tc.scalerMetadata,
 			}
-			ret, err := hdl.GetMetricSpec(ctx, &scaledObjectRef)
-			testCase.checker(t, ret, err)
+			res, err := hdl.GetMetricSpec(ctx, &scaledObjectRef)
+			tc.checker(t, res, err)
 		})
 	}
 }
