@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -20,27 +21,27 @@ func TestGetEndpoints(t *testing.T) {
 		svcName = "testsvc"
 		svcPort = "8081"
 	)
-	endpoints := &v1.Endpoints{
+	endpoints := &discov1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      svcName,
-			Namespace: ns,
+			Name:         fmt.Sprintf("%s-%s", svcName, "96fhp"),
+			GenerateName: svcName,
+			Namespace:    ns,
+			Labels: map[string]string{
+				discov1.LabelServiceName: svcName,
+			},
 		},
-		Subsets: []v1.EndpointSubset{
+		Endpoints: []discov1.Endpoint{
 			{
-				Addresses: []v1.EndpointAddress{
-					{
-						IP:       "1.2.3.4",
-						Hostname: "testhost1",
-					},
+				Addresses: []string{
+					"1.2.3.4",
 				},
+				Hostname: ptr.To("testhost1"),
 			},
 			{
-				Addresses: []v1.EndpointAddress{
-					{
-						IP:       "2.3.4.5",
-						Hostname: "testhost2",
-					},
+				Addresses: []string{
+					"1.2.3.5",
 				},
+				Hostname: ptr.To("testhost2"),
 			},
 		},
 	}
@@ -49,15 +50,15 @@ func TestGetEndpoints(t *testing.T) {
 		ns,
 		svcName,
 		svcPort,
-		func(context.Context, string, string) (*v1.Endpoints, error) {
+		func(context.Context, string, string) (*discov1.EndpointSlice, error) {
 			return endpoints, nil
 		},
 	)
 	r.NoError(err)
-	addrLookup := map[string]*v1.EndpointAddress{}
-	for _, subset := range endpoints.Subsets {
-		for _, addr := range subset.Addresses {
-			key := fmt.Sprintf("http://%s:%s", addr.IP, svcPort)
+	addrLookup := map[string]*string{}
+	for _, es := range endpoints.Endpoints {
+		for _, addr := range es.Addresses {
+			key := fmt.Sprintf("http://%s:%s", addr, svcPort)
 			addrLookup[key] = &addr
 		}
 	}
@@ -73,40 +74,48 @@ func TestEndpointsFuncForControllerClient(t *testing.T) {
 	const (
 		ns      = "testns"
 		svcName = "testsvc"
-		svcPort = "8081"
+		svcPort = 8081
 	)
 	r := require.New(t)
-	endpoints := &v1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      svcName,
-			Namespace: ns,
-		},
-		Subsets: []v1.EndpointSubset{
+	endpoints := &discov1.EndpointSliceList{
+		Items: []discov1.EndpointSlice{
 			{
-				Addresses: []v1.EndpointAddress{
-					{
-						IP:       "1.2.3.4",
-						Hostname: "testhost1",
+				ObjectMeta: metav1.ObjectMeta{
+					Name:         fmt.Sprintf("%s-%s", svcName, "96fhp"),
+					GenerateName: svcName,
+					Namespace:    ns,
+					Labels: map[string]string{
+						discov1.LabelServiceName: svcName,
 					},
 				},
-			},
-			{
-				Addresses: []v1.EndpointAddress{
+				Ports: []discov1.EndpointPort{
 					{
-						IP:       "2.3.4.5",
-						Hostname: "testhost2",
+						Port: ptr.To(int32(svcPort)),
+					},
+				},
+				Endpoints: []discov1.Endpoint{
+					{
+						Addresses: []string{
+							"1.2.3.4",
+						},
+						Hostname: ptr.To("testhost1"),
+					},
+					{
+						Addresses: []string{
+							"2.3.4.5",
+						},
+						Hostname: ptr.To("testhost2"),
 					},
 				},
 			},
 		},
 	}
-	cl := fake.NewClientBuilder().WithObjects(
-		endpoints,
-	).Build()
+
+	cl := fake.NewClientBuilder().WithLists(endpoints).Build()
 	fn := EndpointsFuncForControllerClient(cl)
 	ret, err := fn(ctx, ns, svcName)
 	r.NoError(err)
-	r.Equal(len(endpoints.Subsets), len(ret.Subsets))
+	r.Equal(len(endpoints.Items[0].Endpoints), len(ret.Endpoints))
 	// we don't need to introspect the return value, because we
 	// do so in depth in the above TestGetEndpoints test
 }

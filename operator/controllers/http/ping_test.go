@@ -42,5 +42,9 @@ func TestPingInterceptors(t *testing.T) {
 		url.Port(),
 	))
 	reqs := hdl.IncomingRequests()
-	r.Equal(len(endpoints.Subsets[0].Addresses), len(reqs))
+	var endpointsAddrs []string
+	for _, e := range endpoints.Endpoints {
+		endpointsAddrs = append(endpointsAddrs, e.Addresses...)
+	}
+	r.Equal(len(endpointsAddrs), len(reqs))
 }

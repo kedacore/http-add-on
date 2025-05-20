@@ -3,7 +3,7 @@ package k8s
 import (
 	"encoding/json"
 
-	v1 "k8s.io/api/core/v1"
+	discov1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -20,7 +20,7 @@ type EndpointsCache interface {
 	// If the endpoints doesn't exist in the cache, it
 	// will be requested from the backing store (most commonly
 	// the Kubernetes API server)
-	Get(namespace, name string) (v1.Endpoints, error)
+	Get(namespace, name string) (discov1.EndpointSlice, error)
 	// Watch opens a watch stream for the endpoints with
 	// the given name in the given namespace from the cache.
 	//

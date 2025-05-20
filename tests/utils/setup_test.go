@@ -176,7 +176,7 @@ func TestSetupIngress(t *testing.T) {
 	_, err = ExecuteCommand("helm repo update ingress-nginx")
 	require.NoErrorf(t, err, "cannot update ingress-nginx helm repo - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install %s ingress-nginx/ingress-nginx --set fullnameOverride=%s --set controller.service.type=ClusterIP --set controller.progressDeadlineSeconds=30 --namespace %s --wait",
+	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install %s ingress-nginx/ingress-nginx --set fullnameOverride=%s --set controller.service.type=ClusterIP --set controller.progressDeadlineSeconds=30 --set controller.minReadySeconds=120 --namespace %s --wait",
 		IngressReleaseName, IngressReleaseName, IngressNamespace))
 	require.NoErrorf(t, err, "cannot install ingress - %s", err)
 }

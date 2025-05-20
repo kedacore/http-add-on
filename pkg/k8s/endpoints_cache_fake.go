@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	v1 "k8s.io/api/core/v1"
+	discov1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -16,7 +16,7 @@ import (
 type FakeEndpointsCache struct {
 	json.Marshaler
 	mut      *sync.RWMutex
-	current  map[string]v1.Endpoints
+	current  map[string]discov1.EndpointSlice
 	watchers map[string]*watch.RaceFreeFakeWatcher
 }
 
@@ -25,7 +25,7 @@ var _ EndpointsCache = &FakeEndpointsCache{}
 func NewFakeEndpointsCache() *FakeEndpointsCache {
 	return &FakeEndpointsCache{
 		mut:      &sync.RWMutex{},
-		current:  make(map[string]v1.Endpoints),
+		current:  make(map[string]discov1.EndpointSlice),
 		watchers: make(map[string]*watch.RaceFreeFakeWatcher),
 	}
 }
@@ -46,7 +46,7 @@ func (f *FakeEndpointsCache) MarshalJSON() ([]byte, error) {
 	ret := map[string]int{}
 	for name, endpoints := range f.current {
 		total := 0
-		for _, subset := range endpoints.Subsets {
+		for _, subset := range endpoints.Endpoints {
 			total += len(subset.Addresses)
 		}
 		ret[name] = total
@@ -54,22 +54,22 @@ func (f *FakeEndpointsCache) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ret)
 }
 
-func (f *FakeEndpointsCache) Get(ns string, name string) (v1.Endpoints, error) {
+func (f *FakeEndpointsCache) Get(ns string, name string) (discov1.EndpointSlice, error) {
 	f.mut.RLock()
 	defer f.mut.RUnlock()
 	ret, ok := f.current[key(ns, name)]
 	if ok {
 		return ret, nil
 	}
-	return v1.Endpoints{}, fmt.Errorf("no endpoints %s found", name)
+	return discov1.EndpointSlice{}, fmt.Errorf("no endpoints %s found", name)
 }
 
 // Set adds a endpoints to the current in-memory cache without
 // sending an event to any of the watchers
-func (f *FakeEndpointsCache) Set(endp v1.Endpoints) {
+func (f *FakeEndpointsCache) Set(endp discov1.EndpointSlice) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
-	f.current[key(endp.Namespace, endp.Name)] = endp
+	f.current[key(endp.Namespace, endp.GenerateName)] = endp
 }
 
 func (f *FakeEndpointsCache) Watch(ns, name string) (watch.Interface, error) {
@@ -95,26 +95,20 @@ func (f *FakeEndpointsCache) SetWatcher(ns, name string) *watch.RaceFreeFakeWatc
 	return watcher
 }
 
-func (f *FakeEndpointsCache) SetSubsets(ns, name string, num int) error {
-	endpoints, err := f.Get(ns, name)
+func (f *FakeEndpointsCache) SetEndpoints(ns, name string, num int) error {
+	endpointSlice, err := f.Get(ns, name)
 	if err != nil {
 		return fmt.Errorf("no endpoints %s found", name)
 	}
-	subsets := []v1.EndpointSubset{}
-
 	for i := 0; i < num; i++ {
-		subset := v1.EndpointSubset{
-			Addresses: []v1.EndpointAddress{
-				{
-					IP: "1.2.3.4",
-				},
+		endpoint := discov1.Endpoint{
+			Addresses: []string{
+				"1.2.3.4",
 			},
 		}
-		subsets = append(subsets, subset)
+		endpointSlice.Endpoints = append(endpointSlice.Endpoints, endpoint)
 	}
-
-	endpoints.Subsets = subsets
-	f.Set(endpoints)
+	f.Set(endpointSlice)
 	return nil
 }
 

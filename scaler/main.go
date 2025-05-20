@@ -16,6 +16,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
+	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
+	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
+	"github.com/kedacore/http-add-on/pkg/build"
+	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/util"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -25,20 +31,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
-	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
-	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/build"
-	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-// +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
+// +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;deletecollection
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 
 func main() {
