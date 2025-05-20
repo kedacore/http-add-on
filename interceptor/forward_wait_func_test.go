@@ -8,7 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	v1 "k8s.io/api/core/v1"
+	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 
@@ -27,7 +27,7 @@ func TestForwardWaitFuncOneReplica(t *testing.T) {
 	endpoints := *newEndpoint(ns, endpointsName)
 	cache := k8s.NewFakeEndpointsCache()
 	cache.Set(endpoints)
-	r.NoError(cache.SetSubsets(ns, endpointsName, 1))
+	r.NoError(cache.SetEndpoints(ns, endpointsName, 1))
 
 	ctx, done := context.WithTimeout(ctx, waitFuncWait)
 	defer done()
@@ -97,10 +97,10 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 		watcher := cache.GetWatcher(ns, endpointsName)
 		r.NotNil(watcher, "watcher was not found")
 		modifiedEndpoints := endpoints.DeepCopy()
-		modifiedEndpoints.Subsets = []v1.EndpointSubset{
+		modifiedEndpoints.Endpoints = []discov1.Endpoint{
 			{
-				Addresses: []v1.EndpointAddress{
-					{IP: "1.2.3.4"},
+				Addresses: []string{
+					"1.2.3.4",
 				},
 			},
 		}
@@ -119,11 +119,14 @@ func TestWaitFuncWaitsUntilReplicas(t *testing.T) {
 func newEndpoint(
 	namespace,
 	name string,
-) *v1.Endpoints {
-	endpoints := &v1.Endpoints{
+) *discov1.EndpointSlice {
+	endpoints := &discov1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			GenerateName: name,
+			Namespace:    namespace,
+			Labels: map[string]string{
+				discov1.LabelServiceName: name,
+			},
 		},
 	}
 

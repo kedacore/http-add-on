@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
+	discov1 "k8s.io/api/discovery/v1"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 )
@@ -14,10 +14,10 @@ import (
 // before proceeding to serve the request.
 type forwardWaitFunc func(context.Context, string, string) (bool, error)
 
-func workloadActiveEndpoints(endpoints v1.Endpoints) int {
+func workloadActiveEndpoints(endpoints discov1.EndpointSlice) int {
 	total := 0
-	for _, subset := range endpoints.Subsets {
-		total += len(subset.Addresses)
+	for _, e := range endpoints.Endpoints {
+		total += len(e.Addresses)
 	}
 	return total
 }
@@ -55,7 +55,7 @@ func newWorkloadReplicasForwardWaitFunc(
 		for {
 			select {
 			case event := <-eventCh:
-				endpoints, ok := event.Object.(*v1.Endpoints)
+				endpoints, ok := event.Object.(*discov1.EndpointSlice)
 				if !ok {
 					lggr.Info(
 						"Didn't get a endpoints back in event",

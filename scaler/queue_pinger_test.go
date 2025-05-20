@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	discov1 "k8s.io/api/discovery/v1"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
@@ -64,7 +64,7 @@ func TestCounts(t *testing.T) {
 	defer srv.Close()
 	pinger := newQueuePinger(
 		logr.Discard(),
-		func(context.Context, string, string) (*v1.Endpoints, error) {
+		func(context.Context, string, string) (*discov1.EndpointSlice, error) {
 			return endpoints, nil
 		},
 		ns,
@@ -147,7 +147,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		ctx context.Context,
 		ns,
 		svcName string,
-	) (*v1.Endpoints, error) {
+	) (*discov1.EndpointSlice, error) {
 		return endpoints, nil
 	}
 
@@ -218,7 +218,7 @@ func TestFetchCounts(t *testing.T) {
 		context.Context,
 		string,
 		string,
-	) (*v1.Endpoints, error) {
+	) (*discov1.EndpointSlice, error) {
 		return endpoints, nil
 	}
 
@@ -257,7 +257,7 @@ func startFakeQueueEndpointServer(
 	svcName string,
 	q queue.CountReader,
 	numEndpoints int,
-) (*httptest.Server, *url.URL, *v1.Endpoints, error) {
+) (*httptest.Server, *url.URL, *discov1.EndpointSlice, error) {
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
 	srv, srvURL, err := kedanet.StartTestServer(hdl)
@@ -272,7 +272,7 @@ func startFakeQueueEndpointServer(
 }
 
 type fakeQueuePingerOpts struct {
-	endpoints *v1.Endpoints
+	endpoints *discov1.EndpointSlice
 	tickDur   time.Duration
 	port      string
 }
@@ -288,7 +288,7 @@ func newFakeQueuePinger(
 	optsFuncs ...optsFunc,
 ) (*time.Ticker, *queuePinger, error) {
 	opts := &fakeQueuePingerOpts{
-		endpoints: &v1.Endpoints{},
+		endpoints: &discov1.EndpointSlice{},
 		tickDur:   time.Second,
 		port:      "8080",
 	}
@@ -299,7 +299,7 @@ func newFakeQueuePinger(
 
 	pinger := newQueuePinger(
 		lggr,
-		func(context.Context, string, string) (*v1.Endpoints, error) {
+		func(context.Context, string, string) (*discov1.EndpointSlice, error) {
 			return opts.endpoints, nil
 		},
 		"testns",
