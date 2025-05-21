@@ -45,7 +45,7 @@ func TestStreamIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -65,7 +65,7 @@ func TestStreamIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -88,7 +88,7 @@ func TestStreamIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -113,7 +113,7 @@ func TestStreamIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -138,7 +138,7 @@ func TestStreamIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -163,7 +163,7 @@ func TestStreamIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -188,7 +188,7 @@ func TestStreamIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -347,7 +347,7 @@ func TestIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -369,7 +369,7 @@ func TestIsActive(t *testing.T) {
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -505,7 +505,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.NotNil(res)
 				r.Len(res.MetricSpecs, 1)
 				spec := res.MetricSpecs[0]
-				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), spec.MetricName)
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: validHTTPScaledObjectName}), spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
 			},
 			scalerMetadata: map[string]string{
@@ -556,7 +556,7 @@ func TestGetMetricSpecTable(t *testing.T) {
 				r.NotNil(res)
 				r.Len(res.MetricSpecs, 1)
 				spec := res.MetricSpecs[0]
-				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), spec.MetricName)
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: validHTTPScaledObjectName}), spec.MetricName)
 				r.Equal(int64(123), spec.TargetSize)
 			},
 			scalerMetadata: map[string]string{
@@ -719,9 +719,9 @@ func TestGetMetrics(t *testing.T) {
 				r := require.New(t)
 				r.NoError(err)
 				r.NotNil(res)
-				r.Equal(1, len(res.MetricValues))
+				r.Len(res.MetricValues, 1)
 				metricVal := res.MetricValues[0]
-				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: validHTTPScaledObjectName}), metricVal.MetricName)
 				r.Equal(int64(0), metricVal.MetricValue)
 			},
 			defaultTargetMetric: int64(200),
@@ -741,7 +741,7 @@ func TestGetMetrics(t *testing.T) {
 
 				namespacedName := &types.NamespacedName{
 					Namespace: ns,
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -759,9 +759,9 @@ func TestGetMetrics(t *testing.T) {
 				r := require.New(t)
 				r.NoError(err)
 				r.NotNil(res)
-				r.Equal(1, len(res.MetricValues))
+				r.Len(res.MetricValues, 1)
 				metricVal := res.MetricValues[0]
-				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: validHTTPScaledObjectName}), metricVal.MetricName)
 				r.Equal(int64(201), metricVal.MetricValue)
 			},
 			defaultTargetMetric: int64(200),
@@ -781,7 +781,7 @@ func TestGetMetrics(t *testing.T) {
 
 				namespacedName := &types.NamespacedName{
 					Namespace: ns,
-					Name:      t.Name(),
+					Name:      validHTTPScaledObjectName,
 				}
 				key := namespacedName.String()
 
@@ -799,9 +799,9 @@ func TestGetMetrics(t *testing.T) {
 				r := require.New(t)
 				r.NoError(err)
 				r.NotNil(res)
-				r.Equal(1, len(res.MetricValues))
+				r.Len(res.MetricValues, 1)
 				metricVal := res.MetricValues[0]
-				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
+				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: validHTTPScaledObjectName}), metricVal.MetricName)
 				// the value here needs to be the same thing as
 				// the sum of the values in the fake queue created
 				// in the setup function
@@ -839,7 +839,7 @@ func TestGetMetrics(t *testing.T) {
 				r := require.New(t)
 				r.NoError(err)
 				r.NotNil(res)
-				r.Equal(1, len(res.MetricValues))
+				r.Len(res.MetricValues, 1)
 				metricVal := res.MetricValues[0]
 				r.Equal(MetricName(&types.NamespacedName{Namespace: ns, Name: t.Name()}), metricVal.MetricName)
 				// the value here needs to be the same thing as

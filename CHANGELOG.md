@@ -26,7 +26,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### New
 
 - **General**: Add configurable tracing support to the interceptor proxy ([#1021](https://github.com/kedacore/http-add-on/pull/1021))
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Allow using HSO and SO with different names ([#1293](https://github.com/kedacore/http-add-on/issues/1293))
 
 ### Improvements
 
