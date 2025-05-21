@@ -29,3 +29,14 @@ func NamespacedNameFromScaledObjectRef(sor *externalscaler.ScaledObjectRef) *typ
 		Name:      sor.GetName(),
 	}
 }
+
+func NamespacedNameFromNameAndNamespace(name, namespace string) *types.NamespacedName {
+	if name == "" || namespace == "" {
+		return nil
+	}
+
+	return &types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}
+}

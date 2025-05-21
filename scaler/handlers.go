@@ -96,20 +96,14 @@ func (e *impl) StreamIsActive(scaledObject *externalscaler.ScaledObjectRef, serv
 		case <-ticker.C:
 			active, err := e.IsActive(server.Context(), scaledObject)
 			if err != nil {
-				e.lggr.Error(
-					err,
-					"error getting active status in stream",
-				)
+				e.lggr.Error(err, "error getting active status in stream")
 				return err
 			}
 			err = server.Send(&externalscaler.IsActiveResponse{
 				Result: active.Result,
 			})
 			if err != nil {
-				e.lggr.Error(
-					err,
-					"error sending the active result in stream",
-				)
+				e.lggr.Error(err, "error sending the active result in stream")
 				return err
 			}
 		}
@@ -119,14 +113,13 @@ func (e *impl) StreamIsActive(scaledObject *externalscaler.ScaledObjectRef, serv
 func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.GetMetricSpecResponse, error) {
 	lggr := e.lggr.WithName("GetMetricSpec")
 
-	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
-	metricName := MetricName(namespacedName)
-
 	scalerMetadata := sor.GetScalerMetadata()
 	httpScaledObjectName, ok := scalerMetadata[k8s.HTTPScaledObjectKey]
 	if !ok {
 		if scalerMetadata != nil {
 			if interceptorTargetPendingRequests, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
+				// generated the metric name for the ScaledObject targeting the interceptor
+				metricName := MetricName(k8s.NamespacedNameFromScaledObjectRef(sor))
 				return e.interceptorMetricSpec(metricName, interceptorTargetPendingRequests)
 			}
 		}
@@ -140,6 +133,10 @@ func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObject
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
 		return nil, err
 	}
+
+	// generated the metric name for HTTPScaledObject
+	metricName := MetricName(k8s.NamespacedNameFromNameAndNamespace(httpScaledObjectName, sor.Namespace))
+
 	targetValue := int64(ptr.Deref(httpso.Spec.TargetPendingRequests, 100))
 
 	if httpso.Spec.ScalingMetric != nil {
@@ -186,14 +183,13 @@ func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMe
 	lggr := e.lggr.WithName("GetMetrics")
 	sor := metricRequest.ScaledObjectRef
 
-	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
-	metricName := MetricName(namespacedName)
-
 	scalerMetadata := sor.GetScalerMetadata()
 	httpScaledObjectName, ok := scalerMetadata[k8s.HTTPScaledObjectKey]
 	if !ok {
 		if scalerMetadata != nil {
 			if _, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
+				// generated the metric name for the ScaledObject targeting the interceptor
+				metricName := MetricName(k8s.NamespacedNameFromScaledObjectRef(sor))
 				return e.interceptorMetrics(metricName)
 			}
 		}
@@ -207,6 +203,10 @@ func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMe
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", httpScaledObjectName, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
 		return nil, err
 	}
+
+	// generated the metric name for HTTPScaledObject
+	namespacedName := k8s.NamespacedNameFromNameAndNamespace(httpScaledObjectName, sor.Namespace)
+	metricName := MetricName(namespacedName)
 
 	key := namespacedName.String()
 	count := e.pinger.counts()[key]
