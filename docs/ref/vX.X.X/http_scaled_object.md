@@ -37,6 +37,23 @@ spec:
       window: 1m
     concurrency:
       targetValue: 100
+  placeholderConfig:
+    enabled: true
+    refreshInterval: 5
+    statusCode: 503
+    headers:
+      X-Service-Status: "warming-up"
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Service Starting</title>
+          <meta http-equiv="refresh" content="{{.RefreshInterval}}">
+      </head>
+      <body>
+          <h1>{{.ServiceName}} is starting...</h1>
+      </body>
+      </html>
 ```
 
 This document is a narrated reference guide for the `HTTPScaledObject`.
@@ -146,3 +163,52 @@ This section enables scaling based on the request concurrency.
 > Default: 100
 
 This is the target value for the scaling configuration.
+
+## `placeholderConfig`
+
+This optional section enables serving placeholder pages when the workload is scaled to zero. When enabled, instead of returning an error while waiting for the workload to scale up, the interceptor will serve a customizable HTML page that refreshes automatically.
+
+### `enabled`
+
+>Default: false
+
+Whether to enable placeholder pages for this HTTPScaledObject.
+
+### `refreshInterval`
+
+>Default: 5
+
+The interval in seconds at which the placeholder page will refresh. This should be set based on your expected cold start time.
+
+### `statusCode`
+
+>Default: 503
+
+The HTTP status code to return with the placeholder page. Common values are 503 (Service Unavailable) or 202 (Accepted).
+
+### `headers`
+
+>Default: {}
+
+A map of custom HTTP headers to include in the placeholder response. Useful for adding service-specific headers.
+
+### `content`
+
+>Default: Built-in template
+
+Custom HTML content for the placeholder page. Supports Go template syntax with the following variables:
+- `{{.ServiceName}}` - The name of the service from scaleTargetRef
+- `{{.Namespace}}` - The namespace of the HTTPScaledObject
+- `{{.RefreshInterval}}` - The configured refresh interval
+- `{{.RequestID}}` - The X-Request-ID header value if present
+- `{{.Timestamp}}` - The current timestamp in RFC3339 format
+
+### `contentConfigMap`
+
+The name of a ConfigMap containing the placeholder page template. This is an alternative to inline `content`.
+
+### `contentConfigMapKey`
+
+>Default: "template.html"
+
+The key within the ConfigMap that contains the template content.

@@ -132,6 +132,48 @@ spec:
                 items:
                   type: string
                 type: array
+              placeholderConfig:
+                description: (optional) Configuration for placeholder pages during
+                  scale-from-zero
+                properties:
+                  content:
+                    description: Inline HTML content for placeholder page (takes precedence
+                      over ContentConfigMap)
+                    type: string
+                  contentConfigMap:
+                    description: Path to ConfigMap containing placeholder HTML content
+                      (in same namespace)
+                    type: string
+                  contentConfigMapKey:
+                    default: template.html
+                    description: Key in ConfigMap containing the HTML template
+                    type: string
+                  enabled:
+                    default: false
+                    description: Enable placeholder page when replicas are scaled
+                      to zero
+                    type: boolean
+                  headers:
+                    additionalProperties:
+                      type: string
+                    description: Additional HTTP headers to include with placeholder
+                      response
+                    type: object
+                  refreshInterval:
+                    default: 5
+                    description: Refresh interval for client-side polling in seconds
+                    format: int32
+                    maximum: 60
+                    minimum: 1
+                    type: integer
+                  statusCode:
+                    default: 503
+                    description: HTTP status code to return with placeholder page
+                    format: int32
+                    maximum: 599
+                    minimum: 100
+                    type: integer
+                type: object
               replicas:
                 description: (optional) Replica information
                 properties:

@@ -199,7 +199,7 @@ func main() {
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig, tracingCfg); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig, tracingCfg, cl, endpointsCache); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -213,7 +213,7 @@ func main() {
 		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
 
 		k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyPort, false, nil, tracingCfg); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyPort, false, nil, tracingCfg, cl, endpointsCache); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -411,6 +411,8 @@ func runProxyServer(
 	tlsEnabled bool,
 	tlsConfig map[string]interface{},
 	tracingConfig *config.Tracing,
+	k8sClient kubernetes.Interface,
+	endpointsCache k8s.EndpointsCache,
 ) error {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
@@ -438,6 +440,12 @@ func runProxyServer(
 		forwardingTLSCfg.InsecureSkipVerify = tlsCfg.InsecureSkipVerify
 	}
 
+	// Create placeholder handler
+	placeholderHandler, err := handler.NewPlaceholderHandler(k8sClient, routingTable)
+	if err != nil {
+		return fmt.Errorf("creating placeholder handler: %w", err)
+	}
+
 	upstreamHandler = newForwardingHandler(
 		logger,
 		dialContextFunc,
@@ -445,6 +453,8 @@ func runProxyServer(
 		newForwardingConfigFromTimeouts(timeouts, serving),
 		forwardingTLSCfg,
 		tracingConfig,
+		placeholderHandler,
+		endpointsCache,
 	)
 	upstreamHandler = middleware.NewCountingMiddleware(
 		q,

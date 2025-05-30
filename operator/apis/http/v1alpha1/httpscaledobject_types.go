@@ -139,6 +139,32 @@ type Header struct {
 	Value *string `json:"value,omitempty"`
 }
 
+// PlaceholderConfig defines the configuration for serving placeholder pages during scale-from-zero
+type PlaceholderConfig struct {
+	// Enable placeholder page when replicas are scaled to zero
+	// +kubebuilder:default=false
+	// +optional
+	Enabled bool `json:"enabled" description:"Enable placeholder page when replicas are scaled to zero"`
+	// Inline content for placeholder page (can be HTML, JSON, plain text, etc.)
+	// +optional
+	Content string `json:"content,omitempty" description:"Inline content for placeholder page"`
+	// HTTP status code to return with placeholder page
+	// +kubebuilder:default=503
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:Maximum=599
+	// +optional
+	StatusCode int32 `json:"statusCode,omitempty" description:"HTTP status code to return with placeholder page (Default 503)"`
+	// Refresh interval for client-side polling in seconds
+	// +kubebuilder:default=5
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=60
+	// +optional
+	RefreshInterval int32 `json:"refreshInterval,omitempty" description:"Refresh interval for client-side polling in seconds (Default 5)"`
+	// Additional HTTP headers to include with placeholder response
+	// +optional
+	Headers map[string]string `json:"headers,omitempty" description:"Additional HTTP headers to include with placeholder response"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -188,6 +214,9 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Timeouts that override the global ones
 	// +optional
 	Timeouts *HTTPScaledObjectTimeoutsSpec `json:"timeouts,omitempty" description:"Timeouts that override the global ones"`
+	// (optional) Configuration for placeholder pages during scale-from-zero
+	// +optional
+	PlaceholderConfig *PlaceholderConfig `json:"placeholderConfig,omitempty" description:"Configuration for placeholder pages during scale-from-zero"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
