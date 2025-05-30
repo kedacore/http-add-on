@@ -30,6 +30,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **General**: Allow using HSO and SO with different names ([#1293](https://github.com/kedacore/http-add-on/issues/1293))
 - **General**: Support profiling for KEDA components ([#4789](https://github.com/kedacore/keda/issues/4789))
 - **General**: Add possibility to skip TLS verification for upstreams in interceptor ([#1307](https://github.com/kedacore/http-add-on/pull/1307))
+- **General**: Add custom placeholder pages for scale-from-zero scenarios ([#874](https://github.com/kedacore/http-add-on/issues/874))
 ### Improvements
 
 - **Interceptor**: Support HTTPScaledObject scoped timeout ([#813](https://github.com/kedacore/http-add-on/issues/813))

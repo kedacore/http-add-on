@@ -13,6 +13,7 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -52,12 +53,41 @@ func newForwardingHandler(
 	fwdCfg forwardingConfig,
 	tlsCfg *tls.Config,
 	tracingCfg *config.Tracing,
+	placeholderHandler *handler.PlaceholderHandler,
+	endpointsCache k8s.EndpointsCache,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var uh *handler.Upstream
 		ctx := r.Context()
 		httpso := util.HTTPSOFromContext(ctx)
 		hasFailover := httpso.Spec.ColdStartTimeoutFailoverRef != nil
+
+		// Check if we should serve a placeholder page
+		if placeholderHandler != nil && httpso.Spec.PlaceholderConfig != nil && httpso.Spec.PlaceholderConfig.Enabled {
+			endpoints, err := endpointsCache.Get(httpso.GetNamespace(), httpso.Spec.ScaleTargetRef.Service)
+			if err != nil {
+				// Error getting endpoints cache - return 503 Service Unavailable
+				lggr.Error(err, "failed to get endpoints from cache while placeholder is configured",
+					"namespace", httpso.GetNamespace(),
+					"service", httpso.Spec.ScaleTargetRef.Service)
+				w.WriteHeader(http.StatusServiceUnavailable)
+				if _, writeErr := w.Write([]byte("Service temporarily unavailable - unable to check service status")); writeErr != nil {
+					lggr.Error(writeErr, "could not write error response to client")
+				}
+				return
+			}
+			
+			if workloadActiveEndpoints(endpoints) == 0 {
+				if placeholderErr := placeholderHandler.ServePlaceholder(w, r, httpso); placeholderErr != nil {
+					lggr.Error(placeholderErr, "failed to serve placeholder page")
+					w.WriteHeader(http.StatusBadGateway)
+					if _, err := w.Write([]byte("error serving placeholder page")); err != nil {
+						lggr.Error(err, "could not write error response to client")
+					}
+				}
+				return
+			}
+		}
 
 		conditionWaitTimeout := fwdCfg.waitTimeout
 		roundTripper := &http.Transport{
