@@ -76,6 +76,39 @@ type RateMetricSpec struct {
 	Granularity metav1.Duration `json:"granularity" description:"Time granularity for rate calculation"`
 }
 
+// PlaceholderConfig defines the configuration for serving placeholder pages during scale-from-zero
+type PlaceholderConfig struct {
+	// Enable placeholder page when replicas are scaled to zero
+	// +kubebuilder:default=false
+	// +optional
+	Enabled bool `json:"enabled" description:"Enable placeholder page when replicas are scaled to zero"`
+	// Path to ConfigMap containing placeholder HTML content (in same namespace)
+	// +optional
+	ContentConfigMap string `json:"contentConfigMap,omitempty" description:"ConfigMap name containing placeholder HTML content"`
+	// Key in ConfigMap containing the HTML template
+	// +kubebuilder:default="template.html"
+	// +optional
+	ContentConfigMapKey string `json:"contentConfigMapKey,omitempty" description:"Key in ConfigMap containing the HTML template"`
+	// Inline HTML content for placeholder page (takes precedence over ContentConfigMap)
+	// +optional
+	Content string `json:"content,omitempty" description:"Inline HTML content for placeholder page"`
+	// HTTP status code to return with placeholder page
+	// +kubebuilder:default=503
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:Maximum=599
+	// +optional
+	StatusCode int32 `json:"statusCode,omitempty" description:"HTTP status code to return with placeholder page (Default 503)"`
+	// Refresh interval for client-side polling in seconds
+	// +kubebuilder:default=5
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=60
+	// +optional
+	RefreshInterval int32 `json:"refreshInterval,omitempty" description:"Refresh interval for client-side polling in seconds (Default 5)"`
+	// Additional HTTP headers to include with placeholder response
+	// +optional
+	Headers map[string]string `json:"headers,omitempty" description:"Additional HTTP headers to include with placeholder response"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -108,6 +141,9 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Configuration for the metric used for scaling
 	// +optional
 	ScalingMetric *ScalingMetricSpec `json:"scalingMetric,omitempty" description:"Configuration for the metric used for scaling. If empty 'concurrency' will be used"`
+	// (optional) Configuration for placeholder pages during scale-from-zero
+	// +optional
+	PlaceholderConfig *PlaceholderConfig `json:"placeholderConfig,omitempty" description:"Configuration for placeholder pages during scale-from-zero"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject

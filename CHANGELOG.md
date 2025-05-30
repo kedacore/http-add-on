@@ -27,6 +27,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: Add configurable tracing support to the interceptor proxy ([#1021](https://github.com/kedacore/http-add-on/pull/1021))
 - **General**: Allow using HSO and SO with different names ([#1293](https://github.com/kedacore/http-add-on/issues/1293))
+- **General**: Add custom placeholder pages for scale-from-zero scenarios ([#874](https://github.com/kedacore/http-add-on/issues/874))
 
 ### Improvements
 
