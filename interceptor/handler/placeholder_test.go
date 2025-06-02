@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -251,8 +252,9 @@ func TestGetTemplate_Caching(t *testing.T) {
 	customContent := `<html><body>{{.ServiceName}}</body></html>`
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "default",
+			Name:       "test-app",
+			Namespace:  "default",
+			Generation: 1,
 		},
 		Spec: v1alpha1.HTTPScaledObjectSpec{
 			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
@@ -263,16 +265,277 @@ func TestGetTemplate_Caching(t *testing.T) {
 
 	ctx := context.Background()
 
-	// First call - should parse and cache
 	tmpl1, err := handler.getTemplate(ctx, hso)
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl1)
 
-	// Second call - should return from cache
 	tmpl2, err := handler.getTemplate(ctx, hso)
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl2)
 
-	// Should be the same template instance
 	assert.Equal(t, fmt.Sprintf("%p", tmpl1), fmt.Sprintf("%p", tmpl2))
+}
+
+func TestGetTemplate_CacheInvalidation_Generation(t *testing.T) {
+	k8sClient := fake.NewSimpleClientset()
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	customContent1 := `<html><body>Version 1: {{.ServiceName}}</body></html>`
+	customContent2 := `<html><body>Version 2: {{.ServiceName}}</body></html>`
+
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-app",
+			Namespace:  "default",
+			Generation: 1,
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Content: customContent1,
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	tmpl1, err := handler.getTemplate(ctx, hso)
+	require.NoError(t, err)
+	assert.NotNil(t, tmpl1)
+
+	hso.Generation = 2
+	hso.Spec.PlaceholderConfig.Content = customContent2
+
+	tmpl2, err := handler.getTemplate(ctx, hso)
+	require.NoError(t, err)
+	assert.NotNil(t, tmpl2)
+
+	assert.NotEqual(t, fmt.Sprintf("%p", tmpl1), fmt.Sprintf("%p", tmpl2))
+}
+
+func TestGetTemplate_CacheInvalidation_ConfigMapVersion(t *testing.T) {
+	// Create ConfigMap
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "placeholder-cm",
+			Namespace:       "default",
+			ResourceVersion: "1",
+		},
+		Data: map[string]string{
+			"template.html": `<html><body>Version 1: {{.ServiceName}}</body></html>`,
+		},
+	}
+	k8sClient := fake.NewSimpleClientset(cm)
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-app",
+			Namespace:  "default",
+			Generation: 1,
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				ContentConfigMap: "placeholder-cm",
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	tmpl1, err := handler.getTemplate(ctx, hso)
+	require.NoError(t, err)
+	assert.NotNil(t, tmpl1)
+
+	cm.ResourceVersion = "2"
+	cm.Data["template.html"] = `<html><body>Version 2: {{.ServiceName}}</body></html>`
+	_, err = k8sClient.CoreV1().ConfigMaps("default").Update(ctx, cm, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	tmpl2, err := handler.getTemplate(ctx, hso)
+	require.NoError(t, err)
+	assert.NotNil(t, tmpl2)
+}
+
+func TestGetTemplate_ConcurrentAccess(t *testing.T) {
+	k8sClient := fake.NewSimpleClientset()
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	customContent := `<html><body>{{.ServiceName}}</body></html>`
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-app",
+			Namespace:  "default",
+			Generation: 1,
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Content: customContent,
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	_, err := handler.getTemplate(ctx, hso)
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	errors := make(chan error, 100)
+	templates := make(chan interface{}, 100)
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tmpl, err := handler.getTemplate(ctx, hso)
+			if err != nil {
+				errors <- err
+			} else {
+				templates <- tmpl
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errors)
+	close(templates)
+
+	var errorCount int
+	for err := range errors {
+		t.Errorf("Concurrent access error: %v", err)
+		errorCount++
+	}
+	assert.Equal(t, 0, errorCount)
+
+	var firstTemplate interface{}
+	templateCount := 0
+	for tmpl := range templates {
+		templateCount++
+		if firstTemplate == nil {
+			firstTemplate = tmpl
+		} else {
+			assert.Equal(t, fmt.Sprintf("%p", firstTemplate), fmt.Sprintf("%p", tmpl),
+				"All templates should be the same cached instance")
+		}
+	}
+	assert.Equal(t, 100, templateCount)
+}
+
+func TestGetTemplate_ConcurrentFirstAccess(t *testing.T) {
+	k8sClient := fake.NewSimpleClientset()
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	customContent := `<html><body>{{.ServiceName}}</body></html>`
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-app",
+			Namespace:  "default",
+			Generation: 1,
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Content: customContent,
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	var wg sync.WaitGroup
+	errors := make(chan error, 100)
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := handler.getTemplate(ctx, hso)
+			if err != nil {
+				errors <- err
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errors)
+
+	for err := range errors {
+		t.Errorf("Concurrent access error: %v", err)
+	}
+
+	handler.cacheMutex.RLock()
+	cacheKey := fmt.Sprintf("%s/%s/inline", hso.Namespace, hso.Name)
+	entry, ok := handler.templateCache[cacheKey]
+	handler.cacheMutex.RUnlock()
+
+	assert.True(t, ok, "Cache should have an entry")
+	assert.NotNil(t, entry, "Cache entry should not be nil")
+	assert.NotNil(t, entry.template, "Cached template should not be nil")
+}
+
+func TestGetTemplate_ConcurrentCacheUpdates(t *testing.T) {
+	configMaps := make([]*v1.ConfigMap, 10)
+	for i := 0; i < 10; i++ {
+		configMaps[i] = &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            fmt.Sprintf("placeholder-cm-%d", i),
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Data: map[string]string{
+				"template.html": fmt.Sprintf(`<html><body>ConfigMap %d: {{.ServiceName}}</body></html>`, i),
+			},
+		}
+	}
+
+	k8sClient := fake.NewSimpleClientset()
+	for _, cm := range configMaps {
+		_, err := k8sClient.CoreV1().ConfigMaps("default").Create(context.Background(), cm, metav1.CreateOptions{})
+		require.NoError(t, err)
+	}
+
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	ctx := context.Background()
+
+	var wg sync.WaitGroup
+	errors := make(chan error, 100)
+
+	for i := 0; i < 10; i++ {
+		for j := 0; j < 10; j++ {
+			wg.Add(1)
+			go func(cmIndex, iteration int) {
+				defer wg.Done()
+
+				hso := &v1alpha1.HTTPScaledObject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       fmt.Sprintf("test-app-%d", cmIndex),
+						Namespace:  "default",
+						Generation: int64(iteration),
+					},
+					Spec: v1alpha1.HTTPScaledObjectSpec{
+						PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+							ContentConfigMap: fmt.Sprintf("placeholder-cm-%d", cmIndex),
+						},
+					},
+				}
+
+				_, err := handler.getTemplate(ctx, hso)
+				if err != nil {
+					errors <- err
+				}
+			}(i, j)
+		}
+	}
+
+	wg.Wait()
+	close(errors)
+
+	for err := range errors {
+		t.Errorf("Concurrent cache update error: %v", err)
+	}
 }
