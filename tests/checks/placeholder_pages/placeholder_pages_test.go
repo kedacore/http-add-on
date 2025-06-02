@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	. "github.com/kedacore/http-add-on/tests/helper"
 )
 
 const (
@@ -51,18 +49,18 @@ spec:
         app: {{.TestName}}
     spec:
       containers:
-      - name: app
-        image: kennethreitz/httpbin:latest
-        ports:
-        - containerPort: 80
-          name: http
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "100m"
-          limits:
-            memory: "128Mi"
-            cpu: "200m"
+	  - name: {{.TestName}}
+	    image: registry.k8s.io/e2e-test-images/agnhost:2.45
+	    args:
+	    - netexec
+	    ports:
+	    - name: http
+		  containerPort: 8080
+		  protocol: TCP
+	    readinessProbe:
+		  httpGet:
+		    path: /
+		    port: http
 ---
 apiVersion: v1
 kind: Service
@@ -74,7 +72,7 @@ metadata:
 spec:
   ports:
   - port: 80
-    targetPort: 80
+    targetPort: 8080
     name: http
   selector:
     app: {{.TestName}}
