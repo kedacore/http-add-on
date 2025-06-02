@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
@@ -76,11 +77,19 @@ const defaultPlaceholderTemplate = `<!DOCTYPE html>
 </body>
 </html>`
 
+// cacheEntry stores a template along with resource generation info for cache invalidation
+type cacheEntry struct {
+	template         *template.Template
+	hsoGeneration    int64
+	configMapVersion string
+}
+
 // PlaceholderHandler handles serving placeholder pages during scale-from-zero
 type PlaceholderHandler struct {
 	k8sClient     kubernetes.Interface
 	routingTable  routing.Table
-	templateCache map[string]*template.Template
+	templateCache map[string]*cacheEntry
+	cacheMutex    sync.RWMutex
 	defaultTmpl   *template.Template
 }
 
@@ -103,7 +112,7 @@ func NewPlaceholderHandler(k8sClient kubernetes.Interface, routingTable routing.
 	return &PlaceholderHandler{
 		k8sClient:     k8sClient,
 		routingTable:  routingTable,
-		templateCache: make(map[string]*template.Template),
+		templateCache: make(map[string]*cacheEntry),
 		defaultTmpl:   defaultTmpl,
 	}, nil
 }
@@ -165,28 +174,44 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 
 	if config.Content != "" {
 		cacheKey := fmt.Sprintf("%s/%s/inline", hso.Namespace, hso.Name)
-		if tmpl, ok := h.templateCache[cacheKey]; ok {
-			return tmpl, nil
+
+		h.cacheMutex.RLock()
+		entry, ok := h.templateCache[cacheKey]
+		if ok && entry.hsoGeneration == hso.Generation {
+			h.cacheMutex.RUnlock()
+			return entry.template, nil
 		}
+		h.cacheMutex.RUnlock()
 
 		tmpl, err := template.New("inline").Parse(config.Content)
 		if err != nil {
 			return nil, err
 		}
-		h.templateCache[cacheKey] = tmpl
+
+		h.cacheMutex.Lock()
+		h.templateCache[cacheKey] = &cacheEntry{
+			template:      tmpl,
+			hsoGeneration: hso.Generation,
+		}
+		h.cacheMutex.Unlock()
 		return tmpl, nil
 	}
 
 	if config.ContentConfigMap != "" {
 		cacheKey := fmt.Sprintf("%s/%s/cm/%s", hso.Namespace, hso.Name, config.ContentConfigMap)
-		if tmpl, ok := h.templateCache[cacheKey]; ok {
-			return tmpl, nil
-		}
 
 		cm, err := h.k8sClient.CoreV1().ConfigMaps(hso.Namespace).Get(ctx, config.ContentConfigMap, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ConfigMap %s: %w", config.ContentConfigMap, err)
 		}
+
+		h.cacheMutex.RLock()
+		entry, ok := h.templateCache[cacheKey]
+		if ok && entry.hsoGeneration == hso.Generation && entry.configMapVersion == cm.ResourceVersion {
+			h.cacheMutex.RUnlock()
+			return entry.template, nil
+		}
+		h.cacheMutex.RUnlock()
 
 		key := config.ContentConfigMapKey
 		if key == "" {
@@ -202,7 +227,14 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 		if err != nil {
 			return nil, err
 		}
-		h.templateCache[cacheKey] = tmpl
+
+		h.cacheMutex.Lock()
+		h.templateCache[cacheKey] = &cacheEntry{
+			template:         tmpl,
+			hsoGeneration:    hso.Generation,
+			configMapVersion: cm.ResourceVersion,
+		}
+		h.cacheMutex.Unlock()
 		return tmpl, nil
 	}
 
