@@ -75,11 +75,6 @@ func newForwardingHandler(
 		if placeholderHandler != nil && httpso.Spec.PlaceholderConfig != nil && httpso.Spec.PlaceholderConfig.Enabled {
 			endpoints, err := endpointsCache.Get(httpso.GetNamespace(), httpso.Spec.ScaleTargetRef.Service)
 			if err == nil && workloadActiveEndpoints(endpoints) == 0 {
-				lggr.Info("serving placeholder page immediately",
-					"namespace", httpso.GetNamespace(),
-					"service", httpso.Spec.ScaleTargetRef.Service,
-					"reason", "zero replicas detected")
-
 				if placeholderErr := placeholderHandler.ServePlaceholder(w, r, httpso); placeholderErr != nil {
 					lggr.Error(placeholderErr, "failed to serve placeholder page")
 					w.WriteHeader(http.StatusBadGateway)
