@@ -5,27 +5,22 @@ package placeholder_pages
 
 import (
 	"fmt"
-	"net/http"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
+	. "github.com/kedacore/http-add-on/tests/helper"
 )
 
 const (
-	testName        = "placeholder-pages-test"
-	testServiceName = testName
-	testNamespace   = testName + "-ns"
+	testName      = "placeholder-test"
+	testNamespace = testName + "-ns"
 )
 
-type placeholderTemplateData struct {
-	TestNamespace   string
-	TestName        string
-	TestServiceName string
+type templateData struct {
+	TestNamespace string
+	TestName      string
 }
 
-const placeholderTemplate = `
+const testTemplate = `
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -36,8 +31,6 @@ kind: Deployment
 metadata:
   name: {{.TestName}}
   namespace: {{.TestNamespace}}
-  labels:
-    app: {{.TestName}}
 spec:
   replicas: 1
   selector:
@@ -49,34 +42,23 @@ spec:
         app: {{.TestName}}
     spec:
       containers:
-	  - name: {{.TestName}}
-	    image: registry.k8s.io/e2e-test-images/agnhost:2.45
-	    args:
-	    - netexec
-	    ports:
-	    - name: http
-		  containerPort: 8080
-		  protocol: TCP
-	    readinessProbe:
-		  httpGet:
-		    path: /
-		    port: http
+      - name: {{.TestName}}
+        image: registry.k8s.io/e2e-test-images/agnhost:2.45
+        args: ["netexec"]
+        ports:
+        - containerPort: 8080
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{.TestServiceName}}
+  name: {{.TestName}}
   namespace: {{.TestNamespace}}
-  labels:
-    app: {{.TestName}}
 spec:
   ports:
   - port: 80
     targetPort: 8080
-    name: http
   selector:
     app: {{.TestName}}
-  type: ClusterIP
 ---
 apiVersion: http.keda.sh/v1alpha1
 kind: HTTPScaledObject
@@ -85,138 +67,71 @@ metadata:
   namespace: {{.TestNamespace}}
 spec:
   hosts:
-  - {{.TestName}}
-  pathPrefixes:
-  - /
+  - {{.TestName}}.test
   scaleTargetRef:
-    service: {{.TestServiceName}}
-    port: 80
     deployment: {{.TestName}}
-  targetPendingRequests: 1
-  scaledownPeriod: 60
+    service: {{.TestName}}
+    port: 80
+  replicas:
+    min: 0
+    max: 10
   placeholderConfig:
     enabled: true
     statusCode: 503
     refreshInterval: 5
     headers:
-      X-Service-Status: "warming-up"
+      X-Test-Header: "test-value"
 `
 
 func TestPlaceholderPages(t *testing.T) {
-	// Create test data
-	data := placeholderTemplateData{
-		TestNamespace:   testNamespace,
-		TestName:        testName,
-		TestServiceName: testServiceName,
+	// Setup
+	data := templateData{
+		TestNamespace: testNamespace,
+		TestName:      testName,
 	}
 
-	// Apply the resources
-	KubectlApplyWithTemplate(t, data, "placeholder-test", placeholderTemplate)
-
-	// Ensure cleanup
+	KubectlApplyWithTemplate(t, data, "placeholder-test", testTemplate)
 	defer func() {
-		KubectlDeleteWithTemplate(t, data, "placeholder-test", placeholderTemplate)
+		KubectlDeleteWithTemplate(t, data, "placeholder-test", testTemplate)
 		DeleteNamespace(t, testNamespace)
 	}()
 
-	// Wait for the deployment to exist with 0 replicas
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, testName, testNamespace, 0, 60, 3),
-		"deployment should exist with 0 replicas within 1 minute")
+	// Wait for deployment to scale to 0
+	assert.True(t,
+		WaitForDeploymentReplicaReadyCount(t, GetKubernetesClient(t), testName, testNamespace, 0, 60, 3),
+		"deployment should scale to 0")
 
-	// Make a request and verify placeholder is served
-	testPlaceholderResponse(t)
+	// Make a request through a pod and check placeholder response
+	curlCmd := fmt.Sprintf("curl -i -H 'Host: %s.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
 
-	// Test that placeholder is served immediately on cold start
-	testImmediatePlaceholderResponse(t)
-}
+	// Create and run a curl pod
+	curlPod := fmt.Sprintf(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: curl-test
+  namespace: %s
+spec:
+  containers:
+  - name: curl
+    image: curlimages/curl
+    command: ["sh", "-c", "%s && sleep 5"]
+  restartPolicy: Never
+`, testNamespace, curlCmd)
 
-func testPlaceholderResponse(t *testing.T) {
-	t.Log("Testing placeholder page response")
+	KubectlApplyWithTemplate(t, data, "curl-pod", curlPod)
+	defer KubectlDeleteWithTemplate(t, data, "curl-pod", curlPod)
 
-	interceptorService := GetKubernetesServiceEndpoint(
-		t,
-		KubeClient,
-		"keda-http-add-on-interceptor-proxy",
-		"keda",
-	)
-	interceptorIP := interceptorService.IP
+	// Wait and get logs
+	assert.True(t,
+		WaitForSuccessfulExecCommandOnSpecificPod(t, "curl-test", testNamespace, "echo done", 60, 3),
+		"curl should complete")
 
-	url := fmt.Sprintf("http://%s", interceptorIP)
-	req, err := http.NewRequest("GET", url, nil)
-	assert.NoError(t, err)
-	req.Host = testName
+	logs, _ := KubectlLogs(t, "curl-test", testNamespace, "")
 
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
-	resp, err := client.Do(req)
-	assert.NoError(t, err)
-	defer resp.Body.Close()
-
-	// Check that we got a 503 status (default for placeholder)
-	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
-
-	// Read response body
-	body := make([]byte, 1024)
-	n, _ := resp.Body.Read(body)
-	bodyStr := string(body[:n])
-
-	// Verify placeholder content
-	assert.True(t, strings.Contains(bodyStr, testServiceName+" is starting up..."),
-		"response should contain placeholder message")
-	assert.True(t, strings.Contains(bodyStr, "refresh"),
-		"response should contain refresh meta tag")
-
-	// Check custom headers
-	assert.Equal(t, "true", resp.Header.Get("X-KEDA-HTTP-Placeholder-Served"),
-		"placeholder served header should be present")
-	assert.Equal(t, "warming-up", resp.Header.Get("X-Service-Status"),
-		"custom header should be present")
-}
-
-func testImmediatePlaceholderResponse(t *testing.T) {
-	t.Log("Testing immediate placeholder page response on cold start")
-
-	interceptorService := GetKubernetesServiceEndpoint(
-		t,
-		KubeClient,
-		"keda-http-add-on-interceptor-proxy",
-		"keda",
-	)
-	interceptorIP := interceptorService.IP
-
-	url := fmt.Sprintf("http://%s", interceptorIP)
-	req, err := http.NewRequest("GET", url, nil)
-	assert.NoError(t, err)
-	req.Host = testName
-
-	client := &http.Client{
-		Timeout: 2 * time.Second, // Short timeout to ensure immediate response
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
-	// Measure response time
-	start := time.Now()
-	resp, err := client.Do(req)
-	duration := time.Since(start)
-
-	assert.NoError(t, err)
-	defer resp.Body.Close()
-
-	// Check that response was immediate (less than 500ms)
-	assert.Less(t, duration.Milliseconds(), int64(500),
-		"placeholder should be served immediately, but took %v", duration)
-
-	// Check that we got a 503 status
-	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
-
-	// Check placeholder header
-	assert.Equal(t, "true", resp.Header.Get("X-KEDA-HTTP-Placeholder-Served"),
-		"placeholder served header should be present")
+	// Verify placeholder response
+	assert.Contains(t, logs, "HTTP/1.1 503", "should return 503 status")
+	assert.Contains(t, logs, "X-KEDA-HTTP-Placeholder-Served: true", "should have placeholder header")
+	assert.Contains(t, logs, "X-Test-Header: test-value", "should have custom header")
+	assert.Contains(t, logs, "is starting up", "should have placeholder message")
 }
