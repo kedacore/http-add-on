@@ -208,8 +208,3 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 
 	return h.defaultTmpl, nil
 }
-
-// ClearCache clears the template cache
-func (h *PlaceholderHandler) ClearCache() {
-	h.templateCache = make(map[string]*template.Template)
-}
