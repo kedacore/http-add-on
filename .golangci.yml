@@ -65,6 +65,6 @@ formatters:
       - builtin$
       - examples$
       # Exclude gci check for //+kubebuilder:scaffold:imports comments. Waiting to
-  # resolve https://github.com/kedacore/keda/issues/4379
+      # resolve https://github.com/kedacore/keda/issues/4379
       - operator/controllers/http/suite_test.go
       - operator/main.go
