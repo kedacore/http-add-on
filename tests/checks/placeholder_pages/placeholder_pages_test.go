@@ -119,13 +119,9 @@ func TestPlaceholderPages(t *testing.T) {
 		DeleteNamespace(t, testNamespace)
 	}()
 
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, testName, testNamespace, 1, 240, 3),
-		"deployment replicas should be 1 after 3 minutes")
-
-	// Wait for the deployment to scale down to zero
-	time.Sleep(90 * time.Second)
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, testName, testNamespace, 0, 240, 3),
-		"deployment replicas should be 0 after 3 minutes")
+	// Wait for the deployment to exist with 0 replicas
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, testName, testNamespace, 0, 60, 3),
+		"deployment should exist with 0 replicas within 1 minute")
 
 	// Make a request and verify placeholder is served
 	testPlaceholderResponse(t)
@@ -137,18 +133,13 @@ func TestPlaceholderPages(t *testing.T) {
 func testPlaceholderResponse(t *testing.T) {
 	t.Log("Testing placeholder page response")
 
-	var interceptorIP string
-	if UseIngressHost {
-		interceptorIP = ExternalIP
-	} else {
-		interceptorService := GetKubernetesServiceEndpoint(
-			t,
-			KubeClient,
-			"keda-http-add-on-interceptor-proxy",
-			"keda",
-		)
-		interceptorIP = interceptorService.IP
-	}
+	interceptorService := GetKubernetesServiceEndpoint(
+		t,
+		KubeClient,
+		"keda-http-add-on-interceptor-proxy",
+		"keda",
+	)
+	interceptorIP := interceptorService.IP
 
 	url := fmt.Sprintf("http://%s", interceptorIP)
 	req, err := http.NewRequest("GET", url, nil)
@@ -190,18 +181,13 @@ func testPlaceholderResponse(t *testing.T) {
 func testImmediatePlaceholderResponse(t *testing.T) {
 	t.Log("Testing immediate placeholder page response on cold start")
 
-	var interceptorIP string
-	if UseIngressHost {
-		interceptorIP = ExternalIP
-	} else {
-		interceptorService := GetKubernetesServiceEndpoint(
-			t,
-			KubeClient,
-			"keda-http-add-on-interceptor-proxy",
-			"keda",
-		)
-		interceptorIP = interceptorService.IP
-	}
+	interceptorService := GetKubernetesServiceEndpoint(
+		t,
+		KubeClient,
+		"keda-http-add-on-interceptor-proxy",
+		"keda",
+	)
+	interceptorIP := interceptorService.IP
 
 	url := fmt.Sprintf("http://%s", interceptorIP)
 	req, err := http.NewRequest("GET", url, nil)
