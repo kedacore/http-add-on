@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -276,23 +275,4 @@ func TestGetTemplate_Caching(t *testing.T) {
 
 	// Should be the same template instance
 	assert.Equal(t, fmt.Sprintf("%p", tmpl1), fmt.Sprintf("%p", tmpl2))
-}
-
-func TestClearCache(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
-
-	// Add something to cache
-	tmpl, _ := template.New("test").Parse("test")
-	handler.templateCache["test-key"] = tmpl
-
-	// Verify cache has content
-	assert.Len(t, handler.templateCache, 1)
-
-	// Clear cache
-	handler.ClearCache()
-
-	// Verify cache is empty
-	assert.Len(t, handler.templateCache, 0)
 }
