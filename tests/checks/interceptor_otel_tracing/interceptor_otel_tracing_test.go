@@ -28,7 +28,7 @@ var (
 	host                   = testName
 	minReplicaCount        = 0
 	maxReplicaCount        = 1
-	otelCollectorZipKinURL = "http://zipkin.zipkin:9411/api/v2/traces?serviceName=keda-http-interceptor\\&annotationQuery=net.host.name+and+net.host.name\\%3Dinterceptor-otel-tracing-test"
+	otelCollectorZipKinURL = "http://zipkin.zipkin:9411/api/v2/traces?serviceName=keda-http-interceptor\\&server.address=interceptor-otel-tracing-test\\&limit=1000"
 	traces                 = Trace{}
 )
 
@@ -58,7 +58,7 @@ type Trace [][]struct {
 		HTTPFlavor                string `json:"http.flavor"`
 		HTTPMethod                string `json:"http.method"`
 		HTTPResponseContentLength string `json:"http.response_content_length"`
-		HTTPStatusCode            string `json:"http.status_code"`
+		HTTPStatusCode            string `json:"http.response.status_code"`
 		HTTPURL                   string `json:"http.url"`
 		HTTPUserAgent             string `json:"http.user_agent"`
 		NetPeerName               string `json:"net.peer.name"`
@@ -129,6 +129,7 @@ metadata:
   name: generate-request
   namespace: {{.TestNamespace}}
 spec:
+  ttlSecondsAfterFinished: 0
   template:
     spec:
       containers:
@@ -257,8 +258,8 @@ func TestTraceGeneration(t *testing.T) {
 	// Send a test request to the interceptor
 	sendLoad(t, kc, data)
 
-	// setting sleep for 5 sec so traces are sent over
-	time.Sleep(5 * time.Second)
+	// setting sleep for 15 sec so traces are sent over
+	time.Sleep(15 * time.Second)
 
 	// Fetch metrics and validate them
 	traces = fetchAndParseZipkinTraces(t, fmt.Sprintf("curl %s", otelCollectorZipKinURL))
@@ -281,8 +282,9 @@ func sendLoad(t *testing.T, kc *kubernetes.Clientset, data templateData) {
 }
 
 func fetchAndParseZipkinTraces(t *testing.T, cmd string) Trace {
-	out, _, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
+	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
 	assert.NoErrorf(t, err, "cannot execute command - %s", err)
+	assert.Empty(t, errOut, "cannot execute command - %s", errOut)
 
 	var traces Trace
 

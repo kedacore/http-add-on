@@ -79,7 +79,7 @@ func newForwardingHandler(
 		if err != nil {
 			lggr.Error(err, "wait function failed, not forwarding request")
 			w.WriteHeader(http.StatusBadGateway)
-			if _, err := w.Write([]byte(fmt.Sprintf("error on backend (%s)", err))); err != nil {
+			if _, err := fmt.Fprintf(w, "error on backend (%s)", err); err != nil {
 				lggr.Error(err, "could not write error response to client")
 			}
 			return

@@ -60,7 +60,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	logger.Info("Reconciliation start")
 
 	httpso := &httpv1alpha1.HTTPScaledObject{}
-	if err := r.Client.Get(ctx, req.NamespacedName, httpso); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, httpso); err != nil {
 		if k8serrors.IsNotFound(err) {
 			// If the HTTPScaledObject wasn't found, it might have
 			// been deleted between the reconcile and the get.
