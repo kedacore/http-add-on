@@ -44,7 +44,7 @@ func (tm tableMemory) Remember(httpso *httpv1alpha1.HTTPScaledObject) TableMemor
 		newStore, oldHTTPSO, _ := store.Insert(key, httpso)
 
 		// oldest HTTPScaledObject has precedence
-		if oldHTTPSO != nil && httpso.GetCreationTimestamp().Time.After(oldHTTPSO.GetCreationTimestamp().Time) {
+		if oldHTTPSO != nil && httpso.GetCreationTimestamp().After(oldHTTPSO.GetCreationTimestamp().Time) {
 			continue
 		}
 

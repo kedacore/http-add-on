@@ -1,76 +1,70 @@
-# options for analysis running
+version: "2"
 run:
-  # default concurrency is a available CPU number
   concurrency: 4
-  # add the build tags to include e2e tests files
   build-tags:
-  - e2e
-  # timeout for analysis, e.g. 30s, 5m, default is 1m
-  timeout: 10m
+    - e2e
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  disable-all: true
+  default: none
   enable:
-    - typecheck
-    - dupl
-    - goprintffuncname
-    - govet
-    - nolintlint
-    #- rowserrcheck
-    - gofmt
-    - revive
-    - goimports
-    - misspell
     - bodyclose
-    - unconvert
-    - ineffassign
-    - staticcheck
-    - exportloopref
     #- depguard #https://github.com/kedacore/keda/issues/4980
     - dogsled
+    - dupl
     - errcheck
     #- funlen
-    - gci
     - goconst
     - gocritic
     - gocyclo
-    - gosimple
-    - stylecheck
-    - unused
-    - unparam
+    - goprintffuncname
+    - govet
+    - ineffassign
+    - misspell
+    - nolintlint
+    - revive
+    - staticcheck
     - unconvert
+    - unparam
+    - unused
     - whitespace
-
-issues:
-  include:
-  - EXC0002 # disable excluding of issues about comments from golint
-  # Excluding configuration per-path, per-linter, per-text and per-source
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - unparam
-        - revive
-  # Exclude gci check for //+kubebuilder:scaffold:imports comments. Waiting to
+  settings:
+    funlen:
+      lines: 80
+      statements: 40
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - revive
+          - unparam
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/kedacore/http-add-on)
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      # Exclude gci check for //+kubebuilder:scaffold:imports comments. Waiting to
   # resolve https://github.com/kedacore/keda/issues/4379
-    - path: operator/controllers/http/suite_test.go
-      linters:
-        - gci
-    - path: operator/main.go
-      linters:
-        - gci
-  # Exlude httpso.Spec.ScaleTargetRef.Deployment until we remove it in v0.9.0
-    - linters:
-       - staticcheck
-      text: "SA1019: httpso.Spec.ScaleTargetRef.Deployment"
-
-linters-settings:
-  funlen:
-    lines: 80
-    statements: 40
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/kedacore/http-add-on)
+      - operator/controllers/http/suite_test.go
+      - operator/main.go
