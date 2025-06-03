@@ -103,20 +103,6 @@ func TestPlaceholderPages(t *testing.T) {
 	KubectlApplyWithTemplate(t, data, "placeholder-test", testTemplate)
 	defer KubectlDeleteWithTemplate(t, data, "placeholder-test", testTemplate)
 
-	// Wait for deployment to be at 0 replicas (since min is 0)
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, testName, testNamespace, 0, 6, 10),
-		"deployment should be at 0 replicas")
-
-	// Test placeholder response
-	testPlaceholderResponse(t, kc)
-
-	// Test custom placeholder with script injection
-	testCustomPlaceholderWithScript(t, kc, data)
-}
-
-func testPlaceholderResponse(t *testing.T, kc *kubernetes.Clientset) {
-	t.Log("--- testing placeholder response ---")
-
 	// Create a test pod to make requests
 	clientPod := `
 apiVersion: v1
@@ -131,10 +117,6 @@ spec:
     command: ["sleep", "3600"]
 `
 	// Create the pod using KubectlApplyWithTemplate
-	data := templateData{
-		TestNamespace: testNamespace,
-		TestName:      testName,
-	}
 	KubectlApplyWithTemplate(t, data, "curl-client", clientPod)
 	defer KubectlDeleteWithTemplate(t, data, "curl-client", clientPod)
 
@@ -144,6 +126,20 @@ spec:
 
 	// Give pod time to fully initialize
 	_, _ = ExecuteCommand("sleep 5")
+
+	// Wait for deployment to be at 0 replicas (since min is 0)
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, testName, testNamespace, 0, 6, 10),
+		"deployment should be at 0 replicas")
+
+	// Test placeholder response
+	testPlaceholderResponse(t, kc)
+
+	// Test custom placeholder with script injection
+	testCustomPlaceholderWithScript(t, kc, data)
+}
+
+func testPlaceholderResponse(t *testing.T, kc *kubernetes.Clientset) {
+	t.Log("--- testing placeholder response ---")
 
 	// Make request through interceptor
 	curlCmd := fmt.Sprintf("curl -si -H 'Host: %s.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
@@ -191,7 +187,7 @@ spec:
     content: |
       <html>
         <body>
-          <h1>Custom placeholder for {{"{{"}} .ServiceName {{"}}"}}</h1>
+          <h1>Custom placeholder for {{ "{{" }}.ServiceName{{ "}}" }}</h1>
           <p>Please wait...</p>
         </body>
       </html>
