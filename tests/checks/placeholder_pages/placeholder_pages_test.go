@@ -109,6 +109,9 @@ func TestPlaceholderPages(t *testing.T) {
 
 	// Test placeholder response
 	testPlaceholderResponse(t, kc)
+
+	// Test custom placeholder with script injection
+	testCustomPlaceholderWithScript(t, kc, data)
 }
 
 func testPlaceholderResponse(t *testing.T, kc *kubernetes.Clientset) {
@@ -158,4 +161,64 @@ spec:
 	assert.Contains(t, stdout, "X-Test-Header", "should have custom header")
 	assert.Contains(t, stdout, "test-value", "should have custom header value")
 	assert.Contains(t, stdout, "is starting up", "should have placeholder message")
+}
+
+func testCustomPlaceholderWithScript(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+	t.Log("--- testing custom placeholder with script injection ---")
+
+	// Create a custom HTTPScaledObject with inline content
+	customTemplate := `
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: {{.TestName}}-custom
+  namespace: {{.TestNamespace}}
+spec:
+  hosts:
+  - {{.TestName}}-custom.test
+  scaleTargetRef:
+    name: {{.TestName}}
+    service: {{.TestName}}
+    port: 80
+  replicas:
+    min: 0
+    max: 10
+  scaledownPeriod: 10
+  placeholderConfig:
+    enabled: true
+    statusCode: 503
+    refreshInterval: 7
+    content: |
+      <html>
+        <body>
+          <h1>Custom placeholder for {{"{{"}} .ServiceName {{"}}"}}</h1>
+          <p>Please wait...</p>
+        </body>
+      </html>
+`
+
+	KubectlApplyWithTemplate(t, data, "custom-placeholder", customTemplate)
+	defer KubectlDeleteWithTemplate(t, data, "custom-placeholder", customTemplate)
+
+	// Give time for the new HTTPScaledObject to be processed
+	_, _ = ExecuteCommand("sleep 5")
+
+	// Make request to custom placeholder
+	curlCmd := fmt.Sprintf("curl -s -H 'Host: %s-custom.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
+	stdout, stderr, err := ExecCommandOnSpecificPod(t, "curl-client", testNamespace, curlCmd)
+	t.Logf("custom placeholder output: %s", stdout)
+	if stderr != "" {
+		t.Logf("custom placeholder stderr: %s", stderr)
+	}
+
+	assert.NoError(t, err, "curl command should succeed")
+
+	// Verify custom content is there
+	assert.Contains(t, stdout, "Custom placeholder for", "should have custom placeholder content")
+	assert.Contains(t, stdout, "Please wait...", "should have custom message")
+
+	// Verify script was injected
+	assert.Contains(t, stdout, "checkServiceStatus", "should have injected checkServiceStatus function")
+	assert.Contains(t, stdout, "X-KEDA-HTTP-Placeholder-Served", "should have header check in script")
+	assert.Contains(t, stdout, "checkInterval =  7  * 1000", "should have correct refresh interval in script")
 }

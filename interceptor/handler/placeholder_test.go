@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -128,6 +129,10 @@ func TestServePlaceholder_InlineContent(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Contains(t, w.Body.String(), "Custom placeholder for test-service")
+
+	// Verify script was injected
+	assert.Contains(t, w.Body.String(), "checkServiceStatus")
+	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
 }
 
 func TestServePlaceholder_ConfigMapContent(t *testing.T) {
@@ -171,6 +176,10 @@ func TestServePlaceholder_ConfigMapContent(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 	assert.Contains(t, w.Body.String(), "ConfigMap placeholder for test-service")
+
+	// Verify script was injected
+	assert.Contains(t, w.Body.String(), "checkServiceStatus")
+	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
 }
 
 func TestServePlaceholder_CustomHeaders(t *testing.T) {
@@ -538,4 +547,268 @@ func TestGetTemplate_ConcurrentCacheUpdates(t *testing.T) {
 	for err := range errors {
 		t.Errorf("Concurrent cache update error: %v", err)
 	}
+}
+
+func TestInjectPlaceholderScript(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "HTML with body tag",
+			input:    `<html><body><h1>Hello</h1></body></html>`,
+			expected: `<html><body><h1>Hello</h1>` + placeholderScript + `</body></html>`,
+		},
+		{
+			name:     "HTML with uppercase BODY tag",
+			input:    `<HTML><BODY><H1>Hello</H1></BODY></HTML>`,
+			expected: `<HTML><BODY><H1>Hello</H1>` + placeholderScript + `</BODY></HTML>`,
+		},
+		{
+			name:     "HTML without body tag",
+			input:    `<html><div>Hello</div></html>`,
+			expected: `<html><div>Hello</div>` + placeholderScript + `</html>`,
+		},
+		{
+			name:     "HTML fragment with angle brackets",
+			input:    `<p>Just some text</p>`,
+			expected: `<p>Just some text</p>` + placeholderScript,
+		},
+		{
+			name:  "Empty string",
+			input: ``,
+			expected: fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Service Starting</title>
+</head>
+<body>
+
+%s
+</body>
+</html>`, placeholderScript),
+		},
+		{
+			name:     "Multiple body tags (uses last one)",
+			input:    `<body>First</body><body>Second</body>`,
+			expected: `<body>First</body><body>Second` + placeholderScript + `</body>`,
+		},
+		{
+			name:     "HTML with only html close tag",
+			input:    `<html><div>Hello</div></html>`,
+			expected: `<html><div>Hello</div>` + placeholderScript + `</html>`,
+		},
+		{
+			name:  "Non-HTML content gets wrapped",
+			input: `Just plain text without HTML`,
+			expected: fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Service Starting</title>
+</head>
+<body>
+Just plain text without HTML
+%s
+</body>
+</html>`, placeholderScript),
+		},
+		{
+			name:     "Partial HTML without closing tags",
+			input:    `<div>Some content</div>`,
+			expected: `<div>Some content</div>` + placeholderScript,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := injectPlaceholderScript(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestServePlaceholder_InlineContentWithScriptInjection(t *testing.T) {
+	k8sClient := fake.NewSimpleClientset()
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	// Custom content without the script
+	customContent := `<html><body><h1>Custom placeholder for {{.ServiceName}}</h1></body></html>`
+
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: v1alpha1.ScaleTargetRef{
+				Service: "test-service",
+			},
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Enabled:         true,
+				StatusCode:      503,
+				RefreshInterval: 10,
+				Content:         customContent,
+			},
+		},
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	w := httptest.NewRecorder()
+
+	err := handler.ServePlaceholder(w, req, hso)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+
+	// Check that custom content is there
+	assert.Contains(t, w.Body.String(), "Custom placeholder for test-service")
+
+	// Check that script was injected
+	assert.Contains(t, w.Body.String(), "checkServiceStatus")
+	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
+	assert.Contains(t, w.Body.String(), "checkInterval =  10  * 1000")
+}
+
+func TestServePlaceholder_ConfigMapContentWithScriptInjection(t *testing.T) {
+	// Create fake k8s client with a ConfigMap
+	configMapContent := `<html><body><h1>ConfigMap placeholder for {{.ServiceName}}</h1></body></html>`
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "placeholder-cm",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"template.html": configMapContent,
+		},
+	}
+	k8sClient := fake.NewSimpleClientset(cm)
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: v1alpha1.ScaleTargetRef{
+				Service: "test-service",
+			},
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Enabled:          true,
+				StatusCode:       503,
+				RefreshInterval:  15,
+				ContentConfigMap: "placeholder-cm",
+			},
+		},
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	w := httptest.NewRecorder()
+
+	err := handler.ServePlaceholder(w, req, hso)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+
+	// Check that custom content is there
+	assert.Contains(t, w.Body.String(), "ConfigMap placeholder for test-service")
+
+	// Check that script was injected
+	assert.Contains(t, w.Body.String(), "checkServiceStatus")
+	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
+	assert.Contains(t, w.Body.String(), "checkInterval =  15  * 1000")
+}
+
+func TestServePlaceholder_NoBodyTagScriptInjection(t *testing.T) {
+	k8sClient := fake.NewSimpleClientset()
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	// Custom content without body tag
+	customContent := `<div>Simple placeholder for {{.ServiceName}}</div>`
+
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: v1alpha1.ScaleTargetRef{
+				Service: "test-service",
+			},
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Enabled:         true,
+				StatusCode:      503,
+				RefreshInterval: 5,
+				Content:         customContent,
+			},
+		},
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	w := httptest.NewRecorder()
+
+	err := handler.ServePlaceholder(w, req, hso)
+	assert.NoError(t, err)
+
+	body := w.Body.String()
+	// Check that custom content is there
+	assert.Contains(t, body, "Simple placeholder for test-service")
+
+	// Check that script was appended at the end
+	assert.True(t, strings.HasSuffix(body, "</script>"))
+	assert.Contains(t, body, "checkServiceStatus")
+}
+
+func TestServePlaceholder_NonHTMLContentWrapping(t *testing.T) {
+	k8sClient := fake.NewSimpleClientset()
+	routingTable := test.NewTable()
+	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+
+	// Non-HTML content that should get wrapped
+	plainTextContent := `Welcome! Your service is starting up.
+Please wait a moment...`
+
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: v1alpha1.ScaleTargetRef{
+				Service: "test-service",
+			},
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Enabled:         true,
+				StatusCode:      503,
+				RefreshInterval: 5,
+				Content:         plainTextContent,
+			},
+		},
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	w := httptest.NewRecorder()
+
+	err := handler.ServePlaceholder(w, req, hso)
+	assert.NoError(t, err)
+
+	body := w.Body.String()
+
+	// Check that content was wrapped in proper HTML
+	assert.Contains(t, body, "<!DOCTYPE html>")
+	assert.Contains(t, body, "<html>")
+	assert.Contains(t, body, "<body>")
+	assert.Contains(t, body, "</body>")
+	assert.Contains(t, body, "</html>")
+
+	// Check that original content is preserved
+	assert.Contains(t, body, "Welcome! Your service is starting up.")
+	assert.Contains(t, body, "Please wait a moment...")
+
+	// Check that script was injected
+	assert.Contains(t, body, "checkServiceStatus")
 }

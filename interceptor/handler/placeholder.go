@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,11 +16,38 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const defaultPlaceholderTemplate = `<!DOCTYPE html>
+const placeholderScript = `<script>
+(function() {
+	const checkInterval = {{.RefreshInterval}} * 1000;
+	
+	async function checkServiceStatus() {
+		try {
+			const response = await fetch(window.location.href, {
+				method: 'HEAD',
+				cache: 'no-cache'
+			});
+			
+			const placeholderHeader = response.headers.get('X-KEDA-HTTP-Placeholder-Served');
+			
+			if (placeholderHeader !== 'true') {
+				window.location.reload();
+			} else {
+				setTimeout(checkServiceStatus, checkInterval);
+			}
+		} catch (error) {
+			console.error('Error checking service status:', error);
+			setTimeout(checkServiceStatus, checkInterval);
+		}
+	}
+	
+	setTimeout(checkServiceStatus, checkInterval);
+})();
+</script>`
+
+const defaultPlaceholderTemplateWithoutScript = `<!DOCTYPE html>
 <html>
 <head>
     <title>Service Starting</title>
-    <meta http-equiv="refresh" content="{{.RefreshInterval}}">
     <meta charset="utf-8">
     <style>
         body {
@@ -104,7 +132,9 @@ type PlaceholderData struct {
 
 // NewPlaceholderHandler creates a new placeholder handler
 func NewPlaceholderHandler(k8sClient kubernetes.Interface, routingTable routing.Table) (*PlaceholderHandler, error) {
-	defaultTmpl, err := template.New("default").Parse(defaultPlaceholderTemplate)
+	// Combine the default template with the script
+	defaultTemplateWithScript := injectPlaceholderScript(defaultPlaceholderTemplateWithoutScript)
+	defaultTmpl, err := template.New("default").Parse(defaultTemplateWithScript)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse default template: %w", err)
 	}
@@ -115,6 +145,44 @@ func NewPlaceholderHandler(k8sClient kubernetes.Interface, routingTable routing.
 		templateCache: make(map[string]*cacheEntry),
 		defaultTmpl:   defaultTmpl,
 	}, nil
+}
+
+// injectPlaceholderScript injects the placeholder refresh script into a template
+func injectPlaceholderScript(templateContent string) string {
+	lowerContent := strings.ToLower(templateContent)
+
+	// Look for </body> tag (case-insensitive)
+	bodyCloseIndex := strings.LastIndex(lowerContent, "</body>")
+	if bodyCloseIndex != -1 {
+		// Insert script before </body>
+		return templateContent[:bodyCloseIndex] + placeholderScript + templateContent[bodyCloseIndex:]
+	}
+
+	// Look for </html> tag if no body tag
+	htmlCloseIndex := strings.LastIndex(lowerContent, "</html>")
+	if htmlCloseIndex != -1 {
+		// Insert script before </html>
+		return templateContent[:htmlCloseIndex] + placeholderScript + templateContent[htmlCloseIndex:]
+	}
+
+	// Check if content appears to be HTML (has any HTML tags)
+	if strings.Contains(templateContent, "<") && strings.Contains(templateContent, ">") {
+		// It looks like HTML, append the script
+		return templateContent + placeholderScript
+	}
+
+	// For non-HTML content, wrap it in a minimal HTML structure with the script
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Service Starting</title>
+</head>
+<body>
+%s
+%s
+</body>
+</html>`, templateContent, placeholderScript)
 }
 
 // ServePlaceholder serves a placeholder page based on the HTTPScaledObject configuration
@@ -183,7 +251,8 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 		}
 		h.cacheMutex.RUnlock()
 
-		tmpl, err := template.New("inline").Parse(config.Content)
+		injectedContent := injectPlaceholderScript(config.Content)
+		tmpl, err := template.New("inline").Parse(injectedContent)
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +292,8 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 			return nil, fmt.Errorf("key %s not found in ConfigMap %s", key, config.ContentConfigMap)
 		}
 
-		tmpl, err := template.New("configmap").Parse(content)
+		injectedContent := injectPlaceholderScript(content)
+		tmpl, err := template.New("configmap").Parse(injectedContent)
 		if err != nil {
 			return nil, err
 		}
