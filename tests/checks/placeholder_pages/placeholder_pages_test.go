@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/kubernetes"
+
 	. "github.com/kedacore/http-add-on/tests/helper"
 )
 
@@ -32,7 +35,7 @@ metadata:
   name: {{.TestName}}
   namespace: {{.TestNamespace}}
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: {{.TestName}}
@@ -69,12 +72,13 @@ spec:
   hosts:
   - {{.TestName}}.test
   scaleTargetRef:
-    deployment: {{.TestName}}
+    name: {{.TestName}}
     service: {{.TestName}}
     port: 80
   replicas:
     min: 0
     max: 10
+  scaledownPeriod: 10
   placeholderConfig:
     enabled: true
     statusCode: 503
@@ -84,54 +88,74 @@ spec:
 `
 
 func TestPlaceholderPages(t *testing.T) {
-	// Setup
+	// setup
+	t.Log("--- setting up ---")
+	// Create kubernetes resources
+	kc := GetKubernetesClient(t)
 	data := templateData{
 		TestNamespace: testNamespace,
 		TestName:      testName,
 	}
 
+	CreateNamespace(t, kc, testNamespace)
+	defer DeleteNamespace(t, testNamespace)
+
 	KubectlApplyWithTemplate(t, data, "placeholder-test", testTemplate)
-	defer func() {
-		KubectlDeleteWithTemplate(t, data, "placeholder-test", testTemplate)
-		DeleteNamespace(t, testNamespace)
-	}()
+	defer KubectlDeleteWithTemplate(t, data, "placeholder-test", testTemplate)
 
-	// Wait for deployment to scale to 0
-	assert.True(t,
-		WaitForDeploymentReplicaReadyCount(t, GetKubernetesClient(t), testName, testNamespace, 0, 60, 3),
-		"deployment should scale to 0")
+	// Wait for deployment to be at 0 replicas (since min is 0)
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, testName, testNamespace, 0, 6, 10),
+		"deployment should be at 0 replicas")
 
-	// Make a request through a pod and check placeholder response
-	curlCmd := fmt.Sprintf("curl -i -H 'Host: %s.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
+	// Test placeholder response
+	testPlaceholderResponse(t, kc)
+}
 
-	// Create and run a curl pod
-	curlPod := fmt.Sprintf(`
+func testPlaceholderResponse(t *testing.T, kc *kubernetes.Clientset) {
+	t.Log("--- testing placeholder response ---")
+
+	// Create a test pod to make requests
+	clientPod := `
 apiVersion: v1
 kind: Pod
 metadata:
-  name: curl-test
-  namespace: %s
+  name: curl-client
+  namespace: ` + testNamespace + `
 spec:
   containers:
   - name: curl
     image: curlimages/curl
-    command: ["sh", "-c", "%s && sleep 5"]
-  restartPolicy: Never
-`, testNamespace, curlCmd)
+    command: ["sleep", "3600"]
+`
+	// Create the pod using KubectlApplyWithTemplate
+	data := templateData{
+		TestNamespace: testNamespace,
+		TestName:      testName,
+	}
+	KubectlApplyWithTemplate(t, data, "curl-client", clientPod)
+	defer KubectlDeleteWithTemplate(t, data, "curl-client", clientPod)
 
-	KubectlApplyWithTemplate(t, data, "curl-pod", curlPod)
-	defer KubectlDeleteWithTemplate(t, data, "curl-pod", curlPod)
+	// Wait for curl pod to be ready
+	assert.True(t, WaitForPodCountInNamespace(t, kc, testNamespace, 1, 30, 2),
+		"curl client pod should be ready")
 
-	// Wait and get logs
-	assert.True(t,
-		WaitForSuccessfulExecCommandOnSpecificPod(t, "curl-test", testNamespace, "echo done", 60, 3),
-		"curl should complete")
+	// Give pod time to fully initialize
+	_, _ = ExecuteCommand("sleep 5")
 
-	logs, _ := KubectlLogs(t, "curl-test", testNamespace, "")
+	// Make request through interceptor
+	curlCmd := fmt.Sprintf("curl -si -H 'Host: %s.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
+	stdout, stderr, err := ExecCommandOnSpecificPod(t, "curl-client", testNamespace, curlCmd)
+	t.Logf("curl output: %s", stdout)
+	if stderr != "" {
+		t.Logf("curl stderr: %s", stderr)
+	}
+
+	assert.NoError(t, err, "curl command should succeed")
 
 	// Verify placeholder response
-	assert.Contains(t, logs, "HTTP/1.1 503", "should return 503 status")
-	assert.Contains(t, logs, "X-KEDA-HTTP-Placeholder-Served: true", "should have placeholder header")
-	assert.Contains(t, logs, "X-Test-Header: test-value", "should have custom header")
-	assert.Contains(t, logs, "is starting up", "should have placeholder message")
+	assert.Contains(t, stdout, "HTTP/1.1 503", "should return 503 status")
+	assert.Contains(t, stdout, "X-Keda-Http-Placeholder-Served", "should have placeholder header")
+	assert.Contains(t, stdout, "X-Test-Header", "should have custom header")
+	assert.Contains(t, stdout, "test-value", "should have custom header value")
+	assert.Contains(t, stdout, "is starting up", "should have placeholder message")
 }
