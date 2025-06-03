@@ -24,11 +24,6 @@ type templateData struct {
 }
 
 const testTemplate = `
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{.TestNamespace}}
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -124,8 +119,8 @@ spec:
 	assert.True(t, WaitForPodCountInNamespace(t, kc, testNamespace, 1, 30, 2),
 		"curl client pod should be ready")
 
-	// Give pod time to fully initialize
-	_, _ = ExecuteCommand("sleep 5")
+	// Give container time to fully initialize
+	_, _ = ExecuteCommand("sleep 2")
 
 	// Test placeholder response
 	testPlaceholderResponse(t, kc)
