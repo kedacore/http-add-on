@@ -192,9 +192,6 @@ spec:
 	KubectlApplyWithTemplate(t, data, "custom-placeholder", customTemplate)
 	defer KubectlDeleteWithTemplate(t, data, "custom-placeholder", customTemplate)
 
-	// Give time for the new HTTPScaledObject to be processed
-	_, _ = ExecuteCommand("sleep 10")
-
 	// Make request to custom placeholder
 	curlCmd := fmt.Sprintf("curl -s -H 'Host: %s-custom.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
 	stdout, stderr, err := ExecCommandOnSpecificPod(t, "curl-client", testNamespace, curlCmd)
