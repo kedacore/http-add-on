@@ -89,10 +89,6 @@ const defaultPlaceholderTemplateWithoutScript = `<!DOCTYPE html>
             color: #666;
             margin: 0.5rem 0;
         }
-        .small {
-            font-size: 0.875rem;
-            color: #999;
-        }
     </style>
 </head>
 <body>
@@ -100,7 +96,6 @@ const defaultPlaceholderTemplateWithoutScript = `<!DOCTYPE html>
         <h1>{{.ServiceName}} is starting up...</h1>
         <div class="spinner"></div>
         <p>Please wait while we prepare your service.</p>
-        <p class="small">This page will refresh automatically every {{.RefreshInterval}} seconds.</p>
     </div>
 </body>
 </html>`
