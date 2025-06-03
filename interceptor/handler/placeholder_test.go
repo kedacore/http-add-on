@@ -92,7 +92,8 @@ func TestServePlaceholder_DefaultTemplate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 	assert.Contains(t, w.Body.String(), "test-service is starting up...")
-	assert.Contains(t, w.Body.String(), "refresh")
+	assert.Contains(t, w.Body.String(), "checkServiceStatus")
+	assert.Contains(t, w.Body.String(), "checkInterval =  5  * 1000")
 	assert.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
 	assert.Equal(t, "true", w.Header().Get("X-KEDA-HTTP-Placeholder-Served"))
 }
