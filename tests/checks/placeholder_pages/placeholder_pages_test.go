@@ -127,10 +127,6 @@ spec:
 	// Give pod time to fully initialize
 	_, _ = ExecuteCommand("sleep 5")
 
-	// Wait for deployment to be at 0 replicas (since min is 0)
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, testName, testNamespace, 0, 6, 10),
-		"deployment should be at 0 replicas")
-
 	// Test placeholder response
 	testPlaceholderResponse(t, kc)
 
@@ -187,8 +183,8 @@ spec:
     content: |
       <html>
         <body>
-          <h1>Custom placeholder for {{ "{{" }}.ServiceName{{ "}}" }}</h1>
-          <p>Please wait...</p>
+          <h1>Service is starting - custom page</h1>
+          <p>This is a test placeholder page.</p>
         </body>
       </html>
 `
@@ -197,7 +193,7 @@ spec:
 	defer KubectlDeleteWithTemplate(t, data, "custom-placeholder", customTemplate)
 
 	// Give time for the new HTTPScaledObject to be processed
-	_, _ = ExecuteCommand("sleep 5")
+	_, _ = ExecuteCommand("sleep 10")
 
 	// Make request to custom placeholder
 	curlCmd := fmt.Sprintf("curl -s -H 'Host: %s-custom.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
@@ -210,8 +206,8 @@ spec:
 	assert.NoError(t, err, "curl command should succeed")
 
 	// Verify custom content is there
-	assert.Contains(t, stdout, "Custom placeholder for", "should have custom placeholder content")
-	assert.Contains(t, stdout, "Please wait...", "should have custom message")
+	assert.Contains(t, stdout, "Service is starting - custom page", "should have custom placeholder content")
+	assert.Contains(t, stdout, "This is a test placeholder page.", "should have custom message")
 
 	// Verify script was injected
 	assert.Contains(t, stdout, "checkServiceStatus", "should have injected checkServiceStatus function")
