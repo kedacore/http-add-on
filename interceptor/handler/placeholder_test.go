@@ -15,9 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	v1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/routing/test"
 )
+
+const testCustomContent = `<html><body>{{.ServiceName}}</body></html>`
 
 func TestNewPlaceholderHandler(t *testing.T) {
 	k8sClient := fake.NewSimpleClientset()
@@ -259,7 +261,6 @@ func TestGetTemplate_Caching(t *testing.T) {
 	routingTable := test.NewTable()
 	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
 
-	customContent := `<html><body>{{.ServiceName}}</body></html>`
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "test-app",
@@ -268,7 +269,7 @@ func TestGetTemplate_Caching(t *testing.T) {
 		},
 		Spec: v1alpha1.HTTPScaledObjectSpec{
 			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-				Content: customContent,
+				Content: testCustomContent,
 			},
 		},
 	}
@@ -373,7 +374,6 @@ func TestGetTemplate_ConcurrentAccess(t *testing.T) {
 	routingTable := test.NewTable()
 	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
 
-	customContent := `<html><body>{{.ServiceName}}</body></html>`
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "test-app",
@@ -382,7 +382,7 @@ func TestGetTemplate_ConcurrentAccess(t *testing.T) {
 		},
 		Spec: v1alpha1.HTTPScaledObjectSpec{
 			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-				Content: customContent,
+				Content: testCustomContent,
 			},
 		},
 	}
@@ -439,7 +439,6 @@ func TestGetTemplate_ConcurrentFirstAccess(t *testing.T) {
 	routingTable := test.NewTable()
 	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
 
-	customContent := `<html><body>{{.ServiceName}}</body></html>`
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "test-app",
@@ -448,7 +447,7 @@ func TestGetTemplate_ConcurrentFirstAccess(t *testing.T) {
 		},
 		Spec: v1alpha1.HTTPScaledObjectSpec{
 			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-				Content: customContent,
+				Content: testCustomContent,
 			},
 		},
 	}
