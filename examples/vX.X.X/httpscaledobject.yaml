@@ -1,0 +1,41 @@
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+    name: xkcd
+spec:
+    hosts:
+        - myhost.com
+    pathPrefixes:
+        - /test
+    scaleTargetRef:
+        name: xkcd
+        kind: Deployment
+        apiVersion: apps/v1
+        service: xkcd
+        port: 8080
+    replicas:
+        min: 1
+        max: 10
+    scaledownPeriod: 300
+    scalingMetric:
+        requestRate:
+            granularity: 1s
+            targetValue: 100
+            window: 1m
+    placeholderConfig:
+        enabled: true
+        refreshInterval: 5
+        statusCode: 503
+        headers:
+            X-Service-Status: "warming-up"
+        content: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Service Starting</title>
+                <meta http-equiv="refresh" content="{{.RefreshInterval}}">
+            </head>
+            <body>
+                <h1>{{.ServiceName}} is starting...</h1>
+            </body>
+            </html>
