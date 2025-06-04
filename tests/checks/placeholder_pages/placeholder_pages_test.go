@@ -1,7 +1,7 @@
 //go:build e2e
 // +build e2e
 
-package placeholder_pages
+package placeholderpages_test
 
 import (
 	"fmt"
