@@ -43,6 +43,8 @@ type Serving struct {
 	TLSKeyPath string `envconfig:"KEDA_HTTP_PROXY_TLS_KEY_PATH" default:"/certs/tls.key"`
 	// TLSCertStorePaths is a comma separated list of paths to read the certificate/key pairs for the TLS server
 	TLSCertStorePaths string `envconfig:"KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS" default:""`
+	// TLSSkipVerify is a boolean flag to specify whether the interceptor should skip TLS verification for upstreams
+	TLSSkipVerify bool `envconfig:"KEDA_HTTP_PROXY_TLS_SKIP_VERIFY" default:"false"`
 	// TLSPort is the port that the server should serve on if TLS is enabled
 	TLSPort int `envconfig:"KEDA_HTTP_PROXY_TLS_PORT" default:"8443"`
 }
