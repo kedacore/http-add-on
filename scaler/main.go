@@ -18,14 +18,13 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/client-go/kubernetes"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"k8s.io/client-go/kubernetes"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
 	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"

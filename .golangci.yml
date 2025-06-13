@@ -26,7 +26,7 @@ linters:
     - unconvert
     - ineffassign
     - staticcheck
-    - exportloopref
+    - copyloopvar
     #- depguard #https://github.com/kedacore/keda/issues/4980
     - dogsled
     - errcheck
