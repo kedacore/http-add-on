@@ -10,6 +10,8 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 
@@ -47,6 +49,7 @@ func main() {
 	deplName := cfg.TargetDeployment
 	targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
 	targetPendingRequests := cfg.TargetPendingRequests
+	profilingAddr := cfg.ProfilingAddr
 
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
@@ -112,6 +115,13 @@ func main() {
 
 		return nil
 	})
+
+	if len(profilingAddr) > 0 {
+		eg.Go(func() error {
+			setupLog.Info("enabling pprof for profiling", "address", profilingAddr)
+			return http.ListenAndServe(profilingAddr, nil)
+		})
+	}
 
 	eg.Go(func() error {
 		setupLog.Info("starting the grpc server")

@@ -34,6 +34,8 @@ type config struct {
 	DeploymentCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_DEPLOYMENT_INFORMER_RSYNC_PERIOD" default:"60m"`
 	// QueueTickDuration is the duration between queue requests
 	QueueTickDuration time.Duration `envconfig:"KEDA_HTTP_QUEUE_TICK_DURATION" default:"500ms"`
+	// ProfilingAddr if not empty, pprof will be available on this address, assuming host:port here
+	ProfilingAddr string `envconfig:"PROFILING_BIND_ADDRESS" default:""`
 }
 
 func mustParseConfig() *config {
