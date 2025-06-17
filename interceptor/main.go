@@ -470,7 +470,7 @@ func runProxyServer(
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	logger.Info("proxy server starting", "address", addr)
 	if tlsEnabled {
-		return kedahttp.ServeContext(ctx, addr, rootHandler, tlsCfg)
+		return kedahttp.ServeContext(ctx, addr, rootHandler, tlsCfg, timeouts)
 	}
-	return kedahttp.ServeContext(ctx, addr, rootHandler, nil)
+	return kedahttp.ServeContext(ctx, addr, rootHandler, nil, timeouts)
 }

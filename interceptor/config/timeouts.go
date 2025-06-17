@@ -34,6 +34,12 @@ type Timeouts struct {
 	// after sending request headers if the server returned an Expect: 100-continue
 	// header
 	ExpectContinueTimeout time.Duration `envconfig:"KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT" default:"1s"`
+	// ServerReadTimeout is the maximum duration for reading the entire request, including the body.
+	ServerReadTimeout time.Duration `envconfig:"KEDA_HTTP_SERVER_READ_TIMEOUT" default:"0s"`
+	// ServerWriteTimeout is the maximum duration before timing out writes of the response.
+	ServerWriteTimeout time.Duration `envconfig:"KEDA_HTTP_SERVER_WRITE_TIMEOUT" default:"0s"`
+	// ServerIdleTimeout is the maximum amount of time to wait for the next request when keep-alives are enabled.
+	ServerIdleTimeout time.Duration `envconfig:"KEDA_HTTP_SERVER_IDLE_TIMEOUT" default:"0s"`
 }
 
 // Backoff returns a wait.Backoff based on the timeouts in t
