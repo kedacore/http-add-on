@@ -190,8 +190,6 @@ var _ = Describe("Table", func() {
 			defer cancel()
 
 			for _, httpso := range httpsoList.Items {
-				httpso := httpso
-
 				key := *k8s.NamespacedNameFromObject(&httpso)
 				t.httpScaledObjects[key] = &httpso
 			}
@@ -216,8 +214,6 @@ var _ = Describe("Table", func() {
 			defer cancel()
 
 			for _, httpso := range httpsoList.Items {
-				httpso := httpso
-
 				key := *k8s.NamespacedNameFromObject(&httpso)
 				t.httpScaledObjects[key] = &httpso
 			}
@@ -285,8 +281,6 @@ var _ = Describe("Table", func() {
 
 		It("returns new memory based on HTTPSOs", func() {
 			for _, httpso := range httpsoList.Items {
-				httpso := httpso
-
 				key := *k8s.NamespacedNameFromObject(&httpso)
 				t.httpScaledObjects[key] = &httpso
 			}

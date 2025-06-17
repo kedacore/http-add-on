@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -81,6 +82,7 @@ func main() {
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
 	proxyTLSEnabled := servingCfg.ProxyTLSEnabled
+	profilingAddr := servingCfg.ProfilingAddr
 
 	// setup the configured metrics collectors
 	metrics.NewMetricsCollectors(metricsCfg)
@@ -217,6 +219,13 @@ func main() {
 
 		return nil
 	})
+
+	if len(profilingAddr) > 0 {
+		eg.Go(func() error {
+			setupLog.Info("enabling pprof for profiling", "address", profilingAddr)
+			return http.ListenAndServe(profilingAddr, nil)
+		})
+	}
 
 	build.PrintComponentInfo(ctrl.Log, "Interceptor")
 
