@@ -10,14 +10,17 @@ VERSION 		?= main
 IMAGE_OPERATOR 		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
 IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
 IMAGE_SCALER		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-scaler
+IMAGE_MOCK_BACKEND 	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/mock-backend
 
-IMAGE_OPERATOR_VERSIONED_TAG	?= ${IMAGE_OPERATOR}:$(VERSION)
-IMAGE_INTERCEPTOR_VERSIONED_TAG	?= ${IMAGE_INTERCEPTOR}:$(VERSION)
-IMAGE_SCALER_VERSIONED_TAG		?= ${IMAGE_SCALER}:$(VERSION)
+IMAGE_OPERATOR_VERSIONED_TAG		?= ${IMAGE_OPERATOR}:$(VERSION)
+IMAGE_INTERCEPTOR_VERSIONED_TAG		?= ${IMAGE_INTERCEPTOR}:$(VERSION)
+IMAGE_SCALER_VERSIONED_TAG			?= ${IMAGE_SCALER}:$(VERSION)
+IMAGE_MOCK_BACKEND_VERSIONED_TAG	?= ${IMAGE_MOCK_BACKEND}:$(VERSION)
 
 IMAGE_OPERATOR_SHA_TAG		?= ${IMAGE_OPERATOR}:$(GIT_COMMIT_SHORT)
 IMAGE_INTERCEPTOR_SHA_TAG	?= ${IMAGE_INTERCEPTOR}:$(GIT_COMMIT_SHORT)
 IMAGE_SCALER_SHA_TAG		?= ${IMAGE_SCALER}:$(GIT_COMMIT_SHORT)
+IMAGE_MOCK_BACKEND_SHA_TAG	?= ${IMAGE_MOCK_BACKEND}:$(GIT_COMMIT_SHORT)
 
 ARCH       ?=amd64
 CGO        ?=0
@@ -107,7 +110,10 @@ docker-build-interceptor:
 docker-build-scaler:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_SCALER_VERSIONED_TAG} -t ${IMAGE_SCALER_SHA_TAG} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
-docker-build: docker-build-operator docker-build-interceptor docker-build-scaler
+docker-build-mock-backend:
+	DOCKER_BUILDKIT=1 docker build tests/mocks/backend -t ${IMAGE_MOCK_BACKEND_VERSIONED_TAG} -t ${IMAGE_MOCK_BACKEND_SHA_TAG} --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+
+docker-build: docker-build-operator docker-build-interceptor docker-build-scaler docker-build-mock-backend
 
 docker-publish: docker-build ## Push images on to Container Registry (default: ghcr.io).
 	docker push $(IMAGE_OPERATOR_VERSIONED_TAG)
@@ -195,6 +201,14 @@ kustomize: ## Download kustomize locally if necessary.
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+
+KIND_CLUSTER ?= kind
+kind-load:
+	kind load docker-image --name ${KIND_CLUSTER} \
+		${IMAGE_INTERCEPTOR_VERSIONED_TAG} \
+		${IMAGE_SCALER_VERSIONED_TAG} \
+		${IMAGE_OPERATOR_VERSIONED_TAG} \
+		${IMAGE_MOCK_BACKEND_VERSIONED_TAG}
 
 deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/config.
 	cd config/interceptor && \
