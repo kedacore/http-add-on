@@ -28,6 +28,8 @@ For setting multiple TLS certs, set `KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS` with 
 * `XYZ.crt` + `XYZ.key` - this is a convention when using Kubernetes Secrets of type tls
 * `XYZ.pem` + `XYZ-key.pem`
 
+To disable certificate chain verification, set `KEDA_HTTP_PROXY_TLS_SKIP_VERIFY` to `false`
+
 The matching between certs and requests is performed during the TLS ClientHelo message, where the SNI service name is compared to SANs provided in each cert and the first matching cert will be used for the rest of the TLS handshake.
 # Configuring tracing for the KEDA HTTP Add-on interceptor proxy
 
