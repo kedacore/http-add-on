@@ -315,7 +315,7 @@ func getTLSConfig(tlsConfig map[string]interface{}, logger logr.Logger) (*tls.Co
 	insecureSkipVerify, _ := tlsConfig["skipVerify"].(bool)
 
 	servingTLS := &tls.Config{
-		RootCAs: defaultCertPool(logger),
+		RootCAs:            defaultCertPool(logger),
 		InsecureSkipVerify: insecureSkipVerify,
 	}
 	var defaultCert *tls.Certificate
