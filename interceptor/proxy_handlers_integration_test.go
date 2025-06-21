@@ -310,7 +310,9 @@ func newHarness(
 			respHeaderTimeout: time.Second,
 		},
 		&tls.Config{},
-		&config.Tracing{}),
+		&config.Tracing{},
+		nil,
+		nil),
 		svcCache,
 		false,
 	)
