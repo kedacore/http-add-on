@@ -90,9 +90,9 @@ func newForwardingHandler(
 			}
 			return
 		}
-		w.Header().Add("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
-		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Name", httpso.Spec.ScaleTargetRef.Name)
-		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Namespace", httpso.Namespace)
+		w.Header().Set("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
+		r.Header.Set("X-KEDA-HTTP-Cold-Start-Ref-Name", httpso.Spec.ScaleTargetRef.Name)
+		r.Header.Set("X-KEDA-HTTP-Cold-Start-Ref-Namespace", httpso.Namespace)
 
 		shouldFailover := hasFailover && err != nil
 		if tracingCfg.Enabled {
