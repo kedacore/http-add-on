@@ -484,8 +484,6 @@ var _ = Describe("TableMemory", func() {
 				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
 			}
 			for _, httpso := range httpsoList.Items {
-				httpso := httpso
-
 				tm = insertTrees(tm, &httpso)
 			}
 

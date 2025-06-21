@@ -145,6 +145,12 @@ func NewPlaceholderHandler(k8sClient kubernetes.Interface, routingTable routing.
 
 // injectPlaceholderScript injects the placeholder refresh script into a template
 func injectPlaceholderScript(templateContent string) string {
+	// Check if the placeholder script is already present
+	if strings.Contains(templateContent, placeholderScript) {
+		// Return the original content if the script is already present
+		return templateContent
+	}
+	
 	lowerContent := strings.ToLower(templateContent)
 
 	// Look for </body> tag (case-insensitive)
@@ -247,13 +253,13 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 		}
 		h.cacheMutex.RUnlock()
 
+		h.cacheMutex.Lock()
 		injectedContent := injectPlaceholderScript(config.Content)
 		tmpl, err := template.New("inline").Parse(injectedContent)
 		if err != nil {
+			h.cacheMutex.Unlock()
 			return nil, err
 		}
-
-		h.cacheMutex.Lock()
 		h.templateCache[cacheKey] = &cacheEntry{
 			template:      tmpl,
 			hsoGeneration: hso.Generation,
@@ -278,6 +284,7 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 		}
 		h.cacheMutex.RUnlock()
 
+		h.cacheMutex.Lock()
 		key := config.ContentConfigMapKey
 		if key == "" {
 			key = "template.html"
@@ -285,16 +292,16 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 
 		content, ok := cm.Data[key]
 		if !ok {
+			h.cacheMutex.Unlock()
 			return nil, fmt.Errorf("key %s not found in ConfigMap %s", key, config.ContentConfigMap)
 		}
 
 		injectedContent := injectPlaceholderScript(content)
 		tmpl, err := template.New("configmap").Parse(injectedContent)
 		if err != nil {
+			h.cacheMutex.Unlock()
 			return nil, err
 		}
-
-		h.cacheMutex.Lock()
 		h.templateCache[cacheKey] = &cacheEntry{
 			template:         tmpl,
 			hsoGeneration:    hso.Generation,
