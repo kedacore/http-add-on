@@ -5,6 +5,7 @@ go 1.23.6
 require (
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.7.0
+	github.com/gorilla/websocket v1.5.1
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/kedacore/keda/v2 v2.16.1
 	github.com/kelseyhightower/envconfig v1.4.0
@@ -19,6 +20,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.35.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.35.0
 	go.opentelemetry.io/otel/sdk v1.35.0
+	go.opentelemetry.io/otel/trace v1.35.0
 	go.uber.org/mock v0.5.0
 	golang.org/x/sync v0.12.0
 	google.golang.org/grpc v1.71.0
@@ -56,7 +58,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
@@ -115,7 +116,6 @@ require (
 	go.opentelemetry.io/otel/exporters/prometheus v0.57.0
 	go.opentelemetry.io/otel/metric v1.35.0
 	go.opentelemetry.io/otel/sdk/metric v1.35.0
-	go.opentelemetry.io/otel/trace v1.35.0
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	golang.org/x/mod v0.23.0 // indirect
