@@ -257,21 +257,21 @@ var _ = Describe("TableMemory", func() {
 			t0 := time.Now()
 
 			httpso00 := *httpso0.DeepCopy()
-			httpso00.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
+			httpso00.CreationTimestamp = metav1.NewTime(t0)
 			tm = tm.Remember(&httpso00).(tableMemory)
 
 			httpso01 := *httpso0.DeepCopy()
-			httpso01.ObjectMeta.Name += nameSuffix
-			httpso01.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
+			httpso01.Name += nameSuffix
+			httpso01.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
 			tm = tm.Remember(&httpso01).(tableMemory)
 
 			httpso10 := *httpso1.DeepCopy()
-			httpso10.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
+			httpso10.CreationTimestamp = metav1.NewTime(t0)
 			tm = tm.Remember(&httpso10).(tableMemory)
 
 			httpso11 := *httpso1.DeepCopy()
-			httpso11.ObjectMeta.Name += nameSuffix
-			httpso11.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(+time.Minute))
+			httpso11.Name += nameSuffix
+			httpso11.CreationTimestamp = metav1.NewTime(t0.Add(+time.Minute))
 			tm = tm.Remember(&httpso11).(tableMemory)
 
 			assertIndex(tm, &httpso00, &httpso00)
@@ -341,21 +341,21 @@ var _ = Describe("TableMemory", func() {
 			t0 := time.Now()
 
 			httpso00 := *httpso0.DeepCopy()
-			httpso00.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
+			httpso00.CreationTimestamp = metav1.NewTime(t0)
 			tm = insertTrees(tm, &httpso00)
 
 			httpso01 := *httpso0.DeepCopy()
-			httpso01.ObjectMeta.Name += nameSuffix
-			httpso01.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
+			httpso01.Name += nameSuffix
+			httpso01.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
 			tm = insertTrees(tm, &httpso01)
 
 			httpso10 := *httpso1.DeepCopy()
-			httpso10.ObjectMeta.Name += nameSuffix
-			httpso10.ObjectMeta.CreationTimestamp = metav1.NewTime(t0)
+			httpso10.Name += nameSuffix
+			httpso10.CreationTimestamp = metav1.NewTime(t0)
 			tm = insertTrees(tm, &httpso10)
 
 			httpso11 := *httpso1.DeepCopy()
-			httpso11.ObjectMeta.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
+			httpso11.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
 			tm = insertTrees(tm, &httpso11)
 
 			tm = tm.Forget(&httpso0NamespacedName).(tableMemory)
