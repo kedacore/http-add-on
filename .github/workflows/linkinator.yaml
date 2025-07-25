@@ -21,5 +21,6 @@ jobs:
         with:
           paths: "**/*.md"
           markdown: true
+          concurrency: 1
           retry: true
           linksToSkip: "https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-operator, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler,http://opentelemetry-collector.open-telemetry-system:4318,http://opentelemetry-collector.open-telemetry-system:4318/v1/traces, https://www.gnu.org/software/make/"

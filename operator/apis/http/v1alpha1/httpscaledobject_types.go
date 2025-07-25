@@ -76,6 +76,17 @@ type RateMetricSpec struct {
 	Granularity metav1.Duration `json:"granularity" description:"Time granularity for rate calculation"`
 }
 
+// HTTPScaledObjectTimeoutsSpec defines timeouts that override the global ones
+type HTTPScaledObjectTimeoutsSpec struct {
+	// How long to wait for the backing workload to have 1 or more replicas before connecting and sending the HTTP request (Default is set by the KEDA_CONDITION_WAIT_TIMEOUT environment variable)
+	// +optional
+	ConditionWait metav1.Duration `json:"conditionWait" description:"How long to wait for the backing workload to have 1 or more replicas before connecting and sending the HTTP request"`
+
+	// How long to wait between when the HTTP request is sent to the backing app and when response headers need to arrive (Default is set by the KEDA_RESPONSE_HEADER_TIMEOUT environment variable)
+	// +optional
+	ResponseHeader metav1.Duration `json:"responseHeader" description:"How long to wait between when the HTTP request is sent to the backing app and when response headers need to arrive"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -108,6 +119,9 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Configuration for the metric used for scaling
 	// +optional
 	ScalingMetric *ScalingMetricSpec `json:"scalingMetric,omitempty" description:"Configuration for the metric used for scaling. If empty 'concurrency' will be used"`
+	// (optional) Timeouts that override the global ones
+	// +optional
+	Timeouts *HTTPScaledObjectTimeoutsSpec `json:"timeouts,omitempty" description:"Timeouts that override the global ones"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject

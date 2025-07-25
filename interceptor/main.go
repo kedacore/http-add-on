@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -81,6 +82,7 @@ func main() {
 	proxyPort := servingCfg.ProxyPort
 	adminPort := servingCfg.AdminPort
 	proxyTLSEnabled := servingCfg.ProxyTLSEnabled
+	profilingAddr := servingCfg.ProfilingAddr
 
 	// setup the configured metrics collectors
 	metrics.NewMetricsCollectors(metricsCfg)
@@ -190,7 +192,7 @@ func main() {
 	// start a proxy server with TLS
 	if proxyTLSEnabled {
 		eg.Go(func() error {
-			proxyTLSConfig := map[string]string{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath, "certstorePaths": servingCfg.TLSCertStorePaths}
+			proxyTLSConfig := map[string]interface{}{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath, "certstorePaths": servingCfg.TLSCertStorePaths, "skipVerify": servingCfg.TLSSkipVerify}
 			proxyTLSPort := servingCfg.TLSPort
 			k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
 
@@ -217,6 +219,13 @@ func main() {
 
 		return nil
 	})
+
+	if len(profilingAddr) > 0 {
+		eg.Go(func() error {
+			setupLog.Info("enabling pprof for profiling", "address", profilingAddr)
+			return http.ListenAndServe(profilingAddr, nil)
+		})
+	}
 
 	build.PrintComponentInfo(ctrl.Log, "Interceptor")
 
@@ -299,12 +308,15 @@ func defaultCertPool(logger logr.Logger) *x509.CertPool {
 
 // getTLSConfig creates a TLS config from KEDA_HTTP_PROXY_TLS_CERT_PATH, KEDA_HTTP_PROXY_TLS_KEY_PATH and KEDA_HTTP_PROXY_TLS_CERTSTORE_PATHS
 // The matching between request and certificate is performed by comparing TLS/SNI server name with x509 SANs
-func getTLSConfig(tlsConfig map[string]string, logger logr.Logger) (*tls.Config, error) {
-	certPath := tlsConfig["certificatePath"]
-	keyPath := tlsConfig["keyPath"]
-	certStorePaths := tlsConfig["certstorePaths"]
+func getTLSConfig(tlsConfig map[string]interface{}, logger logr.Logger) (*tls.Config, error) {
+	certPath, _ := tlsConfig["certificatePath"].(string)
+	keyPath, _ := tlsConfig["keyPath"].(string)
+	certStorePaths, _ := tlsConfig["certstorePaths"].(string)
+	insecureSkipVerify, _ := tlsConfig["skipVerify"].(bool)
+
 	servingTLS := &tls.Config{
-		RootCAs: defaultCertPool(logger),
+		RootCAs:            defaultCertPool(logger),
+		InsecureSkipVerify: insecureSkipVerify,
 	}
 	var defaultCert *tls.Certificate
 
@@ -395,7 +407,7 @@ func runProxyServer(
 	timeouts *config.Timeouts,
 	port int,
 	tlsEnabled bool,
-	tlsConfig map[string]string,
+	tlsConfig map[string]interface{},
 	tracingConfig *config.Tracing,
 ) error {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
@@ -421,6 +433,7 @@ func runProxyServer(
 	if tlsCfg != nil {
 		forwardingTLSCfg.RootCAs = tlsCfg.RootCAs
 		forwardingTLSCfg.Certificates = tlsCfg.Certificates
+		forwardingTLSCfg.InsecureSkipVerify = tlsCfg.InsecureSkipVerify
 	}
 
 	upstreamHandler = newForwardingHandler(

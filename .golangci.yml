@@ -7,6 +7,10 @@ linters:
   default: none
   enable:
     - bodyclose
+    - unconvert
+    - ineffassign
+    - staticcheck
+    - copyloopvar
     #- depguard #https://github.com/kedacore/keda/issues/4980
     - dogsled
     - dupl
