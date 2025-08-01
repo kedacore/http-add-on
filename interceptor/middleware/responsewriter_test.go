@@ -12,13 +12,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// HijackerResponseWriter combines http.ResponseWriter and http.Hijacker interfaces
-// This is used for generating mocks that implement both interfaces
-type HijackerResponseWriter interface {
-	http.ResponseWriter
-	http.Hijacker
-}
-
 var _ = Describe("responseWriter", func() {
 	Context("Interface compliance", func() {
 		It("implements http.ResponseWriter interface", func() {
