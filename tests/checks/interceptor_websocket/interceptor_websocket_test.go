@@ -113,12 +113,12 @@ spec:
         command: 
         - node
         - client.js
-        - ${{.ClientJobName}}
+        - {{.ClientJobName}}
         env:
         - name: GATEWAY
           value: "keda-add-ons-http-interceptor-proxy.keda"
-		- name: HOST
-		  value: "{{.Host}}"
+        - name: HOST
+          value: "{{.Host}}"
         - name: PORT
           value: "8080"
       restartPolicy: Never
