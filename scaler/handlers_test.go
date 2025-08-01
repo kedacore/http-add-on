@@ -32,6 +32,7 @@ func TestStreamIsActive(t *testing.T) {
 	type testCase struct {
 		name           string
 		expected       bool
+		expectedSignal bool // Whether we expect to receive a signal at all
 		expectedErr    bool
 		setup          func(t *testing.T, qp *queuePinger)
 		scalerMetadata map[string]string
@@ -39,9 +40,10 @@ func TestStreamIsActive(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			name:        "Simple host inactive",
-			expected:    false,
-			expectedErr: false,
+			name:           "Simple host inactive",
+			expected:       false,
+			expectedSignal: false, // No signal should be sent for inactive state
+			expectedErr:    false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
@@ -59,9 +61,10 @@ func TestStreamIsActive(t *testing.T) {
 			},
 		},
 		{
-			name:        "Simple host active by concurrency and scaling metric nil",
-			expected:    true,
-			expectedErr: false,
+			name:           "Simple host active by concurrency and scaling metric nil",
+			expected:       true,
+			expectedSignal: true, // Should send activation signal
+			expectedErr:    false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
@@ -82,9 +85,10 @@ func TestStreamIsActive(t *testing.T) {
 			scalingMetric: nil,
 		},
 		{
-			name:        "Simple host active by concurrency and concurrency scaling metric",
-			expected:    true,
-			expectedErr: false,
+			name:           "Simple host active by concurrency and concurrency scaling metric",
+			expected:       true,
+			expectedSignal: true,
+			expectedErr:    false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
@@ -107,9 +111,10 @@ func TestStreamIsActive(t *testing.T) {
 			},
 		},
 		{
-			name:        "Simple host active by concurrency and concurrency scaling rate",
-			expected:    false,
-			expectedErr: false,
+			name:           "Simple host active by concurrency and concurrency scaling rate",
+			expected:       false,
+			expectedSignal: false, // No signal expected for this inactive case
+			expectedErr:    false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
@@ -132,9 +137,10 @@ func TestStreamIsActive(t *testing.T) {
 			},
 		},
 		{
-			name:        "Simple host active by rate and concurrency scaling metric",
-			expected:    false,
-			expectedErr: false,
+			name:           "Simple host active by rate and concurrency scaling metric",
+			expected:       false,
+			expectedSignal: false,
+			expectedErr:    false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
@@ -157,9 +163,10 @@ func TestStreamIsActive(t *testing.T) {
 			},
 		},
 		{
-			name:        "Simple host active by concurrency and concurrency scaling rate",
-			expected:    true,
-			expectedErr: false,
+			name:           "Simple host active by concurrency and concurrency scaling rate",
+			expected:       true,
+			expectedSignal: true,
+			expectedErr:    false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
@@ -182,9 +189,10 @@ func TestStreamIsActive(t *testing.T) {
 			},
 		},
 		{
-			name:        "Simple multi host active",
-			expected:    true,
-			expectedErr: false,
+			name:           "Simple multi host active",
+			expected:       true,
+			expectedSignal: true,
+			expectedErr:    false,
 			setup: func(t *testing.T, qp *queuePinger) {
 				namespacedName := &types.NamespacedName{
 					Namespace: "default",
@@ -204,15 +212,17 @@ func TestStreamIsActive(t *testing.T) {
 			},
 		},
 		{
-			name:        "Host doesn't exist",
-			expected:    false,
-			expectedErr: true,
-			setup:       func(_ *testing.T, _ *queuePinger) {},
+			name:           "Host doesn't exist",
+			expected:       false,
+			expectedSignal: false,
+			expectedErr:    true,
+			setup:          func(_ *testing.T, _ *queuePinger) {},
 		},
 		{
-			name:        "Interceptor",
-			expected:    true,
-			expectedErr: false,
+			name:           "Interceptor",
+			expected:       true,
+			expectedSignal: true,
+			expectedErr:    false,
 			setup: func(_ *testing.T, qp *queuePinger) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
@@ -239,7 +249,8 @@ func TestStreamIsActive(t *testing.T) {
 			defer ctrl.Finish()
 
 			r := require.New(t)
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
 			lggr := logr.Discard()
 			informer, _, _ := newMocks(ctrl, tc.scalingMetric)
 			ticker, pinger, err := newFakeQueuePinger(lggr)
@@ -291,19 +302,47 @@ func TestStreamIsActive(t *testing.T) {
 				t.Fatalf("StreamIsActive failed: %v", err)
 			}
 
-			// Next, as in TestIsActive, we check for any error, expected
-			// or unexpected, for each table test.
-			res, err := streamClient.Recv()
+			if tc.expectedSignal {
+				// We expect to receive a signal for active cases
+				res, err := streamClient.Recv()
 
-			if tc.expectedErr && err != nil {
-				return
-			}
-			if err != nil {
-				t.Fatalf("expected no error but got: %v", err)
-			}
+				if tc.expectedErr && err != nil {
+					return
+				}
+				if err != nil {
+					t.Fatalf("expected signal but got error: %v", err)
+				}
 
-			if tc.expected != res.Result {
-				t.Fatalf("Expected IsActive result %v, got: %v", tc.expected, res.Result)
+				if tc.expected != res.Result {
+					t.Fatalf("Expected IsActive result %v, got: %v", tc.expected, res.Result)
+				}
+			} else {
+				// For inactive cases, we don't expect any signal
+				// Use a timeout to verify no signal is sent
+				done := make(chan struct{})
+				var res *externalscaler.IsActiveResponse
+				var recvErr error
+
+				go func() {
+					defer close(done)
+					res, recvErr = streamClient.Recv()
+				}()
+
+				select {
+				case <-done:
+					if tc.expectedErr && recvErr != nil {
+						return // Expected error case
+					}
+					if recvErr == nil {
+						t.Fatalf("Expected no signal for inactive case, but received: %v", res.Result)
+					}
+				case <-time.After(500 * time.Millisecond):
+					// No signal received within timeout - this is expected for inactive cases
+					if tc.expectedErr {
+						t.Fatalf("Expected error but got timeout (no signal)")
+					}
+					// This is the expected behavior for inactive cases
+				}
 			}
 		})
 	}
@@ -885,6 +924,150 @@ func TestGetMetrics(t *testing.T) {
 			})
 			tc.checkFn(t, res, err)
 		})
+	}
+}
+
+func TestStreamIsActiveTransitionBehavior(t *testing.T) {
+	// This test specifically verifies that StreamIsActive only sends signals
+	// when transitioning from inactive to active, preventing interference
+	// with other KEDA scalers in multi-trigger setups
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	r := require.New(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	lggr := logr.Discard()
+	informer, _, _ := newMocks(ctrl, nil)
+	ticker, pinger, err := newFakeQueuePinger(lggr)
+	r.NoError(err)
+	defer ticker.Stop()
+
+	// Setup namespacedName for test
+	namespacedName := &types.NamespacedName{
+		Namespace: "default",
+		Name:      validHTTPScaledObjectName,
+	}
+	key := namespacedName.String()
+
+	// Initially set to inactive (no requests)
+	pinger.pingMut.Lock()
+	pinger.allCounts[key] = queue.Count{}
+	pinger.pingMut.Unlock()
+
+	hdl := newImpl(lggr, pinger, informer, 123)
+
+	bufSize := 1024 * 1024
+	lis := bufconn.Listen(bufSize)
+	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
+	externalscaler.RegisterExternalScalerServer(grpcServer, hdl)
+	go func() {
+		r.NoError(grpcServer.Serve(lis))
+	}()
+
+	bufDialFunc := func(context.Context, string) (net.Conn, error) {
+		return lis.Dial()
+	}
+
+	conn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(bufDialFunc), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	r.NoError(err)
+	defer conn.Close()
+
+	client := externalscaler.NewExternalScalerClient(conn)
+
+	testRef := &externalscaler.ScaledObjectRef{
+		Namespace: "default",
+		Name:      "transition-test",
+		ScalerMetadata: map[string]string{
+			k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
+		},
+	}
+
+	streamClient, err := client.StreamIsActive(ctx, testRef)
+	r.NoError(err)
+
+	// Step 1: Wait for a bit to ensure no signal is sent for inactive state
+	done := make(chan *externalscaler.IsActiveResponse, 1)
+	errorChan := make(chan error, 1)
+
+	go func() {
+		for {
+			res, err := streamClient.Recv()
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			done <- res
+		}
+	}()
+
+	// Initially inactive - should not receive any signal
+	select {
+	case res := <-done:
+		t.Fatalf("Expected no signal for inactive state, but received: %v", res.Result)
+	case err := <-errorChan:
+		t.Fatalf("Unexpected error: %v", err)
+	case <-time.After(1 * time.Second):
+		// Good - no signal received for inactive state
+	}
+
+	// Step 2: Transition to active state (add concurrency)
+	pinger.pingMut.Lock()
+	pinger.allCounts[key] = queue.Count{Concurrency: 1}
+	pinger.pingMut.Unlock()
+
+	// Should receive activation signal
+	select {
+	case res := <-done:
+		r.True(res.Result, "Expected activation signal (true), got: %v", res.Result)
+	case err := <-errorChan:
+		t.Fatalf("Unexpected error: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Expected activation signal but didn't receive one")
+	}
+
+	// Step 3: Keep active state - should not receive additional signals
+	pinger.pingMut.Lock()
+	pinger.allCounts[key] = queue.Count{Concurrency: 2} // Still active
+	pinger.pingMut.Unlock()
+
+	select {
+	case res := <-done:
+		t.Fatalf("Expected no additional signal for continued active state, but received: %v", res.Result)
+	case err := <-errorChan:
+		t.Fatalf("Unexpected error: %v", err)
+	case <-time.After(1 * time.Second):
+		// Good - no additional signal for continued active state
+	}
+
+	// Step 4: Transition to inactive - should not send deactivation signal
+	pinger.pingMut.Lock()
+	pinger.allCounts[key] = queue.Count{} // Back to inactive
+	pinger.pingMut.Unlock()
+
+	select {
+	case res := <-done:
+		t.Fatalf("Expected no deactivation signal, but received: %v", res.Result)
+	case err := <-errorChan:
+		t.Fatalf("Unexpected error: %v", err)
+	case <-time.After(1 * time.Second):
+		// Good - no deactivation signal sent
+	}
+
+	// Step 5: Transition back to active - should receive activation signal again
+	pinger.pingMut.Lock()
+	pinger.allCounts[key] = queue.Count{Concurrency: 1}
+	pinger.pingMut.Unlock()
+
+	select {
+	case res := <-done:
+		r.True(res.Result, "Expected second activation signal (true), got: %v", res.Result)
+	case err := <-errorChan:
+		t.Fatalf("Unexpected error: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Expected second activation signal but didn't receive one")
 	}
 }
 

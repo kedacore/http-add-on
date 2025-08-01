@@ -85,10 +85,14 @@ func (e *impl) IsActive(ctx context.Context, sor *externalscaler.ScaledObjectRef
 
 func (e *impl) StreamIsActive(scaledObject *externalscaler.ScaledObjectRef, server externalscaler.ExternalScaler_StreamIsActiveServer) error {
 	// this function communicates with KEDA via the 'server' parameter.
-	// we call server.Send (below) every streamInterval, which tells it to immediately
-	// ping our IsActive RPC
+	// For push-based scaling with multiple triggers, we should only send activation signals
+	// when HTTP requests are detected, not deactivation signals when there are no requests.
+	// This prevents the HTTP scaler from interfering with other scalers (like CPU).
 	ticker := time.NewTicker(streamInterval)
 	defer ticker.Stop()
+
+	var previouslyActive bool
+
 	for {
 		select {
 		case <-server.Context().Done():
@@ -99,13 +103,21 @@ func (e *impl) StreamIsActive(scaledObject *externalscaler.ScaledObjectRef, serv
 				e.lggr.Error(err, "error getting active status in stream")
 				return err
 			}
-			err = server.Send(&externalscaler.IsActiveResponse{
-				Result: active.Result,
-			})
-			if err != nil {
-				e.lggr.Error(err, "error sending the active result in stream")
-				return err
+
+			// Only send activation signal when transitioning from inactive to active
+			// This prevents the HTTP scaler from sending deactivation signals that would
+			// interfere with other scalers in a multi-trigger setup
+			if active.Result && !previouslyActive {
+				err = server.Send(&externalscaler.IsActiveResponse{
+					Result: true,
+				})
+				if err != nil {
+					e.lggr.Error(err, "error sending the active result in stream")
+					return err
+				}
 			}
+
+			previouslyActive = active.Result
 		}
 	}
 }

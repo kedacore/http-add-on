@@ -35,7 +35,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Fix HTTP scaler interfering with other scalers in multi-trigger setups ([#1262](https://github.com/kedacore/http-add-on/issues/1262))
 
 ### Deprecations
 
