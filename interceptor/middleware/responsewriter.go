@@ -28,6 +28,7 @@ func (rw *responseWriter) StatusCode() int {
 }
 
 var _ http.ResponseWriter = (*responseWriter)(nil)
+var _ http.Hijacker = (*responseWriter)(nil)
 
 func (rw *responseWriter) Header() http.Header {
 	return rw.downstreamResponseWriter.Header()

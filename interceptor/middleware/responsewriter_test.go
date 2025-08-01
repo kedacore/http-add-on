@@ -1,14 +1,37 @@
 package middleware
 
 import (
+	"bufio"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+
+	"go.uber.org/mock/gomock"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
+// HijackerResponseWriter combines http.ResponseWriter and http.Hijacker interfaces
+// This is used for generating mocks that implement both interfaces
+type HijackerResponseWriter interface {
+	http.ResponseWriter
+	http.Hijacker
+}
+
 var _ = Describe("responseWriter", func() {
+	Context("Interface compliance", func() {
+		It("implements http.ResponseWriter interface", func() {
+			var rw *responseWriter
+			var _ http.ResponseWriter = rw
+		})
+
+		It("implements http.Hijacker interface", func() {
+			var rw *responseWriter
+			var _ http.Hijacker = rw
+		})
+	})
+
 	Context("New", func() {
 		It("returns new object with expected field values set", func() {
 			var (
@@ -117,6 +140,74 @@ var _ = Describe("responseWriter", func() {
 			Expect(rw.statusCode).To(Equal(sc))
 
 			Expect(w.Code).To(Equal(sc))
+		})
+	})
+
+	Context("Hijack", func() {
+		var ctrl *gomock.Controller
+
+		BeforeEach(func() {
+			ctrl = gomock.NewController(GinkgoT())
+		})
+
+		AfterEach(func() {
+			ctrl.Finish()
+		})
+
+		It("successfully hijacks when downstream ResponseWriter implements http.Hijacker", func() {
+			// Create mocks using the generated mocks
+			mockConn := NewMockConn(ctrl)
+			mockReadWriter := &bufio.ReadWriter{}
+			mockHijackerWriter := NewMockHijackerResponseWriter(ctrl)
+
+			// Set up expectations
+			mockHijackerWriter.EXPECT().Hijack().Return(mockConn, mockReadWriter, nil)
+
+			rw := &responseWriter{
+				downstreamResponseWriter: mockHijackerWriter,
+			}
+
+			conn, readWriter, err := rw.Hijack()
+
+			Expect(err).To(BeNil())
+			Expect(conn).To(Equal(mockConn))
+			Expect(readWriter).To(Equal(mockReadWriter))
+		})
+
+		It("returns error when downstream ResponseWriter does not implement http.Hijacker", func() {
+			var (
+				w = httptest.NewRecorder()
+			)
+
+			rw := &responseWriter{
+				downstreamResponseWriter: w,
+			}
+
+			conn, readWriter, err := rw.Hijack()
+
+			Expect(err).NotTo(BeNil())
+			Expect(err.Error()).To(Equal("http.Hijacker not implemented"))
+			Expect(conn).To(BeNil())
+			Expect(readWriter).To(BeNil())
+		})
+
+		It("forwards error when downstream hijacker returns error", func() {
+			expectedError := fmt.Errorf("hijack failed")
+			mockHijackerWriter := NewMockHijackerResponseWriter(ctrl)
+
+			// Set up expectations
+			mockHijackerWriter.EXPECT().Hijack().Return(nil, nil, expectedError)
+
+			rw := &responseWriter{
+				downstreamResponseWriter: mockHijackerWriter,
+			}
+
+			conn, readWriter, err := rw.Hijack()
+
+			Expect(err).NotTo(BeNil())
+			Expect(err.Error()).To(Equal("hijack failed"))
+			Expect(conn).To(BeNil())
+			Expect(readWriter).To(BeNil())
 		})
 	})
 })
