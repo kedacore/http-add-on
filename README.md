@@ -11,7 +11,7 @@
 - [Contributing](#contributing)
 - [Code of Conduct](#code-of-conduct)
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update-->
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 <p align="center"><img src="https://github.com/kedacore/keda/raw/main/images/logos/keda-word-colour.png" width="300"/></p>
 
