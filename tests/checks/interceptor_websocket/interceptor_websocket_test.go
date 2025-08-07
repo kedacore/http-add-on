@@ -98,6 +98,7 @@ spec:
             periodSeconds: 20
 `
 
+	//nolint:unused
 	websocketClientJobTemplate = `
 apiVersion: batch/v1
 kind: Job
@@ -266,6 +267,7 @@ func testWebSocketConnectionCurl(t *testing.T, kc *kubernetes.Clientset, data te
 	KubectlDeleteWithTemplate(t, data, "websocatTestTemplate", websocatTestTemplate)
 }
 
+//nolint:unused
 func testWebSocketScaleOut(t *testing.T, kc *kubernetes.Clientset, data templateData) {
 	t.Log("--- testing WebSocket scale out ---")
 
@@ -279,6 +281,7 @@ func testWebSocketScaleOut(t *testing.T, kc *kubernetes.Clientset, data template
 	t.Log("WebSocket client successfully triggered scale out")
 }
 
+//nolint:unused
 func testWebSocketScaleIn(t *testing.T, kc *kubernetes.Clientset, data templateData) {
 	t.Log("--- testing WebSocket scale in ---")
 
