@@ -58,3 +58,5 @@ Optional variables
 `OTEL_EXPORTER_OTLP_HEADERS` - To pass any extra headers to the spans to utilise your OTEL collector e.g. authentication details (`"key1=value1,key2=value2"`)
 `OTEL_EXPORTER_OTLP_TRACES_INSECURE` - To send traces to the tracing via HTTP rather than HTTPS (`false` by default)
 `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` - The batcher timeout in seconds to send batch of data points (`5` by default)
+
+### Configuring Service Failover

@@ -57,7 +57,7 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	r = r.WithContext(util.ContextWithHTTPSO(r.Context(), httpso))
 
-	stream, err := rm.streamFromHTTPSO(r.Context(), httpso)
+	stream, err := rm.streamFromHTTPSO(r.Context(), httpso, httpso.Spec.ScaleTargetRef)
 	if err != nil {
 		sh := handler.NewStatic(http.StatusInternalServerError, err)
 		sh.ServeHTTP(w, r)
@@ -66,37 +66,53 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	r = r.WithContext(util.ContextWithStream(r.Context(), stream))
 
+	if httpso.Spec.ColdStartTimeoutFailoverRef != nil {
+		failoverStream, err := rm.streamFromHTTPSO(r.Context(), httpso, httpso.Spec.ColdStartTimeoutFailoverRef)
+		if err != nil {
+			sh := handler.NewStatic(http.StatusInternalServerError, err)
+			sh.ServeHTTP(w, r)
+			return
+		}
+		r = r.WithContext(util.ContextWithFailoverStream(r.Context(), failoverStream))
+	}
+
 	rm.upstreamHandler.ServeHTTP(w, r)
 }
 
-func (rm *Routing) getPort(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject) (int32, error) {
-	if httpso.Spec.ScaleTargetRef.Port != 0 {
-		return httpso.Spec.ScaleTargetRef.Port, nil
+func (rm *Routing) getPort(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject, reference httpv1alpha1.Ref) (int32, error) {
+	var (
+		port        = reference.GetPort()
+		portName    = reference.GetPortName()
+		serviceName = reference.GetServiceName()
+	)
+
+	if port != 0 {
+		return port, nil
 	}
-	if httpso.Spec.ScaleTargetRef.PortName == "" {
+	if portName == "" {
 		return 0, fmt.Errorf(`must specify either "port" or "portName"`)
 	}
-	svc, err := rm.svcCache.Get(ctx, httpso.GetNamespace(), httpso.Spec.ScaleTargetRef.Service)
+	svc, err := rm.svcCache.Get(ctx, httpso.GetNamespace(), serviceName)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get Service: %w", err)
 	}
 	for _, port := range svc.Spec.Ports {
-		if port.Name == httpso.Spec.ScaleTargetRef.PortName {
+		if port.Name == portName {
 			return port.Port, nil
 		}
 	}
-	return 0, fmt.Errorf("portName %q not found in Service", httpso.Spec.ScaleTargetRef.PortName)
+	return 0, fmt.Errorf("portName %q not found in Service", portName)
 }
 
-func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject) (*url.URL, error) {
-	port, err := rm.getPort(ctx, httpso)
+func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject, reference httpv1alpha1.Ref) (*url.URL, error) {
+	port, err := rm.getPort(ctx, httpso, reference)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port: %w", err)
 	}
 	if rm.tlsEnabled {
 		return url.Parse(fmt.Sprintf(
 			"https://%s.%s:%d",
-			httpso.Spec.ScaleTargetRef.Service,
+			reference.GetServiceName(),
 			httpso.GetNamespace(),
 			port,
 		))
@@ -104,7 +120,7 @@ func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HT
 	//goland:noinspection HttpUrlsUsage
 	return url.Parse(fmt.Sprintf(
 		"http://%s.%s:%d",
-		httpso.Spec.ScaleTargetRef.Service,
+		reference.GetServiceName(),
 		httpso.GetNamespace(),
 		port,
 	))

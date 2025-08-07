@@ -57,6 +57,7 @@ func newForwardingHandler(
 		var uh *handler.Upstream
 		ctx := r.Context()
 		httpso := util.HTTPSOFromContext(ctx)
+		hasFailover := httpso.Spec.ColdStartTimeoutFailoverRef != nil
 
 		conditionWaitTimeout := fwdCfg.waitTimeout
 		roundTripper := &http.Transport{
@@ -81,6 +82,10 @@ func newForwardingHandler(
 			}
 		}
 
+		if hasFailover && httpso.Spec.ColdStartTimeoutFailoverRef.TimeoutSeconds > 0 {
+			conditionWaitTimeout = time.Duration(httpso.Spec.ColdStartTimeoutFailoverRef.TimeoutSeconds) * time.Second
+		}
+
 		waitFuncCtx, done := context.WithTimeout(ctx, conditionWaitTimeout)
 		defer done()
 		isColdStart, err := waitFunc(
@@ -88,7 +93,7 @@ func newForwardingHandler(
 			httpso.GetNamespace(),
 			httpso.Spec.ScaleTargetRef.Service,
 		)
-		if err != nil {
+		if err != nil && !hasFailover {
 			lggr.Error(err, "wait function failed, not forwarding request")
 			w.WriteHeader(http.StatusBadGateway)
 			if _, err := fmt.Fprintf(w, "error on backend (%s)", err); err != nil {
@@ -97,11 +102,14 @@ func newForwardingHandler(
 			return
 		}
 		w.Header().Add("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
+		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Name", httpso.Spec.ScaleTargetRef.Name)
+		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Namespace", httpso.Namespace)
 
+		shouldFailover := hasFailover && err != nil
 		if tracingCfg.Enabled {
-			uh = handler.NewUpstream(otelhttp.NewTransport(roundTripper), tracingCfg)
+			uh = handler.NewUpstream(otelhttp.NewTransport(roundTripper), tracingCfg, shouldFailover)
 		} else {
-			uh = handler.NewUpstream(roundTripper, &config.Tracing{})
+			uh = handler.NewUpstream(roundTripper, &config.Tracing{}, shouldFailover)
 		}
 		uh.ServeHTTP(w, r)
 	})

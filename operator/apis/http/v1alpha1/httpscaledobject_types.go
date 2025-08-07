@@ -20,6 +20,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +kubebuilder:object:generate=false
+type Ref interface {
+	GetServiceName() string
+	GetPort() int32
+	GetPortName() string
+}
+
 // ScaleTargetRef contains all the details about an HTTP application to scale and route to
 type ScaleTargetRef struct {
 	// +optional
@@ -34,6 +41,44 @@ type ScaleTargetRef struct {
 	Port int32 `json:"port,omitempty"`
 	// The port to route to referenced by name
 	PortName string `json:"portName,omitempty"`
+}
+
+func (s ScaleTargetRef) GetServiceName() string {
+	return s.Service
+}
+
+func (s ScaleTargetRef) GetPort() int32 {
+	return s.Port
+}
+
+func (s ScaleTargetRef) GetPortName() string {
+	return s.PortName
+}
+
+// ColdStartTimeoutFailoverRef contains all the details about an HTTP application to scale and route to
+type ColdStartTimeoutFailoverRef struct {
+	// The name of the service to route to
+	Service string `json:"service"`
+	// The port to route to
+	Port int32 `json:"port,omitempty"`
+	// The port to route to referenced by name
+	PortName string `json:"portName,omitempty"`
+	// The timeout in seconds to wait before routing to the failover service (Default 30)
+	// +kubebuilder:default=30
+	// +optional
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
+}
+
+func (s *ColdStartTimeoutFailoverRef) GetServiceName() string {
+	return s.Service
+}
+
+func (s *ColdStartTimeoutFailoverRef) GetPort() int32 {
+	return s.Port
+}
+
+func (s *ColdStartTimeoutFailoverRef) GetPortName() string {
+	return s.PortName
 }
 
 // ReplicaStruct contains the minimum and maximum amount of replicas to have in the deployment
@@ -104,6 +149,10 @@ type HTTPScaledObjectSpec struct {
 	// Including validation as a requirement to define either the PortName or the Port
 	// +kubebuilder:validation:XValidation:rule="has(self.portName) != has(self.port)",message="must define either the 'portName' or the 'port'"
 	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
+	// (optional) The name of the failover service to route HTTP requests to when the target is not available
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="has(self.portName) != has(self.port)",message="must define either the 'portName' or the 'port'"
+	ColdStartTimeoutFailoverRef *ColdStartTimeoutFailoverRef `json:"coldStartTimeoutFailoverRef,omitempty"`
 	// (optional) Replica information
 	// +optional
 	Replicas *ReplicaStruct `json:"replicas,omitempty"`
