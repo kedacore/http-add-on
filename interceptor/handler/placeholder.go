@@ -6,15 +6,13 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
+	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/routing"
 )
 
 const placeholderScript = `<script>
@@ -110,10 +108,11 @@ type cacheEntry struct {
 
 // PlaceholderHandler handles serving placeholder pages during scale-from-zero
 type PlaceholderHandler struct {
-	k8sClient     kubernetes.Interface
-	templateCache map[string]*cacheEntry
-	cacheMutex    sync.RWMutex
-	defaultTmpl   *template.Template
+	templateCache  map[string]*cacheEntry
+	cacheMutex     sync.RWMutex
+	defaultTmpl    *template.Template
+	servingCfg     *config.Serving
+	enableScript   bool
 }
 
 // PlaceholderData contains data for rendering placeholder templates
@@ -126,19 +125,39 @@ type PlaceholderData struct {
 }
 
 // NewPlaceholderHandler creates a new placeholder handler
-func NewPlaceholderHandler(k8sClient kubernetes.Interface, routingTable routing.Table) (*PlaceholderHandler, error) {
-	// Combine the default template with the script
-	defaultTemplateWithScript := injectPlaceholderScript(defaultPlaceholderTemplateWithoutScript)
-	defaultTmpl, err := template.New("default").Parse(defaultTemplateWithScript)
+func NewPlaceholderHandler(servingCfg *config.Serving) (*PlaceholderHandler, error) {
+	var defaultTemplate string
+	
+	// Try to load template from configured path
+	if servingCfg.PlaceholderDefaultTemplatePath != "" {
+		content, err := os.ReadFile(servingCfg.PlaceholderDefaultTemplatePath)
+		if err == nil {
+			defaultTemplate = string(content)
+		} else {
+			// Fall back to built-in template if file cannot be read
+			fmt.Printf("Warning: Could not read placeholder template from %s: %v. Using built-in template.\n", 
+				servingCfg.PlaceholderDefaultTemplatePath, err)
+			defaultTemplate = defaultPlaceholderTemplateWithoutScript
+		}
+	} else {
+		defaultTemplate = defaultPlaceholderTemplateWithoutScript
+	}
+	
+	// Inject script if enabled
+	if servingCfg.PlaceholderEnableScript {
+		defaultTemplate = injectPlaceholderScript(defaultTemplate)
+	}
+	
+	defaultTmpl, err := template.New("default").Parse(defaultTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse default template: %w", err)
 	}
 
 	return &PlaceholderHandler{
-		k8sClient:     k8sClient,
-		routingTable:  routingTable,
 		templateCache: make(map[string]*cacheEntry),
 		defaultTmpl:   defaultTmpl,
+		servingCfg:    servingCfg,
+		enableScript:  servingCfg.PlaceholderEnableScript,
 	}, nil
 }
 
@@ -166,18 +185,45 @@ func injectPlaceholderScript(templateContent string) string {
 		return templateContent + placeholderScript
 	}
 
-	// For non-HTML content, wrap it in a minimal HTML structure with the script
-	return fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Service Starting</title>
-</head>
-<body>
-%s
-%s
-</body>
-</html>`, templateContent, placeholderScript)
+	// Don't wrap non-HTML content - return as-is
+	return templateContent
+}
+
+// detectContentType determines the appropriate content type based on Accept header and content
+func detectContentType(acceptHeader string, content string) string {
+	// Check Accept header for specific content types
+	if strings.Contains(acceptHeader, "application/json") {
+		return "application/json"
+	}
+	if strings.Contains(acceptHeader, "application/xml") {
+		return "application/xml"
+	}
+	if strings.Contains(acceptHeader, "text/plain") {
+		return "text/plain"
+	}
+	
+	// Default to HTML for browser requests or when HTML is accepted
+	if strings.Contains(acceptHeader, "text/html") || strings.Contains(acceptHeader, "*/*") || acceptHeader == "" {
+		// Check if content looks like HTML
+		if strings.Contains(content, "<") && strings.Contains(content, ">") {
+			return "text/html; charset=utf-8"
+		}
+	}
+	
+	// Try to detect based on content
+	trimmed := strings.TrimSpace(content)
+	if (strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}")) ||
+	   (strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]")) {
+		return "application/json"
+	}
+	if strings.HasPrefix(trimmed, "<") {
+		if strings.HasPrefix(trimmed, "<?xml") {
+			return "application/xml"
+		}
+		return "text/html; charset=utf-8"
+	}
+	
+	return "text/plain; charset=utf-8"
 }
 
 // ServePlaceholder serves a placeholder page based on the HTTPScaledObject configuration
@@ -194,19 +240,19 @@ func (h *PlaceholderHandler) ServePlaceholder(w http.ResponseWriter, r *http.Req
 		statusCode = http.StatusServiceUnavailable
 	}
 
+	// Set custom headers first
 	for k, v := range config.Headers {
 		w.Header().Set(k, v)
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("X-KEDA-HTTP-Placeholder-Served", "true")
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-
+	// Get template and render content
 	tmpl, err := h.getTemplate(r.Context(), hso)
 	if err != nil {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-KEDA-HTTP-Placeholder-Served", "true")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.WriteHeader(statusCode)
-		fmt.Fprintf(w, "<h1>%s is starting up...</h1><meta http-equiv='refresh' content='%d'>",
-			hso.Spec.ScaleTargetRef.Service, config.RefreshInterval)
+		fmt.Fprintf(w, "%s is starting up...\n", hso.Spec.ScaleTargetRef.Service)
 		return nil
 	}
 
@@ -220,14 +266,32 @@ func (h *PlaceholderHandler) ServePlaceholder(w http.ResponseWriter, r *http.Req
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-KEDA-HTTP-Placeholder-Served", "true")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.WriteHeader(statusCode)
-		fmt.Fprintf(w, "<h1>%s is starting up...</h1><meta http-equiv='refresh' content='%d'>",
-			hso.Spec.ScaleTargetRef.Service, config.RefreshInterval)
+		fmt.Fprintf(w, "%s is starting up...\n", hso.Spec.ScaleTargetRef.Service)
 		return nil
 	}
 
+	content := buf.String()
+	
+	// Detect and set content type based on Accept header and content
+	contentType := detectContentType(r.Header.Get("Accept"), content)
+	
+	// For non-HTML content, don't inject script even if enabled
+	isHTML := strings.Contains(contentType, "text/html")
+	if !isHTML && h.enableScript && strings.Contains(content, placeholderScript) {
+		// Remove script from non-HTML content
+		content = strings.ReplaceAll(content, placeholderScript, "")
+	}
+	
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("X-KEDA-HTTP-Placeholder-Served", "true")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+
 	w.WriteHeader(statusCode)
-	_, err = w.Write(buf.Bytes())
+	_, err = w.Write([]byte(content))
 	return err
 }
 
@@ -246,58 +310,20 @@ func (h *PlaceholderHandler) getTemplate(ctx context.Context, hso *v1alpha1.HTTP
 		}
 		h.cacheMutex.RUnlock()
 
-		injectedContent := injectPlaceholderScript(config.Content)
-		tmpl, err := template.New("inline").Parse(injectedContent)
+		h.cacheMutex.Lock()
+		content := config.Content
+		// Only inject script for HTML-like content if enabled
+		if h.enableScript && (strings.Contains(content, "<") && strings.Contains(content, ">")) {
+			content = injectPlaceholderScript(content)
+		}
+		tmpl, err := template.New("inline").Parse(content)
 		if err != nil {
+			h.cacheMutex.Unlock()
 			return nil, err
 		}
-
-		h.cacheMutex.Lock()
 		h.templateCache[cacheKey] = &cacheEntry{
 			template:      tmpl,
 			hsoGeneration: hso.Generation,
-		}
-		h.cacheMutex.Unlock()
-		return tmpl, nil
-	}
-
-	if config.ContentConfigMap != "" {
-		cacheKey := fmt.Sprintf("%s/%s/cm/%s", hso.Namespace, hso.Name, config.ContentConfigMap)
-
-		cm, err := h.k8sClient.CoreV1().ConfigMaps(hso.Namespace).Get(ctx, config.ContentConfigMap, metav1.GetOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ConfigMap %s: %w", config.ContentConfigMap, err)
-		}
-
-		h.cacheMutex.RLock()
-		entry, ok := h.templateCache[cacheKey]
-		if ok && entry.hsoGeneration == hso.Generation && entry.configMapVersion == cm.ResourceVersion {
-			h.cacheMutex.RUnlock()
-			return entry.template, nil
-		}
-		h.cacheMutex.RUnlock()
-
-		key := config.ContentConfigMapKey
-		if key == "" {
-			key = "template.html"
-		}
-
-		content, ok := cm.Data[key]
-		if !ok {
-			return nil, fmt.Errorf("key %s not found in ConfigMap %s", key, config.ContentConfigMap)
-		}
-
-		injectedContent := injectPlaceholderScript(content)
-		tmpl, err := template.New("configmap").Parse(injectedContent)
-		if err != nil {
-			return nil, err
-		}
-
-		h.cacheMutex.Lock()
-		h.templateCache[cacheKey] = &cacheEntry{
-			template:         tmpl,
-			hsoGeneration:    hso.Generation,
-			configMapVersion: cm.ResourceVersion,
 		}
 		h.cacheMutex.Unlock()
 		return tmpl, nil

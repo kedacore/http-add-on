@@ -11,33 +11,33 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/routing/test"
 )
 
 const testCustomContent = `<html><body>{{.ServiceName}}</body></html>`
 
 func TestNewPlaceholderHandler(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
 
-	handler, err := NewPlaceholderHandler(k8sClient, routingTable)
+	handler, err := NewPlaceholderHandler(servingCfg)
 	assert.NoError(t, err)
 	assert.NotNil(t, handler)
-	assert.NotNil(t, handler.k8sClient)
-	assert.NotNil(t, handler.routingTable)
+	assert.NotNil(t, handler.servingCfg)
 	assert.NotNil(t, handler.templateCache)
 	assert.NotNil(t, handler.defaultTmpl)
+	assert.True(t, handler.enableScript)
 }
 
 func TestServePlaceholder_DisabledConfig(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Create HTTPScaledObject with disabled placeholder
 	hso := &v1alpha1.HTTPScaledObject{
@@ -65,9 +65,10 @@ func TestServePlaceholder_DisabledConfig(t *testing.T) {
 }
 
 func TestServePlaceholder_DefaultTemplate(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Create HTTPScaledObject with enabled placeholder
 	hso := &v1alpha1.HTTPScaledObject{
@@ -101,9 +102,10 @@ func TestServePlaceholder_DefaultTemplate(t *testing.T) {
 }
 
 func TestServePlaceholder_InlineContent(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	customContent := `<html><body><h1>Custom placeholder for {{.ServiceName}}</h1></body></html>`
 
@@ -138,21 +140,14 @@ func TestServePlaceholder_InlineContent(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
 }
 
-func TestServePlaceholder_ConfigMapContent(t *testing.T) {
-	// Create fake k8s client with a ConfigMap
-	configMapContent := `<html><body><h1>ConfigMap placeholder for {{.ServiceName}}</h1></body></html>`
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "placeholder-cm",
-			Namespace: "default",
-		},
-		Data: map[string]string{
-			"template.html": configMapContent,
-		},
+func TestServePlaceholder_NonHTMLContent(t *testing.T) {
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
 	}
-	k8sClient := fake.NewSimpleClientset(cm)
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	handler, _ := NewPlaceholderHandler(servingCfg)
+
+	// Test with JSON content
+	jsonContent := `{"status": "starting", "service": "{{.ServiceName}}"}`
 
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -164,31 +159,33 @@ func TestServePlaceholder_ConfigMapContent(t *testing.T) {
 				Service: "test-service",
 			},
 			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-				Enabled:          true,
-				StatusCode:       503,
-				RefreshInterval:  5,
-				ContentConfigMap: "placeholder-cm",
+				Enabled:         true,
+				StatusCode:      503,
+				RefreshInterval: 5,
+				Content:         jsonContent,
 			},
 		},
 	}
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
+	req.Header.Set("Accept", "application/json")
 	w := httptest.NewRecorder()
 
 	err := handler.ServePlaceholder(w, req, hso)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
-	assert.Contains(t, w.Body.String(), "ConfigMap placeholder for test-service")
+	assert.Contains(t, w.Body.String(), `"service": "test-service"`)
 
-	// Verify script was injected
-	assert.Contains(t, w.Body.String(), "checkServiceStatus")
-	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
+	// Verify script was NOT injected into JSON
+	assert.NotContains(t, w.Body.String(), "checkServiceStatus")
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 }
 
 func TestServePlaceholder_CustomHeaders(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -221,9 +218,10 @@ func TestServePlaceholder_CustomHeaders(t *testing.T) {
 }
 
 func TestServePlaceholder_InvalidTemplate(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Invalid template syntax
 	invalidContent := `<html><body>{{.UnknownField</body></html>`
@@ -257,9 +255,10 @@ func TestServePlaceholder_InvalidTemplate(t *testing.T) {
 }
 
 func TestGetTemplate_Caching(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -288,9 +287,10 @@ func TestGetTemplate_Caching(t *testing.T) {
 }
 
 func TestGetTemplate_CacheInvalidation_Generation(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	customContent1 := `<html><body>Version 1: {{.ServiceName}}</body></html>`
 	customContent2 := `<html><body>Version 2: {{.ServiceName}}</body></html>`
@@ -324,8 +324,11 @@ func TestGetTemplate_CacheInvalidation_Generation(t *testing.T) {
 	assert.NotEqual(t, fmt.Sprintf("%p", tmpl1), fmt.Sprintf("%p", tmpl2))
 }
 
-func TestGetTemplate_CacheInvalidation_ConfigMapVersion(t *testing.T) {
-	// Create ConfigMap
+func TestGetTemplate_CacheInvalidation_ConfigMapVersion_REMOVED(t *testing.T) {
+	t.Skip("ConfigMap support removed per maintainer feedback")
+	return
+	// The code below is kept for reference but won't be executed
+	/*
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "placeholder-cm",
@@ -367,12 +370,14 @@ func TestGetTemplate_CacheInvalidation_ConfigMapVersion(t *testing.T) {
 	tmpl2, err := handler.getTemplate(ctx, hso)
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl2)
+	*/
 }
 
 func TestGetTemplate_ConcurrentAccess(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -435,9 +440,10 @@ func TestGetTemplate_ConcurrentAccess(t *testing.T) {
 }
 
 func TestGetTemplate_ConcurrentFirstAccess(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -486,28 +492,10 @@ func TestGetTemplate_ConcurrentFirstAccess(t *testing.T) {
 }
 
 func TestGetTemplate_ConcurrentCacheUpdates(t *testing.T) {
-	configMaps := make([]*v1.ConfigMap, 10)
-	for i := 0; i < 10; i++ {
-		configMaps[i] = &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            fmt.Sprintf("placeholder-cm-%d", i),
-				Namespace:       "default",
-				ResourceVersion: "1",
-			},
-			Data: map[string]string{
-				"template.html": fmt.Sprintf(`<html><body>ConfigMap %d: {{.ServiceName}}</body></html>`, i),
-			},
-		}
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
 	}
-
-	k8sClient := fake.NewSimpleClientset()
-	for _, cm := range configMaps {
-		_, err := k8sClient.CoreV1().ConfigMaps("default").Create(context.Background(), cm, metav1.CreateOptions{})
-		require.NoError(t, err)
-	}
-
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	ctx := context.Background()
 
@@ -528,7 +516,7 @@ func TestGetTemplate_ConcurrentCacheUpdates(t *testing.T) {
 					},
 					Spec: v1alpha1.HTTPScaledObjectSpec{
 						PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-							ContentConfigMap: fmt.Sprintf("placeholder-cm-%d", cmIndex),
+							Content: fmt.Sprintf(`<html><body>Template %d-%d: {{.ServiceName}}</body></html>`, cmIndex, iteration),
 						},
 					},
 				}
@@ -576,19 +564,9 @@ func TestInjectPlaceholderScript(t *testing.T) {
 			expected: `<p>Just some text</p>` + placeholderScript,
 		},
 		{
-			name:  "Empty string",
-			input: ``,
-			expected: fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Service Starting</title>
-</head>
-<body>
-
-%s
-</body>
-</html>`, placeholderScript),
+			name:     "Empty string",
+			input:    ``,
+			expected: ``,
 		},
 		{
 			name:     "Multiple body tags (uses last one)",
@@ -601,19 +579,9 @@ func TestInjectPlaceholderScript(t *testing.T) {
 			expected: `<html><div>Hello</div>` + placeholderScript + `</html>`,
 		},
 		{
-			name:  "Non-HTML content gets wrapped",
-			input: `Just plain text without HTML`,
-			expected: fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Service Starting</title>
-</head>
-<body>
-Just plain text without HTML
-%s
-</body>
-</html>`, placeholderScript),
+			name:     "Non-HTML content NOT wrapped anymore",
+			input:    `Just plain text without HTML`,
+			expected: `Just plain text without HTML`,
 		},
 		{
 			name:     "Partial HTML without closing tags",
@@ -631,9 +599,10 @@ Just plain text without HTML
 }
 
 func TestServePlaceholder_InlineContentWithScriptInjection(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Custom content without the script
 	customContent := `<html><body><h1>Custom placeholder for {{.ServiceName}}</h1></body></html>`
@@ -672,8 +641,11 @@ func TestServePlaceholder_InlineContentWithScriptInjection(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "checkInterval =  10  * 1000")
 }
 
-func TestServePlaceholder_ConfigMapContentWithScriptInjection(t *testing.T) {
-	// Create fake k8s client with a ConfigMap
+func TestServePlaceholder_ConfigMapContentWithScriptInjection_REMOVED(t *testing.T) {
+	t.Skip("ConfigMap support removed per maintainer feedback")
+	return
+	// The code below is kept for reference but won't be executed
+	/*
 	configMapContent := `<html><body><h1>ConfigMap placeholder for {{.ServiceName}}</h1></body></html>`
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -720,12 +692,14 @@ func TestServePlaceholder_ConfigMapContentWithScriptInjection(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "checkServiceStatus")
 	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
 	assert.Contains(t, w.Body.String(), "checkInterval =  15  * 1000")
+	*/
 }
 
 func TestServePlaceholder_NoBodyTagScriptInjection(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Custom content without body tag
 	customContent := `<div>Simple placeholder for {{.ServiceName}}</div>`
@@ -764,9 +738,10 @@ func TestServePlaceholder_NoBodyTagScriptInjection(t *testing.T) {
 }
 
 func TestServePlaceholder_NonHTMLContentWrapping(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset()
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
+	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Non-HTML content that should get wrapped
 	plainTextContent := `Welcome! Your service is starting up.
@@ -798,17 +773,18 @@ Please wait a moment...`
 
 	body := w.Body.String()
 
-	// Check that content was wrapped in proper HTML
-	assert.Contains(t, body, "<!DOCTYPE html>")
-	assert.Contains(t, body, "<html>")
-	assert.Contains(t, body, "<body>")
-	assert.Contains(t, body, "</body>")
-	assert.Contains(t, body, "</html>")
-
-	// Check that original content is preserved
+	// Check that content was NOT wrapped in HTML (new behavior)
+	assert.NotContains(t, body, "<!DOCTYPE html>")
+	assert.NotContains(t, body, "<html>")
+	assert.NotContains(t, body, "<body>")
+	
+	// Check that original content is preserved as-is
 	assert.Contains(t, body, "Welcome! Your service is starting up.")
 	assert.Contains(t, body, "Please wait a moment...")
 
-	// Check that script was injected
-	assert.Contains(t, body, "checkServiceStatus")
+	// Check that script was NOT injected into plain text
+	assert.NotContains(t, body, "checkServiceStatus")
+	
+	// Check content type is plain text
+	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
 }

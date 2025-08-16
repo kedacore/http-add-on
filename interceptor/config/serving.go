@@ -49,6 +49,10 @@ type Serving struct {
 	TLSPort int `envconfig:"KEDA_HTTP_PROXY_TLS_PORT" default:"8443"`
 	// ProfilingAddr if not empty, pprof will be available on this address, assuming host:port here
 	ProfilingAddr string `envconfig:"PROFILING_BIND_ADDRESS" default:""`
+	// PlaceholderDefaultTemplatePath is the path to the default placeholder template file
+	PlaceholderDefaultTemplatePath string `envconfig:"KEDA_HTTP_PLACEHOLDER_DEFAULT_TEMPLATE_PATH" default:""`
+	// PlaceholderEnableScript controls whether to inject auto-refresh script into HTML responses
+	PlaceholderEnableScript bool `envconfig:"KEDA_HTTP_PLACEHOLDER_ENABLE_SCRIPT" default:"true"`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the
