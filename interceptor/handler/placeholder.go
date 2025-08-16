@@ -111,7 +111,6 @@ type cacheEntry struct {
 // PlaceholderHandler handles serving placeholder pages during scale-from-zero
 type PlaceholderHandler struct {
 	k8sClient     kubernetes.Interface
-	routingTable  routing.Table
 	templateCache map[string]*cacheEntry
 	cacheMutex    sync.RWMutex
 	defaultTmpl   *template.Template
