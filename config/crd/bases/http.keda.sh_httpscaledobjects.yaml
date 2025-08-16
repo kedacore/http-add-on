@@ -137,16 +137,8 @@ spec:
                   scale-from-zero
                 properties:
                   content:
-                    description: Inline HTML content for placeholder page (takes precedence
-                      over ContentConfigMap)
-                    type: string
-                  contentConfigMap:
-                    description: Path to ConfigMap containing placeholder HTML content
-                      (in same namespace)
-                    type: string
-                  contentConfigMapKey:
-                    default: template.html
-                    description: Key in ConfigMap containing the HTML template
+                    description: Inline content for placeholder page (can be HTML,
+                      JSON, plain text, etc.)
                     type: string
                   enabled:
                     default: false

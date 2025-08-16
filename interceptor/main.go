@@ -441,7 +441,7 @@ func runProxyServer(
 	}
 
 	// Create placeholder handler
-	placeholderHandler, err := handler.NewPlaceholderHandler(k8sClient, routingTable)
+	placeholderHandler, err := handler.NewPlaceholderHandler(serving)
 	if err != nil {
 		return fmt.Errorf("creating placeholder handler: %w", err)
 	}
