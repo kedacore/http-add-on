@@ -108,11 +108,11 @@ type cacheEntry struct {
 
 // PlaceholderHandler handles serving placeholder pages during scale-from-zero
 type PlaceholderHandler struct {
-	templateCache  map[string]*cacheEntry
-	cacheMutex     sync.RWMutex
-	defaultTmpl    *template.Template
-	servingCfg     *config.Serving
-	enableScript   bool
+	templateCache map[string]*cacheEntry
+	cacheMutex    sync.RWMutex
+	defaultTmpl   *template.Template
+	servingCfg    *config.Serving
+	enableScript  bool
 }
 
 // PlaceholderData contains data for rendering placeholder templates
@@ -127,7 +127,7 @@ type PlaceholderData struct {
 // NewPlaceholderHandler creates a new placeholder handler
 func NewPlaceholderHandler(servingCfg *config.Serving) (*PlaceholderHandler, error) {
 	var defaultTemplate string
-	
+
 	// Try to load template from configured path
 	if servingCfg.PlaceholderDefaultTemplatePath != "" {
 		content, err := os.ReadFile(servingCfg.PlaceholderDefaultTemplatePath)
@@ -135,19 +135,19 @@ func NewPlaceholderHandler(servingCfg *config.Serving) (*PlaceholderHandler, err
 			defaultTemplate = string(content)
 		} else {
 			// Fall back to built-in template if file cannot be read
-			fmt.Printf("Warning: Could not read placeholder template from %s: %v. Using built-in template.\n", 
+			fmt.Printf("Warning: Could not read placeholder template from %s: %v. Using built-in template.\n",
 				servingCfg.PlaceholderDefaultTemplatePath, err)
 			defaultTemplate = defaultPlaceholderTemplateWithoutScript
 		}
 	} else {
 		defaultTemplate = defaultPlaceholderTemplateWithoutScript
 	}
-	
+
 	// Inject script if enabled
 	if servingCfg.PlaceholderEnableScript {
 		defaultTemplate = injectPlaceholderScript(defaultTemplate)
 	}
-	
+
 	defaultTmpl, err := template.New("default").Parse(defaultTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse default template: %w", err)
@@ -201,7 +201,7 @@ func detectContentType(acceptHeader string, content string) string {
 	if strings.Contains(acceptHeader, "text/plain") {
 		return "text/plain"
 	}
-	
+
 	// Default to HTML for browser requests or when HTML is accepted
 	if strings.Contains(acceptHeader, "text/html") || strings.Contains(acceptHeader, "*/*") || acceptHeader == "" {
 		// Check if content looks like HTML
@@ -209,11 +209,11 @@ func detectContentType(acceptHeader string, content string) string {
 			return "text/html; charset=utf-8"
 		}
 	}
-	
+
 	// Try to detect based on content
 	trimmed := strings.TrimSpace(content)
 	if (strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}")) ||
-	   (strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]")) {
+		(strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]")) {
 		return "application/json"
 	}
 	if strings.HasPrefix(trimmed, "<") {
@@ -222,7 +222,7 @@ func detectContentType(acceptHeader string, content string) string {
 		}
 		return "text/html; charset=utf-8"
 	}
-	
+
 	return "text/plain; charset=utf-8"
 }
 
@@ -275,17 +275,17 @@ func (h *PlaceholderHandler) ServePlaceholder(w http.ResponseWriter, r *http.Req
 	}
 
 	content := buf.String()
-	
+
 	// Detect and set content type based on Accept header and content
 	contentType := detectContentType(r.Header.Get("Accept"), content)
-	
+
 	// For non-HTML content, don't inject script even if enabled
 	isHTML := strings.Contains(contentType, "text/html")
 	if !isHTML && h.enableScript && strings.Contains(content, placeholderScript) {
 		// Remove script from non-HTML content
 		content = strings.ReplaceAll(content, placeholderScript, "")
 	}
-	
+
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-KEDA-HTTP-Placeholder-Served", "true")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")

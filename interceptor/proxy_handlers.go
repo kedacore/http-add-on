@@ -90,7 +90,7 @@ func newForwardingHandler(
 				}
 				return
 			}
-			
+
 			if workloadActiveEndpoints(endpoints) == 0 {
 				if placeholderErr := placeholderHandler.ServePlaceholder(w, r, httpso); placeholderErr != nil {
 					lggr.Error(placeholderErr, "failed to serve placeholder page")

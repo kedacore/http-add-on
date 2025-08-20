@@ -194,6 +194,8 @@ func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
 		},
 		&tls.Config{},
 		&config.Tracing{},
+		nil, // placeholderHandler
+		nil, // endpointsCache
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)

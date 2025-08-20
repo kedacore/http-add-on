@@ -329,47 +329,47 @@ func TestGetTemplate_CacheInvalidation_ConfigMapVersion_REMOVED(t *testing.T) {
 	return
 	// The code below is kept for reference but won't be executed
 	/*
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            "placeholder-cm",
-			Namespace:       "default",
-			ResourceVersion: "1",
-		},
-		Data: map[string]string{
-			"template.html": `<html><body>Version 1: {{.ServiceName}}</body></html>`,
-		},
-	}
-	k8sClient := fake.NewSimpleClientset(cm)
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
-
-	hso := &v1alpha1.HTTPScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "test-app",
-			Namespace:  "default",
-			Generation: 1,
-		},
-		Spec: v1alpha1.HTTPScaledObjectSpec{
-			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-				ContentConfigMap: "placeholder-cm",
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "placeholder-cm",
+				Namespace:       "default",
+				ResourceVersion: "1",
 			},
-		},
-	}
+			Data: map[string]string{
+				"template.html": `<html><body>Version 1: {{.ServiceName}}</body></html>`,
+			},
+		}
+		k8sClient := fake.NewSimpleClientset(cm)
+		routingTable := test.NewTable()
+		handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
 
-	ctx := context.Background()
+		hso := &v1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "test-app",
+				Namespace:  "default",
+				Generation: 1,
+			},
+			Spec: v1alpha1.HTTPScaledObjectSpec{
+				PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+					ContentConfigMap: "placeholder-cm",
+				},
+			},
+		}
 
-	tmpl1, err := handler.getTemplate(ctx, hso)
-	require.NoError(t, err)
-	assert.NotNil(t, tmpl1)
+		ctx := context.Background()
 
-	cm.ResourceVersion = "2"
-	cm.Data["template.html"] = `<html><body>Version 2: {{.ServiceName}}</body></html>`
-	_, err = k8sClient.CoreV1().ConfigMaps("default").Update(ctx, cm, metav1.UpdateOptions{})
-	require.NoError(t, err)
+		tmpl1, err := handler.getTemplate(ctx, hso)
+		require.NoError(t, err)
+		assert.NotNil(t, tmpl1)
 
-	tmpl2, err := handler.getTemplate(ctx, hso)
-	require.NoError(t, err)
-	assert.NotNil(t, tmpl2)
+		cm.ResourceVersion = "2"
+		cm.Data["template.html"] = `<html><body>Version 2: {{.ServiceName}}</body></html>`
+		_, err = k8sClient.CoreV1().ConfigMaps("default").Update(ctx, cm, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		tmpl2, err := handler.getTemplate(ctx, hso)
+		require.NoError(t, err)
+		assert.NotNil(t, tmpl2)
 	*/
 }
 
@@ -646,52 +646,52 @@ func TestServePlaceholder_ConfigMapContentWithScriptInjection_REMOVED(t *testing
 	return
 	// The code below is kept for reference but won't be executed
 	/*
-	configMapContent := `<html><body><h1>ConfigMap placeholder for {{.ServiceName}}</h1></body></html>`
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "placeholder-cm",
-			Namespace: "default",
-		},
-		Data: map[string]string{
-			"template.html": configMapContent,
-		},
-	}
-	k8sClient := fake.NewSimpleClientset(cm)
-	routingTable := test.NewTable()
-	handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
-
-	hso := &v1alpha1.HTTPScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: v1alpha1.ScaleTargetRef{
-				Service: "test-service",
+		configMapContent := `<html><body><h1>ConfigMap placeholder for {{.ServiceName}}</h1></body></html>`
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "placeholder-cm",
+				Namespace: "default",
 			},
-			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-				Enabled:          true,
-				StatusCode:       503,
-				RefreshInterval:  15,
-				ContentConfigMap: "placeholder-cm",
+			Data: map[string]string{
+				"template.html": configMapContent,
 			},
-		},
-	}
+		}
+		k8sClient := fake.NewSimpleClientset(cm)
+		routingTable := test.NewTable()
+		handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
 
-	req := httptest.NewRequest("GET", "http://example.com", nil)
-	w := httptest.NewRecorder()
+		hso := &v1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.HTTPScaledObjectSpec{
+				ScaleTargetRef: v1alpha1.ScaleTargetRef{
+					Service: "test-service",
+				},
+				PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+					Enabled:          true,
+					StatusCode:       503,
+					RefreshInterval:  15,
+					ContentConfigMap: "placeholder-cm",
+				},
+			},
+		}
 
-	err := handler.ServePlaceholder(w, req, hso)
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+		req := httptest.NewRequest("GET", "http://example.com", nil)
+		w := httptest.NewRecorder()
 
-	// Check that custom content is there
-	assert.Contains(t, w.Body.String(), "ConfigMap placeholder for test-service")
+		err := handler.ServePlaceholder(w, req, hso)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 
-	// Check that script was injected
-	assert.Contains(t, w.Body.String(), "checkServiceStatus")
-	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
-	assert.Contains(t, w.Body.String(), "checkInterval =  15  * 1000")
+		// Check that custom content is there
+		assert.Contains(t, w.Body.String(), "ConfigMap placeholder for test-service")
+
+		// Check that script was injected
+		assert.Contains(t, w.Body.String(), "checkServiceStatus")
+		assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
+		assert.Contains(t, w.Body.String(), "checkInterval =  15  * 1000")
 	*/
 }
 
@@ -777,14 +777,14 @@ Please wait a moment...`
 	assert.NotContains(t, body, "<!DOCTYPE html>")
 	assert.NotContains(t, body, "<html>")
 	assert.NotContains(t, body, "<body>")
-	
+
 	// Check that original content is preserved as-is
 	assert.Contains(t, body, "Welcome! Your service is starting up.")
 	assert.Contains(t, body, "Please wait a moment...")
 
 	// Check that script was NOT injected into plain text
 	assert.NotContains(t, body, "checkServiceStatus")
-	
+
 	// Check content type is plain text
 	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
 }
