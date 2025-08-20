@@ -81,6 +81,9 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 		fmt.Println(err, "Error setting up tracer")
 	}
 
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
 	g.Go(func() error {
 		return runProxyServer(
 			ctx,
@@ -90,6 +93,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 			routingTable,
 			svcCache,
 			timeouts,
+			servingCfg,
 			port,
 			false,
 			map[string]interface{}{},
@@ -222,6 +226,9 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 		return false, nil
 	}
 	tracingCfg := config.Tracing{Enabled: true, Exporter: "otlphttp"}
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
 
 	g.Go(func() error {
 		return runProxyServer(
@@ -232,6 +239,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 			routingTable,
 			svcCache,
 			timeouts,
+			servingCfg,
 			port,
 			true,
 			map[string]interface{}{"certificatePath": "../certs/tls.crt", "keyPath": "../certs/tls.key", "skipVerify": true},
@@ -374,6 +382,9 @@ func TestRunProxyServerWithMultipleCertsTLSCountMiddleware(t *testing.T) {
 	}
 
 	tracingCfg := config.Tracing{Enabled: true, Exporter: "otlphttp"}
+	servingCfg := &config.Serving{
+		PlaceholderEnableScript: true,
+	}
 
 	g.Go(func() error {
 		return runProxyServer(
@@ -384,6 +395,7 @@ func TestRunProxyServerWithMultipleCertsTLSCountMiddleware(t *testing.T) {
 			routingTable,
 			svcCache,
 			timeouts,
+			servingCfg,
 			port,
 			true,
 			map[string]interface{}{"certstorePaths": "../certs"},
