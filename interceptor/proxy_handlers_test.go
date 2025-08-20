@@ -80,6 +80,8 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		},
 		&tls.Config{},
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -132,6 +134,8 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 		},
 		&TestTLSConfig,
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -188,6 +192,8 @@ func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
 		},
 		&tls.Config{},
 		&config.Tracing{},
+		nil, // placeholderHandler
+		nil, // endpointsCache
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -248,6 +254,8 @@ func TestWaitFailedConnection(t *testing.T) {
 		},
 		&tls.Config{},
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	stream, err := url.Parse("http://0.0.0.0:0")
 	r.NoError(err)
@@ -299,6 +307,8 @@ func TestWaitFailedConnectionTLS(t *testing.T) {
 		},
 		&TestTLSConfig,
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	stream, err := url.Parse("http://0.0.0.0:0")
 	r.NoError(err)
@@ -351,6 +361,8 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 		},
 		&tls.Config{},
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	stream, err := url.Parse("http://1.1.1.1")
 	r.NoError(err)
@@ -424,6 +436,8 @@ func TestTimesOutOnWaitFuncTLS(t *testing.T) {
 		},
 		&TestTLSConfig,
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	stream, err := url.Parse("http://1.1.1.1")
 	r.NoError(err)
@@ -508,6 +522,8 @@ func TestWaitsForWaitFunc(t *testing.T) {
 		},
 		&tls.Config{},
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -575,6 +591,8 @@ func TestWaitsForWaitFuncTLS(t *testing.T) {
 		},
 		&TestTLSConfig,
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -646,6 +664,8 @@ func TestWaitHeaderTimeout(t *testing.T) {
 		},
 		&tls.Config{},
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -705,6 +725,8 @@ func TestWaitHeaderTimeoutTLS(t *testing.T) {
 		},
 		&TestTLSConfig,
 		&config.Tracing{},
+		nil,
+		nil,
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
