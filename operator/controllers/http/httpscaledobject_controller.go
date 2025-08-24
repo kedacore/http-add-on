@@ -170,3 +170,9 @@ func (r *HTTPScaledObjectReconciler) updatePromMetrics(ctx context.Context, scal
 	logger.Info("updatePromMetrics")
 	metrics.RecordHTTPScaledObjectCount(namespacedName)
 }
+
+func (r *HTTPScaledObjectReconciler) updatePromMetricsOnDelete(ctx context.Context, scaledObject *httpv1alpha1.HTTPScaledObject, namespacedName string) {
+	logger := log.FromContext(ctx, "updatePromMetricsOnDelete", namespacedName)
+	logger.Info("updatePromMetricsOnDelete")
+	metrics.RecordDeleteHTTPScaledObjectCount(namespacedName)
+}

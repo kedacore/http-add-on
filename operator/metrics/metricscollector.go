@@ -12,6 +12,7 @@ const meterName = "keda-http-add-on-operator"
 
 type Collector interface {
 	RecordHTTPScaledObjectCount(namespace string)
+	RecordDeleteHTTPScaledObjectCount(namespace string)
 }
 
 func NewMetricsCollectors(metricsConfig *config.Metrics) {
@@ -29,5 +30,11 @@ func NewMetricsCollectors(metricsConfig *config.Metrics) {
 func RecordHTTPScaledObjectCount(namespace string) {
 	for _, collector := range collectors {
 		collector.RecordHTTPScaledObjectCount(namespace)
+	}
+}
+
+func RecordDeleteHTTPScaledObjectCount(namespace string) {
+	for _, collector := range collectors {
+		collector.RecordDeleteHTTPScaledObjectCount(namespace)
 	}
 }

@@ -15,10 +15,10 @@ func TestPromRequestCountMetric(t *testing.T) {
 	options := []promexporter.Option{promexporter.WithRegisterer(testRegistry)}
 	testPrometheus := NewPrometheusMetrics(options...)
 	expectedOutput := `
-	# HELP operator_http_scaled_object_count_total a counter of http_scaled_objects processed by the operator
-	# TYPE operator_http_scaled_object_count_total counter
-	operator_http_scaled_object_count_total{namespace="test-namespace",otel_scope_name="keda-http-add-on-operator",otel_scope_version=""} 2
-	operator_http_scaled_object_count_total{namespace="other-test-namespace",otel_scope_name="keda-http-add-on-operator",otel_scope_version=""} 1
+	# HELP operator_http_scaled_object_count a counter of http_scaled_objects processed by the operator
+	# TYPE operator_http_scaled_object_count gauge
+	operator_http_scaled_object_count{namespace="test-namespace",otel_scope_name="keda-http-add-on-operator",otel_scope_version=""} 0
+	operator_http_scaled_object_count{namespace="other-test-namespace",otel_scope_name="keda-http-add-on-operator",otel_scope_version=""} 1
 	# HELP otel_scope_info Instrumentation Scope metadata
 	# TYPE otel_scope_info gauge
 	otel_scope_info{otel_scope_name="keda-http-add-on-operator",otel_scope_version=""} 1
@@ -28,7 +28,7 @@ func TestPromRequestCountMetric(t *testing.T) {
 	`
 	expectedOutputReader := strings.NewReader(expectedOutput)
 	testPrometheus.RecordHTTPScaledObjectCount("test-namespace")
-	testPrometheus.RecordHTTPScaledObjectCount("test-namespace")
+	testPrometheus.RecordDeleteHTTPScaledObjectCount("test-namespace")
 	testPrometheus.RecordHTTPScaledObjectCount("other-test-namespace")
 	err := testutil.CollectAndCompare(testRegistry, expectedOutputReader)
 	assert.Nil(t, err)
