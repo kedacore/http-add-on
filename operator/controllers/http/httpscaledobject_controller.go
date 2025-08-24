@@ -34,6 +34,7 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 	"github.com/kedacore/http-add-on/operator/controllers/util"
+	"github.com/kedacore/http-add-on/operator/metrics"
 )
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
@@ -98,6 +99,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		"DeploymentName",
 		httpso.Name,
 	)
+	r.updatePromMetrics(ctx, httpso, req.Namespace)
 
 	// check if ScalingMetric is correct
 	if httpso.Spec.ScalingMetric != nil &&
@@ -161,4 +163,16 @@ func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.ScaledObjectSpecChangedPredicate{},
 			))).
 		Complete(r)
+}
+
+func (r *HTTPScaledObjectReconciler) updatePromMetrics(ctx context.Context, scaledObject *httpv1alpha1.HTTPScaledObject, namespacedName string) {
+	logger := log.FromContext(ctx, "updatePromMetrics", namespacedName)
+	logger.Info("updatePromMetrics")
+	metrics.RecordHTTPScaledObjectCount(namespacedName)
+}
+
+func (r *HTTPScaledObjectReconciler) updatePromMetricsOnDelete(ctx context.Context, scaledObject *httpv1alpha1.HTTPScaledObject, namespacedName string) {
+	logger := log.FromContext(ctx, "updatePromMetricsOnDelete", namespacedName)
+	logger.Info("updatePromMetricsOnDelete")
+	metrics.RecordDeleteHTTPScaledObjectCount(namespacedName)
 }
