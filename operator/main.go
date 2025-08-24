@@ -17,10 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"os"
 
+	"github.com/go-logr/logr"
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -34,6 +38,10 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
+	"github.com/kedacore/http-add-on/operator/metrics"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
+	"github.com/kedacore/http-add-on/pkg/util"
+	"golang.org/x/sync/errgroup"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -69,7 +77,9 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
-
+	metricsCfg := config.MustParseMetrics()
+	// setup the configured metrics collectors
+	metrics.NewMetricsCollectors(metricsCfg)
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	externalScalerCfg, err := config.NewExternalScalerFromEnv()
@@ -112,6 +122,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+	ctx = util.ContextWithLogger(ctx, ctrl.Log)
+	eg, ctx := errgroup.WithContext(ctx)
+
+	if metricsCfg.OtelPrometheusExporterEnabled {
+		// start the prometheus compatible metrics server
+		// serves a prometheus compatible metrics endpoint on the configured port
+		eg.Go(func() error {
+			if err := runMetricsServer(ctx, ctrl.Log, metricsCfg); !util.IsIgnoredErr(err) {
+				setupLog.Error(err, "could not start the Prometheus metrics server")
+				return err
+			}
+
+			return nil
+		})
+	}
 	if err = (&httpcontrollers.HTTPScaledObjectReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -134,8 +160,18 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func runMetricsServer(
+	ctx context.Context,
+	lggr logr.Logger,
+	metricsCfg *config.Metrics,
+) error {
+	lggr.Info("starting the prometheus metrics server", "port", metricsCfg.OtelPrometheusExporterPort, "path", "/metrics")
+	addr := fmt.Sprintf("0.0.0.0:%d", metricsCfg.OtelPrometheusExporterPort)
+	return kedahttp.ServeContext(ctx, addr, promhttp.Handler(), nil)
 }
