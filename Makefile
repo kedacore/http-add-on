@@ -230,6 +230,9 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 	cd config/operator && \
 	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
 
+	cd config/operator && \
+	$(KUSTOMIZE) edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name operator --version v1
+
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 undeploy:

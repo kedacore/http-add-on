@@ -19,6 +19,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
@@ -34,6 +35,16 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 	"github.com/kedacore/http-add-on/operator/controllers/util"
+	"github.com/kedacore/http-add-on/operator/metrics"
+)
+
+type httpScaledObjectMetricsData struct {
+	namespace string
+}
+
+var (
+	httpScaledObjectPromMetricsMap  map[string]httpScaledObjectMetricsData
+	httpScaledObjectPromMetricsLock *sync.Mutex
 )
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
@@ -46,6 +57,11 @@ type HTTPScaledObjectReconciler struct {
 
 	ExternalScalerConfig config.ExternalScaler
 	BaseConfig           config.Base
+}
+
+func init() {
+	httpScaledObjectPromMetricsMap = make(map[string]httpScaledObjectMetricsData)
+	httpScaledObjectPromMetricsLock = &sync.Mutex{}
 }
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch;create;update;patch;delete
@@ -78,6 +94,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if httpso.GetDeletionTimestamp() != nil {
+		r.updatePromMetricsOnDelete(ctx, httpso)
 		return ctrl.Result{}, finalizeScaledObject(ctx, logger, r.Client, httpso)
 	}
 
@@ -139,6 +156,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	)
 
 	// success reconciling
+	r.updatePromMetrics(ctx, httpso)
 	logger.Info("Reconcile success")
 	return ctrl.Result{}, nil
 }
@@ -161,4 +179,36 @@ func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.ScaledObjectSpecChangedPredicate{},
 			))).
 		Complete(r)
+}
+
+func (r *HTTPScaledObjectReconciler) updatePromMetrics(ctx context.Context, scaledObject *httpv1alpha1.HTTPScaledObject) {
+	httpScaledObjectPromMetricsLock.Lock()
+	defer httpScaledObjectPromMetricsLock.Unlock()
+
+	namespacedName := client.ObjectKeyFromObject(scaledObject).String()
+	metricsData, ok := httpScaledObjectPromMetricsMap[namespacedName]
+	if ok {
+		metrics.RecordDeleteHTTPScaledObjectCount(scaledObject.Namespace)
+	}
+	metricsData.namespace = scaledObject.Namespace
+
+	logger := log.FromContext(ctx, "updatePromMetrics", namespacedName)
+	logger.Info("updatePromMetrics")
+	metrics.RecordHTTPScaledObjectCount(scaledObject.Namespace)
+
+	httpScaledObjectPromMetricsMap[namespacedName] = metricsData
+}
+
+func (r *HTTPScaledObjectReconciler) updatePromMetricsOnDelete(ctx context.Context, scaledObject *httpv1alpha1.HTTPScaledObject) {
+	httpScaledObjectPromMetricsLock.Lock()
+	defer httpScaledObjectPromMetricsLock.Unlock()
+
+	namespacedName := scaledObject.Name + scaledObject.Namespace
+	logger := log.FromContext(ctx, "updatePromMetricsOnDelete", namespacedName)
+	logger.Info("updatePromMetricsOnDelete")
+
+	if _, ok := httpScaledObjectPromMetricsMap[namespacedName]; ok {
+		metrics.RecordDeleteHTTPScaledObjectCount(scaledObject.Namespace)
+	}
+	delete(httpScaledObjectPromMetricsMap, namespacedName)
 }
