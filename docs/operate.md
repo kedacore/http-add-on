@@ -64,14 +64,14 @@ Optional variables
 # Configuring metrics for the KEDA HTTP Add-on Operator
 
 ### Exportable metrics:
-* **operator_http_scaled_object_count** - the number of http_scaled_object  
+* **keda_http_scaled_object_total** - the number of http_scaled_objects  
 
 There are currently 2 supported methods for exposing metrics from the operator - via a Prometheus compatible metrics endpoint or by pushing metrics to a OTEL HTTP collector.
 
 ### Configuring the Prometheus compatible metrics endpoint
 When configured, the operator can expose metrics on a Prometheus compatible endpoint.
 
-This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the operator deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made avaialble on (`2223` by default).
+This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the operator deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made avaialble on (`8080` by default).
 
 ### Configuring the OTEL HTTP exporter
 When configured, the ioperator can export metrics to a OTEL HTTP collector.

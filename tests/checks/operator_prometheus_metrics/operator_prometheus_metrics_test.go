@@ -167,8 +167,8 @@ func TestMetricGeneration(t *testing.T) {
 
 	// Fetch metrics and validate them
 	family := fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", kedaOperatorPrometheusURL))
-	val, ok := family["operator_http_scaled_object_count"]
-	assert.True(t, ok, "operator_http_scaled_object_count is available")
+	val, ok := family["keda_http_scaled_object_total"]
+	assert.True(t, ok, "keda_http_scaled_object_total is available")
 
 	requestCount := getMetricsValue(val)
 	assert.GreaterOrEqual(t, requestCount, float64(1))
@@ -201,7 +201,7 @@ func fetchAndParsePrometheusMetrics(t *testing.T, cmd string) map[string]*prommo
 }
 
 func getMetricsValue(val *prommodel.MetricFamily) float64 {
-	if val.GetName() == "operator_http_scaled_object_count" {
+	if val.GetName() == "keda_http_scaled_object_total" {
 
 		metrics := val.GetMetric()
 		for _, metric := range metrics {

@@ -29,7 +29,7 @@ func TestHTTPScaledObjectCount(t *testing.T) {
 	scopeMetrics := got.ScopeMetrics[0]
 	assert.NotEqual(t, len(scopeMetrics.Metrics), 0)
 
-	metricInfo := retrieveMetric(scopeMetrics.Metrics, "operator_http_scaled_object_count")
+	metricInfo := retrieveMetric(scopeMetrics.Metrics, "keda.http.scaled.object.total")
 	data := metricInfo.Data.(metricdata.Sum[int64]).DataPoints[0]
 	assert.Equal(t, data.Value, int64(1))
 }

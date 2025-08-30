@@ -43,7 +43,7 @@ func NewOtelMetrics(options ...metric.Option) *OtelMetrics {
 	provider := metric.NewMeterProvider(options...)
 	meter := provider.Meter(meterName)
 
-	httpScaledObjectCounter, err := meter.Int64UpDownCounter("operator_http_scaled_object_count", api.WithDescription("a counter of http_scaled_objects processed by the operator"))
+	httpScaledObjectCounter, err := meter.Int64UpDownCounter("keda.http.scaled.object.total", api.WithDescription("a counter of http_scaled_objects processed by the operator"))
 	if err != nil {
 		log.Fatalf("could not create new otelhttpmetric request counter: %v", err)
 	}
