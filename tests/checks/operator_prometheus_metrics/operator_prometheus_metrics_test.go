@@ -165,15 +165,20 @@ func TestMetricGeneration(t *testing.T) {
 	// Send a test request to the interceptor
 	sendLoad(t, kc, data)
 
+	httpScaledObjecData, httpScaledObjecDataTemplates := getTemplateHTTPScaledObjecData()
+	KubectlApplyMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
+
 	// Fetch metrics and validate them
 	family := fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", kedaOperatorPrometheusURL))
 	val, ok := family["keda_http_scaled_object_total"]
 	assert.True(t, ok, "keda_http_scaled_object_total is available")
 
-	requestCount := getMetricsValue(val)
-	assert.GreaterOrEqual(t, requestCount, float64(1))
+	httpSacaledObjectCount := getMetricsValue(val)
+	assert.GreaterOrEqual(t, httpSacaledObjectCount, float64(1))
+	assert.Equal(t, httpSacaledObjectCount, float64(2))
 
 	// cleanup
+	KubectlDeleteMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
 	DeleteKubernetesResources(t, testNamespace, data, templates)
 }
 
@@ -182,8 +187,8 @@ func sendLoad(t *testing.T, kc *kubernetes.Clientset, data templateData) {
 
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 6, 10),
-		"replica count should be %d after 1 minutes", maxReplicaCount)
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 12, 10),
+		"replica count should be %d after 2 minutes", maxReplicaCount)
 }
 
 func fetchAndParsePrometheusMetrics(t *testing.T, cmd string) map[string]*prommodel.MetricFamily {
@@ -231,5 +236,20 @@ func getTemplateData() (templateData, []Template) {
 			{Name: "serviceNameTemplate", Config: serviceTemplate},
 			{Name: "clientTemplate", Config: clientTemplate},
 			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
+		}
+}
+
+func getTemplateHTTPScaledObjecData() (templateData, []Template) {
+	return templateData{
+			TestNamespace:        testNamespace,
+			DeploymentName:       "OtherDeployment",
+			ServiceName:          serviceName,
+			ClientName:           clientName,
+			HTTPScaledObjectName: "OtherHttpScaledObjectName",
+			Host:                 host,
+			MinReplicas:          minReplicaCount,
+			MaxReplicas:          maxReplicaCount,
+		}, []Template{
+			{Name: "OtherHttpScaledObjectName", Config: httpScaledObjectTemplate},
 		}
 }
