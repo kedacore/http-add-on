@@ -7,5 +7,5 @@ spec:
   ports:
   - name: metrics
     protocol: TCP
-    port: 2223
+    port: 8080
     targetPort: metrics

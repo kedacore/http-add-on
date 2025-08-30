@@ -29,7 +29,7 @@ var (
 	host                      = testName
 	minReplicaCount           = 0
 	maxReplicaCount           = 1
-	kedaOperatorPrometheusURL = "http://keda-add-ons-http-operator-metrics.keda:2223/metrics"
+	kedaOperatorPrometheusURL = "http://keda-add-ons-http-operator-metrics.keda:8080/metrics"
 )
 
 type templateData struct {
@@ -167,13 +167,11 @@ func TestMetricGeneration(t *testing.T) {
 
 	// Fetch metrics and validate them
 	family := fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", kedaOperatorPrometheusURL))
-	val, ok := family["operator_http_scaled_object_count_total"]
-	assert.True(t, ok, "operator_http_scaled_object_count_total is available")
-	t.Log("--- ASSERT operator_http_scaled_object_count_total is available ---")
+	val, ok := family["operator_http_scaled_object_count"]
+	assert.True(t, ok, "operator_http_scaled_object_count is available")
 
 	requestCount := getMetricsValue(val)
 	assert.GreaterOrEqual(t, requestCount, float64(1))
-	t.Log("--- ASSERT metrics greater than1 ---")
 
 	// cleanup
 	DeleteKubernetesResources(t, testNamespace, data, templates)
@@ -203,13 +201,14 @@ func fetchAndParsePrometheusMetrics(t *testing.T, cmd string) map[string]*prommo
 }
 
 func getMetricsValue(val *prommodel.MetricFamily) float64 {
-	if val.GetName() == "operator_http_scaled_object_count_total" {
+	if val.GetName() == "operator_http_scaled_object_count" {
+
 		metrics := val.GetMetric()
 		for _, metric := range metrics {
 			labels := metric.GetLabel()
 			for _, label := range labels {
 				if *label.Name == "namespace" && *label.Value == testNamespace {
-					return metric.GetCounter().GetValue()
+					return metric.GetGauge().GetValue()
 				}
 			}
 		}

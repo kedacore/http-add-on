@@ -12,10 +12,11 @@ spec:
         - name: OTEL_PROM_EXPORTER_ENABLED
           value: "true"
         - name: OTEL_PROM_EXPORTER_PORT
-          value: "2223"
+          value: "8080"
         - name: OTEL_EXPORTER_OTLP_METRICS_ENABLED
           value: "true"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://opentelemetry-collector.open-telemetry-system:4318"
         - name: OTEL_METRIC_EXPORT_INTERVAL
           value: "1"
+

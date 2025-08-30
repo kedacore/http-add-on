@@ -167,16 +167,16 @@ func TestMetricGeneration(t *testing.T) {
 
 	// Fetch metrics and validate them
 	family := fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", otelCollectorPromURL))
-	val, ok := family["operator_http_scaled_object_count_total"]
+	val, ok := family["operator_http_scaled_object_count"]
 	// If the metric is not found first time around then retry with a delay.
 	if !ok {
 		// Add a small sleep to allow metrics to be pushed from the exporter to the collector
 		time.Sleep(10 * time.Second)
 		// Fetch metrics and validate them
 		family := fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", otelCollectorPromURL))
-		val, ok = family["operator_http_scaled_object_count_total"]
+		val, ok = family["operator_http_scaled_object_count"]
 	}
-	assert.True(t, ok, "operator_http_scaled_object_count_total is available")
+	assert.True(t, ok, "operator_http_scaled_object_count is available")
 
 	requestCount := getMetricsValue(val)
 	assert.GreaterOrEqual(t, requestCount, float64(1))
@@ -208,13 +208,13 @@ func fetchAndParsePrometheusMetrics(t *testing.T, cmd string) map[string]*prommo
 }
 
 func getMetricsValue(val *prommodel.MetricFamily) float64 {
-	if val.GetName() == "operator_http_scaled_object_count_total" {
+	if val.GetName() == "operator_http_scaled_object_count" {
 		metrics := val.GetMetric()
 		for _, metric := range metrics {
 			labels := metric.GetLabel()
 			for _, label := range labels {
 				if *label.Name == "namespace" && *label.Value == testNamespace {
-					return metric.GetCounter().GetValue()
+					return metric.GetGauge().GetValue()
 				}
 			}
 		}

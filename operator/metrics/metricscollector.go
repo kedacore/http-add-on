@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
+	"go.opentelemetry.io/otel/exporters/prometheus"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 var (
@@ -17,7 +19,8 @@ type Collector interface {
 
 func NewMetricsCollectors(metricsConfig *config.Metrics) {
 	if metricsConfig.OtelPrometheusExporterEnabled {
-		promometrics := NewPrometheusMetrics()
+		options := prometheus.WithRegisterer(ctrlmetrics.Registry)
+		promometrics := NewPrometheusMetrics(options)
 		collectors = append(collectors, promometrics)
 	}
 
