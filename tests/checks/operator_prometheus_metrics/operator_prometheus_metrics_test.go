@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	prommodel "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
@@ -165,20 +166,25 @@ func TestMetricGeneration(t *testing.T) {
 	// Send a test request to the interceptor
 	sendLoad(t, kc, data)
 
-	httpScaledObjecData, httpScaledObjecDataTemplates := getTemplateHTTPScaledObjecData()
-	KubectlApplyMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
+	CreateManyHttpScaledObjecs(t, 10)
+	time.Sleep(time.Second * 10)
 
 	// Fetch metrics and validate them
 	family := fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", kedaOperatorPrometheusURL))
 	val, ok := family["keda_http_scaled_object_total"]
 	assert.True(t, ok, "keda_http_scaled_object_total is available")
-
 	httpSacaledObjectCount := getMetricsValue(val)
-	assert.GreaterOrEqual(t, httpSacaledObjectCount, float64(1))
-	assert.Equal(t, httpSacaledObjectCount, float64(2))
+	assert.GreaterOrEqual(t, httpSacaledObjectCount, float64(10))
+
+	DeleteManyHttpScaledObjecs(t, 10)
+	time.Sleep(time.Second * 10)
+	// Fetch metrics and validate them after deleting httpscaledobjects
+	family = fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", kedaOperatorPrometheusURL))
+	val, ok = family["keda_http_scaled_object_total"]
+	httpSacaledObjectCountAfterCleanUp := getMetricsValue(val)
+	assert.Equal(t, float64(1), httpSacaledObjectCountAfterCleanUp)
 
 	// cleanup
-	KubectlDeleteMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
 	DeleteKubernetesResources(t, testNamespace, data, templates)
 }
 
@@ -239,17 +245,35 @@ func getTemplateData() (templateData, []Template) {
 		}
 }
 
-func getTemplateHTTPScaledObjecData() (templateData, []Template) {
+func getTemplateHTTPScaledObjecData(httpScaledObjecID string) (templateData, []Template) {
+	deploymentCustom := fmt.Sprintf("other-deployment-%s", httpScaledObjecID)
+	httpScaledObjectCustom := fmt.Sprintf("other-http-scaled-object-name-%s", httpScaledObjecID)
+	templateName := fmt.Sprintf("otherHttpScaledObjectName-%s", httpScaledObjecID)
 	return templateData{
 			TestNamespace:        testNamespace,
-			DeploymentName:       "OtherDeployment",
+			DeploymentName:       deploymentCustom,
 			ServiceName:          serviceName,
 			ClientName:           clientName,
-			HTTPScaledObjectName: "OtherHttpScaledObjectName",
+			HTTPScaledObjectName: httpScaledObjectCustom,
 			Host:                 host,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
-			{Name: "OtherHttpScaledObjectName", Config: httpScaledObjectTemplate},
+			{Name: templateName, Config: httpScaledObjectTemplate},
 		}
+}
+
+func CreateManyHttpScaledObjecs(t *testing.T, objectsCount int) {
+	for i := 0; i < objectsCount; i++ {
+		httpScaledObjecData, httpScaledObjecDataTemplates := getTemplateHTTPScaledObjecData(fmt.Sprintf("%d", i))
+		KubectlApplyMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
+	}
+
+}
+func DeleteManyHttpScaledObjecs(t *testing.T, objectsCount int) {
+	for i := 0; i < objectsCount; i++ {
+		httpScaledObjecData, httpScaledObjecDataTemplates := getTemplateHTTPScaledObjecData(fmt.Sprintf("%d", i))
+		KubectlDeleteMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
+	}
+
 }
