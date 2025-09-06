@@ -4,7 +4,9 @@
 package operator_otel_metrics_test
 
 import (
+	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +14,9 @@ import (
 	prommodel "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
@@ -22,15 +27,17 @@ const (
 )
 
 var (
-	testNamespace        = fmt.Sprintf("%s-ns", testName)
-	deploymentName       = fmt.Sprintf("%s-deployment", testName)
-	serviceName          = fmt.Sprintf("%s-service", testName)
-	clientName           = fmt.Sprintf("%s-client", testName)
-	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
-	host                 = testName
-	minReplicaCount      = 0
-	maxReplicaCount      = 1
-	otelCollectorPromURL = "http://opentelemetry-collector.open-telemetry-system:8889/metrics"
+	testNamespace          = fmt.Sprintf("%s-ns", testName)
+	deploymentName         = fmt.Sprintf("%s-deployment", testName)
+	serviceName            = fmt.Sprintf("%s-service", testName)
+	clientName             = fmt.Sprintf("%s-client", testName)
+	httpScaledObjectName   = fmt.Sprintf("%s-http-so", testName)
+	host                   = testName
+	minReplicaCount        = 0
+	maxReplicaCount        = 1
+	otelCollectorPromURL   = "http://opentelemetry-collector.open-telemetry-system:8889/metrics"
+	otlpGrpcClientEndpoint = "http://opentelemetry-collector.open-telemetry-system:4317"
+	otlpHTTPClientEndpoint = "http://opentelemetry-collector.open-telemetry-system:4318"
 )
 
 type templateData struct {
@@ -178,10 +185,28 @@ func TestMetricGeneration(t *testing.T) {
 	}
 	assert.True(t, ok, "keda_http_scaled_object_total is available")
 
-	requestCount := getMetricsValue(val)
-	assert.GreaterOrEqual(t, requestCount, float64(1))
+	httpSacaledObjectCount := getMetricsValue(val)
+	assert.GreaterOrEqual(t, httpSacaledObjectCount, float64(1))
+
+	//Set the operator to comunicate over GRPC and test functionality
+	changeOtlpProtocolInOperator(t, kc, "keda-add-ons-http-operator", "keda")
+	CreateManyHttpScaledObjecs(t, 10)
+	time.Sleep(time.Second * 10)
+	family = fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", otelCollectorPromURL))
+	val, ok = family["keda_http_scaled_object_total"]
+	httpSacaledObjectCountGrpc := getMetricsValue(val)
+	assert.GreaterOrEqual(t, httpSacaledObjectCountGrpc, float64(10))
+
+	DeleteManyHttpScaledObjecs(t, 10)
+	time.Sleep(time.Second * 10)
+	// Fetch metrics and validate them after deleting httpscaledobjects
+	family = fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", otelCollectorPromURL))
+	val, ok = family["keda_http_scaled_object_total"]
+	httpSacaledObjectCountAfterCleanUp := getMetricsValue(val)
+	assert.Equal(t, float64(1), httpSacaledObjectCountAfterCleanUp)
 
 	// cleanup
+	fallbackHTTPProtocolInOperator(t, kc, "keda-add-ons-http-operator", "keda")
 	DeleteKubernetesResources(t, testNamespace, data, templates)
 }
 
@@ -238,4 +263,83 @@ func getTemplateData() (templateData, []Template) {
 			{Name: "clientTemplate", Config: clientTemplate},
 			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
 		}
+}
+
+func changeOtlpProtocolInOperator(t *testing.T, kc *kubernetes.Clientset, name string, namespace string) {
+	operator, _ := kc.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	// Modify the environment variables
+	t.Log("changeOtlpProtocolInOperator")
+	for i, container := range operator.Spec.Template.Spec.Containers {
+		if container.Name == name {
+			container.Env = slices.DeleteFunc(container.Env, func(n corev1.EnvVar) bool {
+				return n.Name == "OTEL_EXPORTER_OTLP_ENDPOINT"
+			})
+
+			container.Env = append(container.Env, corev1.EnvVar{Name: "OTEL_EXPORTER_OTLP_PROTOCOL", Value: "grpc"})
+			container.Env = append(container.Env, corev1.EnvVar{Name: "OTEL_EXPORTER_OTLP_ENDPOINT", Value: otlpGrpcClientEndpoint})
+			operator.Spec.Template.Spec.Containers[i].Env = container.Env
+		}
+	}
+
+	_, err := kc.AppsV1().Deployments(namespace).Update(context.TODO(), operator, metav1.UpdateOptions{})
+
+	require.NoErrorf(t, err, "error changing keda http addon operator - %s", err)
+	WaitForDeploymentReplicaReadyCount(t, kc, operator.Name, "keda", 1, 60, 2)
+}
+
+func fallbackHTTPProtocolInOperator(t *testing.T, kc *kubernetes.Clientset, name string, namespace string) {
+	t.Log("fallback HTTP OTLP protocol in operator")
+
+	operator, _ := kc.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	// Modify the environment variables
+	for i, container := range operator.Spec.Template.Spec.Containers {
+		if container.Name == name {
+			container.Env = slices.DeleteFunc(container.Env, func(n corev1.EnvVar) bool {
+				if n.Name == "OTEL_EXPORTER_OTLP_ENDPOINT" || n.Name == "OTEL_EXPORTER_OTLP_PROTOCOL" {
+					return true
+				}
+				return false
+			})
+			container.Env = append(container.Env, corev1.EnvVar{Name: "OTEL_EXPORTER_OTLP_ENDPOINT", Value: otlpHTTPClientEndpoint})
+			operator.Spec.Template.Spec.Containers[i].Env = container.Env
+		}
+	}
+
+	_, err := kc.AppsV1().Deployments(namespace).Update(context.TODO(), operator, metav1.UpdateOptions{})
+
+	require.NoErrorf(t, err, "error changing keda http addon operator - %s", err)
+	WaitForDeploymentReplicaReadyCount(t, kc, operator.Name, "keda", 1, 60, 2)
+}
+
+func getTemplateHTTPScaledObjecData(httpScaledObjecID string) (templateData, []Template) {
+	deploymentCustomTemplateName := fmt.Sprintf("deploymentTemplate-%s", httpScaledObjecID)
+	deploymentCustom := fmt.Sprintf("other-deployment-%s", httpScaledObjecID)
+	httpScaledObjectCustom := fmt.Sprintf("other-http-scaled-object-name-%s", httpScaledObjecID)
+	templateName := fmt.Sprintf("otherHttpScaledObjectName-%s", httpScaledObjecID)
+	return templateData{
+			TestNamespace:        testNamespace,
+			DeploymentName:       deploymentCustom,
+			ServiceName:          serviceName,
+			ClientName:           clientName,
+			HTTPScaledObjectName: httpScaledObjectCustom,
+			Host:                 host,
+			MinReplicas:          minReplicaCount,
+			MaxReplicas:          maxReplicaCount,
+		}, []Template{
+			{Name: templateName, Config: httpScaledObjectTemplate},
+			{Name: deploymentCustomTemplateName, Config: deploymentTemplate},
+		}
+}
+
+func CreateManyHttpScaledObjecs(t *testing.T, objectsCount int) {
+	for i := 0; i < objectsCount; i++ {
+		httpScaledObjecData, httpScaledObjecDataTemplates := getTemplateHTTPScaledObjecData(fmt.Sprintf("%d", i))
+		KubectlApplyMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
+	}
+}
+func DeleteManyHttpScaledObjecs(t *testing.T, objectsCount int) {
+	for i := 0; i < objectsCount; i++ {
+		httpScaledObjecData, httpScaledObjecDataTemplates := getTemplateHTTPScaledObjecData(fmt.Sprintf("%d", i))
+		KubectlDeleteMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
+	}
 }

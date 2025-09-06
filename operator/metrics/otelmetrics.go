@@ -3,16 +3,20 @@ package metrics
 import (
 	"context"
 	"log"
+	"os"
 
+	"github.com/kedacore/http-add-on/pkg/build"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	api "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-
-	"github.com/kedacore/http-add-on/pkg/build"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var otLog = logf.Log.WithName("otel_collector")
 
 type OtelMetrics struct {
 	meter                   api.Meter
@@ -20,14 +24,25 @@ type OtelMetrics struct {
 }
 
 func NewOtelMetrics(options ...metric.Option) *OtelMetrics {
-	ctx := context.Background()
-
-	exporter, err := otlpmetrichttp.New(ctx)
-	if err != nil {
-		log.Fatalf("could not create otelmetrichttp exporter: %v", err)
-	}
 
 	if options == nil {
+		protocol := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL")
+
+		var exporter metric.Exporter
+		var err error
+		switch protocol {
+		case "grpc":
+			otLog.V(1).Info("start OTEL grpc client")
+			exporter, err = otlpmetricgrpc.New(context.Background())
+		default:
+			otLog.V(1).Info("start OTEL http client")
+			exporter, err = otlpmetrichttp.New(context.Background())
+		}
+
+		if err != nil {
+			log.Fatalf("could not create otelmetrichttp exporter: %v", err)
+			return nil
+		}
 		res := resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String("http-add-on-operator"),

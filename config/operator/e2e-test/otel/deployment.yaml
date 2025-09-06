@@ -19,4 +19,5 @@ spec:
           value: "http://opentelemetry-collector.open-telemetry-system:4318"
         - name: OTEL_METRIC_EXPORT_INTERVAL
           value: "1"
-
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: "http"

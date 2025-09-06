@@ -246,6 +246,7 @@ func getTemplateData() (templateData, []Template) {
 }
 
 func getTemplateHTTPScaledObjecData(httpScaledObjecID string) (templateData, []Template) {
+	deploymentCustomTemplateName := fmt.Sprintf("deploymentTemplate-%s", httpScaledObjecID)
 	deploymentCustom := fmt.Sprintf("other-deployment-%s", httpScaledObjecID)
 	httpScaledObjectCustom := fmt.Sprintf("other-http-scaled-object-name-%s", httpScaledObjecID)
 	templateName := fmt.Sprintf("otherHttpScaledObjectName-%s", httpScaledObjecID)
@@ -260,6 +261,7 @@ func getTemplateHTTPScaledObjecData(httpScaledObjecID string) (templateData, []T
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
 			{Name: templateName, Config: httpScaledObjectTemplate},
+			{Name: deploymentCustomTemplateName, Config: deploymentTemplate},
 		}
 }
 

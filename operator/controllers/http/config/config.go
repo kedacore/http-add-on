@@ -91,7 +91,7 @@ func NewExternalScalerFromEnv() (*ExternalScaler, error) {
 	}, nil
 }
 
-// Metrics is the configuration for configuring metrics in the interceptor.
+// Metrics is the configuration for configuring metrics in the operator.
 type Metrics struct {
 	// Sets whether or not to enable the Prometheus metrics exporter
 	OtelPrometheusExporterEnabled bool `envconfig:"OTEL_PROM_EXPORTER_ENABLED" default:"true"`
@@ -99,6 +99,8 @@ type Metrics struct {
 	OtelPrometheusExporterPort int `envconfig:"OTEL_PROM_EXPORTER_PORT" default:"8080"`
 	// Sets whether or not to enable the OTEL metrics exporter
 	OtelHTTPExporterEnabled bool `envconfig:"OTEL_EXPORTER_OTLP_METRICS_ENABLED" default:"false"`
+	// Sets OTEL metrics exporter protocol
+	OtelExporterProtocol string `envconfig:"OTEL_EXPORTER_OTLP_PROTOCOL" default:"http"`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the
