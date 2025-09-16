@@ -16,31 +16,3 @@ labels:
   includeTemplates: true
   pairs:
     app.kubernetes.io/instance: interceptor
-images:
-- name: ghcr.io/kedacore/http-add-on-interceptor
-  newName: ghcr.io/kedacore/http-add-on-interceptor
-  newTag: main
-patches:
-- path: e2e-test/otel/deployment.yaml
-  target:
-    group: apps
-    kind: Deployment
-    name: interceptor
-    version: v1
-- path: e2e-test/otel/scaledobject.yaml
-  target:
-    group: keda.sh
-    kind: ScaledObject
-    name: interceptor
-    version: v1alpha1
-- path: e2e-test/tls/deployment.yaml
-  target:
-    group: apps
-    kind: Deployment
-    name: interceptor
-    version: v1
-- path: e2e-test/tls/proxy.service.yaml
-  target:
-    kind: Service
-    name: interceptor-proxy
-    version: v1

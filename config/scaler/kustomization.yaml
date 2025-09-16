@@ -11,14 +11,3 @@ labels:
   includeTemplates: true
   pairs:
     app.kubernetes.io/instance: external-scaler
-images:
-- name: ghcr.io/kedacore/http-add-on-scaler
-  newName: ghcr.io/kedacore/http-add-on-scaler
-  newTag: main
-patches:
-- path: e2e-test/otel/deployment.yaml
-  target:
-    group: apps
-    kind: Deployment
-    name: scaler
-    version: v1

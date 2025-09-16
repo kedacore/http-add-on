@@ -78,7 +78,7 @@ spec:
     spec:
       containers:
         - name: {{.DeploymentName}}
-          image: ghcr.io/kedacore/tests-websockets:245a788
+          image: ghcr.io/kedacore/tests-websockets
           ports:
             - name: http
               containerPort: 8080
