@@ -13,12 +13,7 @@ import (
 // FakeEndpointsForURL creates and returns a new *discov1.EndpointSlice with Endpoints
 // in it. Each of those Endpoints has a Hostname and IP both
 // equal to u.Hostname()
-func FakeEndpointsForURL(
-	u *url.URL,
-	namespace,
-	name string,
-	num int,
-) (*discov1.EndpointSlice, error) {
+func FakeEndpointsForURL(u *url.URL, namespace, name string, num int) (*discov1.EndpointSliceList, error) {
 	urls := make([]*url.URL, num)
 	for i := 0; i < num; i++ {
 		urls[i] = u
@@ -29,11 +24,7 @@ func FakeEndpointsForURL(
 // FakeEndpointsForURLs creates and returns a new
 // *discov1.EndpointSlice
 // that has each url in the urls parameter in it.
-func FakeEndpointsForURLs(
-	urls []*url.URL,
-	namespace,
-	name string,
-) (*discov1.EndpointSlice, error) {
+func FakeEndpointsForURLs(urls []*url.URL, namespace, name string) (*discov1.EndpointSliceList, error) {
 	es := &discov1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:         fmt.Sprintf("%s-%s", name, "96fhp"),
@@ -59,5 +50,5 @@ func FakeEndpointsForURLs(
 			Port: ptr.To(int32(portInt)),
 		})
 	}
-	return es, nil
+	return &discov1.EndpointSliceList{Items: []discov1.EndpointSlice{*es}}, nil
 }

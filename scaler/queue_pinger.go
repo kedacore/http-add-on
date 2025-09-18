@@ -84,10 +84,7 @@ func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker, endpCache 
 		select {
 		// handle cancellations/timeout
 		case <-ctx.Done():
-			lggr.Error(
-				ctx.Err(),
-				"context marked done. stopping queuePinger loop",
-			)
+			lggr.Error(ctx.Err(), "context marked done. stopping queuePinger loop")
 			q.status = PingerERROR
 			return fmt.Errorf("context marked done. stopping queuePinger loop: %w", ctx.Err())
 		// do our regularly scheduled work
@@ -101,10 +98,7 @@ func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker, endpCache 
 		case <-endpEvtChan:
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
-				lggr.Error(
-					err,
-					"getting request counts after interceptor endpoints event",
-				)
+				lggr.Error(err, "getting request counts after interceptor endpoints event")
 			}
 		}
 	}
@@ -169,17 +163,9 @@ func fetchCounts(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpo
 		ch := make(chan *queue.Counts)
 		wg.Add(1)
 		fetchGrp.Go(func() error {
-			counts, err := queue.GetCounts(
-				http.DefaultClient,
-				*u,
-			)
+			counts, err := queue.GetCounts(http.DefaultClient, u)
 			if err != nil {
-				lggr.Error(
-					err,
-					"getting queue counts from interceptor",
-					"interceptorAddress",
-					u.String(),
-				)
+				lggr.Error(err, "getting queue counts from interceptor", "interceptorAddress", u.String())
 				return err
 			}
 			ch <- counts

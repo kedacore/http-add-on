@@ -50,8 +50,8 @@ func TestGetEndpoints(t *testing.T) {
 		ns,
 		svcName,
 		svcPort,
-		func(context.Context, string, string) (*discov1.EndpointSlice, error) {
-			return endpoints, nil
+		func(context.Context, string, string) (Endpoints, error) {
+			return extractAddresses([]discov1.EndpointSlice{*endpoints}), nil
 		},
 	)
 	r.NoError(err)
@@ -115,7 +115,7 @@ func TestEndpointsFuncForControllerClient(t *testing.T) {
 	fn := EndpointsFuncForControllerClient(cl)
 	ret, err := fn(ctx, ns, svcName)
 	r.NoError(err)
-	r.Equal(len(endpoints.Items[0].Endpoints), len(ret.Endpoints))
+	r.Equal(len(endpoints.Items[0].Endpoints), len(ret.ReadyAddresses))
 	// we don't need to introspect the return value, because we
 	// do so in depth in the above TestGetEndpoints test
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -55,17 +56,13 @@ func TestCounts(t *testing.T) {
 		r.NoError(q.Increase(host, count.Concurrency))
 	}
 
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
-		svcName,
-		q,
-		3,
-	)
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, 3)
 	r.NoError(err)
 	defer srv.Close()
 	pinger := newQueuePinger(
 		logr.Discard(),
-		func(context.Context, string, string) (*discov1.EndpointSlice, error) {
-			return endpoints, nil
+		func(context.Context, string, string) (k8s.Endpoints, error) {
+			return extractAddresses(endpoints), nil
 		},
 		ns,
 		svcName,
@@ -90,11 +87,7 @@ func TestCounts(t *testing.T) {
 	r.Equal(len(expectedCounts.Counts), len(retCounts))
 	for host, count := range expectedCounts.Counts {
 		retCount, ok := retCounts[host]
-		r.True(
-			ok,
-			"returned count not found for host %s",
-			host,
-		)
+		r.True(ok, "returned count not found for host %s", host)
 
 		// note that the returned value should be:
 		// (queue_count * num_endpoints)
@@ -138,17 +131,11 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		q.EnsureKey(host, time.Minute, time.Second)
 		r.NoError(q.Increase(host, count.Concurrency))
 	}
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
-		svcName, q, numEndpoints,
-	)
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, numEndpoints)
 	r.NoError(err)
 	defer srv.Close()
-	endpointsFn := func(
-		ctx context.Context,
-		ns,
-		svcName string,
-	) (*discov1.EndpointSlice, error) {
-		return endpoints, nil
+	endpointsFn := func(ctx context.Context, ns, svcName string) (k8s.Endpoints, error) {
+		return extractAddresses(endpoints), nil
 	}
 
 	pinger := newQueuePinger(
@@ -208,18 +195,12 @@ func TestFetchCounts(t *testing.T) {
 		q.EnsureKey(host, time.Minute, time.Second)
 		r.NoError(q.Increase(host, count.Concurrency))
 	}
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(
-		svcName, q, numEndpoints,
-	)
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, numEndpoints)
 	r.NoError(err)
 
 	defer srv.Close()
-	endpointsFn := func(
-		context.Context,
-		string,
-		string,
-	) (*discov1.EndpointSlice, error) {
-		return endpoints, nil
+	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
+		return extractAddresses(endpoints), nil
 	}
 
 	cts, err := fetchCounts(
@@ -228,7 +209,7 @@ func TestFetchCounts(t *testing.T) {
 		endpointsFn,
 		ns,
 		svcName,
-		srvURL.Port(),
+		fmt.Sprintf("%v", srvURL.Port()),
 	)
 	r.NoError(err)
 
@@ -253,11 +234,7 @@ func TestFetchCounts(t *testing.T) {
 //
 // returns nil for the first 3 return value and a non-nil error in
 // case of a failure.
-func startFakeQueueEndpointServer(
-	svcName string,
-	q queue.CountReader,
-	numEndpoints int,
-) (*httptest.Server, *url.URL, *discov1.EndpointSlice, error) {
+func startFakeQueueEndpointServer(svcName string, q queue.CountReader, numEndpoints int) (*httptest.Server, *url.URL, *discov1.EndpointSliceList, error) {
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
 	srv, srvURL, err := kedanet.StartTestServer(hdl)
@@ -272,7 +249,7 @@ func startFakeQueueEndpointServer(
 }
 
 type fakeQueuePingerOpts struct {
-	endpoints *discov1.EndpointSlice
+	endpoints *discov1.EndpointSliceList
 	tickDur   time.Duration
 	port      string
 }
@@ -283,12 +260,9 @@ type optsFunc func(*fakeQueuePingerOpts)
 // queuePinger implementation, including a time.Ticker, then returns
 // the ticker and the pinger. it is the caller's responsibility to
 // call ticker.Stop() on the returned ticker.
-func newFakeQueuePinger(
-	lggr logr.Logger,
-	optsFuncs ...optsFunc,
-) (*time.Ticker, *queuePinger, error) {
+func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, *queuePinger, error) {
 	opts := &fakeQueuePingerOpts{
-		endpoints: &discov1.EndpointSlice{},
+		endpoints: &discov1.EndpointSliceList{},
 		tickDur:   time.Second,
 		port:      "8080",
 	}
@@ -299,8 +273,8 @@ func newFakeQueuePinger(
 
 	pinger := newQueuePinger(
 		lggr,
-		func(context.Context, string, string) (*discov1.EndpointSlice, error) {
-			return opts.endpoints, nil
+		func(context.Context, string, string) (k8s.Endpoints, error) {
+			return extractAddresses(opts.endpoints), nil
 		},
 		"testns",
 		"testsvc",
@@ -308,4 +282,16 @@ func newFakeQueuePinger(
 		opts.port,
 	)
 	return ticker, pinger, nil
+}
+
+// extractAddresses extracts all addresses from a list of EndpointSlice
+// doesn't perform deduplication because of the way the tests are designed, they "run" multiple fake queue endpoints on the same host:port
+func extractAddresses(eps *discov1.EndpointSliceList) k8s.Endpoints {
+	ret := []string{}
+	for _, ep := range eps.Items {
+		for _, addr := range ep.Endpoints {
+			ret = append(ret, addr.Addresses...)
+		}
+	}
+	return k8s.Endpoints{ReadyAddresses: ret}
 }
