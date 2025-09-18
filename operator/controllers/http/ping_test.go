@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -30,9 +31,13 @@ func TestPingInterceptors(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 	ctx := context.Background()
-	endpoints, err := k8s.FakeEndpointsForURL(url, ns, svcName, 2)
+	endpoints, err := k8s.FakeEndpointsForURL(url, ns, svcName, 1)
 	r.NoError(err)
-	cl := fake.NewClientBuilder().WithObjects(endpoints).Build()
+	eps := []client.Object{}
+	for i := range endpoints.Items {
+		eps = append(eps, &endpoints.Items[i])
+	}
+	cl := fake.NewClientBuilder().WithObjects(eps...).Build()
 	r.NoError(pingInterceptors(
 		ctx,
 		cl,
@@ -42,5 +47,11 @@ func TestPingInterceptors(t *testing.T) {
 		url.Port(),
 	))
 	reqs := hdl.IncomingRequests()
-	r.Equal(len(endpoints.Subsets[0].Addresses), len(reqs))
+	var endpointsAddrs []string
+	for _, es := range endpoints.Items {
+		for _, e := range es.Endpoints {
+			endpointsAddrs = append(endpointsAddrs, e.Addresses...)
+		}
+	}
+	r.Equal(len(endpointsAddrs), len(reqs))
 }

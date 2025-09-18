@@ -5,9 +5,9 @@ metadata:
   name: scaler
 rules:
 - apiGroups:
-  - ""
+  - discovery.k8s.io
   resources:
-  - endpoints
+  - endpointslices
   verbs:
   - get
   - list

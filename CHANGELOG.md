@@ -21,6 +21,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
+- **General**: `v1.Endpoints` -> `EndpointSlices` ([#1297](https://github.com/kedacore/http-add-on/issues/1297)) Potentially breaking for old versions of k8s.
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### New
