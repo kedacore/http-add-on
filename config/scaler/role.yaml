@@ -9,7 +9,6 @@ rules:
   resources:
   - endpointslices
   verbs:
-  - deletecollection
   - get
   - list
   - watch
