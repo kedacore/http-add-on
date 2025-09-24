@@ -181,6 +181,7 @@ func TestMetricGeneration(t *testing.T) {
 	// Fetch metrics and validate them after deleting httpscaledobjects
 	family = fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", kedaOperatorPrometheusURL))
 	val, ok = family["keda_http_scaled_object_total"]
+	assert.True(t, ok, "keda_http_scaled_object_total is available")
 	httpSacaledObjectCountAfterCleanUp := getMetricsValue(val)
 	assert.Equal(t, float64(1), httpSacaledObjectCountAfterCleanUp)
 
@@ -213,7 +214,6 @@ func fetchAndParsePrometheusMetrics(t *testing.T, cmd string) map[string]*prommo
 
 func getMetricsValue(val *prommodel.MetricFamily) float64 {
 	if val.GetName() == "keda_http_scaled_object_total" {
-
 		metrics := val.GetMetric()
 		for _, metric := range metrics {
 			labels := metric.GetLabel()
@@ -270,12 +270,10 @@ func CreateManyHttpScaledObjecs(t *testing.T, objectsCount int) {
 		httpScaledObjecData, httpScaledObjecDataTemplates := getTemplateHTTPScaledObjecData(fmt.Sprintf("%d", i))
 		KubectlApplyMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
 	}
-
 }
 func DeleteManyHttpScaledObjecs(t *testing.T, objectsCount int) {
 	for i := 0; i < objectsCount; i++ {
 		httpScaledObjecData, httpScaledObjecDataTemplates := getTemplateHTTPScaledObjecData(fmt.Sprintf("%d", i))
 		KubectlDeleteMultipleWithTemplate(t, httpScaledObjecData, httpScaledObjecDataTemplates)
 	}
-
 }

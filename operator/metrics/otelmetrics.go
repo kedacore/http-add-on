@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/kedacore/http-add-on/pkg/build"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
@@ -14,6 +13,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/kedacore/http-add-on/pkg/build"
 )
 
 var otLog = logf.Log.WithName("otel_collector")
@@ -24,7 +25,6 @@ type OtelMetrics struct {
 }
 
 func NewOtelMetrics(options ...metric.Option) *OtelMetrics {
-
 	if options == nil {
 		protocol := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL")
 

@@ -1,9 +1,10 @@
 package metrics
 
 import (
-	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 )
 
 var (

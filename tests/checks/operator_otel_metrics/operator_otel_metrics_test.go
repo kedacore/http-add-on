@@ -188,12 +188,14 @@ func TestMetricGeneration(t *testing.T) {
 	httpSacaledObjectCount := getMetricsValue(val)
 	assert.GreaterOrEqual(t, httpSacaledObjectCount, float64(1))
 
-	//Set the operator to comunicate over GRPC and test functionality
+	// Set the operator to comunicate over GRPC and test functionality
 	changeOtlpProtocolInOperator(t, kc, "keda-add-ons-http-operator", "keda")
 	CreateManyHttpScaledObjecs(t, 10)
 	time.Sleep(time.Second * 10)
 	family = fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", otelCollectorPromURL))
 	val, ok = family["keda_http_scaled_object_total"]
+	assert.True(t, ok, "keda_http_scaled_object_total is available")
+
 	httpSacaledObjectCountGrpc := getMetricsValue(val)
 	assert.GreaterOrEqual(t, httpSacaledObjectCountGrpc, float64(10))
 
@@ -202,6 +204,8 @@ func TestMetricGeneration(t *testing.T) {
 	// Fetch metrics and validate them after deleting httpscaledobjects
 	family = fetchAndParsePrometheusMetrics(t, fmt.Sprintf("curl --insecure %s", otelCollectorPromURL))
 	val, ok = family["keda_http_scaled_object_total"]
+	assert.True(t, ok, "keda_http_scaled_object_total is available")
+
 	httpSacaledObjectCountAfterCleanUp := getMetricsValue(val)
 	assert.Equal(t, float64(1), httpSacaledObjectCountAfterCleanUp)
 
