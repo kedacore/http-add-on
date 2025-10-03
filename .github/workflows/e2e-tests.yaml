@@ -49,6 +49,7 @@ jobs:
         with:
           node_image: ${{ matrix.kindImage }}
           cluster_name: cluster
+          version: v0.30.0
 
       - name: Generate images and push to the cluster
         run: |
@@ -119,6 +120,7 @@ jobs:
         with:
           node_image: ${{ matrix.kindImage }}
           cluster_name: ${{ runner.name }}
+          version: v0.30.0
 
       - name: Push images to the cluster
         run: |
