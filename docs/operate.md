@@ -18,6 +18,26 @@ The OTEL exporter can be enabled by setting the `OTEL_EXPORTER_OTLP_METRICS_ENAB
 
 If you need to provide any headers such as authentication details in order to utilise your OTEL collector you can add them into the `OTEL_EXPORTER_OTLP_HEADERS` environment variable. The frequency at which the metrics are exported can be configured by setting `OTEL_METRIC_EXPORT_INTERVAL` to the number of seconds you require between each export interval (`30` by default).
 
+# Configuring DNS for the KEDA HTTP Add-on interceptor proxy
+
+By default, the interceptor proxy uses short DNS names (e.g., `service.namespace`) when routing requests to backend services. In some cluster configurations, you may need to use fully qualified domain names (FQDN) instead.
+
+You can configure the cluster domain suffix by setting the `KEDA_HTTP_CLUSTER_DOMAIN` environment variable on the interceptor deployment. When set, this value will be appended to the short DNS name to form an FQDN.
+
+Examples:
+- **Default behavior** (empty/not set): Routes to `service.namespace:port`
+- **Standard Kubernetes cluster** (`svc.cluster.local`): Routes to `service.namespace.svc.cluster.local:port`
+- **Custom cluster domain** (`svc.my-domain.com`): Routes to `service.namespace.svc.my-domain.com:port`
+
+```yaml
+# Example interceptor deployment configuration
+env:
+  - name: KEDA_HTTP_CLUSTER_DOMAIN
+    value: "svc.cluster.local"
+```
+
+> **Note:** According to the [Kubernetes DNS specification](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/), both short names (`service.namespace`) and FQDNs (`service.namespace.svc.cluster.local`) should resolve identically in most Kubernetes clusters. However, certain DNS policies, network policies, or custom DNS configurations may require the use of FQDNs. If you're experiencing DNS resolution issues, check your cluster's `dnsPolicy` and `NetworkPolicy` settings.
+
 # Configuring TLS for the KEDA HTTP Add-on interceptor proxy
 
 The interceptor proxy has the ability to run both a HTTP and HTTPS server simultaneously to allow you to scale workloads that use either protocol. By default, the interceptor proxy will only serve over HTTP, but this behavior can be changed by configuring the appropriate environment variables on the deployment.
