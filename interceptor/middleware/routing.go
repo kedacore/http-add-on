@@ -26,15 +26,17 @@ type Routing struct {
 	upstreamHandler http.Handler
 	svcCache        k8s.ServiceCache
 	tlsEnabled      bool
+	clusterDomain   string
 }
 
-func NewRouting(routingTable routing.Table, probeHandler http.Handler, upstreamHandler http.Handler, svcCache k8s.ServiceCache, tlsEnabled bool) *Routing {
+func NewRouting(routingTable routing.Table, probeHandler http.Handler, upstreamHandler http.Handler, svcCache k8s.ServiceCache, tlsEnabled bool, clusterDomain string) *Routing {
 	return &Routing{
 		routingTable:    routingTable,
 		probeHandler:    probeHandler,
 		upstreamHandler: upstreamHandler,
 		svcCache:        svcCache,
 		tlsEnabled:      tlsEnabled,
+		clusterDomain:   clusterDomain,
 	}
 }
 
@@ -109,19 +111,24 @@ func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HT
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port: %w", err)
 	}
+	
+	// Build the host part with optional cluster domain
+	host := fmt.Sprintf("%s.%s", reference.GetServiceName(), httpso.GetNamespace())
+	if rm.clusterDomain != "" {
+		host = fmt.Sprintf("%s.%s", host, rm.clusterDomain)
+	}
+	
 	if rm.tlsEnabled {
 		return url.Parse(fmt.Sprintf(
-			"https://%s.%s:%d",
-			reference.GetServiceName(),
-			httpso.GetNamespace(),
+			"https://%s:%d",
+			host,
 			port,
 		))
 	}
 	//goland:noinspection HttpUrlsUsage
 	return url.Parse(fmt.Sprintf(
-		"http://%s.%s:%d",
-		reference.GetServiceName(),
-		httpso.GetNamespace(),
+		"http://%s:%d",
+		host,
 		port,
 	))
 }

@@ -27,7 +27,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			upstreamHandler.Handle("/upstream", emptyHandler)
 			svcCache := k8s.NewFakeServiceCache()
 
-			rm := NewRouting(routingTable, probeHandler, upstreamHandler, svcCache, false)
+			rm := NewRouting(routingTable, probeHandler, upstreamHandler, svcCache, false, "")
 			Expect(rm).NotTo(BeNil())
 			Expect(rm.routingTable).To(Equal(routingTable))
 			Expect(rm.probeHandler).To(Equal(probeHandler))
@@ -97,7 +97,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			probeHandler = http.NewServeMux()
 			routingTable = routingtest.NewTable()
 			svcCache = k8s.NewFakeServiceCache()
-			routingMiddleware = NewRouting(routingTable, probeHandler, upstreamHandler, svcCache, false)
+			routingMiddleware = NewRouting(routingTable, probeHandler, upstreamHandler, svcCache, false, "")
 
 			w = httptest.NewRecorder()
 
@@ -166,6 +166,35 @@ var _ = Describe("RoutingMiddleware", func() {
 				routingMiddleware.ServeHTTP(w, r)
 				Expect(uh).To(BeTrue())
 				Expect(ph).To(BeFalse())
+				Expect(w.Code).To(Equal(sc))
+				Expect(w.Body.String()).To(Equal(st))
+			})
+		})
+
+		When("route is found with cluster domain configured", func() {
+			It("routes to the upstream handler with FQDN", func() {
+				// Create routing middleware with cluster domain
+				routingMiddlewareWithDomain := NewRouting(routingTable, probeHandler, upstreamHandler, svcCache, false, "svc.cluster.local")
+				
+				var (
+					sc = http.StatusTeapot
+					st = http.StatusText(sc)
+				)
+
+				var uh bool
+				upstreamHandler.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusTeapot)
+
+					_, err := w.Write([]byte(st))
+					Expect(err).NotTo(HaveOccurred())
+
+					uh = true
+				}))
+
+				routingTable.Memory[host] = &httpso
+
+				routingMiddlewareWithDomain.ServeHTTP(w, r)
+				Expect(uh).To(BeTrue())
 				Expect(w.Code).To(Equal(sc))
 				Expect(w.Body.String()).To(Equal(st))
 			})
@@ -264,6 +293,56 @@ var _ = Describe("RoutingMiddleware", func() {
 				Expect(w.Code).To(Equal(sc))
 				Expect(w.Body.String()).To(Equal(st))
 			})
+		})
+	})
+
+	Context("streamFromHTTPSO with cluster domain", func() {
+		var (
+			routingMiddleware *Routing
+			routingMiddlewareWithDomain *Routing
+			httpso httpv1alpha1.HTTPScaledObject
+			svcCache *k8s.FakeServiceCache
+		)
+
+		BeforeEach(func() {
+			svcCache = k8s.NewFakeServiceCache()
+			routingMiddleware = NewRouting(nil, nil, nil, svcCache, false, "")
+			routingMiddlewareWithDomain = NewRouting(nil, nil, nil, svcCache, false, "svc.cluster.local")
+			
+			httpso = httpv1alpha1.HTTPScaledObject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-httpso",
+					Namespace: "test-namespace",
+				},
+				Spec: httpv1alpha1.HTTPScaledObjectSpec{
+					ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+						Service: "test-service",
+						Port:    8080,
+					},
+				},
+			}
+		})
+
+		It("returns short DNS name when cluster domain is empty", func() {
+			stream, err := routingMiddleware.streamFromHTTPSO(nil, &httpso, httpso.Spec.ScaleTargetRef)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stream).NotTo(BeNil())
+			Expect(stream.String()).To(Equal("http://test-service.test-namespace:8080"))
+		})
+
+		It("returns FQDN when cluster domain is set", func() {
+			stream, err := routingMiddlewareWithDomain.streamFromHTTPSO(nil, &httpso, httpso.Spec.ScaleTargetRef)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stream).NotTo(BeNil())
+			Expect(stream.String()).To(Equal("http://test-service.test-namespace.svc.cluster.local:8080"))
+		})
+
+		It("returns FQDN with TLS when cluster domain is set and TLS enabled", func() {
+			routingMiddlewareWithDomainAndTLS := NewRouting(nil, nil, nil, svcCache, true, "svc.cluster.local")
+			stream, err := routingMiddlewareWithDomainAndTLS.streamFromHTTPSO(nil, &httpso, httpso.Spec.ScaleTargetRef)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stream).NotTo(BeNil())
+			Expect(stream.String()).To(Equal("https://test-service.test-namespace.svc.cluster.local:8080"))
 		})
 	})
 

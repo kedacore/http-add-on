@@ -322,6 +322,7 @@ func newHarness(
 		&config.Tracing{}),
 		svcCache,
 		false,
+		"",
 	)
 
 	proxySrv, proxySrvURL, err := kedanet.StartTestServer(proxyHdl)

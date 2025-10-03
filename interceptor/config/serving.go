@@ -49,6 +49,10 @@ type Serving struct {
 	TLSPort int `envconfig:"KEDA_HTTP_PROXY_TLS_PORT" default:"8443"`
 	// ProfilingAddr if not empty, pprof will be available on this address, assuming host:port here
 	ProfilingAddr string `envconfig:"PROFILING_BIND_ADDRESS" default:""`
+	// ClusterDomain is the Kubernetes cluster domain (e.g., "svc.cluster.local")
+	// If empty, uses short form DNS (service.namespace)
+	// If set, uses FQDN (service.namespace.ClusterDomain)
+	ClusterDomain string `envconfig:"KEDA_HTTP_CLUSTER_DOMAIN" default:""`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the

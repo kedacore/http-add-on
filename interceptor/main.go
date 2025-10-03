@@ -198,7 +198,7 @@ func main() {
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig, tracingCfg); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig, tracingCfg, servingCfg.ClusterDomain); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -212,7 +212,7 @@ func main() {
 		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
 
 		k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, proxyPort, false, nil, tracingCfg); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, proxyPort, false, nil, tracingCfg, servingCfg.ClusterDomain); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -409,6 +409,7 @@ func runProxyServer(
 	tlsEnabled bool,
 	tlsConfig map[string]interface{},
 	tracingConfig *config.Tracing,
+	clusterDomain string,
 ) error {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
 	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
@@ -456,6 +457,7 @@ func runProxyServer(
 		upstreamHandler,
 		svcCache,
 		tlsEnabled,
+		clusterDomain,
 	)
 
 	if tracingConfig.Enabled {
