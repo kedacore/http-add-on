@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 
@@ -175,7 +176,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			It("routes to the upstream handler with FQDN", func() {
 				// Create routing middleware with cluster domain
 				routingMiddlewareWithDomain := NewRouting(routingTable, probeHandler, upstreamHandler, svcCache, false, "svc.cluster.local")
-				
+
 				var (
 					sc = http.StatusTeapot
 					st = http.StatusText(sc)
@@ -298,17 +299,17 @@ var _ = Describe("RoutingMiddleware", func() {
 
 	Context("streamFromHTTPSO with cluster domain", func() {
 		var (
-			routingMiddleware *Routing
+			routingMiddleware           *Routing
 			routingMiddlewareWithDomain *Routing
-			httpso httpv1alpha1.HTTPScaledObject
-			svcCache *k8s.FakeServiceCache
+			httpso                      httpv1alpha1.HTTPScaledObject
+			svcCache                    *k8s.FakeServiceCache
 		)
 
 		BeforeEach(func() {
 			svcCache = k8s.NewFakeServiceCache()
 			routingMiddleware = NewRouting(nil, nil, nil, svcCache, false, "")
 			routingMiddlewareWithDomain = NewRouting(nil, nil, nil, svcCache, false, "svc.cluster.local")
-			
+
 			httpso = httpv1alpha1.HTTPScaledObject{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-httpso",
@@ -324,14 +325,14 @@ var _ = Describe("RoutingMiddleware", func() {
 		})
 
 		It("returns short DNS name when cluster domain is empty", func() {
-			stream, err := routingMiddleware.streamFromHTTPSO(nil, &httpso, httpso.Spec.ScaleTargetRef)
+			stream, err := routingMiddleware.streamFromHTTPSO(context.Background(), &httpso, httpso.Spec.ScaleTargetRef)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stream).NotTo(BeNil())
 			Expect(stream.String()).To(Equal("http://test-service.test-namespace:8080"))
 		})
 
 		It("returns FQDN when cluster domain is set", func() {
-			stream, err := routingMiddlewareWithDomain.streamFromHTTPSO(nil, &httpso, httpso.Spec.ScaleTargetRef)
+			stream, err := routingMiddlewareWithDomain.streamFromHTTPSO(context.Background(), &httpso, httpso.Spec.ScaleTargetRef)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stream).NotTo(BeNil())
 			Expect(stream.String()).To(Equal("http://test-service.test-namespace.svc.cluster.local:8080"))
@@ -339,7 +340,7 @@ var _ = Describe("RoutingMiddleware", func() {
 
 		It("returns FQDN with TLS when cluster domain is set and TLS enabled", func() {
 			routingMiddlewareWithDomainAndTLS := NewRouting(nil, nil, nil, svcCache, true, "svc.cluster.local")
-			stream, err := routingMiddlewareWithDomainAndTLS.streamFromHTTPSO(nil, &httpso, httpso.Spec.ScaleTargetRef)
+			stream, err := routingMiddlewareWithDomainAndTLS.streamFromHTTPSO(context.Background(), &httpso, httpso.Spec.ScaleTargetRef)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stream).NotTo(BeNil())
 			Expect(stream.String()).To(Equal("https://test-service.test-namespace.svc.cluster.local:8080"))

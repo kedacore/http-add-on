@@ -111,13 +111,13 @@ func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HT
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port: %w", err)
 	}
-	
+
 	// Build the host part with optional cluster domain
 	host := fmt.Sprintf("%s.%s", reference.GetServiceName(), httpso.GetNamespace())
 	if rm.clusterDomain != "" {
 		host = fmt.Sprintf("%s.%s", host, rm.clusterDomain)
 	}
-	
+
 	if rm.tlsEnabled {
 		return url.Parse(fmt.Sprintf(
 			"https://%s:%d",
