@@ -185,7 +185,7 @@ func (r *HTTPScaledObjectReconciler) updatePromMetrics(ctx context.Context, scal
 	httpScaledObjectPromMetricsLock.Lock()
 	defer httpScaledObjectPromMetricsLock.Unlock()
 
-	namespacedName := scaledObject.Name + scaledObject.Namespace
+	namespacedName := client.ObjectKeyFromObject(scaledObject).String()
 	metricsData, ok := httpScaledObjectPromMetricsMap[namespacedName]
 	if ok {
 		metrics.RecordDeleteHTTPScaledObjectCount(scaledObject.Namespace)

@@ -9,7 +9,7 @@ There are currently 2 supported methods for exposing metrics from the intercepto
 ### Configuring the Prometheus compatible metrics endpoint
 When configured, the interceptor proxy can expose metrics on a Prometheus compatible endpoint.
 
-This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the interceptor deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made avaialble on (`2223` by default).
+This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the interceptor deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made available on (`2223` by default).
 
 ### Configuring the OTEL HTTP exporter
 When configured, the interceptor proxy can export metrics to a OTEL HTTP collector.
@@ -71,7 +71,7 @@ There are currently 2 supported methods for exposing metrics from the operator -
 ### Configuring the Prometheus compatible metrics endpoint
 When configured, the operator can expose metrics on a Prometheus compatible endpoint.
 
-This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the operator deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made avaialble on (`8080` by default).
+This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the operator deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made available on (`8080` by default).
 
 ### Configuring the OTEL HTTP exporter
 
@@ -85,4 +85,4 @@ The `OTEL_EXPORTER_OTLP_PROTOCOL` defaults to `http`
 
 ### Configuring the OTEL GRPC exporter
 
- Please note that using `OTEL_EXPORTER_OTLP_PROTOCOL` will alows you to set it up to `grpc` to conect to otel collector. Also `OTEL_EXPORTER_OTLP_ENDPOINT` should be set to the right enpoint (eg: http://opentelemetry-collector.open-telemetry-system:4317)
+Please note that using `OTEL_EXPORTER_OTLP_PROTOCOL` will allows you to set it up to `grpc` to connect to otel collector. Also `OTEL_EXPORTER_OTLP_ENDPOINT` should be set to the right endpoint (eg: http://opentelemetry-collector.open-telemetry-system:4317)
