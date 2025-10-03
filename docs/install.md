@@ -75,7 +75,8 @@ helm upgrade kedahttp ./charts/keda-add-ons-http \
 
 | HTTP Add-On version | KEDA version      | Kubernetes version |
 |---------------------|-------------------|--------------------|
-| main                | v2.16             | v1.30 - v1.34      |
+| main                | v2.17             | v1.30 - v1.34      |
+| 0.11.0              | v2.17             | v1.30 - v1.34      |
 | 0.10.0              | v2.16             | v1.30 - v1.34      |
 | 0.9.0               | v2.16             | v1.29 - v1.31      |
 | 0.8.0               | v2.14             | v1.27 - v1.29      |
