@@ -77,7 +77,8 @@ func newForwardingHandler(
 		hasFailover := httpso.Spec.ColdStartTimeoutFailoverRef != nil
 
 		// Check if we should serve a placeholder page
-		if placeholderHandler != nil && httpso.Spec.PlaceholderConfig != nil && httpso.Spec.PlaceholderConfig.Enabled {
+		// Ensure placeholderHandler is not nil to prevent panics even if placeholder is enabled in spec
+		if httpso.Spec.PlaceholderConfig != nil && httpso.Spec.PlaceholderConfig.Enabled && placeholderHandler != nil {
 			endpoints, err := endpointsCache.Get(httpso.GetNamespace(), httpso.Spec.ScaleTargetRef.Service)
 			if err != nil {
 				// Error getting endpoints cache - return 503 Service Unavailable
