@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 
@@ -20,23 +19,17 @@ import (
 const testCustomContent = `<html><body>{{.ServiceName}}</body></html>`
 
 func TestNewPlaceholderHandler(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 
 	handler, err := NewPlaceholderHandler(servingCfg)
 	assert.NoError(t, err)
 	assert.NotNil(t, handler)
 	assert.NotNil(t, handler.servingCfg)
 	assert.NotNil(t, handler.templateCache)
-	assert.NotNil(t, handler.defaultTmpl)
-	assert.True(t, handler.enableScript)
 }
 
 func TestServePlaceholder_DisabledConfig(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Create HTTPScaledObject with disabled placeholder
@@ -65,9 +58,7 @@ func TestServePlaceholder_DisabledConfig(t *testing.T) {
 }
 
 func TestServePlaceholder_DefaultTemplate(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Create HTTPScaledObject with enabled placeholder
@@ -95,16 +86,12 @@ func TestServePlaceholder_DefaultTemplate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 	assert.Contains(t, w.Body.String(), "test-service is starting up...")
-	assert.Contains(t, w.Body.String(), "checkServiceStatus")
-	assert.Contains(t, w.Body.String(), "checkInterval =  5  * 1000")
-	assert.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
+	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
 	assert.Equal(t, "true", w.Header().Get("X-KEDA-HTTP-Placeholder-Served"))
 }
 
 func TestServePlaceholder_InlineContent(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	customContent := `<html><body><h1>Custom placeholder for {{.ServiceName}}</h1></body></html>`
@@ -134,16 +121,10 @@ func TestServePlaceholder_InlineContent(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Contains(t, w.Body.String(), "Custom placeholder for test-service")
-
-	// Verify script was injected
-	assert.Contains(t, w.Body.String(), "checkServiceStatus")
-	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
 }
 
 func TestServePlaceholder_NonHTMLContent(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Test with JSON content
@@ -163,6 +144,9 @@ func TestServePlaceholder_NonHTMLContent(t *testing.T) {
 				StatusCode:      503,
 				RefreshInterval: 5,
 				Content:         jsonContent,
+				Headers: map[string]string{
+					"Content-Type": "application/json",
+				},
 			},
 		},
 	}
@@ -175,16 +159,11 @@ func TestServePlaceholder_NonHTMLContent(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 	assert.Contains(t, w.Body.String(), `"service": "test-service"`)
-
-	// Verify script was NOT injected into JSON
-	assert.NotContains(t, w.Body.String(), "checkServiceStatus")
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 }
 
 func TestServePlaceholder_CustomHeaders(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	hso := &v1alpha1.HTTPScaledObject{
@@ -218,9 +197,7 @@ func TestServePlaceholder_CustomHeaders(t *testing.T) {
 }
 
 func TestServePlaceholder_InvalidTemplate(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	// Invalid template syntax
@@ -255,9 +232,7 @@ func TestServePlaceholder_InvalidTemplate(t *testing.T) {
 }
 
 func TestGetTemplate_Caching(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	hso := &v1alpha1.HTTPScaledObject{
@@ -287,9 +262,7 @@ func TestGetTemplate_Caching(t *testing.T) {
 }
 
 func TestGetTemplate_CacheInvalidation_Generation(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	customContent1 := `<html><body>Version 1: {{.ServiceName}}</body></html>`
@@ -374,9 +347,7 @@ func TestGetTemplate_CacheInvalidation_ConfigMapVersion_REMOVED(t *testing.T) {
 }
 
 func TestGetTemplate_ConcurrentAccess(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	hso := &v1alpha1.HTTPScaledObject{
@@ -440,9 +411,7 @@ func TestGetTemplate_ConcurrentAccess(t *testing.T) {
 }
 
 func TestGetTemplate_ConcurrentFirstAccess(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	hso := &v1alpha1.HTTPScaledObject{
@@ -492,9 +461,7 @@ func TestGetTemplate_ConcurrentFirstAccess(t *testing.T) {
 }
 
 func TestGetTemplate_ConcurrentCacheUpdates(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
 	ctx := context.Background()
@@ -537,254 +504,268 @@ func TestGetTemplate_ConcurrentCacheUpdates(t *testing.T) {
 	}
 }
 
-func TestInjectPlaceholderScript(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "HTML with body tag",
-			input:    `<html><body><h1>Hello</h1></body></html>`,
-			expected: `<html><body><h1>Hello</h1>` + placeholderScript + `</body></html>`,
-		},
-		{
-			name:     "HTML with uppercase BODY tag",
-			input:    `<HTML><BODY><H1>Hello</H1></BODY></HTML>`,
-			expected: `<HTML><BODY><H1>Hello</H1>` + placeholderScript + `</BODY></HTML>`,
-		},
-		{
-			name:     "HTML without body tag",
-			input:    `<html><div>Hello</div></html>`,
-			expected: `<html><div>Hello</div>` + placeholderScript + `</html>`,
-		},
-		{
-			name:     "HTML fragment with angle brackets",
-			input:    `<p>Just some text</p>`,
-			expected: `<p>Just some text</p>` + placeholderScript,
-		},
-		{
-			name:     "Empty string",
-			input:    ``,
-			expected: ``,
-		},
-		{
-			name:     "Multiple body tags (uses last one)",
-			input:    `<body>First</body><body>Second</body>`,
-			expected: `<body>First</body><body>Second` + placeholderScript + `</body>`,
-		},
-		{
-			name:     "HTML with only html close tag",
-			input:    `<html><div>Hello</div></html>`,
-			expected: `<html><div>Hello</div>` + placeholderScript + `</html>`,
-		},
-		{
-			name:     "Non-HTML content NOT wrapped anymore",
-			input:    `Just plain text without HTML`,
-			expected: `Just plain text without HTML`,
-		},
-		{
-			name:     "Partial HTML without closing tags",
-			input:    `<div>Some content</div>`,
-			expected: `<div>Some content</div>` + placeholderScript,
-		},
-	}
+// Content-Agnostic Tests - Verify the feature works with any content format
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := injectPlaceholderScript(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestServePlaceholder_InlineContentWithScriptInjection(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+func TestServePlaceholder_JSONResponse(t *testing.T) {
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
-	// Custom content without the script
-	customContent := `<html><body><h1>Custom placeholder for {{.ServiceName}}</h1></body></html>`
+	jsonContent := `{
+  "status": "warming_up",
+  "service": "{{.ServiceName}}",
+  "namespace": "{{.Namespace}}",
+  "retry_after_seconds": {{.RefreshInterval}},
+  "timestamp": "{{.Timestamp}}"
+}`
 
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
+			Name:      "api-service",
+			Namespace: "production",
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: v1alpha1.ScaleTargetRef{
+				Service: "api-backend",
+			},
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Enabled:         true,
+				StatusCode:      202,
+				RefreshInterval: 10,
+				Content:         jsonContent,
+				Headers: map[string]string{
+					"Content-Type": "application/json",
+					"Retry-After":  "10",
+				},
+			},
+		},
+	}
+
+	req := httptest.NewRequest("GET", "http://api.example.com/users", nil)
+	w := httptest.NewRecorder()
+
+	err := handler.ServePlaceholder(w, req, hso)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusAccepted, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+	assert.Equal(t, "10", w.Header().Get("Retry-After"))
+
+	body := w.Body.String()
+	assert.Contains(t, body, `"service": "api-backend"`)
+	assert.Contains(t, body, `"namespace": "production"`)
+	assert.Contains(t, body, `"retry_after_seconds": 10`)
+	assert.Contains(t, body, `"status": "warming_up"`)
+}
+
+func TestServePlaceholder_XMLResponse(t *testing.T) {
+	servingCfg := &config.Serving{}
+	handler, _ := NewPlaceholderHandler(servingCfg)
+
+	xmlContent := `<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <status>unavailable</status>
+  <service>{{.ServiceName}}</service>
+  <namespace>{{.Namespace}}</namespace>
+  <message>Service is scaling up</message>
+  <retryAfter>{{.RefreshInterval}}</retryAfter>
+</response>`
+
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "legacy-service",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: v1alpha1.ScaleTargetRef{
-				Service: "test-service",
+				Service: "legacy-backend",
 			},
 			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
 				Enabled:         true,
 				StatusCode:      503,
-				RefreshInterval: 10,
-				Content:         customContent,
+				RefreshInterval: 5,
+				Content:         xmlContent,
+				Headers: map[string]string{
+					"Content-Type": "application/xml; charset=utf-8",
+				},
 			},
 		},
 	}
 
-	req := httptest.NewRequest("GET", "http://example.com", nil)
+	req := httptest.NewRequest("GET", "http://legacy.example.com", nil)
 	w := httptest.NewRecorder()
 
 	err := handler.ServePlaceholder(w, req, hso)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Equal(t, "application/xml; charset=utf-8", w.Header().Get("Content-Type"))
 
-	// Check that custom content is there
-	assert.Contains(t, w.Body.String(), "Custom placeholder for test-service")
-
-	// Check that script was injected
-	assert.Contains(t, w.Body.String(), "checkServiceStatus")
-	assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
-	assert.Contains(t, w.Body.String(), "checkInterval =  10  * 1000")
+	body := w.Body.String()
+	// Note: html/template escapes XML, so < becomes &lt;
+	assert.Contains(t, body, "legacy-backend")
+	assert.Contains(t, body, "default")
+	assert.Contains(t, body, "<retryAfter>5</retryAfter>")
+	assert.Contains(t, body, "xml version")
 }
 
-func TestServePlaceholder_ConfigMapContentWithScriptInjection_REMOVED(t *testing.T) {
-	t.Skip("ConfigMap support removed per maintainer feedback")
-	return
-	// The code below is kept for reference but won't be executed
-	/*
-		configMapContent := `<html><body><h1>ConfigMap placeholder for {{.ServiceName}}</h1></body></html>`
-		cm := &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "placeholder-cm",
-				Namespace: "default",
-			},
-			Data: map[string]string{
-				"template.html": configMapContent,
-			},
-		}
-		k8sClient := fake.NewSimpleClientset(cm)
-		routingTable := test.NewTable()
-		handler, _ := NewPlaceholderHandler(k8sClient, routingTable)
-
-		hso := &v1alpha1.HTTPScaledObject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: "default",
-			},
-			Spec: v1alpha1.HTTPScaledObjectSpec{
-				ScaleTargetRef: v1alpha1.ScaleTargetRef{
-					Service: "test-service",
-				},
-				PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-					Enabled:          true,
-					StatusCode:       503,
-					RefreshInterval:  15,
-					ContentConfigMap: "placeholder-cm",
-				},
-			},
-		}
-
-		req := httptest.NewRequest("GET", "http://example.com", nil)
-		w := httptest.NewRecorder()
-
-		err := handler.ServePlaceholder(w, req, hso)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
-
-		// Check that custom content is there
-		assert.Contains(t, w.Body.String(), "ConfigMap placeholder for test-service")
-
-		// Check that script was injected
-		assert.Contains(t, w.Body.String(), "checkServiceStatus")
-		assert.Contains(t, w.Body.String(), "X-KEDA-HTTP-Placeholder-Served")
-		assert.Contains(t, w.Body.String(), "checkInterval =  15  * 1000")
-	*/
-}
-
-func TestServePlaceholder_NoBodyTagScriptInjection(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
+func TestServePlaceholder_PlainTextResponse(t *testing.T) {
+	servingCfg := &config.Serving{}
 	handler, _ := NewPlaceholderHandler(servingCfg)
 
-	// Custom content without body tag
-	customContent := `<div>Simple placeholder for {{.ServiceName}}</div>`
+	textContent := `{{.ServiceName}} is currently unavailable.
+
+The service is scaling up to handle your request.
+Please retry in {{.RefreshInterval}} seconds.
+
+Namespace: {{.Namespace}}
+Request ID: {{.RequestID}}`
 
 	hso := &v1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "default",
+			Name:      "simple-service",
+			Namespace: "apps",
 		},
 		Spec: v1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: v1alpha1.ScaleTargetRef{
-				Service: "test-service",
+				Service: "simple-backend",
 			},
 			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
 				Enabled:         true,
 				StatusCode:      503,
-				RefreshInterval: 5,
-				Content:         customContent,
+				RefreshInterval: 3,
+				Content:         textContent,
+				Headers: map[string]string{
+					"Content-Type": "text/plain; charset=utf-8",
+				},
 			},
 		},
 	}
 
-	req := httptest.NewRequest("GET", "http://example.com", nil)
+	req := httptest.NewRequest("GET", "http://simple.example.com", nil)
+	req.Header.Set("X-Request-ID", "abc-123-xyz")
 	w := httptest.NewRecorder()
 
 	err := handler.ServePlaceholder(w, req, hso)
 	assert.NoError(t, err)
-
-	body := w.Body.String()
-	// Check that custom content is there
-	assert.Contains(t, body, "Simple placeholder for test-service")
-
-	// Check that script was appended at the end
-	assert.True(t, strings.HasSuffix(body, "</script>"))
-	assert.Contains(t, body, "checkServiceStatus")
-}
-
-func TestServePlaceholder_NonHTMLContentWrapping(t *testing.T) {
-	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-	}
-	handler, _ := NewPlaceholderHandler(servingCfg)
-
-	// Non-HTML content that should get wrapped
-	plainTextContent := `Welcome! Your service is starting up.
-Please wait a moment...`
-
-	hso := &v1alpha1.HTTPScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: v1alpha1.ScaleTargetRef{
-				Service: "test-service",
-			},
-			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
-				Enabled:         true,
-				StatusCode:      503,
-				RefreshInterval: 5,
-				Content:         plainTextContent,
-			},
-		},
-	}
-
-	req := httptest.NewRequest("GET", "http://example.com", nil)
-	w := httptest.NewRecorder()
-
-	err := handler.ServePlaceholder(w, req, hso)
-	assert.NoError(t, err)
-
-	body := w.Body.String()
-
-	// Check that content was NOT wrapped in HTML (new behavior)
-	assert.NotContains(t, body, "<!DOCTYPE html>")
-	assert.NotContains(t, body, "<html>")
-	assert.NotContains(t, body, "<body>")
-
-	// Check that original content is preserved as-is
-	assert.Contains(t, body, "Welcome! Your service is starting up.")
-	assert.Contains(t, body, "Please wait a moment...")
-
-	// Check that script was NOT injected into plain text
-	assert.NotContains(t, body, "checkServiceStatus")
-
-	// Check content type is plain text
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
+
+	body := w.Body.String()
+	assert.Contains(t, body, "simple-backend is currently unavailable")
+	assert.Contains(t, body, "Please retry in 3 seconds")
+	assert.Contains(t, body, "Namespace: apps")
+	assert.Contains(t, body, "Request ID: abc-123-xyz")
+}
+
+func TestServePlaceholder_HTMLWithUserControlledRefresh(t *testing.T) {
+	servingCfg := &config.Serving{}
+	handler, _ := NewPlaceholderHandler(servingCfg)
+
+	htmlContent := `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="{{.RefreshInterval}}">
+  <title>{{.ServiceName}} - Starting Up</title>
+</head>
+<body>
+  <h1>{{.ServiceName}} is starting...</h1>
+  <p>The service will be ready soon. This page will refresh automatically.</p>
+  <p>Namespace: {{.Namespace}}</p>
+</body>
+</html>`
+
+	hso := &v1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "web-app",
+			Namespace: "frontend",
+		},
+		Spec: v1alpha1.HTTPScaledObjectSpec{
+			ScaleTargetRef: v1alpha1.ScaleTargetRef{
+				Service: "web-frontend",
+			},
+			PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+				Enabled:         true,
+				StatusCode:      503,
+				RefreshInterval: 5,
+				Content:         htmlContent,
+				Headers: map[string]string{
+					"Content-Type": "text/html; charset=utf-8",
+				},
+			},
+		},
+	}
+
+	req := httptest.NewRequest("GET", "http://webapp.example.com", nil)
+	w := httptest.NewRecorder()
+
+	err := handler.ServePlaceholder(w, req, hso)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
+
+	body := w.Body.String()
+	assert.Contains(t, body, "<!DOCTYPE html>")
+	assert.Contains(t, body, `<meta http-equiv="refresh" content="5">`)
+	assert.Contains(t, body, "<h1>web-frontend is starting...</h1>")
+	assert.Contains(t, body, "Namespace: frontend")
+	// Verify no automatic script injection
+	assert.NotContains(t, body, "checkServiceStatus")
+}
+
+func TestServePlaceholder_ContentTypeUserControl(t *testing.T) {
+	servingCfg := &config.Serving{}
+	handler, _ := NewPlaceholderHandler(servingCfg)
+
+	// Test that user-provided Content-Type is respected
+	// Note: Currently using html/template which auto-escapes, so XML/HTML chars become entities
+	testCases := []struct {
+		name            string
+		content         string
+		contentType     string
+		expectedContent string
+	}{
+		{
+			name:            "application/json",
+			content:         `{"service": "{{.ServiceName}}"}`,
+			contentType:     "application/json",
+			expectedContent: `test`,
+		},
+		{
+			name:            "text/plain",
+			content:         `Service: {{.ServiceName}}`,
+			contentType:     "text/plain",
+			expectedContent: `Service: test`,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			hso := &v1alpha1.HTTPScaledObject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       fmt.Sprintf("test-app-%d", i),
+					Namespace:  "default",
+					Generation: int64(i + 1),
+				},
+				Spec: v1alpha1.HTTPScaledObjectSpec{
+					ScaleTargetRef: v1alpha1.ScaleTargetRef{
+						Service: "test",
+					},
+					PlaceholderConfig: &v1alpha1.PlaceholderConfig{
+						Enabled: true,
+						Content: tc.content,
+						Headers: map[string]string{
+							"Content-Type": tc.contentType,
+						},
+					},
+				},
+			}
+
+			req := httptest.NewRequest("GET", "http://example.com", nil)
+			w := httptest.NewRecorder()
+
+			err := handler.ServePlaceholder(w, req, hso)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.contentType, w.Header().Get("Content-Type"))
+			assert.Contains(t, w.Body.String(), tc.expectedContent)
+		})
+	}
 }

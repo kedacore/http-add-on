@@ -42,6 +42,7 @@ spec:
     refreshInterval: 5
     statusCode: 503
     headers:
+      Content-Type: "text/html; charset=utf-8"
       X-Service-Status: "warming-up"
     content: |
       <!DOCTYPE html>
@@ -166,49 +167,81 @@ This is the target value for the scaling configuration.
 
 ## `placeholderConfig`
 
-This optional section enables serving placeholder pages when the workload is scaled to zero. When enabled, instead of returning an error while waiting for the workload to scale up, the interceptor will serve a customizable HTML page that refreshes automatically.
+This optional section enables serving placeholder responses when the workload is scaled to zero. When enabled, instead of returning an error while waiting for the workload to scale up, the interceptor will serve a customizable response with any content format.
 
 ### `enabled`
 
 >Default: false
 
-Whether to enable placeholder pages for this HTTPScaledObject.
+Whether to enable placeholder responses for this HTTPScaledObject.
 
 ### `refreshInterval`
 
 >Default: 5
 
-The interval in seconds at which the placeholder page will refresh. This should be set based on your expected cold start time.
+A template variable (in seconds) that can be used in your content template. This is just data passed to the template - it does not automatically refresh the response. You can use it in your content for client-side refresh logic if needed (e.g., `<meta http-equiv="refresh" content="{{.RefreshInterval}}">`).
 
 ### `statusCode`
 
 >Default: 503
 
-The HTTP status code to return with the placeholder page. Common values are 503 (Service Unavailable) or 202 (Accepted).
+The HTTP status code to return with the placeholder response. Common values are 503 (Service Unavailable) or 202 (Accepted).
 
 ### `headers`
 
 >Default: {}
 
-A map of custom HTTP headers to include in the placeholder response. Useful for adding service-specific headers.
+A map of custom HTTP headers to include in the placeholder response. **Important**: Use this to set the `Content-Type` header to match your content format. For example:
+- `Content-Type: text/html; charset=utf-8` for HTML
+- `Content-Type: application/json` for JSON
+- `Content-Type: text/plain` for plain text
 
 ### `content`
 
->Default: Built-in template
+>Default: ConfigMap-provided template (if configured), otherwise returns simple text
 
-Custom HTML content for the placeholder page. Supports Go template syntax with the following variables:
+Custom content for the placeholder response. Supports any format (HTML, JSON, XML, plain text, etc.). Content is processed as a Go template with the following variables:
 - `{{.ServiceName}}` - The name of the service from scaleTargetRef
 - `{{.Namespace}}` - The namespace of the HTTPScaledObject
-- `{{.RefreshInterval}}` - The configured refresh interval
+- `{{.RefreshInterval}}` - The configured refresh interval value (just a number)
 - `{{.RequestID}}` - The X-Request-ID header value if present
 - `{{.Timestamp}}` - The current timestamp in RFC3339 format
 
-### `contentConfigMap`
+**Examples:**
 
-The name of a ConfigMap containing the placeholder page template. This is an alternative to inline `content`.
+HTML with client-side refresh:
+```yaml
+content: |
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title>Service Starting</title>
+    <meta http-equiv="refresh" content="{{.RefreshInterval}}">
+  </head>
+  <body>
+    <h1>{{.ServiceName}} is starting...</h1>
+  </body>
+  </html>
+headers:
+  Content-Type: "text/html; charset=utf-8"
+```
 
-### `contentConfigMapKey`
+JSON response:
+```yaml
+content: |
+  {
+    "status": "warming_up",
+    "service": "{{.ServiceName}}",
+    "namespace": "{{.Namespace}}",
+    "timestamp": "{{.Timestamp}}"
+  }
+headers:
+  Content-Type: "application/json"
+```
 
->Default: "template.html"
-
-The key within the ConfigMap that contains the template content.
+Plain text:
+```yaml
+content: "{{.ServiceName}} is starting up. Please retry in a few seconds."
+headers:
+  Content-Type: "text/plain"
+```

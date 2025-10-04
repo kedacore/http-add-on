@@ -27,6 +27,8 @@ spec:
         refreshInterval: 5
         statusCode: 503
         headers:
+            # IMPORTANT: Always set Content-Type to match your content format
+            Content-Type: "text/html; charset=utf-8"
             X-Service-Status: "warming-up"
         content: |
             <!DOCTYPE html>
@@ -39,3 +41,4 @@ spec:
                 <h1>{{.ServiceName}} is starting...</h1>
             </body>
             </html>
+        # Note: See examples/vX.X.X/httpscaledobject-*.yaml for JSON/XML/plain text examples

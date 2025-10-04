@@ -82,8 +82,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	}
 
 	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-		EnableColdStartHeader:   true,
+		EnableColdStartHeader: true,
 	}
 	g.Go(func() error {
 		return runProxyServer(
@@ -228,8 +227,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 	}
 	tracingCfg := config.Tracing{Enabled: true, Exporter: "otlphttp"}
 	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-		EnableColdStartHeader:   true,
+		EnableColdStartHeader: true,
 	}
 
 	g.Go(func() error {
@@ -385,8 +383,7 @@ func TestRunProxyServerWithMultipleCertsTLSCountMiddleware(t *testing.T) {
 
 	tracingCfg := config.Tracing{Enabled: true, Exporter: "otlphttp"}
 	servingCfg := &config.Serving{
-		PlaceholderEnableScript: true,
-		EnableColdStartHeader:   true,
+		EnableColdStartHeader: true,
 	}
 
 	g.Go(func() error {

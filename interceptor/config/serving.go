@@ -53,10 +53,9 @@ type Serving struct {
 	EnableColdStartHeader bool `envconfig:"KEDA_HTTP_ENABLE_COLD_START_HEADER" default:"true"`
 	// LogRequests enables/disables logging of incoming requests
 	LogRequests bool `envconfig:"KEDA_HTTP_LOG_REQUESTS" default:"false"`
-	// PlaceholderDefaultTemplatePath is the path to the default placeholder template file
+	// PlaceholderDefaultTemplatePath is the optional path to the default placeholder template file
+	// If not set, placeholder pages must provide inline content via HTTPScaledObject spec
 	PlaceholderDefaultTemplatePath string `envconfig:"KEDA_HTTP_PLACEHOLDER_DEFAULT_TEMPLATE_PATH" default:""`
-	// PlaceholderEnableScript controls whether to inject auto-refresh script into HTML responses
-	PlaceholderEnableScript bool `envconfig:"KEDA_HTTP_PLACEHOLDER_ENABLE_SCRIPT" default:"true"`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the

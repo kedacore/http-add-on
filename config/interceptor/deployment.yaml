@@ -56,8 +56,6 @@ spec:
           value: "1s"
         - name: KEDA_HTTP_PLACEHOLDER_DEFAULT_TEMPLATE_PATH
           value: "/placeholder-templates/default.html"
-        - name: KEDA_HTTP_PLACEHOLDER_ENABLE_SCRIPT
-          value: "true"
         ports:
         - name: admin
           containerPort: 9090

@@ -11,3 +11,7 @@ labels:
   includeTemplates: true
   pairs:
     app.kubernetes.io/instance: operator
+images:
+- name: ghcr.io/kedacore/http-add-on-operator
+  newName: ghcr.io/kedacore/http-add-on-operator
+  newTag: main

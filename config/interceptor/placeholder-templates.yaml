@@ -3,6 +3,9 @@ kind: ConfigMap
 metadata:
   name: interceptor-placeholder-templates
 data:
+  # Optional default template used when placeholderConfig.content is not specified
+  # This is an HTML example - users can create any format (JSON, XML, plain text, etc.)
+  # Users should always set the Content-Type header in their HTTPScaledObject to match their format
   default.html: |
     <!DOCTYPE html>
     <html>

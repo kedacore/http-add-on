@@ -137,30 +137,35 @@ spec:
                   scale-from-zero
                 properties:
                   content:
-                    description: Inline content for placeholder page (can be HTML,
-                      JSON, plain text, etc.)
+                    description: |-
+                      Inline content for placeholder response. Supports any format (HTML, JSON, XML, plain text, etc.)
+                      Content is processed as a Go template with variables: ServiceName, Namespace, RefreshInterval, RequestID, Timestamp
+                      Content-Type should be set via the Headers field to match your content format
                     type: string
                   enabled:
                     default: false
-                    description: Enable placeholder page when replicas are scaled
+                    description: Enable placeholder response when replicas are scaled
                       to zero
                     type: boolean
                   headers:
                     additionalProperties:
                       type: string
-                    description: Additional HTTP headers to include with placeholder
-                      response
+                    description: |-
+                      Additional HTTP headers to include with placeholder response
+                      Use this to set Content-Type matching your content format (e.g., 'Content-Type: application/json')
                     type: object
                   refreshInterval:
                     default: 5
-                    description: Refresh interval for client-side polling in seconds
+                    description: |-
+                      RefreshInterval is a template variable available in content (in seconds)
+                      This is just data passed to the template, not used by the interceptor for automatic refresh
                     format: int32
                     maximum: 60
                     minimum: 1
                     type: integer
                   statusCode:
                     default: 503
-                    description: HTTP status code to return with placeholder page
+                    description: HTTP status code to return with placeholder response
                     format: int32
                     maximum: 599
                     minimum: 100
