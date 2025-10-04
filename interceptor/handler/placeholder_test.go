@@ -250,11 +250,11 @@ func TestGetTemplate_Caching(t *testing.T) {
 
 	ctx := context.Background()
 
-	tmpl1, err := handler.getTemplate(ctx, hso)
+	tmpl1, err := handler.resolveTemplate(ctx, hso)
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl1)
 
-	tmpl2, err := handler.getTemplate(ctx, hso)
+	tmpl2, err := handler.resolveTemplate(ctx, hso)
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl2)
 
@@ -283,14 +283,14 @@ func TestGetTemplate_CacheInvalidation_Generation(t *testing.T) {
 
 	ctx := context.Background()
 
-	tmpl1, err := handler.getTemplate(ctx, hso)
+	tmpl1, err := handler.resolveTemplate(ctx, hso)
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl1)
 
 	hso.Generation = 2
 	hso.Spec.PlaceholderConfig.Content = customContent2
 
-	tmpl2, err := handler.getTemplate(ctx, hso)
+	tmpl2, err := handler.resolveTemplate(ctx, hso)
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl2)
 
@@ -299,7 +299,6 @@ func TestGetTemplate_CacheInvalidation_Generation(t *testing.T) {
 
 func TestGetTemplate_CacheInvalidation_ConfigMapVersion_REMOVED(t *testing.T) {
 	t.Skip("ConfigMap support removed per maintainer feedback")
-	return
 	// The code below is kept for reference but won't be executed
 	/*
 		cm := &v1.ConfigMap{
@@ -331,7 +330,7 @@ func TestGetTemplate_CacheInvalidation_ConfigMapVersion_REMOVED(t *testing.T) {
 
 		ctx := context.Background()
 
-		tmpl1, err := handler.getTemplate(ctx, hso)
+		tmpl1, err := handler.resolveTemplate(ctx, hso)
 		require.NoError(t, err)
 		assert.NotNil(t, tmpl1)
 
@@ -340,7 +339,7 @@ func TestGetTemplate_CacheInvalidation_ConfigMapVersion_REMOVED(t *testing.T) {
 		_, err = k8sClient.CoreV1().ConfigMaps("default").Update(ctx, cm, metav1.UpdateOptions{})
 		require.NoError(t, err)
 
-		tmpl2, err := handler.getTemplate(ctx, hso)
+		tmpl2, err := handler.resolveTemplate(ctx, hso)
 		require.NoError(t, err)
 		assert.NotNil(t, tmpl2)
 	*/
@@ -365,7 +364,7 @@ func TestGetTemplate_ConcurrentAccess(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, err := handler.getTemplate(ctx, hso)
+	_, err := handler.resolveTemplate(ctx, hso)
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup
@@ -376,7 +375,7 @@ func TestGetTemplate_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tmpl, err := handler.getTemplate(ctx, hso)
+			tmpl, err := handler.resolveTemplate(ctx, hso)
 			if err != nil {
 				errors <- err
 			} else {
@@ -436,7 +435,7 @@ func TestGetTemplate_ConcurrentFirstAccess(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := handler.getTemplate(ctx, hso)
+			_, err := handler.resolveTemplate(ctx, hso)
 			if err != nil {
 				errors <- err
 			}
@@ -488,7 +487,7 @@ func TestGetTemplate_ConcurrentCacheUpdates(t *testing.T) {
 					},
 				}
 
-				_, err := handler.getTemplate(ctx, hso)
+				_, err := handler.resolveTemplate(ctx, hso)
 				if err != nil {
 					errors <- err
 				}

@@ -141,30 +141,23 @@ type Header struct {
 
 // PlaceholderConfig defines the configuration for serving placeholder responses during scale-from-zero
 type PlaceholderConfig struct {
-	// Enable placeholder response when replicas are scaled to zero
 	// +kubebuilder:default=false
 	// +optional
 	Enabled bool `json:"enabled" description:"Enable placeholder response when replicas are scaled to zero"`
-	// Inline content for placeholder response. Supports any format (HTML, JSON, XML, plain text, etc.)
-	// Content is processed as a Go template with variables: ServiceName, Namespace, RefreshInterval, RequestID, Timestamp
-	// Content-Type should be set via the Headers field to match your content format
+	// Supports Go template variables: ServiceName, Namespace, RefreshInterval, RequestID, Timestamp
 	// +optional
 	Content string `json:"content,omitempty" description:"Inline content for placeholder response (any format supported)"`
-	// HTTP status code to return with placeholder response
 	// +kubebuilder:default=503
 	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:Maximum=599
 	// +optional
 	StatusCode int32 `json:"statusCode,omitempty" description:"HTTP status code to return with placeholder response (Default 503)"`
-	// RefreshInterval is a template variable available in content (in seconds)
-	// This is just data passed to the template, not used by the interceptor for automatic refresh
+	// Template variable only - not used by interceptor for automatic refresh
 	// +kubebuilder:default=5
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=60
 	// +optional
 	RefreshInterval int32 `json:"refreshInterval,omitempty" description:"Template variable for refresh interval in seconds (Default 5)"`
-	// Additional HTTP headers to include with placeholder response
-	// Use this to set Content-Type matching your content format (e.g., 'Content-Type: application/json')
 	// +optional
 	Headers map[string]string `json:"headers,omitempty" description:"Additional HTTP headers to include with placeholder response"`
 }

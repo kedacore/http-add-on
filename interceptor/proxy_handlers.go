@@ -13,6 +13,7 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
+	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
@@ -45,9 +46,6 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts, s *config.Serving) forw
 	}
 }
 
-// newForwardingHandler takes in the service URL for the app backend
-// and forwards incoming requests to it. Note that it isn't multitenant.
-// It's intended to be deployed and scaled alongside the application itself.
 func newForwardingHandler(
 	lggr logr.Logger,
 	dialCtxFunc kedanet.DialContextFunc,
@@ -76,30 +74,8 @@ func newForwardingHandler(
 		httpso := util.HTTPSOFromContext(ctx)
 		hasFailover := httpso.Spec.ColdStartTimeoutFailoverRef != nil
 
-		// Check if we should serve a placeholder page
-		// Ensure placeholderHandler is not nil to prevent panics even if placeholder is enabled in spec
-		if httpso.Spec.PlaceholderConfig != nil && httpso.Spec.PlaceholderConfig.Enabled && placeholderHandler != nil {
-			endpoints, err := endpointsCache.Get(httpso.GetNamespace(), httpso.Spec.ScaleTargetRef.Service)
-			if err != nil {
-				// Error getting endpoints cache - return 503 Service Unavailable
-				lggr.Error(err, "failed to get endpoints from cache while placeholder is configured",
-					"namespace", httpso.GetNamespace(),
-					"service", httpso.Spec.ScaleTargetRef.Service)
-				w.WriteHeader(http.StatusServiceUnavailable)
-				if _, writeErr := w.Write([]byte("Service temporarily unavailable - unable to check service status")); writeErr != nil {
-					lggr.Error(writeErr, "could not write error response to client")
-				}
-				return
-			}
-
-			if workloadActiveEndpoints(endpoints) == 0 {
-				if placeholderErr := placeholderHandler.ServePlaceholder(w, r, httpso); placeholderErr != nil {
-					lggr.Error(placeholderErr, "failed to serve placeholder page")
-					w.WriteHeader(http.StatusBadGateway)
-					if _, err := w.Write([]byte("error serving placeholder page")); err != nil {
-						lggr.Error(err, "could not write error response to client")
-					}
-				}
+		if shouldServePlaceholder(httpso, placeholderHandler) {
+			if err := servePlaceholderIfNoEndpoints(lggr, w, r, httpso, placeholderHandler, endpointsCache); err != nil {
 				return
 			}
 		}
@@ -158,4 +134,44 @@ func newForwardingHandler(
 		}
 		uh.ServeHTTP(w, r)
 	})
+}
+
+func shouldServePlaceholder(httpso *v1alpha1.HTTPScaledObject, placeholderHandler *handler.PlaceholderHandler) bool {
+	return httpso.Spec.PlaceholderConfig != nil &&
+		httpso.Spec.PlaceholderConfig.Enabled &&
+		placeholderHandler != nil
+}
+
+func servePlaceholderIfNoEndpoints(
+	lggr logr.Logger,
+	w http.ResponseWriter,
+	r *http.Request,
+	httpso *v1alpha1.HTTPScaledObject,
+	placeholderHandler *handler.PlaceholderHandler,
+	endpointsCache k8s.EndpointsCache,
+) error {
+	endpoints, err := endpointsCache.Get(httpso.GetNamespace(), httpso.Spec.ScaleTargetRef.Service)
+	if err != nil {
+		lggr.Error(err, "failed to get endpoints from cache while placeholder is configured",
+			"namespace", httpso.GetNamespace(),
+			"service", httpso.Spec.ScaleTargetRef.Service)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		if _, writeErr := w.Write([]byte("Service temporarily unavailable - unable to check service status")); writeErr != nil {
+			lggr.Error(writeErr, "could not write error response to client")
+		}
+		return err
+	}
+
+	if workloadActiveEndpoints(endpoints) == 0 {
+		if placeholderErr := placeholderHandler.ServePlaceholder(w, r, httpso); placeholderErr != nil {
+			lggr.Error(placeholderErr, "failed to serve placeholder page")
+			w.WriteHeader(http.StatusBadGateway)
+			if _, err := w.Write([]byte("error serving placeholder page")); err != nil {
+				lggr.Error(err, "could not write error response to client")
+			}
+		}
+		return fmt.Errorf("placeholder served")
+	}
+
+	return nil
 }
