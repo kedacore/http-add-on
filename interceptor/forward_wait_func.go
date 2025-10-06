@@ -17,7 +17,11 @@ type forwardWaitFunc func(context.Context, string, string) (bool, error)
 func workloadActiveEndpoints(endpoints discov1.EndpointSlice) int {
 	total := 0
 	for _, e := range endpoints.Endpoints {
-		total += len(e.Addresses)
+		if e.Conditions.Ready == nil || *e.Conditions.Ready {
+			// null should be treated as ready, per:
+			// https://github.com/kubernetes/api/blob/1446cdecbe6b6afe81373ddedc4dfdb86a7f0bcd/discovery/v1/types.go#L136-L158
+			total += len(e.Addresses)
+		}
 	}
 	return total
 }
