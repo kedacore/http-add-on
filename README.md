@@ -81,3 +81,4 @@ We are a Cloud Native Computing Foundation (CNCF) graduated project.
 ## Code of Conduct
 
 Please refer to the organization-wide [Code of Conduct document](https://github.com/kedacore/.github/blob/main/CODE_OF_CONDUCT.md).
+# Force push marker - will be removed
