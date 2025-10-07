@@ -35,7 +35,7 @@ cleanup
 mkdir -p "${TMP_DIFFROOT}"
 cp -a "${DIFFROOT}"/. "${TMP_DIFFROOT}"
 
-make mockgen
+make mockgen-gen
 echo "diffing ${DIFFROOT} against freshly generated mockgen"
 ret=0
 diff -Napru "${DIFFROOT}" "${TMP_DIFFROOT}" || ret=$?
