@@ -19,8 +19,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-CODEGEN_PKG="${CODEGEN_PKG:-$(go list -f '{{ .Dir }}' -m k8s.io/code-generator 2>/dev/null)}"
-SCRIPT_ROOT="$(dirname "${BASH_SOURCE[0]}")/.."
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
 OUTPUT_BASE="$(mktemp -d)"
 
 GO_PACKAGE='github.com/kedacore/http-add-on'
@@ -34,6 +34,6 @@ kube::codegen::gen_helpers \
 kube::codegen::gen_client \
     --with-watch \
     --output-dir "${SCRIPT_ROOT}/operator/generated" \
-    --output-pkg "github.com/kedacore/http-add-on/operator/generated" \
+    --output-pkg "${GO_PACKAGE}/operator/generated" \
     --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
     "${SCRIPT_ROOT}/operator/apis"
