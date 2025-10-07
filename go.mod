@@ -18,6 +18,7 @@ replace (
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250627150254-e9823e99808e
 	k8s.io/metrics => k8s.io/metrics v0.33.5
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.21.0
+	sigs.k8s.io/gateway-api => sigs.k8s.io/gateway-api v1.3.0
 )
 
 // temporary until KEDA v2.18.0 is released
@@ -60,6 +61,8 @@ require (
 	sigs.k8s.io/gateway-api v1.4.0
 	sigs.k8s.io/kustomize/kustomize/v5 v5.7.1
 )
+
+require golang.org/x/tools/go/expect v0.1.1-deprecated // indirect
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
@@ -143,6 +146,5 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.20.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )

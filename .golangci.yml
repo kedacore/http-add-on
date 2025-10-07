@@ -47,7 +47,13 @@ linters:
           - revive
           - unparam
         path: _test\.go
+      # Exclude for utils packages with meaningful package names
+      - linters:
+          - revive
+        text: 'var-naming: avoid meaningless package names'
+        path: operator/controllers/util/predicate.go
     paths:
+      - vendor
       - third_party$
       - builtin$
       - examples$

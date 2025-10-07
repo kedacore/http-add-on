@@ -34,6 +34,17 @@ GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
 
 COSIGN_FLAGS ?= -y -a GIT_HASH=${GIT_COMMIT} -a GIT_VERSION=${VERSION} -a BUILD_DATE=${DATE}
 
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
+GOPATH:=$(shell go env GOPATH)
+
+GOLANGCI_VERSION:=2.5.0
+
 define DOMAINS
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
@@ -179,8 +190,13 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-lint: ## Run golangci-lint against code.
-	golangci-lint run
+HAS_GOLANGCI_VERSION:=$(shell $(GOPATH)/bin/golangci-lint version --short)
+.PHONY: lint
+lint: ## Run golangci against code.
+ifneq ($(HAS_GOLANGCI_VERSION), $(GOLANGCI_VERSION))
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v$(GOLANGCI_VERSION)
+endif
+	golangci-lint run -v
 
 pre-commit: ## Run static-checks.
 	pre-commit run --all-files
