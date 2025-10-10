@@ -108,6 +108,45 @@ spec:
                 items:
                   type: string
                 type: array
+              placeholderConfig:
+                description: (optional) Configuration for placeholder pages during
+                  scale-from-zero
+                properties:
+                  content:
+                    description: |-
+                      Inline content for placeholder response. Supports any format (HTML, JSON, XML, plain text, etc.)
+                      Content is processed as a Go template with variables: ServiceName, Namespace, RefreshInterval, RequestID, Timestamp
+                      Content-Type should be set via the Headers field to match your content format
+                    type: string
+                  enabled:
+                    default: false
+                    description: Enable placeholder response when replicas are scaled
+                      to zero
+                    type: boolean
+                  headers:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Additional HTTP headers to include with placeholder response
+                      Use this to set Content-Type matching your content format (e.g., 'Content-Type: application/json')
+                    type: object
+                  refreshInterval:
+                    default: 5
+                    description: |-
+                      RefreshInterval is a template variable available in content (in seconds)
+                      This is just data passed to the template, not used by the interceptor for automatic refresh
+                    format: int32
+                    maximum: 60
+                    minimum: 1
+                    type: integer
+                  statusCode:
+                    default: 503
+                    description: HTTP status code to return with placeholder response
+                    format: int32
+                    maximum: 599
+                    minimum: 100
+                    type: integer
+                type: object
               replicas:
                 description: (optional) Replica information
                 properties:

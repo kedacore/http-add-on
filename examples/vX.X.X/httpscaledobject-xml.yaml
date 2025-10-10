@@ -1,0 +1,36 @@
+# Example: XML placeholder for legacy systems
+# Use case: SOAP services or XML-based APIs
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+    name: legacy-service
+spec:
+    hosts:
+        - legacy.example.com
+    scaleTargetRef:
+        name: legacy-backend
+        kind: Deployment
+        apiVersion: apps/v1
+        service: legacy-backend
+        port: 8080
+    replicas:
+        min: 0
+        max: 5
+    scalingMetric:
+        concurrency:
+            targetValue: 50
+    placeholderConfig:
+        enabled: true
+        refreshInterval: 5
+        statusCode: 503
+        headers:
+            Content-Type: "application/xml; charset=utf-8"
+        content: |
+            <?xml version="1.0" encoding="UTF-8"?>
+            <response>
+              <status>unavailable</status>
+              <service>{{.ServiceName}}</service>
+              <namespace>{{.Namespace}}</namespace>
+              <message>Service is scaling up</message>
+              <retryAfter>{{.RefreshInterval}}</retryAfter>
+            </response>

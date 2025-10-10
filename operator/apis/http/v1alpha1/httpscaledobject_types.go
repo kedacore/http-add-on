@@ -132,6 +132,28 @@ type HTTPScaledObjectTimeoutsSpec struct {
 	ResponseHeader metav1.Duration `json:"responseHeader" description:"How long to wait between when the HTTP request is sent to the backing app and when response headers need to arrive"`
 }
 
+type PlaceholderConfig struct {
+	// +kubebuilder:default=false
+	// +optional
+	Enabled bool `json:"enabled" description:"Enable placeholder response when replicas are scaled to zero"`
+	// Supports Go template variables: ServiceName, Namespace, RefreshInterval, RequestID, Timestamp
+	// +optional
+	Content string `json:"content,omitempty" description:"Inline content for placeholder response (any format supported)"`
+	// +kubebuilder:default=503
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:Maximum=599
+	// +optional
+	StatusCode int32 `json:"statusCode,omitempty" description:"HTTP status code to return with placeholder response (Default 503)"`
+	// Template variable only - not used by interceptor for automatic refresh
+	// +kubebuilder:default=5
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=60
+	// +optional
+	RefreshInterval int32 `json:"refreshInterval,omitempty" description:"Template variable for refresh interval in seconds (Default 5)"`
+	// +optional
+	Headers map[string]string `json:"headers,omitempty" description:"Additional HTTP headers to include with placeholder response"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -171,6 +193,9 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Timeouts that override the global ones
 	// +optional
 	Timeouts *HTTPScaledObjectTimeoutsSpec `json:"timeouts,omitempty" description:"Timeouts that override the global ones"`
+	// (optional) Configuration for placeholder pages during scale-from-zero
+	// +optional
+	PlaceholderConfig *PlaceholderConfig `json:"placeholderConfig,omitempty" description:"Configuration for placeholder pages during scale-from-zero"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject

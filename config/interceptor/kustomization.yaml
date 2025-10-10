@@ -9,6 +9,7 @@ resources:
 - metrics.service.yaml
 - service_account.yaml
 - scaledobject.yaml
+- placeholder-templates.yaml
 configurations:
 - transformerconfig.yaml
 labels:
