@@ -34,6 +34,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Improvements
 
 - **Interceptor**: Support HTTPScaledObject scoped timeout ([#813](https://github.com/kedacore/http-add-on/issues/813))
+- **Interceptor**: Add environment variable to control X-KEDA-HTTP-Cold-Start response header ([#1355](https://github.com/kedacore/http-add-on/issues/1355))
 
 ### Fixes
 

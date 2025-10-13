@@ -25,9 +25,10 @@ type forwardingConfig struct {
 	idleConnTimeout       time.Duration
 	tlsHandshakeTimeout   time.Duration
 	expectContinueTimeout time.Duration
+	enableColdStartHeader bool
 }
 
-func newForwardingConfigFromTimeouts(t *config.Timeouts) forwardingConfig {
+func newForwardingConfigFromTimeouts(t *config.Timeouts, s *config.Serving) forwardingConfig {
 	return forwardingConfig{
 		waitTimeout:           t.WorkloadReplicas,
 		respHeaderTimeout:     t.ResponseHeader,
@@ -36,6 +37,7 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts) forwardingConfig {
 		idleConnTimeout:       t.IdleConnTimeout,
 		tlsHandshakeTimeout:   t.TLSHandshakeTimeout,
 		expectContinueTimeout: t.ExpectContinueTimeout,
+		enableColdStartHeader: s.EnableColdStartHeader,
 	}
 }
 
@@ -101,7 +103,9 @@ func newForwardingHandler(
 			}
 			return
 		}
-		w.Header().Add("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
+		if fwdCfg.enableColdStartHeader {
+			w.Header().Add("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
+		}
 		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Name", httpso.Spec.ScaleTargetRef.Name)
 		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Namespace", httpso.Namespace)
 

@@ -31,6 +31,17 @@ For setting multiple TLS certs, set `KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS` with 
 To disable certificate chain verification, set `KEDA_HTTP_PROXY_TLS_SKIP_VERIFY` to `false`
 
 The matching between certs and requests is performed during the TLS ClientHelo message, where the SNI service name is compared to SANs provided in each cert and the first matching cert will be used for the rest of the TLS handshake.
+
+# Configuring cold start header for the KEDA HTTP Add-on interceptor proxy
+
+The interceptor proxy includes a `X-KEDA-HTTP-Cold-Start` response header in HTTP responses to indicate whether a cold start occurred. By default, this header is **enabled**.
+
+The header can be controlled via the environment variable `KEDA_HTTP_ENABLE_COLD_START_HEADER` on the interceptor deployment (`true` by default). When enabled, the header will contain `true` if a cold start occurred (i.e., the workload was scaled from zero), or `false` if the workload was already running.
+
+To disable the cold start header (for example, to reduce information disclosure in production environments), set `KEDA_HTTP_ENABLE_COLD_START_HEADER` to `false`.
+
+This header is useful for debugging and monitoring cold start behavior.
+
 # Configuring tracing for the KEDA HTTP Add-on interceptor proxy
 
 ### Supported Exporters:
