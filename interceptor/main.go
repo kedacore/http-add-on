@@ -198,7 +198,7 @@ func main() {
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig, tracingCfg); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig, tracingCfg); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -212,7 +212,7 @@ func main() {
 		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
 
 		k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, proxyPort, false, nil, tracingCfg); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyPort, false, nil, tracingCfg); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -405,6 +405,7 @@ func runProxyServer(
 	routingTable routing.Table,
 	svcCache k8s.ServiceCache,
 	timeouts *config.Timeouts,
+	serving *config.Serving,
 	port int,
 	tlsEnabled bool,
 	tlsConfig map[string]interface{},
@@ -440,7 +441,7 @@ func runProxyServer(
 		logger,
 		dialContextFunc,
 		waitFunc,
-		newForwardingConfigFromTimeouts(timeouts),
+		newForwardingConfigFromTimeouts(timeouts, serving),
 		forwardingTLSCfg,
 		tracingConfig,
 	)

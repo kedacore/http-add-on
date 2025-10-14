@@ -49,6 +49,8 @@ type Serving struct {
 	TLSPort int `envconfig:"KEDA_HTTP_PROXY_TLS_PORT" default:"8443"`
 	// ProfilingAddr if not empty, pprof will be available on this address, assuming host:port here
 	ProfilingAddr string `envconfig:"PROFILING_BIND_ADDRESS" default:""`
+	// EnableColdStartHeader enables/disables the X-KEDA-HTTP-Cold-Start response header
+	EnableColdStartHeader bool `envconfig:"KEDA_HTTP_ENABLE_COLD_START_HEADER" default:"true"`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the
