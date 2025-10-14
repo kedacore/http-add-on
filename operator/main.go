@@ -20,6 +20,11 @@ import (
 	"flag"
 	"os"
 
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
+	"github.com/kedacore/http-add-on/operator/controllers/http/config"
+	"github.com/kedacore/http-add-on/operator/metrics"
+	"github.com/kedacore/http-add-on/pkg/util"
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -30,10 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
-	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -69,7 +70,9 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
-
+	metricsCfg := config.MustParseMetrics()
+	// setup the configured metrics collectors
+	metrics.NewMetricsCollectors(metricsCfg)
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	externalScalerCfg, err := config.NewExternalScalerFromEnv()
@@ -112,6 +115,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+	ctx = util.ContextWithLogger(ctx, ctrl.Log)
 	if err = (&httpcontrollers.HTTPScaledObjectReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -134,7 +139,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

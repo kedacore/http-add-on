@@ -52,7 +52,7 @@ There are a few values that you can pass to the above `helm install` command by 
 helm install http-add-on kedacore/keda-add-ons-http --create-namespace --namespace ${NAMESPACE} --set images.tag=canary
 ```
 
-For an exhaustive list of configuration options, see the official HTTP Add-on chart [values.yaml file](https://github.com/kedacore/charts/blob/master/http-add-on/values.yaml).
+For an exhaustive list of configuration options, see the official HTTP Add-on chart [values.yaml file](https://github.com/kedacore/charts/blob/main/http-add-on/values.yaml).
 
 ### A Note for Developers and Local Cluster Users
 
