@@ -1,6 +1,6 @@
 module github.com/kedacore/http-add-on
 
-go 1.24.3
+go 1.24.7
 
 require (
 	github.com/go-logr/logr v1.4.3
