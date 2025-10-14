@@ -17,10 +17,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v4
-      - uses: JustinBeckwith/linkinator-action@3d5ba091319fa7b0ac14703761eebb7d100e6f6d # v1
+      - name: Restore lychee cache
+        uses: actions/cache@v4
         with:
-          paths: "**/*.md"
-          markdown: true
-          concurrency: 1
-          retry: true
-          linksToSkip: "https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-operator, https://github.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler,http://opentelemetry-collector.open-telemetry-system:4318,http://opentelemetry-collector.open-telemetry-system:4318/v1/traces, https://www.gnu.org/software/make/"
+          path: .lycheecache
+          key: cache-lychee-${{ github.sha }}
+          restore-keys: cache-lychee-
+      - name: Run lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >
+            --base-url "."
+            --cache --max-cache-age 1d
+            --max-concurrency 6
+            --max-retries 6
+            --retry-wait-time 2
+            --timeout 30
+            --github-token ${{ secrets.GITHUB_TOKEN }}
+            --exclude '^https://github\.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor$'
+            --exclude '^https://github\.com/kedacore/http-add-on/pkgs/container/http-add-on-operator$'
+            --exclude '^https://github\.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler$'
+            --exclude '^http://opentelemetry-collector\.open-telemetry-system:4318$'
+            --exclude '^http://opentelemetry-collector\.open-telemetry-system:4318/$'
+            --exclude '^http://opentelemetry-collector\.open-telemetry-system:4318/v1/traces$'
+            --exclude '^https://www\.gnu\.org/software/make/$'
+            "./**/*.md"
