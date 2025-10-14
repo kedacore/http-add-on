@@ -11,7 +11,7 @@ _Provide a description of what has been changed_
 - [ ] Commits are signed with Developer Certificate of Origin (DCO)
 - [ ] Changelog has been updated and is aligned with our [changelog requirements](https://github.com/kedacore/keda/blob/main/CONTRIBUTING.md#Changelog)
 - [ ] Any necessary documentation is added, such as:
-  - [`README.md`](/README.md)
+  - [`README.md`](../README.md)
   - [The `docs/` directory](./docs)
   - [The docs repo](https://github.com/kedacore/keda-docs)
 
