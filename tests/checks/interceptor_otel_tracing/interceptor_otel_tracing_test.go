@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes"
 
@@ -176,71 +177,11 @@ spec:
       - sh
       - -c
       - "exec tail -f /dev/null"`
-
-	zipkinTemplate = `
-apiVersion: v1
-kind: Namespace
-metadata:
-  creationTimestamp: null
-  name: zipkin
-spec: {}
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  creationTimestamp: null
-  labels:
-    app: zipkin
-  name: zipkin
-  namespace: zipkin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: zipkin
-  strategy: {}
-  template:
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: zipkin
-    spec:
-      containers:
-      - image: openzipkin/zipkin
-        name: zipkin
-        env:
-        - name: "JAVA_OPTS"
-          value: "-Xmx500M"
-        resources:
-          limits:
-            memory: "700M"
-          requests:
-            memory: "500M"
----
-apiVersion: v1
-kind: Service
-metadata:
-  creationTimestamp: null
-  labels:
-    app: zipkin
-  name: zipkin
-  namespace: zipkin
-spec:
-  ports:
-  - port: 9411
-    protocol: TCP
-    targetPort: 9411
-  selector:
-    app: zipkin
-  type: ClusterIP
-status:
-  loadBalancer: {}
-`
 )
 
 func TestTraceGeneration(t *testing.T) {
 	// setup
+	gomega.RegisterTestingT(t)
 	t.Log("--- setting up ---")
 	// Create kubernetes resources
 	kc := GetKubernetesClient(t)
@@ -250,20 +191,14 @@ func TestTraceGeneration(t *testing.T) {
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 6, 10),
 		"replica count should be %d after 1 minutes", minReplicaCount)
 
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, "zipkin", "zipkin", 1, 12, 10),
-		"zipkin replica count should be %d after 1 minutes", 1)
-
-	time.Sleep(5 * time.Second)
-
 	// Send a test request to the interceptor
 	sendLoad(t, kc, data)
 
-	// setting sleep for 15 sec so traces are sent over
-	time.Sleep(15 * time.Second)
-
 	// Fetch metrics and validate them
-	traces = fetchAndParseZipkinTraces(t, fmt.Sprintf("curl %s", otelCollectorZipKinURL))
-	assert.GreaterOrEqual(t, len(traces), 1)
+	gomega.Eventually(func() int {
+		traces = fetchAndParseZipkinTraces(t, fmt.Sprintf("curl %s", otelCollectorZipKinURL))
+		return len(traces)
+	}, 5*time.Minute, 5*time.Second).Should(gomega.BeNumerically(">", 0), "there should be at least 1 trace")
 
 	traceStatus := getTracesStatus(traces)
 	assert.EqualValues(t, "200", traceStatus)
@@ -321,7 +256,6 @@ func getTemplateData() (templateData, []Template) {
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
-			{Name: "zipkinTemplate", Config: zipkinTemplate},
 			{Name: "deploymentTemplate", Config: deploymentTemplate},
 			{Name: "serviceNameTemplate", Config: serviceTemplate},
 			{Name: "clientTemplate", Config: clientTemplate},
