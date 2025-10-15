@@ -86,7 +86,7 @@ func executeTest(ctx context.Context, file string, timeout string, tries int) Te
 	for i := 1; i <= tries; i++ {
 		fmt.Printf("Executing %s, try '%d'\n", file, i)
 		cmd := exec.CommandContext(ctx, "go", "test", "-v", "-tags", "e2e", "-timeout", timeout, file)
-		stdout, err := cmd.Output()
+		stdout, err := cmd.CombinedOutput()
 		logFile := fmt.Sprintf("%s.%d.log", file, i)
 		fileError := os.WriteFile(logFile, stdout, 0644)
 		if fileError != nil {

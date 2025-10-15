@@ -101,6 +101,58 @@ spec:
         namespaces:
           from: All
 `
+	zipkinTemplate = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: zipkin
+  name: zipkin
+  namespace: zipkin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zipkin
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: zipkin
+    spec:
+      containers:
+      - image: openzipkin/zipkin
+        name: zipkin
+        env:
+        - name: "JAVA_OPTS"
+          value: "-Xmx500M"
+        resources:
+          limits:
+            memory: "700M"
+          requests:
+            memory: "5M"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: zipkin
+  name: zipkin
+  namespace: zipkin
+spec:
+  ports:
+  - port: 9411
+    protocol: TCP
+    targetPort: 9411
+  selector:
+    app: zipkin
+  type: ClusterIP
+status:
+  loadBalancer: {}
+`
 )
 
 func TestVerifyCommands(t *testing.T) {
@@ -186,7 +238,7 @@ func TestSetupEnvoyGateway(t *testing.T) {
 	_, err := ExecuteCommand("helm version")
 	require.NoErrorf(t, err, "helm is not installed - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm install %s oci://docker.io/envoyproxy/gateway-helm --version v1.0.2 -n %s --create-namespace", EnvoyReleaseName, EnvoyNamespace))
+	_, err = ExecuteCommand(fmt.Sprintf("helm install %s oci://docker.io/envoyproxy/gateway-helm --version v1.2.0 -n %s --create-namespace", EnvoyReleaseName, EnvoyNamespace))
 	require.NoErrorf(t, err, "cannot install envoy gateway - %s", err)
 
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "envoy-gateway", "envoy-gateway-system", 1, 30, 6))
@@ -247,6 +299,22 @@ func TestSetupOpentelemetryComponents(t *testing.T) {
 
 	_, err = ExecuteCommand(fmt.Sprintf("kubectl apply -f %s -n %s", otlpServiceTempFileName, OpentelemetryNamespace))
 	require.NoErrorf(t, err, "cannot update opentelemetry ports - %s", err)
+}
+
+func TestDeployZipkin(t *testing.T) {
+	KubeClient = GetKubernetesClient(t)
+	CreateNamespace(t, KubeClient, "zipkin")
+
+	zipkinTemplateFileName := "otlpServicePatch.yml"
+	defer os.Remove(zipkinTemplateFileName)
+	err := os.WriteFile(zipkinTemplateFileName, []byte(zipkinTemplate), 0755)
+	assert.NoErrorf(t, err, "cannot create otlp config file - %s", err)
+
+	_, err = ExecuteCommand(fmt.Sprintf("kubectl apply -f  %s -n %s", zipkinTemplateFileName, "zipkin"))
+	require.NoErrorf(t, err, "cannot deploy zipkin - %s", err)
+
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "zipkin", "zipkin", 1, 6, 5),
+		"replica count should be 1 after 3 minutes")
 }
 
 func TestSetupTLSConfiguration(t *testing.T) {
