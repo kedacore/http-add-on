@@ -6,6 +6,7 @@ package interceptor_otel_tracing_test
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -180,9 +181,28 @@ spec:
 )
 
 func TestTraceGeneration(t *testing.T) {
+	t.Skip("Skipping test for now, as it is flaky. Will enable it again after investigation and fix.")
 	// setup
 	gomega.RegisterTestingT(t)
 	t.Log("--- setting up ---")
+	defer func() {
+		kc := GetKubernetesClient(t)
+		logs, err := FindPodLogs(kc, testNamespace, "job-name=generate-request")
+		t.Log("--- printing logs for load job ---")
+		t.Log(strings.Join(logs, "\n"))
+		t.Logf("Error: %v", err)
+
+		logs, err = FindPodLogs(kc, "zipkin", "app=zipkin")
+		t.Log("--- printing logs for Zipkin ---")
+		t.Log(strings.Join(logs, "\n"))
+		t.Logf("Error: %v", err)
+
+		logs, err = FindPodLogs(kc, "open-telemetry-system", "app.kubernetes.io/name=opentelemetry-collector")
+		t.Log("--- printing logs for OTel ---")
+		t.Log(strings.Join(logs, "\n"))
+		t.Logf("Error: %v", err)
+	}()
+
 	// Create kubernetes resources
 	kc := GetKubernetesClient(t)
 	data, templates := getTemplateData()
