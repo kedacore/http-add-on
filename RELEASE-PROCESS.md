@@ -2,7 +2,7 @@
 
 The process of releasing a new version of the KEDA HTTP Add-on involves a few steps, detailed below.
 
->The process herein is largely automated but we recognize that there may be more that we can automate. If you find something that _can_ and _should_ be automated, and you believe that you know how, please [submit an issue](https://github.com/kedacore/http-add-on/issues/new?assignees=&labels=needs-discussion%2Cfeature-request&template=Feature_request.md) explaining how.
+>The process is manual and we recognize that there is a lot of room for improvement. If you find something that _can_ and _should_ be automated, and you believe that you know how, please [submit an issue](https://github.com/kedacore/http-add-on/issues/new?assignees=&labels=needs-discussion%2Cfeature-request&template=Feature_request.md) explaining how.
 
 ## 1: Current and new versions
 
