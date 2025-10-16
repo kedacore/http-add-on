@@ -121,7 +121,7 @@ This value defines the aggregation window for the request rate calculation.
 
 >Default: "1s"
 
-This value defines the granualarity of the aggregated requests for the request rate calculation.
+This value defines the granularity of the aggregated requests for the request rate calculation.
 
 ### `concurrency`
 
