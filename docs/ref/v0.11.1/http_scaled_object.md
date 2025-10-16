@@ -103,7 +103,7 @@ This section enables scaling based on the request rate.
 
 > **NOTE**: Requests information is stored in memory, aggregating long periods (longer than 5 minutes) or too fine granularity (less than 1 second) could produce performance issues or memory usage increase.
 
-> **NOTE 2**: Although updating `window` and/or `granularity` is something doable, the process just replaces all the stored request count infomation. This can produce unexpected scaling behaviours until the window is populated again.
+> **NOTE 2**: Although updating `window` and/or `granularity` is something doable, the process just replaces all the stored request count information. This can produce unexpected scaling behaviors until the window is populated again.
 
 #### `targetValue`
 
