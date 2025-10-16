@@ -10,6 +10,8 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.11.1](#v0111)
+- [v0.11.0](#v0110)
 - [v0.10.0](#v0100)
 - [v0.9.0](#v090)
 - [v0.8.0](#v080)
@@ -21,20 +23,15 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
-- **General**: `v1.Endpoints` -> `EndpointSlices` ([#1297](https://github.com/kedacore/http-add-on/issues/1297)) Potentially breaking for old versions of k8s.
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### New
 
-- **General**: Add failover service on cold-start ([#1280](https://github.com/kedacore/http-add-on/pull/1280))
-- **General**: Add configurable tracing support to the interceptor proxy ([#1021](https://github.com/kedacore/http-add-on/pull/1021))
-- **General**: Allow using HSO and SO with different names ([#1293](https://github.com/kedacore/http-add-on/issues/1293))
-- **General**: Support profiling for KEDA components ([#4789](https://github.com/kedacore/keda/issues/4789))
-- **General**: Add possibility to skip TLS verification for upstreams in interceptor ([#1307](https://github.com/kedacore/http-add-on/pull/1307))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
 ### Improvements
 
-- **Interceptor**: Support HTTPScaledObject scoped timeout ([#813](https://github.com/kedacore/http-add-on/issues/813))
-- **Interceptor**: Add environment variable to control X-KEDA-HTTP-Cold-Start response header ([#1355](https://github.com/kedacore/http-add-on/issues/1355))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Fixes
 
@@ -43,6 +40,35 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Deprecations
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.11.1
+
+### Improvements
+
+- **General**: Updated k8s versions ([#1351](https://github.com/kedacore/http-add-on/pull/1351))
+- **General**: Updated KEDA versions ([#1353](https://github.com/kedacore/http-add-on/pull/1353))
+
+## v0.11.0
+
+### Breaking Changes
+
+- **General**: Migrate from deprecated `v1.Endpoints` to `discoveryv1.EndpointSlices` ([#1297](https://github.com/kedacore/http-add-on/issues/1297)).
+
+### New
+
+- **General**: Add failover service on cold-start ([#1280](https://github.com/kedacore/http-add-on/pull/1280))
+- **General**: Add configurable tracing support to the interceptor proxy ([#1021](https://github.com/kedacore/http-add-on/pull/1021))
+- **General**: Allow using HSO and SO with different names ([#1293](https://github.com/kedacore/http-add-on/issues/1293))
+- **General**: Support profiling for KEDA components ([#4789](https://github.com/kedacore/keda/issues/4789))
+- **General**: Add possibility to skip TLS verification for upstreams in interceptor ([#1307](https://github.com/kedacore/http-add-on/pull/1307))
+
+### Improvements
+
+- **Interceptor**: Support HTTPScaledObject scoped timeout ([#813](https://github.com/kedacore/http-add-on/issues/813))
 
 ### Other
 
