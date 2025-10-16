@@ -25,9 +25,8 @@ GEN='operator/generated'
 CPY='hack/boilerplate.go.txt'
 PKG='mock'
 
-MOCKGEN_PKG="${MOCKGEN_PKG:-$(go list -f '{{ .Dir }}' -m go.uber.org/mock 2>/dev/null)/mockgen}"
-MOCKGEN="${OUTPUT}/mockgen"
-go build -o "${MOCKGEN}" "${MOCKGEN_PKG}"
+# Path to mockgen binary download by `make mockgen` in Makefile
+MOCKGEN="bin/mockgen"
 
 for SRC in $(find "${GEN}" -type 'f' -name '*.go' | grep -v '/fake/' | grep -v "/${PKG}/")
 do

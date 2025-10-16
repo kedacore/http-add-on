@@ -70,7 +70,7 @@ Learn more about our [roadmap](ROADMAP.md).
 
 ## Contributing
 
-This project follows the KEDA contributing guidelines, which are outlined in [CONTRIBUTING.md](https://github.com/kedacore/.github/blob/main/CONTRIBUTING.md).
+This project follows the KEDA contributing guidelines, which are outlined in [CONTRIBUTING.md](https://github.com/kedacore/http-add-on/blob/main/CONTRIBUTING.md).
 
 If you would like to contribute code to this project, please see [docs/developing.md](./docs/developing.md).
 

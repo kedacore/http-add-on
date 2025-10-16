@@ -19,9 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	scheme "github.com/kedacore/http-add-on/operator/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type HTTPScaledObjectsGetter interface {
 
 // HTTPScaledObjectInterface has methods to work with HTTPScaledObject resources.
 type HTTPScaledObjectInterface interface {
-	Create(ctx context.Context, hTTPScaledObject *v1alpha1.HTTPScaledObject, opts v1.CreateOptions) (*v1alpha1.HTTPScaledObject, error)
-	Update(ctx context.Context, hTTPScaledObject *v1alpha1.HTTPScaledObject, opts v1.UpdateOptions) (*v1alpha1.HTTPScaledObject, error)
+	Create(ctx context.Context, hTTPScaledObject *httpv1alpha1.HTTPScaledObject, opts v1.CreateOptions) (*httpv1alpha1.HTTPScaledObject, error)
+	Update(ctx context.Context, hTTPScaledObject *httpv1alpha1.HTTPScaledObject, opts v1.UpdateOptions) (*httpv1alpha1.HTTPScaledObject, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, hTTPScaledObject *v1alpha1.HTTPScaledObject, opts v1.UpdateOptions) (*v1alpha1.HTTPScaledObject, error)
+	UpdateStatus(ctx context.Context, hTTPScaledObject *httpv1alpha1.HTTPScaledObject, opts v1.UpdateOptions) (*httpv1alpha1.HTTPScaledObject, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.HTTPScaledObject, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.HTTPScaledObjectList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*httpv1alpha1.HTTPScaledObject, error)
+	List(ctx context.Context, opts v1.ListOptions) (*httpv1alpha1.HTTPScaledObjectList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.HTTPScaledObject, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *httpv1alpha1.HTTPScaledObject, err error)
 	HTTPScaledObjectExpansion
 }
 
 // hTTPScaledObjects implements HTTPScaledObjectInterface
 type hTTPScaledObjects struct {
-	*gentype.ClientWithList[*v1alpha1.HTTPScaledObject, *v1alpha1.HTTPScaledObjectList]
+	*gentype.ClientWithList[*httpv1alpha1.HTTPScaledObject, *httpv1alpha1.HTTPScaledObjectList]
 }
 
 // newHTTPScaledObjects returns a HTTPScaledObjects
 func newHTTPScaledObjects(c *HttpV1alpha1Client, namespace string) *hTTPScaledObjects {
 	return &hTTPScaledObjects{
-		gentype.NewClientWithList[*v1alpha1.HTTPScaledObject, *v1alpha1.HTTPScaledObjectList](
+		gentype.NewClientWithList[*httpv1alpha1.HTTPScaledObject, *httpv1alpha1.HTTPScaledObjectList](
 			"httpscaledobjects",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.HTTPScaledObject { return &v1alpha1.HTTPScaledObject{} },
-			func() *v1alpha1.HTTPScaledObjectList { return &v1alpha1.HTTPScaledObjectList{} }),
+			func() *httpv1alpha1.HTTPScaledObject { return &httpv1alpha1.HTTPScaledObject{} },
+			func() *httpv1alpha1.HTTPScaledObjectList { return &httpv1alpha1.HTTPScaledObjectList{} },
+		),
 	}
 }

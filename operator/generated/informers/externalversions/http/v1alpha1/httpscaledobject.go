@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	apishttpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	versioned "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
 	internalinterfaces "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/listers/http/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // HTTPScaledObjects.
 type HTTPScaledObjectInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.HTTPScaledObjectLister
+	Lister() httpv1alpha1.HTTPScaledObjectLister
 }
 
 type hTTPScaledObjectInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredHTTPScaledObjectInformer(client versioned.Interface, namespace s
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.HttpV1alpha1().HTTPScaledObjects(namespace).List(context.TODO(), options)
+				return client.HttpV1alpha1().HTTPScaledObjects(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.HttpV1alpha1().HTTPScaledObjects(namespace).Watch(context.TODO(), options)
+				return client.HttpV1alpha1().HTTPScaledObjects(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.HttpV1alpha1().HTTPScaledObjects(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.HttpV1alpha1().HTTPScaledObjects(namespace).Watch(ctx, options)
 			},
 		},
-		&httpv1alpha1.HTTPScaledObject{},
+		&apishttpv1alpha1.HTTPScaledObject{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *hTTPScaledObjectInformer) defaultInformer(client versioned.Interface, r
 }
 
 func (f *hTTPScaledObjectInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&httpv1alpha1.HTTPScaledObject{}, f.defaultInformer)
+	return f.factory.InformerFor(&apishttpv1alpha1.HTTPScaledObject{}, f.defaultInformer)
 }
 
-func (f *hTTPScaledObjectInformer) Lister() v1alpha1.HTTPScaledObjectLister {
-	return v1alpha1.NewHTTPScaledObjectLister(f.Informer().GetIndexer())
+func (f *hTTPScaledObjectInformer) Lister() httpv1alpha1.HTTPScaledObjectLister {
+	return httpv1alpha1.NewHTTPScaledObjectLister(f.Informer().GetIndexer())
 }

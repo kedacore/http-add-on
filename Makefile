@@ -34,6 +34,17 @@ GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
 
 COSIGN_FLAGS ?= -y -a GIT_HASH=${GIT_COMMIT} -a GIT_VERSION=${VERSION} -a BUILD_DATE=${DATE}
 
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
+GOPATH:=$(shell go env GOPATH)
+
+GOLANGCI_VERSION:=2.5.0
+
 define DOMAINS
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
@@ -167,7 +178,8 @@ sign-images: ## Sign KEDA images published on GitHub Container Registry
 	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_SCALER_VERSIONED_TAG)
 	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_SCALER_SHA_TAG)
 
-mockgen: ## Generate mock implementations of Go interfaces.
+.PHONY: mockgen-gen
+mockgen-gen: mockgen ## Generate mock implementations of Go interfaces.
 	./hack/update-mockgen.sh
 
 verify-mockgen: ## Verify mocks are up to date.
@@ -179,19 +191,16 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-lint: ## Run golangci-lint against code.
-	golangci-lint run
+HAS_GOLANGCI_VERSION:=$(shell $(GOPATH)/bin/golangci-lint version --short)
+.PHONY: lint
+lint: ## Run golangci against code.
+ifneq ($(HAS_GOLANGCI_VERSION), $(GOLANGCI_VERSION))
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v$(GOLANGCI_VERSION)
+endif
+	golangci-lint run -v
 
 pre-commit: ## Run static-checks.
 	pre-commit run --all-files
-
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
-
-KUSTOMIZE = $(shell pwd)/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/kustomize/kustomize/v5
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
@@ -225,3 +234,28 @@ deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/co
 
 undeploy:
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+## Tool Binaries
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+MOCKGEN ?= $(LOCALBIN)/mockgen
+
+.PHONY: controller-gen
+controller-gen: $(CONTROLLER_GEN) ## Install controller-gen from vendor dir if necessary.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen
+
+.PHONY: kustomize
+kustomize: $(KUSTOMIZE) ## Install kustomize from vendor dir if necessary.
+$(KUSTOMIZE): $(LOCALBIN)
+	test -s $(LOCALBIN)/kustomize || GOBIN=$(LOCALBIN) go install sigs.k8s.io/kustomize/kustomize/v5
+
+.PHONY: mockgen
+mockgen: $(MOCKGEN) ## Install mockgen from vendor dir if necessary.
+$(MOCKGEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/mockgen || GOBIN=$(LOCALBIN) go install go.uber.org/mock/mockgen

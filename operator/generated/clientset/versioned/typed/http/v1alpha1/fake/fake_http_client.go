@@ -29,7 +29,7 @@ type FakeHttpV1alpha1 struct {
 }
 
 func (c *FakeHttpV1alpha1) HTTPScaledObjects(namespace string) v1alpha1.HTTPScaledObjectInterface {
-	return &FakeHTTPScaledObjects{c, namespace}
+	return newFakeHTTPScaledObjects(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // HTTPScaledObjectLister helps list HTTPScaledObjects.
@@ -30,7 +30,7 @@ import (
 type HTTPScaledObjectLister interface {
 	// List lists all HTTPScaledObjects in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.HTTPScaledObject, err error)
+	List(selector labels.Selector) (ret []*httpv1alpha1.HTTPScaledObject, err error)
 	// HTTPScaledObjects returns an object that can list and get HTTPScaledObjects.
 	HTTPScaledObjects(namespace string) HTTPScaledObjectNamespaceLister
 	HTTPScaledObjectListerExpansion
@@ -38,17 +38,17 @@ type HTTPScaledObjectLister interface {
 
 // hTTPScaledObjectLister implements the HTTPScaledObjectLister interface.
 type hTTPScaledObjectLister struct {
-	listers.ResourceIndexer[*v1alpha1.HTTPScaledObject]
+	listers.ResourceIndexer[*httpv1alpha1.HTTPScaledObject]
 }
 
 // NewHTTPScaledObjectLister returns a new HTTPScaledObjectLister.
 func NewHTTPScaledObjectLister(indexer cache.Indexer) HTTPScaledObjectLister {
-	return &hTTPScaledObjectLister{listers.New[*v1alpha1.HTTPScaledObject](indexer, v1alpha1.Resource("httpscaledobject"))}
+	return &hTTPScaledObjectLister{listers.New[*httpv1alpha1.HTTPScaledObject](indexer, httpv1alpha1.Resource("httpscaledobject"))}
 }
 
 // HTTPScaledObjects returns an object that can list and get HTTPScaledObjects.
 func (s *hTTPScaledObjectLister) HTTPScaledObjects(namespace string) HTTPScaledObjectNamespaceLister {
-	return hTTPScaledObjectNamespaceLister{listers.NewNamespaced[*v1alpha1.HTTPScaledObject](s.ResourceIndexer, namespace)}
+	return hTTPScaledObjectNamespaceLister{listers.NewNamespaced[*httpv1alpha1.HTTPScaledObject](s.ResourceIndexer, namespace)}
 }
 
 // HTTPScaledObjectNamespaceLister helps list and get HTTPScaledObjects.
@@ -56,15 +56,15 @@ func (s *hTTPScaledObjectLister) HTTPScaledObjects(namespace string) HTTPScaledO
 type HTTPScaledObjectNamespaceLister interface {
 	// List lists all HTTPScaledObjects in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.HTTPScaledObject, err error)
+	List(selector labels.Selector) (ret []*httpv1alpha1.HTTPScaledObject, err error)
 	// Get retrieves the HTTPScaledObject from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.HTTPScaledObject, error)
+	Get(name string) (*httpv1alpha1.HTTPScaledObject, error)
 	HTTPScaledObjectNamespaceListerExpansion
 }
 
 // hTTPScaledObjectNamespaceLister implements the HTTPScaledObjectNamespaceLister
 // interface.
 type hTTPScaledObjectNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.HTTPScaledObject]
+	listers.ResourceIndexer[*httpv1alpha1.HTTPScaledObject]
 }
