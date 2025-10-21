@@ -34,11 +34,7 @@ jobs:
             --retry-wait-time 2
             --timeout 30
             --github-token ${{ secrets.GITHUB_TOKEN }}
-            --exclude '^https://github\.com/kedacore/http-add-on/pkgs/container/http-add-on-interceptor$'
-            --exclude '^https://github\.com/kedacore/http-add-on/pkgs/container/http-add-on-operator$'
-            --exclude '^https://github\.com/kedacore/http-add-on/pkgs/container/http-add-on-scaler$'
-            --exclude '^http://opentelemetry-collector\.open-telemetry-system:4318$'
-            --exclude '^http://opentelemetry-collector\.open-telemetry-system:4318/$'
-            --exclude '^http://opentelemetry-collector\.open-telemetry-system:4318/v1/traces$'
+            --exclude '^https://github\.com/kedacore/http-add-on/pkgs/container/http-add-on-(interceptor|operator|scaler)(/.*)?$'
+            --exclude '^http://opentelemetry-collector\.open-telemetry-system:431[7-8](/.*)?$'
             --exclude '^https://www\.gnu\.org/software/make/$'
             "./**/*.md"

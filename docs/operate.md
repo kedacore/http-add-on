@@ -9,7 +9,7 @@ There are currently 2 supported methods for exposing metrics from the intercepto
 ### Configuring the Prometheus compatible metrics endpoint
 When configured, the interceptor proxy can expose metrics on a Prometheus compatible endpoint.
 
-This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the interceptor deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made avaialble on (`2223` by default).
+This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the interceptor deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made available on (`2223` by default).
 
 ### Configuring the OTEL HTTP exporter
 When configured, the interceptor proxy can export metrics to a OTEL HTTP collector.
@@ -71,3 +71,29 @@ Optional variables
 `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` - The batcher timeout in seconds to send batch of data points (`5` by default)
 
 ### Configuring Service Failover
+
+# Configuring metrics for the KEDA HTTP Add-on Operator
+
+### Exportable metrics:
+* **keda_http_scaled_object_total** - the number of http_scaled_objects  
+
+There are currently 2 supported methods for exposing metrics from the operator - via a Prometheus compatible metrics endpoint or by pushing metrics to a OTEL HTTP collector.
+
+### Configuring the Prometheus compatible metrics endpoint
+When configured, the operator can expose metrics on a Prometheus compatible endpoint.
+
+This endpoint can be enabled by setting the `OTEL_PROM_EXPORTER_ENABLED` environment variable to `true` on the operator deployment (`true` by default) and by setting `OTEL_PROM_EXPORTER_PORT` to an unused port for the endpoint to be made available on (`8080` by default).
+
+### Configuring the OTEL HTTP exporter
+
+When configured, the operator can export metrics to a OTEL HTTP collector.
+
+The OTEL exporter can be enabled by setting the `OTEL_EXPORTER_OTLP_METRICS_ENABLED` environment variable to `true` on the operator deployment (`false` by default). When enabled, the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable must also be configured so the exporter knows what collector to send the metrics to (e.g. http://opentelemetry-collector.open-telemetry-system:4318).
+
+If you need to provide any headers such as authentication details in order to utilise your OTEL collector you can add them into the `OTEL_EXPORTER_OTLP_HEADERS` environment variable. The frequency at which the metrics are exported can be configured by setting `OTEL_METRIC_EXPORT_INTERVAL` to the number of seconds you require between each export interval (`30` by default).
+
+The `OTEL_EXPORTER_OTLP_PROTOCOL` defaults to `http`
+
+### Configuring the OTEL GRPC exporter
+
+Please note that using `OTEL_EXPORTER_OTLP_PROTOCOL` will allows you to set it up to `grpc` to connect to otel collector. Also `OTEL_EXPORTER_OTLP_ENDPOINT` should be set to the right endpoint (eg: http://opentelemetry-collector.open-telemetry-system:4317)
