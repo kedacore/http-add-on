@@ -27,7 +27,7 @@ require (
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/kedacore/keda/v2 v2.18.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/onsi/ginkgo/v2 v2.26.0
+	github.com/onsi/ginkgo/v2 v2.27.1
 	github.com/onsi/gomega v1.38.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
@@ -55,7 +55,7 @@ require (
 	k8s.io/code-generator v0.34.1
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	sigs.k8s.io/controller-runtime v0.22.1
-	sigs.k8s.io/controller-tools v0.17.3
+	sigs.k8s.io/controller-tools v0.19.0
 	sigs.k8s.io/gateway-api v1.4.0
 	sigs.k8s.io/kustomize/kustomize/v5 v5.7.1
 )
