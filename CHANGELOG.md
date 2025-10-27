@@ -27,7 +27,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Add environment variables for leader election timing configuration ([#1365](https://github.com/kedacore/http-add-on/pull/1365))
 
 ### Improvements
 
