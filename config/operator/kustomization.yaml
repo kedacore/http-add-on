@@ -4,6 +4,7 @@ resources:
 - deployment.yaml
 - role.yaml
 - role_binding.yaml
+- metrics.service.yaml
 - service_account.yaml
 labels:
 - includeSelectors: true
