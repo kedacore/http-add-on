@@ -34,5 +34,16 @@ func Validate(srvCfg *Serving, timeoutsCfg Timeouts, lggr logr.Logger) error {
 			endpointsCachePollInterval,
 		)
 	}
+
+	if timeoutsCfg.ServerReadTimeout < 0 {
+		return fmt.Errorf("timeout value KEDA_HTTP_SERVER_READ_TIMEOUT must not be negative")
+	}
+	if timeoutsCfg.ServerWriteTimeout < 0 {
+		return fmt.Errorf("timeout value KEDA_HTTP_SERVER_WRITE_TIMEOUT must not be negative")
+	}
+	if timeoutsCfg.ServerIdleTimeout < 0 {
+		return fmt.Errorf("timeout value KEDA_HTTP_SERVER_IDLE_TIMEOUT must not be negative")
+	}
+
 	return nil
 }
