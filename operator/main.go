@@ -105,6 +105,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := util.ValidateLeaderElectionConfig(leaseDuration, renewDeadline, retryPeriod); err != nil {
+		setupLog.Error(err, "invalid leader election configuration")
+		os.Exit(1)
+	}
+
 	var namespaces map[string]cache.Config
 	if baseConfig.WatchNamespace != "" {
 		namespaces = map[string]cache.Config{
