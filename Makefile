@@ -141,13 +141,13 @@ publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publ
 
 release: manifests kustomize ## Produce new KEDA Http Add-on release in keda-add-ons-http-$(VERSION).yaml file.
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
+	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
 	cd config/scaler && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
+	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
 	cd config/operator && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
-	$(KUSTOMIZE) build config/default > keda-add-ons-http-$(VERSION).yaml
-	$(KUSTOMIZE) build config/crd     > keda-add-ons-http-$(VERSION)-crds.yaml
+	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
+	"$(KUSTOMIZE)" build config/default > keda-add-ons-http-$(VERSION).yaml
+	"$(KUSTOMIZE)" build config/crd     > keda-add-ons-http-$(VERSION)-crds.yaml
 
 # Development
 
@@ -163,9 +163,9 @@ verify-codegen: ## Verify code is up to date.
 	./hack/verify-codegen.sh
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) crd rbac:roleName='operator' webhook paths='./operator/...' output:crd:artifacts:config='config/crd/bases' output:rbac:artifacts:config='config/operator'
-	$(CONTROLLER_GEN) crd rbac:roleName='scaler' webhook paths='./scaler/...' output:rbac:artifacts:config='config/scaler'
-	$(CONTROLLER_GEN) crd rbac:roleName='interceptor' webhook paths='./interceptor/...' output:rbac:artifacts:config='config/interceptor'
+	"$(CONTROLLER_GEN)" crd rbac:roleName='operator' webhook paths='./operator/...' output:crd:artifacts:config='config/crd/bases' output:rbac:artifacts:config='config/operator'
+	"$(CONTROLLER_GEN)" crd rbac:roleName='scaler' webhook paths='./scaler/...' output:rbac:artifacts:config='config/scaler'
+	"$(CONTROLLER_GEN)" crd rbac:roleName='interceptor' webhook paths='./interceptor/...' output:rbac:artifacts:config='config/interceptor'
 
 verify-manifests: ## Verify manifests are up to date.
 	./hack/verify-manifests.sh
@@ -191,7 +191,7 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-HAS_GOLANGCI_VERSION:=$(shell $(GOPATH)/bin/golangci-lint version --short)
+HAS_GOLANGCI_VERSION:=$(shell $(GOPATH)/bin/golangci-lint version --format short 2>/dev/null || $(GOPATH)/bin/golangci-lint version)
 .PHONY: lint
 lint: ## Run golangci against code.
 ifneq ($(HAS_GOLANGCI_VERSION), $(GOLANGCI_VERSION))
@@ -203,42 +203,46 @@ pre-commit: ## Run static-checks.
 	pre-commit run --all-files
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	"$(KUSTOMIZE)" build config/crd | kubectl apply -f -
 
 deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/config.
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
+	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+	"$(KUSTOMIZE)" edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path e2e-test/otel/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
+	"$(KUSTOMIZE)" edit add patch --path e2e-test/otel/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path e2e-test/tls/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+	"$(KUSTOMIZE)" edit add patch --path e2e-test/tls/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
 
 	cd config/interceptor && \
-	$(KUSTOMIZE) edit add patch --path e2e-test/tls/proxy.service.yaml --kind Service --name interceptor-proxy --version v1
+	"$(KUSTOMIZE)" edit add patch --path e2e-test/tls/proxy.service.yaml --kind Service --name interceptor-proxy --version v1
 
 	cd config/scaler && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
+	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
 
 	cd config/scaler && \
-	$(KUSTOMIZE) edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name scaler --version v1
+	"$(KUSTOMIZE)" edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name scaler --version v1
 
 	cd config/operator && \
-	$(KUSTOMIZE) edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
+	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
 
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	"$(KUSTOMIZE)" build config/default | kubectl apply -f -
 
 undeploy:
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	"$(KUSTOMIZE)" build config/default | kubectl delete -f -
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
+LOCALBIN_ESCAPED = $(subst $(space),\$(space),$(LOCALBIN))
+space := $(empty) $(empty)
+
+.PHONY: localbin
+localbin:
+	mkdir -p "$(LOCALBIN)"
 
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
@@ -246,16 +250,13 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 MOCKGEN ?= $(LOCALBIN)/mockgen
 
 .PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Install controller-gen from vendor dir if necessary.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen
+controller-gen: localbin ## Install controller-gen from vendor dir if necessary.
+	test -s "$(LOCALBIN)/controller-gen" || GOBIN="$(LOCALBIN)" go install sigs.k8s.io/controller-tools/cmd/controller-gen
 
 .PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Install kustomize from vendor dir if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	test -s $(LOCALBIN)/kustomize || GOBIN=$(LOCALBIN) go install sigs.k8s.io/kustomize/kustomize/v5
+kustomize: localbin ## Install kustomize from vendor dir if necessary.
+	test -s "$(LOCALBIN)/kustomize" || GOBIN="$(LOCALBIN)" go install sigs.k8s.io/kustomize/kustomize/v5
 
 .PHONY: mockgen
-mockgen: $(MOCKGEN) ## Install mockgen from vendor dir if necessary.
-$(MOCKGEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/mockgen || GOBIN=$(LOCALBIN) go install go.uber.org/mock/mockgen
+mockgen: localbin ## Install mockgen from vendor dir if necessary.
+	test -s "$(LOCALBIN)/mockgen" || GOBIN="$(LOCALBIN)" go install go.uber.org/mock/mockgen

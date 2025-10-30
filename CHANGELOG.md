@@ -45,6 +45,12 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
+## v0.12.0
+
+### Improvements
+
+- **General**: Get rid of kube-rbac-proxy ([#1123](https://github.com/kedacore/http-add-on/pull/1368))
+
 ## v0.11.1
 
 ### Improvements
