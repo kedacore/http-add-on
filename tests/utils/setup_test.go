@@ -66,7 +66,13 @@ kind: Deployment
 metadata:
   name: opentelemetry-collector
 spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opentelemetry-collector
     spec:
       containers:
       - name: opentelemetry-collector
