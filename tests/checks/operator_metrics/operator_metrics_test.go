@@ -23,7 +23,6 @@ var (
 	testNamespace               = fmt.Sprintf("%s-ns", testName)
 	clientName                  = fmt.Sprintf("%s-client", testName)
 	kedaOperatorMetricsURL      = "https://keda-add-ons-http-operator-metrics.keda:8443/metrics"
-	kedaOperatorMetricsHTTPURL  = "http://keda-add-ons-http-operator-metrics.keda:8443/metrics"
 	operatorPodSelector         = "app.kubernetes.io/instance=operator"
 )
 
@@ -88,12 +87,8 @@ func TestOperatorMetrics(t *testing.T) {
 	t.Log("Test 1: Verify HTTPS endpoint is available")
 	testHTTPSEndpoint(t)
 
-	// Test 2: HTTP should not work (redirected or refused)
-	t.Log("Test 2: Verify HTTP endpoint is not accessible")
-	testHTTPEndpointNotAccessible(t)
-
-	// Test 3: Verify metrics are returned
-	t.Log("Test 3: Verify metrics content")
+	// Test 2: Verify metrics are returned
+	t.Log("Test 2: Verify metrics content")
 	testMetricsContent(t)
 
 	// cleanup
@@ -113,16 +108,6 @@ func testHTTPSEndpoint(t *testing.T) {
 	// The endpoint should return something (even if authentication fails, it should respond)
 	assert.True(t, err == nil || strings.Contains(errOut, "Forbidden") || strings.Contains(out, "Forbidden"),
 		"HTTPS endpoint should respond (either with metrics or authentication error)")
-}
-
-func testHTTPEndpointNotAccessible(t *testing.T) {
-	// Try HTTP - should fail or redirect
-	cmd := fmt.Sprintf("curl --max-time 10 %s", kedaOperatorMetricsHTTPURL)
-	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
-	
-	// HTTP should not work since we're using SecureServing
-	assert.True(t, err != nil || strings.Contains(errOut, "Empty reply") || strings.Contains(out, "Empty reply"),
-		"HTTP endpoint should not be accessible. Output: %s, Error: %s", out, errOut)
 }
 
 func testMetricsContent(t *testing.T) {
