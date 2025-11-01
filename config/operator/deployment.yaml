@@ -38,7 +38,7 @@ spec:
           value: ""
         ports:
         - name: metrics
-          containerPort: 8080
+          containerPort: 8443
         - name: probes
           containerPort: 8081
         livenessProbe:

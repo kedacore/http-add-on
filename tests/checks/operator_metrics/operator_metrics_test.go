@@ -1,0 +1,161 @@
+//go:build e2e
+// +build e2e
+
+package operator_metrics_test
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	. "github.com/kedacore/http-add-on/tests/helper"
+)
+
+const (
+	testName = "operator-metrics-test"
+)
+
+var (
+	testNamespace               = fmt.Sprintf("%s-ns", testName)
+	clientName                  = fmt.Sprintf("%s-client", testName)
+	kedaOperatorMetricsURL      = "https://keda-add-ons-http-operator-metrics.keda:8443/metrics"
+	kedaOperatorMetricsHTTPURL  = "http://keda-add-ons-http-operator-metrics.keda:8443/metrics"
+	operatorPodSelector         = "app.kubernetes.io/instance=operator"
+)
+
+type templateData struct {
+	TestNamespace string
+	ClientName    string
+}
+
+const (
+	clientTemplate = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{.ClientName}}
+  namespace: {{.TestNamespace}}
+spec:
+  containers:
+  - name: {{.ClientName}}
+    image: curlimages/curl
+    command:
+      - sh
+      - -c
+      - "exec tail -f /dev/null"`
+
+	serviceAccountTemplate = `
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{.ClientName}}
+  namespace: {{.TestNamespace}}`
+
+	clusterRoleBindingTemplate = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{.ClientName}}-metrics-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: operator-metrics-reader
+subjects:
+- kind: ServiceAccount
+  name: {{.ClientName}}
+  namespace: {{.TestNamespace}}`
+)
+
+func TestOperatorMetrics(t *testing.T) {
+	// setup
+	t.Log("--- setting up ---")
+	// Create kubernetes resources
+	kc := GetKubernetesClient(t)
+	data, templates := getTemplateData()
+	CreateKubernetesResources(t, kc, testNamespace, data, templates)
+
+	// Wait for client pod to be ready
+	assert.True(t, WaitForAllPodRunningInNamespace(t, kc, testNamespace, 6, 10),
+		"client pod should be running")
+
+	t.Log("--- testing operator metrics endpoint ---")
+
+	// Test 1: HTTPS endpoint should be accessible (will fail cert validation but should return metrics)
+	t.Log("Test 1: Verify HTTPS endpoint is available")
+	testHTTPSEndpoint(t)
+
+	// Test 2: HTTP should not work (redirected or refused)
+	t.Log("Test 2: Verify HTTP endpoint is not accessible")
+	testHTTPEndpointNotAccessible(t)
+
+	// Test 3: Verify metrics are returned
+	t.Log("Test 3: Verify metrics content")
+	testMetricsContent(t)
+
+	// cleanup
+	DeleteKubernetesResources(t, testNamespace, data, templates)
+}
+
+func testHTTPSEndpoint(t *testing.T) {
+	// Use curl with -k to skip certificate validation (self-signed cert)
+	cmd := fmt.Sprintf("curl -k --max-time 10 %s", kedaOperatorMetricsURL)
+	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
+	
+	// We expect this to succeed with a self-signed certificate
+	if err != nil {
+		t.Logf("HTTPS endpoint test - Output: %s, Error output: %s, Error: %v", out, errOut, err)
+	}
+	
+	// The endpoint should return something (even if authentication fails, it should respond)
+	assert.True(t, err == nil || strings.Contains(errOut, "Forbidden") || strings.Contains(out, "Forbidden"),
+		"HTTPS endpoint should respond (either with metrics or authentication error)")
+}
+
+func testHTTPEndpointNotAccessible(t *testing.T) {
+	// Try HTTP - should fail or redirect
+	cmd := fmt.Sprintf("curl --max-time 10 %s", kedaOperatorMetricsHTTPURL)
+	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
+	
+	// HTTP should not work since we're using SecureServing
+	assert.True(t, err != nil || strings.Contains(errOut, "Empty reply") || strings.Contains(out, "Empty reply"),
+		"HTTP endpoint should not be accessible. Output: %s, Error: %s", out, errOut)
+}
+
+func testMetricsContent(t *testing.T) {
+	// Get the operator pod name
+	pods, err := KubeClient.CoreV1().Pods("keda").List(context.Background(), metav1.ListOptions{
+		LabelSelector: operatorPodSelector,
+	})
+	assert.NoError(t, err, "should be able to list operator pods")
+	assert.NotEmpty(t, pods.Items, "should find at least one operator pod")
+	
+	operatorPodName := pods.Items[0].Name
+	
+	// Access metrics from within the operator pod itself (bypasses auth)
+	cmd := "curl -k https://localhost:8443/metrics"
+	out, errOut, err := ExecCommandOnSpecificPod(t, operatorPodName, "keda", cmd)
+	
+	if err != nil {
+		t.Logf("Metrics content test - Output: %s, Error output: %s, Error: %v", out, errOut, err)
+	}
+	
+	// Verify that metrics are returned
+	assert.NoError(t, err, "should be able to access metrics from operator pod")
+	assert.True(t, strings.Contains(out, "# HELP") || strings.Contains(out, "# TYPE"),
+		"metrics should contain Prometheus format. Output: %s", out)
+}
+
+func getTemplateData() (templateData, []Template) {
+	return templateData{
+			TestNamespace: testNamespace,
+			ClientName:    clientName,
+		}, []Template{
+			{Name: "clientTemplate", Config: clientTemplate},
+			{Name: "serviceAccountTemplate", Config: serviceAccountTemplate},
+			{Name: "clusterRoleBindingTemplate", Config: clusterRoleBindingTemplate},
+		}
+}

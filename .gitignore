@@ -362,3 +362,4 @@ admin/Cargo.lock
 *.csr
 *.srl
 *.ext
+*.test
