@@ -4,13 +4,11 @@
 package operator_metrics_test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
 )
@@ -20,10 +18,10 @@ const (
 )
 
 var (
-	testNamespace               = fmt.Sprintf("%s-ns", testName)
-	clientName                  = fmt.Sprintf("%s-client", testName)
-	kedaOperatorMetricsURL      = "https://keda-add-ons-http-operator-metrics.keda:8443/metrics"
-	operatorPodSelector         = "app.kubernetes.io/instance=operator"
+	testNamespace          = fmt.Sprintf("%s-ns", testName)
+	clientName             = fmt.Sprintf("%s-client", testName)
+	kedaOperatorMetricsURL = "https://keda-add-ons-http-operator-metrics.keda:8443/metrics"
+	operatorPodSelector    = "app.kubernetes.io/instance=operator"
 )
 
 type templateData struct {
@@ -39,6 +37,7 @@ metadata:
   name: {{.ClientName}}
   namespace: {{.TestNamespace}}
 spec:
+  serviceAccountName: {{.ClientName}}
   containers:
   - name: {{.ClientName}}
     image: curlimages/curl
@@ -62,10 +61,10 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: operator-metrics-reader
+  name: keda-add-ons-http-operator-metrics-reader
 subjects:
 - kind: ServiceAccount
-  name: {{.ClientName}}
+  name: operator-metrics-test-client
   namespace: {{.TestNamespace}}`
 )
 
@@ -99,37 +98,32 @@ func testHTTPSEndpoint(t *testing.T) {
 	// Use curl with -k to skip certificate validation (self-signed cert)
 	cmd := fmt.Sprintf("curl -k --max-time 10 %s", kedaOperatorMetricsURL)
 	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
-	
+
 	// We expect this to succeed with a self-signed certificate
 	if err != nil {
 		t.Logf("HTTPS endpoint test - Output: %s, Error output: %s, Error: %v", out, errOut, err)
 	}
-	
+
 	// The endpoint should return something (even if authentication fails, it should respond)
 	assert.True(t, err == nil || strings.Contains(errOut, "Forbidden") || strings.Contains(out, "Forbidden"),
 		"HTTPS endpoint should respond (either with metrics or authentication error)")
 }
 
 func testMetricsContent(t *testing.T) {
-	// Get the operator pod name
-	pods, err := KubeClient.CoreV1().Pods("keda").List(context.Background(), metav1.ListOptions{
-		LabelSelector: operatorPodSelector,
-	})
-	assert.NoError(t, err, "should be able to list operator pods")
-	assert.NotEmpty(t, pods.Items, "should find at least one operator pod")
-	
-	operatorPodName := pods.Items[0].Name
-	
-	// Access metrics from within the operator pod itself (bypasses auth)
-	cmd := "curl -k https://localhost:8443/metrics"
-	out, errOut, err := ExecCommandOnSpecificPod(t, operatorPodName, "keda", cmd)
-	
+	// Access metrics from the client pod using the service endpoint
+	// The client pod uses a ServiceAccount with the operator-metrics-reader ClusterRole
+	// This allows it to access the metrics endpoint with proper RBAC permissions
+
+	// Get the ServiceAccount token to authenticate
+	cmd := fmt.Sprintf("curl -k -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" --max-time 10 %s", kedaOperatorMetricsURL)
+	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
+
 	if err != nil {
 		t.Logf("Metrics content test - Output: %s, Error output: %s, Error: %v", out, errOut, err)
 	}
-	
-	// Verify that metrics are returned
-	assert.NoError(t, err, "should be able to access metrics from operator pod")
+
+	// Verify that metrics are returned in Prometheus format
+	assert.NoError(t, err, "should be able to access metrics from client pod with RBAC permissions. Output: %s, Error: %s", out, errOut)
 	assert.True(t, strings.Contains(out, "# HELP") || strings.Contains(out, "# TYPE"),
 		"metrics should contain Prometheus format. Output: %s", out)
 }
@@ -139,8 +133,8 @@ func getTemplateData() (templateData, []Template) {
 			TestNamespace: testNamespace,
 			ClientName:    clientName,
 		}, []Template{
-			{Name: "clientTemplate", Config: clientTemplate},
 			{Name: "serviceAccountTemplate", Config: serviceAccountTemplate},
 			{Name: "clusterRoleBindingTemplate", Config: clusterRoleBindingTemplate},
+			{Name: "clientTemplate", Config: clientTemplate},
 		}
 }
