@@ -8,4 +8,4 @@ spec:
   - name: metrics
     protocol: TCP
     port: 8443
-    targetPort: metrics
+    targetPort: 8443
