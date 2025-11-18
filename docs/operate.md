@@ -76,7 +76,7 @@ The interceptor proxy can log incoming requests for debugging and monitoring pur
 
 ### Configuring Service Failover
 
-# Configuring the KEDA HTTP Add-on Operator
+## Configuring the KEDA HTTP Add-on Operator
 
 ## Leader Election Timing
 
@@ -96,3 +96,23 @@ env:
 - name: KEDA_HTTP_OPERATOR_LEADER_ELECTION_RETRY_PERIOD
   value: "5s"
 ```
+
+### Timing Parameter Constraints
+
+**Important:** These parameters have strict ordering requirements to prevent leadership conflicts and unnecessary failover:
+
+```
+LeaseDuration > RenewDeadline > RetryPeriod
+```
+
+**Why this matters:**
+- **LeaseDuration > RenewDeadline**: Ensures the leader finishes renewal attempts before the lease expires, preventing multiple active leaders (split-brain scenarios)
+- **RenewDeadline > RetryPeriod**: Allows multiple retry attempts during the renewal window, preventing unnecessary leadership changes due to transient failures
+
+**Configuration Guidelines:**
+
+1. **Configure all three together**: When overriding any parameter, it's recommended to set all three values to avoid invalid combinations with defaults. Setting only one or two parameters can result in invalid configurations when mixed with default values.
+
+2. **All values must be positive**: Each duration must be greater than 0.
+
+3. **Validation failure**: If the operator detects an invalid configuration at startup, it will log an error and exit immediately before attempting leader election.

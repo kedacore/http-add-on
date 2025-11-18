@@ -54,32 +54,55 @@ func ResolveOsEnvDuration(envName string) (*time.Duration, error) {
 	return nil, nil
 }
 
-// ValidateLeaderElectionDurations ensures LeaseDuration > RenewDeadline > RetryPeriod
+// Controller-runtime default values for leader election
+// Reference: https://github.com/kubernetes-sigs/controller-runtime/blob/main/pkg/manager/manager.go
+const (
+	defaultLeaseDuration = 15 * time.Second
+	defaultRenewDeadline = 10 * time.Second
+	defaultRetryPeriod   = 2 * time.Second
+)
+
+// ValidateLeaderElectionConfig ensures LeaseDuration > RenewDeadline > RetryPeriod
 // to prevent multiple active leaders and unnecessary leadership churn.
+// This validation checks against the actual runtime values (user-provided or defaults)
+// to catch invalid partial configurations.
 func ValidateLeaderElectionConfig(leaseDuration, renewDeadline, retryPeriod *time.Duration) error {
-	if leaseDuration == nil && renewDeadline == nil && retryPeriod == nil {
-		return nil
+	// Resolve actual values that will be used at runtime (user-provided or defaults)
+	lease := defaultLeaseDuration
+	if leaseDuration != nil {
+		lease = *leaseDuration
 	}
 
-	// If any are set, validate relationships
-	if leaseDuration != nil && *leaseDuration <= 0 {
-		return fmt.Errorf("lease duration must be greater than 0, got %v", *leaseDuration)
-	}
-	if renewDeadline != nil && *renewDeadline <= 0 {
-		return fmt.Errorf("renew deadline must be greater than 0, got %v", *renewDeadline)
-	}
-	if retryPeriod != nil && *retryPeriod <= 0 {
-		return fmt.Errorf("retry period must be greater than 0, got %v", *retryPeriod)
+	renew := defaultRenewDeadline
+	if renewDeadline != nil {
+		renew = *renewDeadline
 	}
 
-	// Validate relationships when multiple values are set
-	if leaseDuration != nil && renewDeadline != nil && *leaseDuration <= *renewDeadline {
-		return fmt.Errorf("lease duration (%v) must be greater than renew deadline (%v)",
-			*leaseDuration, *renewDeadline)
+	retry := defaultRetryPeriod
+	if retryPeriod != nil {
+		retry = *retryPeriod
 	}
-	if renewDeadline != nil && retryPeriod != nil && *renewDeadline <= *retryPeriod {
-		return fmt.Errorf("renew deadline (%v) must be greater than retry period (%v)",
-			*renewDeadline, *retryPeriod)
+
+	// Validate all values are positive
+	if lease <= 0 {
+		return fmt.Errorf("lease duration must be greater than 0, got %v", lease)
+	}
+	if renew <= 0 {
+		return fmt.Errorf("renew deadline must be greater than 0, got %v", renew)
+	}
+	if retry <= 0 {
+		return fmt.Errorf("retry period must be greater than 0, got %v", retry)
+	}
+
+	// Validate relationships: LeaseDuration > RenewDeadline > RetryPeriod
+	if lease <= renew {
+		return fmt.Errorf("lease duration (%v) must be greater than renew deadline (%v)", lease, renew)
+	}
+	if renew <= retry {
+		return fmt.Errorf("renew deadline (%v) must be greater than retry period (%v)", renew, retry)
+	}
+	if lease <= retry {
+		return fmt.Errorf("lease duration (%v) must be greater than retry period (%v)", lease, retry)
 	}
 
 	return nil

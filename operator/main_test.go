@@ -20,8 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kedacore/http-add-on/pkg/util"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 func TestLeaderElectionEnvVarsIntegration(t *testing.T) {
@@ -78,7 +79,6 @@ func TestLeaderElectionEnvVarsIntegration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			for key, value := range tt.envVars {
 				t.Setenv(key, value)
 			}
