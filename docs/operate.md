@@ -78,12 +78,12 @@ The interceptor proxy can log incoming requests for debugging and monitoring pur
 
 ## Configuring the KEDA HTTP Add-on Operator
 
-## Leader Election Timing
+### Leader Election Timing
 
 When running multiple replicas of the operator for high availability, you can configure the leader election timing parameters:
 
 - **`KEDA_HTTP_OPERATOR_LEADER_ELECTION_LEASE_DURATION`** - Duration that non-leader candidates will wait to force acquire leadership. Default: `15s` (Kubernetes default)
-- **`KEDA_HTTP_OPERATOR_LEADER_ELECTION_RENEW_DEADLINE`** - Duration that the acting leader will retry refreshing leadership before giving up. Default: `10s` (Kubernetes default)
+- **`KEDA_HTTP_OPERATOR_LEADER_ELECTION_RENEW_DEADLINE`** - Duration that the acting leader will retry renewing leadership before giving up. Default: `10s` (Kubernetes default)
 - **`KEDA_HTTP_OPERATOR_LEADER_ELECTION_RETRY_PERIOD`** - Duration the LeaderElector clients should wait between tries of actions. Default: `2s` (Kubernetes default)
 
 Example usage in deployment:

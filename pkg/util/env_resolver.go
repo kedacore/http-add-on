@@ -101,9 +101,6 @@ func ValidateLeaderElectionConfig(leaseDuration, renewDeadline, retryPeriod *tim
 	if renew <= retry {
 		return fmt.Errorf("renew deadline (%v) must be greater than retry period (%v)", renew, retry)
 	}
-	if lease <= retry {
-		return fmt.Errorf("lease duration (%v) must be greater than retry period (%v)", lease, retry)
-	}
 
 	return nil
 }
