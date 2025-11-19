@@ -22,8 +22,8 @@ However, Osiris and KEDA-HTTP differ in several ways:
 Knative Serving and KEDA-HTTP both have core support for autoscaling, including scale-to-zero of compute workloads. KEDA-HTTP is focused solely on deploying production-grade autoscaling HTTP applications, while Knative builds in additional functionality:
 
 - Pure [event-based workloads](https://knative.dev/docs/eventing/). [KEDA core](https://github.com/kedacore/keda), without KEDA-HTTP, can support such workloads natively.
-- Complex deployment strategies like [blue-green](https://knative.dev/docs/serving/samples/blue-green-deployment/).
-- Supporting other autoscaling mechanisms beyond the built-in [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), such as the [Knative Pod Autoscaler (KPA)](https://knative.dev/docs/serving/autoscaling/autoscaling-concepts/#knative-pod-autoscaler-kpa).
+- Complex deployment strategies like [blue-green](https://knative.dev/docs/serving/traffic-management/#routing-and-managing-traffic-with-bluegreen-deployment).
+- Supporting other autoscaling mechanisms beyond the built-in [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), such as the [Knative Pod Autoscaler (KPA)](https://knative.dev/docs/serving/autoscaling/autoscaler-types/#knative-pod-autoscaler-kpa).
 
 Additionally, Knative supports a service mesh, while KEDA-HTTP does not out of the box (support for that is forthcoming).
 

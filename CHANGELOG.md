@@ -31,7 +31,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Add prometehus and otel instrumentation for the operator ([#965](https://github.com/kedacore/http-add-on/issues/965))
 
 ### Fixes
 
