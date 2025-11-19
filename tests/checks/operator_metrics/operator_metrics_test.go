@@ -64,7 +64,7 @@ roleRef:
   name: keda-add-ons-http-operator-metrics-reader
 subjects:
 - kind: ServiceAccount
-  name: operator-metrics-test-client
+  name: {{.ClientName}}
   namespace: {{.TestNamespace}}`
 )
 
