@@ -463,10 +463,9 @@ func runProxyServer(
 		rootHandler = otelhttp.NewHandler(rootHandler, "keda-http-interceptor")
 	}
 
-	rootHandler = middleware.NewLogging(
-		logger,
-		rootHandler,
-	)
+	if serving.LogRequests {
+		rootHandler = middleware.NewLogging(logger, rootHandler)
+	}
 
 	rootHandler = middleware.NewMetrics(
 		rootHandler,

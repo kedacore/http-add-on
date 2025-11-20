@@ -51,6 +51,8 @@ type Serving struct {
 	ProfilingAddr string `envconfig:"PROFILING_BIND_ADDRESS" default:""`
 	// EnableColdStartHeader enables/disables the X-KEDA-HTTP-Cold-Start response header
 	EnableColdStartHeader bool `envconfig:"KEDA_HTTP_ENABLE_COLD_START_HEADER" default:"true"`
+	// LogRequests enables/disables logging of incoming requests
+	LogRequests bool `envconfig:"KEDA_HTTP_LOG_REQUESTS" default:"false"`
 }
 
 // Parse parses standard configs using envconfig and returns a pointer to the

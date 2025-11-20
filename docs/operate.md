@@ -70,4 +70,8 @@ Optional variables
 `OTEL_EXPORTER_OTLP_TRACES_INSECURE` - To send traces to the tracing via HTTP rather than HTTPS (`false` by default)
 `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` - The batcher timeout in seconds to send batch of data points (`5` by default)
 
+### Configuring interceptor proxy request logging
+
+The interceptor proxy can log incoming requests for debugging and monitoring purposes. Request logging can be enabled by setting the `KEDA_HTTP_LOG_REQUESTS` environment variable to `true` on the interceptor deployment (`false` by default).
+
 ### Configuring Service Failover

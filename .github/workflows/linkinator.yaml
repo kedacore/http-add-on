@@ -27,7 +27,7 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           args: >
-            --base-url "."
+            --root-dir "${{ github.workspace }}"
             --cache --max-cache-age 1d
             --max-concurrency 6
             --max-retries 6
