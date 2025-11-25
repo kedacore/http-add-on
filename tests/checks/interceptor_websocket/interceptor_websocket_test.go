@@ -78,7 +78,7 @@ spec:
     spec:
       containers:
         - name: {{.DeploymentName}}
-          image: ghcr.io/kedacore/tests-websockets
+          image: ghcr.io/kedacore/tests-websockets:http-add-on-e2e
           ports:
             - name: http
               containerPort: 8080
@@ -184,7 +184,7 @@ spec:
     spec:
       containers:
       - name: websocat-test
-        image: ghcr.io/vi/websocat:v1.14.0
+        image: ghcr.io/vi/websocat
         command: ["/bin/sh"]
         args:
         - -c

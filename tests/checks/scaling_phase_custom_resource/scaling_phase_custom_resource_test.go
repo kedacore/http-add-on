@@ -107,7 +107,7 @@ spec:
     spec:
       containers:
       - name: apache-ab
-        image: ghcr.io/kedacore/tests-apache-ab
+        image: ghcr.io/kedacore/tests-apache-ab:http-add-on-e2e
         imagePullPolicy: Always
         args:
           - "-n"
