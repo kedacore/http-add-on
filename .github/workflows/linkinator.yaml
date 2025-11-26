@@ -27,7 +27,7 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           args: >
-            --base-url "."
+            --base-url "$(pwd)"
             --cache --max-cache-age 1d
             --max-concurrency 6
             --max-retries 6
