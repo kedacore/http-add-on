@@ -8,7 +8,7 @@ assignees: tomkerkhove,jorturfer
 
 This issue template is used to track the rollout of a new KEDA HTTP add-on version.
 
-For the full release process, we recommend reading [this document]([https://github.com/kedacore/keda/blob/main/RELEASE-PROCESS.md](https://github.com/kedacore/http-add-on/blob/main/RELEASE-PROCESS.md)).
+For the full release process, we recommend reading [this document](https://github.com/kedacore/http-add-on/blob/main/RELEASE-PROCESS.md).
 
 ## Required items
 
