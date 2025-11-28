@@ -34,6 +34,7 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
+	"github.com/kedacore/http-add-on/pkg/util"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -86,6 +87,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	leaseDuration, err := util.ResolveOsEnvDuration("KEDA_HTTP_OPERATOR_LEADER_ELECTION_LEASE_DURATION")
+	if err != nil {
+		setupLog.Error(err, "invalid KEDA_HTTP_OPERATOR_LEADER_ELECTION_LEASE_DURATION")
+		os.Exit(1)
+	}
+
+	renewDeadline, err := util.ResolveOsEnvDuration("KEDA_HTTP_OPERATOR_LEADER_ELECTION_RENEW_DEADLINE")
+	if err != nil {
+		setupLog.Error(err, "invalid KEDA_HTTP_OPERATOR_LEADER_ELECTION_RENEW_DEADLINE")
+		os.Exit(1)
+	}
+
+	retryPeriod, err := util.ResolveOsEnvDuration("KEDA_HTTP_OPERATOR_LEADER_ELECTION_RETRY_PERIOD")
+	if err != nil {
+		setupLog.Error(err, "invalid KEDA_HTTP_OPERATOR_LEADER_ELECTION_RETRY_PERIOD")
+		os.Exit(1)
+	}
+
+	if err := util.ValidateLeaderElectionConfig(leaseDuration, renewDeadline, retryPeriod); err != nil {
+		setupLog.Error(err, "invalid leader election configuration")
+		os.Exit(1)
+	}
+
 	var namespaces map[string]cache.Config
 	if baseConfig.WatchNamespace != "" {
 		namespaces = map[string]cache.Config{
@@ -103,6 +127,9 @@ func main() {
 		LeaderElection:                enableLeaderElection,
 		LeaderElectionID:              "http-add-on.keda.sh",
 		LeaderElectionReleaseOnCancel: true,
+		LeaseDuration:                 leaseDuration,
+		RenewDeadline:                 renewDeadline,
+		RetryPeriod:                   retryPeriod,
 		Cache: cache.Options{
 			DefaultNamespaces: namespaces,
 		},

@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -51,4 +52,55 @@ func ResolveOsEnvDuration(envName string) (*time.Duration, error) {
 	}
 
 	return nil, nil
+}
+
+// Controller-runtime default values for leader election
+// Reference: https://github.com/kubernetes-sigs/controller-runtime/blob/main/pkg/manager/manager.go
+const (
+	defaultLeaseDuration = 15 * time.Second
+	defaultRenewDeadline = 10 * time.Second
+	defaultRetryPeriod   = 2 * time.Second
+)
+
+// ValidateLeaderElectionConfig ensures LeaseDuration > RenewDeadline > RetryPeriod
+// to prevent multiple active leaders and unnecessary leadership churn.
+// This validation checks against the actual runtime values (user-provided or defaults)
+// to catch invalid partial configurations.
+func ValidateLeaderElectionConfig(leaseDuration, renewDeadline, retryPeriod *time.Duration) error {
+	// Resolve actual values that will be used at runtime (user-provided or defaults)
+	lease := defaultLeaseDuration
+	if leaseDuration != nil {
+		lease = *leaseDuration
+	}
+
+	renew := defaultRenewDeadline
+	if renewDeadline != nil {
+		renew = *renewDeadline
+	}
+
+	retry := defaultRetryPeriod
+	if retryPeriod != nil {
+		retry = *retryPeriod
+	}
+
+	// Validate all values are positive
+	if lease <= 0 {
+		return fmt.Errorf("lease duration must be greater than 0, got %v", lease)
+	}
+	if renew <= 0 {
+		return fmt.Errorf("renew deadline must be greater than 0, got %v", renew)
+	}
+	if retry <= 0 {
+		return fmt.Errorf("retry period must be greater than 0, got %v", retry)
+	}
+
+	// Validate relationships: LeaseDuration > RenewDeadline > RetryPeriod
+	if lease <= renew {
+		return fmt.Errorf("lease duration (%v) must be greater than renew deadline (%v)", lease, renew)
+	}
+	if renew <= retry {
+		return fmt.Errorf("renew deadline (%v) must be greater than retry period (%v)", renew, retry)
+	}
+
+	return nil
 }

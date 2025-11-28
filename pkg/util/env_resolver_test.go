@@ -106,3 +106,141 @@ func TestResolveValidOsEnvDuration(t *testing.T) {
 	assert.Equal(t, time.Duration(30)*time.Minute, *actual)
 	assert.Nil(t, err)
 }
+
+func TestValidateLeaderElectionDurations(t *testing.T) {
+	tests := []struct {
+		name          string
+		leaseDuration *time.Duration
+		renewDeadline *time.Duration
+		retryPeriod   *time.Duration
+		wantErr       bool
+		errContains   string
+	}{
+		{
+			name:          "all nil is valid (uses defaults)",
+			leaseDuration: nil,
+			renewDeadline: nil,
+			retryPeriod:   nil,
+			wantErr:       false,
+		},
+		{
+			name:          "valid configuration",
+			leaseDuration: ptr(15 * time.Second),
+			renewDeadline: ptr(10 * time.Second),
+			retryPeriod:   ptr(2 * time.Second),
+			wantErr:       false,
+		},
+		{
+			name:          "lease duration <= 0",
+			leaseDuration: ptr(0 * time.Second),
+			renewDeadline: ptr(10 * time.Second),
+			retryPeriod:   ptr(2 * time.Second),
+			wantErr:       true,
+			errContains:   "lease duration must be greater than 0",
+		},
+		{
+			name:          "renew deadline <= 0",
+			leaseDuration: ptr(15 * time.Second),
+			renewDeadline: ptr(0 * time.Second),
+			retryPeriod:   ptr(2 * time.Second),
+			wantErr:       true,
+			errContains:   "renew deadline must be greater than 0",
+		},
+		{
+			name:          "retry period <= 0",
+			leaseDuration: ptr(15 * time.Second),
+			renewDeadline: ptr(10 * time.Second),
+			retryPeriod:   ptr(0 * time.Second),
+			wantErr:       true,
+			errContains:   "retry period must be greater than 0",
+		},
+		{
+			name:          "lease duration <= renew deadline",
+			leaseDuration: ptr(10 * time.Second),
+			renewDeadline: ptr(10 * time.Second),
+			retryPeriod:   ptr(2 * time.Second),
+			wantErr:       true,
+			errContains:   "lease duration",
+		},
+		{
+			name:          "renew deadline <= retry period",
+			leaseDuration: ptr(15 * time.Second),
+			renewDeadline: ptr(2 * time.Second),
+			retryPeriod:   ptr(2 * time.Second),
+			wantErr:       true,
+			errContains:   "renew deadline",
+		},
+		{
+			name:          "lease duration <= retry period",
+			leaseDuration: ptr(5 * time.Second),
+			renewDeadline: ptr(3 * time.Second),
+			retryPeriod:   ptr(5 * time.Second),
+			wantErr:       true,
+			errContains:   "retry period",
+		},
+		// Partial configuration tests - validating against defaults
+		{
+			name:          "partial config: only lease duration set (valid)",
+			leaseDuration: ptr(20 * time.Second),
+			renewDeadline: nil, // defaults to 10s
+			retryPeriod:   nil, // defaults to 2s
+			wantErr:       false,
+		},
+		{
+			name:          "partial config: only lease duration set (invalid - too low)",
+			leaseDuration: ptr(5 * time.Second),
+			renewDeadline: nil, // defaults to 10s
+			retryPeriod:   nil, // defaults to 2s
+			wantErr:       true,
+			errContains:   "lease duration (5s) must be greater than renew deadline (10s)",
+		},
+		{
+			name:          "partial config: only retry period set (invalid - too high)",
+			leaseDuration: nil, // defaults to 15s
+			renewDeadline: nil, // defaults to 10s
+			retryPeriod:   ptr(12 * time.Second),
+			wantErr:       true,
+			errContains:   "renew deadline (10s) must be greater than retry period (12s)",
+		},
+		{
+			name:          "partial config: only retry period set (valid)",
+			leaseDuration: nil, // defaults to 15s
+			renewDeadline: nil, // defaults to 10s
+			retryPeriod:   ptr(1 * time.Second),
+			wantErr:       false,
+		},
+		{
+			name:          "partial config: lease and renew set (valid)",
+			leaseDuration: ptr(30 * time.Second),
+			renewDeadline: ptr(20 * time.Second),
+			retryPeriod:   nil, // defaults to 2s
+			wantErr:       false,
+		},
+		{
+			name:          "partial config: lease and renew set (invalid - renew conflicts with default retry)",
+			leaseDuration: ptr(30 * time.Second),
+			renewDeadline: ptr(1 * time.Second), // less than default retry (2s)
+			retryPeriod:   nil,                  // defaults to 2s
+			wantErr:       true,
+			errContains:   "renew deadline (1s) must be greater than retry period (2s)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateLeaderElectionConfig(tt.leaseDuration, tt.renewDeadline, tt.retryPeriod)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func ptr(d time.Duration) *time.Duration {
+	return &d
+}
