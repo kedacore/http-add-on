@@ -16,8 +16,6 @@ ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-ENV GO111MODULE=auto
-
 # Configure apt, install packages and tools
 RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog unzip 2>&1 \
@@ -25,37 +23,26 @@ RUN apt-get update \
     # Verify git, process tools, lsb-release (common in install instructions for CLIs) installed
     && apt-get -y install git iproute2 procps lsb-release \
     #
-    # Install gocode-gomod
-    && go get -x -d github.com/stamblerre/gocode 2>&1 \
-    && go build -o gocode-gomod github.com/stamblerre/gocode \
-    && mv gocode-gomod $GOPATH/bin/ \
-    #
     # Install Go tools
-    && go get -u -v \
-        github.com/mdempsky/gocode \
-        github.com/uudashr/gopkgs/cmd/gopkgs \
-        github.com/ramya-rao-a/go-outline \
-        github.com/acroca/go-symbols \
-        github.com/godoctor/godoctor \
-        golang.org/x/tools/cmd/guru \
-        golang.org/x/tools/cmd/gorename \
-        github.com/rogpeppe/godef \
-        github.com/zmb3/gogetdoc \
-        github.com/haya14busa/goplay/cmd/goplay \
-        github.com/sqs/goreturns \
-        github.com/josharian/impl \
-        github.com/davidrjenni/reftools/cmd/fillstruct \
-        github.com/fatih/gomodifytags \
-        github.com/cweill/gotests/... \
-        golang.org/x/tools/cmd/goimports \
-        golang.org/x/lint/golint \
-        github.com/alecthomas/gometalinter 2>&1 \
-        github.com/mgechev/revive \
-        github.com/derekparker/delve/cmd/dlv 2>&1 \
+    && go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest \
+    && go install github.com/ramya-rao-a/go-outline@latest \
+    && go install github.com/acroca/go-symbols@latest \
+    && go install github.com/godoctor/godoctor@latest \
+    && go install golang.org/x/tools/cmd/gorename@latest \
+    && go install github.com/rogpeppe/godef@latest \
+    && go install github.com/zmb3/gogetdoc@latest \
+    && go install github.com/haya14busa/goplay/cmd/goplay@latest \
+    && go install github.com/sqs/goreturns@latest \
+    && go install github.com/josharian/impl@latest \
+    && go install github.com/davidrjenni/reftools/cmd/fillstruct@latest \
+    && go install github.com/fatih/gomodifytags@latest \
+    && go install github.com/cweill/gotests/...@latest \
+    && go install golang.org/x/tools/cmd/goimports@latest \
+    && go install golang.org/x/lint/golint@latest \
+    && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest \
+    && go install github.com/mgechev/revive@latest \
     && go install honnef.co/go/tools/cmd/staticcheck@latest \
-    && go install golang.org/x/tools/gopls@latest \
-    # Install golangci-lint
-    && curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.0 \
+    && go install golang.org/x/tools/gopls@v0.18.1 \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
@@ -64,24 +51,25 @@ RUN apt-get update \
     && apt-get install -y sudo \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME \
-    # Docker install
-    && apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common lsb-release \
-    && curl -fsSL https://download.docker.com/linux/$(lsb_release -is | tr '[:upper:]' '[:lower:]')/gpg | apt-key add - 2>/dev/null \
-    && add-apt-repository "deb [arch=$(dpkg --print-architecture)] https://download.docker.com/linux/$(lsb_release -is | tr '[:upper:]' '[:lower:]') $(lsb_release -cs) stable" \
-    && apt-get update \
+    # Docker install https://docs.docker.com/engine/install/debian/
+    && sudo install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && sudo chmod a+r /etc/apt/keyrings/docker.gpg \
+    && echo \
+      "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+      "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && sudo apt-get update \
     && apt-get install -y docker-ce-cli \
     #
     # Install pip & pre-commit
     && apt-get -y install python3-pip \
-    && python3 -m pip install --no-cache-dir pre-commit \
+    && python3 -m pip install --no-cache-dir --break-system-packages pre-commit \
     #
     # Clean up
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
-
-# Enable go modules
-ENV GO111MODULE=on
 
 ENV OPERATOR_RELEASE_VERSION=v1.26.0
 RUN ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $(uname -m) ;; esac) \

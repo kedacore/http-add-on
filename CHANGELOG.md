@@ -43,7 +43,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Other
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **DevContainer**: Fix devcontainer build by updating deprecated Go tools ([#1347](https://github.com/kedacore/http-add-on/issues/1347))
 
 ## v0.11.1
 
