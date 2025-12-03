@@ -59,12 +59,14 @@ func main() {
 	var metricsAddr string
 	var metricsSecure bool
 	var metricsAuth bool
+	var metricsCertDir string
 	var enableLeaderElection bool
 	var probeAddr string
 	var profilingAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8443", "The address the metric endpoint binds to.")
 	flag.BoolVar(&metricsSecure, "metrics-secure", true, "Enable secure serving for metrics endpoint.")
 	flag.BoolVar(&metricsAuth, "metrics-auth", true, "Enable authentication and authorization for metrics endpoint.")
+	flag.StringVar(&metricsCertDir, "metrics-cert-dir", "", "The directory that contains the server certificate and key (tls.crt and tls.key) for the metrics endpoint.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -126,9 +128,11 @@ func main() {
 		BindAddress:   metricsAddr,
 		SecureServing: metricsSecure,
 	}
-
 	if metricsAuth {
 		metricsOpts.FilterProvider = filters.WithAuthenticationAndAuthorization
+	}
+	if metricsCertDir != "" {
+		metricsOpts.CertDir = metricsCertDir
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
