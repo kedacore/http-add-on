@@ -114,6 +114,11 @@ func newForwardingHandler(
 		// Get transport from pool based on timeout configuration
 		transport := transportPool.Get(responseHeaderTimeout)
 
+		rc := http.NewResponseController(w)
+		if err := rc.EnableFullDuplex(); err != nil {
+			lggr.Error(err, "Could not enable full duplex on responsewriter, continuing")
+		}
+
 		shouldFailover := hasFailover && err != nil
 		if tracingCfg.Enabled {
 			uh = handler.NewUpstream(otelhttp.NewTransport(transport), tracingCfg, shouldFailover)

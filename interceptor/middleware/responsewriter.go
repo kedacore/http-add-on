@@ -58,3 +58,12 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 	return nil, nil, errors.New("http.Hijacker not implemented")
 }
+
+// https://pkg.go.dev/net/http#ResponseController.EnableFullDuplex
+func (rw *responseWriter) EnableFullDuplex() error {
+	if hj, ok := rw.downstreamResponseWriter.(interface{ EnableFullDuplex() error }); ok {
+		return hj.EnableFullDuplex()
+	}
+
+	return errors.New("EnableFullDuplex() not implemented")
+}
