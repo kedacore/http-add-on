@@ -124,9 +124,9 @@ jobs:
 
       - name: Push images to the cluster
         run: |
-          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name ${{ runner.name }}
-          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name ${{ runner.name }}
-          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name ${{ runner.name }}
+          kind load docker-image ghcr.io/kedacore/http-add-on-operator:v${VERSION} --name ${{ runner.name }}
+          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:v${VERSION} --name ${{ runner.name }}
+          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:v${VERSION} --name ${{ runner.name }}
         env:
           VERSION: ${{ github.sha }}
 
