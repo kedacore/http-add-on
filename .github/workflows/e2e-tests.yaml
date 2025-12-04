@@ -14,19 +14,23 @@ permissions:
 
 jobs:
   e2e_tests:
-    runs-on: ubuntu-latest
-    name: Execute e2e test on AMD64 ${{ matrix.kubernetesVersion }}
+    runs-on: ${{ matrix.runner }}
+    name: e2e ${{ matrix.arch }} / ${{ matrix.kindVersion }}
     strategy:
       fail-fast: false
       matrix:
-        kubernetesVersion: [v1.33, v1.32, v1.31]
+        arch:
+          - AMD64
+          - ARM64
+        kindVersion:
+          - v1.33.4
+          - v1.32.8
+          - v1.31.12
         include:
-        - kubernetesVersion: v1.33
-          kindImage: kindest/node:v1.33.4@sha256:25a6018e48dfcaee478f4a59af81157a437f15e6e140bf103f85a2e7cd0cbbf2
-        - kubernetesVersion: v1.32
-          kindImage: kindest/node:v1.32.8@sha256:abd489f042d2b644e2d033f5c2d900bc707798d075e8186cb65e3f1367a9d5a1
-        - kubernetesVersion: v1.31
-          kindImage: kindest/node:v1.31.12@sha256:0f5cc49c5e73c0c2bb6e2df56e7df189240d83cf94edfa30946482eb08ec57d2
+          - arch: AMD64
+            runner: ubuntu-latest
+          - arch: ARM64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Install prerequisites
         run: |
@@ -44,10 +48,10 @@ jobs:
       - name: Helm install
         uses: Azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
 
-      - name: Create k8s ${{ matrix.kubernetesVersion }} Kind Cluster
+      - name: Create Kind Cluster
         uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
         with:
-          node_image: ${{ matrix.kindImage }}
+          node_image: kindest/node:${{ matrix.kindVersion }}
           cluster_name: cluster
           version: v0.30.0
 
@@ -61,81 +65,9 @@ jobs:
           VERSION: ${{ github.sha }}
 
       - name: Show Kubernetes version
-        run: |
-          kubectl version
-      - name: Run e2e test
-        run: |
-          make e2e-test
-        env:
-          VERSION: ${{ github.sha }}
-
-  arm_image_generation:
-    runs-on: ARM64
-    name: Generate ARM64 images for e2e tests
-    steps:
-      - name: Install prerequisites
-        run: |
-          sudo apt update
-          sudo apt install curl make ca-certificates gcc libc-dev -y
-        env:
-          DEBIAN_FRONTEND: noninteractive
-
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v4
-
-      - name: Generate images
-        run: |
-          make docker-build
-        env:
-          VERSION: ${{ github.sha }}
-
-  arm_e2e_tests:
-    runs-on: http-add-on-e2e
-    needs: arm_image_generation
-    name: Execute e2e test on ARM64 ${{ matrix.kubernetesVersion }}
-    env:
-      KUBECONFIG: ${{ github.workspace }}/.kube/config
-    strategy:
-      fail-fast: false
-      matrix:
-        kubernetesVersion: [v1.33, v1.32, v1.31]
-        include:
-        - kubernetesVersion: v1.33
-          kindImage: kindest/node:v1.33.4@sha256:25a6018e48dfcaee478f4a59af81157a437f15e6e140bf103f85a2e7cd0cbbf2
-        - kubernetesVersion: v1.32
-          kindImage: kindest/node:v1.32.8@sha256:abd489f042d2b644e2d033f5c2d900bc707798d075e8186cb65e3f1367a9d5a1
-        - kubernetesVersion: v1.31
-          kindImage: kindest/node:v1.31.12@sha256:0f5cc49c5e73c0c2bb6e2df56e7df189240d83cf94edfa30946482eb08ec57d2
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v4
-
-      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
-        with:
-          go-version: "1.24.7"
-
-      - name: Helm install
-        uses: Azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
-
-      - name: Create k8s ${{ matrix.kubernetesVersion }} Kind Cluster
-        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
-        with:
-          node_image: ${{ matrix.kindImage }}
-          cluster_name: ${{ runner.name }}
-          version: v0.30.0
-
-      - name: Push images to the cluster
-        run: |
-          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name ${{ runner.name }}
-          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name ${{ runner.name }}
-          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name ${{ runner.name }}
-        env:
-          VERSION: ${{ github.sha }}
-
-      - name: Show Kubernetes version
-        run: |
-          kubectl version
+        run: kubectl version
 
       - name: Run e2e test
-        run: |
-          make e2e-test
+        run: make e2e-test
         env:
           VERSION: ${{ github.sha }}
