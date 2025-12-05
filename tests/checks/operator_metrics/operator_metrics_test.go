@@ -20,7 +20,7 @@ const (
 var (
 	testNamespace          = fmt.Sprintf("%s-ns", testName)
 	clientName             = fmt.Sprintf("%s-client", testName)
-	kedaOperatorMetricsURL = "https://keda-add-ons-http-operator-metrics.keda:8443/metrics"
+	kedaOperatorMetricsURL = "http://keda-add-ons-http-operator-metrics.keda:8080/metrics"
 	operatorPodSelector    = "app.kubernetes.io/instance=operator"
 )
 
@@ -83,8 +83,8 @@ func TestOperatorMetrics(t *testing.T) {
 	t.Log("--- testing operator metrics endpoint ---")
 
 	// Test 1: HTTPS endpoint should be accessible (will fail cert validation but should return metrics)
-	t.Log("Test 1: Verify HTTPS endpoint is available")
-	testHTTPSEndpoint(t)
+	t.Log("Test 1: Verify HTTP endpoint is available")
+	testHTTPEndpoint(t)
 
 	// Test 2: Verify metrics are returned
 	t.Log("Test 2: Verify metrics content")
@@ -94,19 +94,13 @@ func TestOperatorMetrics(t *testing.T) {
 	DeleteKubernetesResources(t, testNamespace, data, templates)
 }
 
-func testHTTPSEndpoint(t *testing.T) {
-	// Use curl with -k to skip certificate validation (self-signed cert)
-	cmd := fmt.Sprintf("curl -k --max-time 10 %s", kedaOperatorMetricsURL)
+func testHTTPEndpoint(t *testing.T) {
+	cmd := fmt.Sprintf("curl --max-time 10 %s", kedaOperatorMetricsURL)
 	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
-
-	// We expect this to succeed with a self-signed certificate
-	if err != nil {
-		t.Logf("HTTPS endpoint test - Output: %s, Error output: %s, Error: %v", out, errOut, err)
-	}
 
 	// The endpoint should return something (even if authentication fails, it should respond)
 	assert.True(t, err == nil || strings.Contains(errOut, "Forbidden") || strings.Contains(out, "Forbidden"),
-		"HTTPS endpoint should respond (either with metrics or authentication error)")
+		"HTTP endpoint should respond (either with metrics or authentication error)")
 }
 
 func testMetricsContent(t *testing.T) {
@@ -115,7 +109,7 @@ func testMetricsContent(t *testing.T) {
 	// This allows it to access the metrics endpoint with proper RBAC permissions
 
 	// Get the ServiceAccount token to authenticate
-	cmd := fmt.Sprintf("curl -k -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" --max-time 10 %s", kedaOperatorMetricsURL)
+	cmd := fmt.Sprintf("curl -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" --max-time 10 %s", kedaOperatorMetricsURL)
 	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
 
 	if err != nil {

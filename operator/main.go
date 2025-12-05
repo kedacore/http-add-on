@@ -63,9 +63,9 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var profilingAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8443", "The address the metric endpoint binds to.")
-	flag.BoolVar(&metricsSecure, "metrics-secure", true, "Enable secure serving for metrics endpoint.")
-	flag.BoolVar(&metricsAuth, "metrics-auth", true, "Enable authentication and authorization for metrics endpoint.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(&metricsSecure, "metrics-secure", false, "Enable secure serving for metrics endpoint.")
+	flag.BoolVar(&metricsAuth, "metrics-auth", false, "Enable authentication and authorization for metrics endpoint.")
 	flag.StringVar(&metricsCertDir, "metrics-cert-dir", "", "The directory that contains the server certificate and key (tls.crt and tls.key) for the metrics endpoint.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -122,6 +122,13 @@ func main() {
 		namespaces = map[string]cache.Config{
 			baseConfig.WatchNamespace: {},
 		}
+	}
+
+	// Switch between HTTP (8080) and HTTPS (8443) based on metricsSecure flag
+	if metricsSecure {
+		metricsAddr = ":8443"
+	} else {
+		metricsAddr = ":8080"
 	}
 
 	metricsOpts := server.Options{
