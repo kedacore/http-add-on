@@ -184,7 +184,8 @@ spec:
     spec:
       containers:
       - name: websocat-test
-        image: ghcr.io/vi/websocat:v1.14.0
+        # v1.14.0 was amd64-only; :latest includes arm64 (https://github.com/vi/websocat/pull/283)
+        image: ghcr.io/vi/websocat:latest
         command: ["/bin/sh"]
         args:
         - -c
