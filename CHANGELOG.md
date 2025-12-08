@@ -43,6 +43,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Other
 
+- **General**: Fix Makefile to support spaces in project base path ([#1392](https://github.com/kedacore/http-add-on/issues/1392))
 - **CI**: Use GitHub-hosted ARM64 runners for e2e tests ([#1388](https://github.com/kedacore/http-add-on/issues/1388))
 - **DevContainer**: Fix devcontainer build by updating deprecated Go tools ([#1347](https://github.com/kedacore/http-add-on/issues/1347))
 
