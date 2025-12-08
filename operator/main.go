@@ -127,19 +127,15 @@ func main() {
 	// Switch between HTTP (8080) and HTTPS (8443) based on metricsSecure flag
 	if metricsSecure {
 		metricsAddr = ":8443"
-	} else {
-		metricsAddr = ":8080"
 	}
 
 	metricsOpts := server.Options{
 		BindAddress:   metricsAddr,
 		SecureServing: metricsSecure,
+		CertDir:       metricsCertDir,
 	}
 	if metricsAuth {
 		metricsOpts.FilterProvider = filters.WithAuthenticationAndAuthorization
-	}
-	if metricsCertDir != "" {
-		metricsOpts.CertDir = metricsCertDir
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
