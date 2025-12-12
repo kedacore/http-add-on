@@ -35,7 +35,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Operator**: Prevent duplicate Ready conditions in HTTPScaledObject status by matching on Type instead of Reason ([#1390](https://github.com/kedacore/http-add-on/issues/1390))
 
 ### Deprecations
 
