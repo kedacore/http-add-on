@@ -23,6 +23,7 @@ type forwardingConfig struct {
 	respHeaderTimeout     time.Duration
 	forceAttemptHTTP2     bool
 	maxIdleConns          int
+	maxIdleConnsPerHost   int
 	idleConnTimeout       time.Duration
 	tlsHandshakeTimeout   time.Duration
 	expectContinueTimeout time.Duration
@@ -35,6 +36,7 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts, s *config.Serving) forw
 		respHeaderTimeout:     t.ResponseHeader,
 		forceAttemptHTTP2:     t.ForceHTTP2,
 		maxIdleConns:          t.MaxIdleConns,
+		maxIdleConnsPerHost:   t.MaxIdleConnsPerHost,
 		idleConnTimeout:       t.IdleConnTimeout,
 		tlsHandshakeTimeout:   t.TLSHandshakeTimeout,
 		expectContinueTimeout: t.ExpectContinueTimeout,
@@ -61,6 +63,7 @@ func newForwardingHandler(
 		DialContext:           dialCtxFunc,
 		ForceAttemptHTTP2:     fwdCfg.forceAttemptHTTP2,
 		MaxIdleConns:          fwdCfg.maxIdleConns,
+		MaxIdleConnsPerHost:   fwdCfg.maxIdleConnsPerHost,
 		IdleConnTimeout:       fwdCfg.idleConnTimeout,
 		TLSHandshakeTimeout:   fwdCfg.tlsHandshakeTimeout,
 		ExpectContinueTimeout: fwdCfg.expectContinueTimeout,

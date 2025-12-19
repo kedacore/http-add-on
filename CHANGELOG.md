@@ -35,6 +35,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **Interceptor**: Significant performance improvements ([#1403](https://github.com/kedacore/http-add-on/issues/1403))
   - Pool HTTP transports to reduce per-request allocations
   - Use dedicated buffer pool for reverse proxy to reduce GC pressure
+  - Increase MaxIdleConnsPerHost to reduce connection churn under load
 
 ### Fixes
 
