@@ -41,8 +41,6 @@ func NewRouting(routingTable routing.Table, probeHandler http.Handler, upstreamH
 var _ http.Handler = (*Routing)(nil)
 
 func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	r = util.RequestWithLoggerWithName(r, "RoutingMiddleware")
-
 	httpso := rm.routingTable.Route(r)
 	if httpso == nil {
 		if rm.isProbe(r) {
@@ -55,7 +53,6 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	r = r.WithContext(util.ContextWithHTTPSO(r.Context(), httpso))
 
 	stream, err := rm.streamFromHTTPSO(r.Context(), httpso, httpso.Spec.ScaleTargetRef)
 	if err != nil {
@@ -64,18 +61,25 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	r = r.WithContext(util.ContextWithStream(r.Context(), stream))
+
+	// Batch context operations to reduce allocations in the happy path
+	ctx := r.Context()
+	logger := util.LoggerFromContext(ctx)
+	ctx = util.ContextWithLogger(ctx, logger.WithName("RoutingMiddleware"))
+	ctx = util.ContextWithHTTPSO(ctx, httpso)
+	ctx = util.ContextWithStream(ctx, stream)
 
 	if httpso.Spec.ColdStartTimeoutFailoverRef != nil {
-		failoverStream, err := rm.streamFromHTTPSO(r.Context(), httpso, httpso.Spec.ColdStartTimeoutFailoverRef)
+		failoverStream, err := rm.streamFromHTTPSO(ctx, httpso, httpso.Spec.ColdStartTimeoutFailoverRef)
 		if err != nil {
 			sh := handler.NewStatic(http.StatusInternalServerError, err)
 			sh.ServeHTTP(w, r)
 			return
 		}
-		r = r.WithContext(util.ContextWithFailoverStream(r.Context(), failoverStream))
+		ctx = util.ContextWithFailoverStream(ctx, failoverStream)
 	}
 
+	r = r.WithContext(ctx)
 	rm.upstreamHandler.ServeHTTP(w, r)
 }
 
