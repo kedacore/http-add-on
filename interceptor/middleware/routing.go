@@ -109,21 +109,16 @@ func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HT
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port: %w", err)
 	}
+
+	scheme := "http"
 	if rm.tlsEnabled {
-		return url.Parse(fmt.Sprintf(
-			"https://%s.%s:%d",
-			reference.GetServiceName(),
-			httpso.GetNamespace(),
-			port,
-		))
+		scheme = "https"
 	}
-	//goland:noinspection HttpUrlsUsage
-	return url.Parse(fmt.Sprintf(
-		"http://%s.%s:%d",
-		reference.GetServiceName(),
-		httpso.GetNamespace(),
-		port,
-	))
+
+	return &url.URL{
+		Scheme: scheme,
+		Host:   fmt.Sprintf("%s.%s:%d", reference.GetServiceName(), httpso.GetNamespace(), port),
+	}, nil
 }
 
 func (rm *Routing) isProbe(r *http.Request) bool {

@@ -47,9 +47,6 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts, s *config.Serving) forw
 // newForwardingHandler takes in the service URL for the app backend
 // and forwards incoming requests to it. Note that it isn't multitenant.
 // It's intended to be deployed and scaled alongside the application itself.
-//
-// fwdSvcURL must have a valid scheme in it. The best way to do this is
-// creating a URL with url.Parse("https://...")
 func newForwardingHandler(
 	lggr logr.Logger,
 	dialCtxFunc kedanet.DialContextFunc,
