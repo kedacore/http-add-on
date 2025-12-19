@@ -15,6 +15,8 @@ import (
 )
 
 var (
+	bufferPool = newBufferPool()
+
 	errNilStream = errors.New("context stream is nil")
 )
 
@@ -66,6 +68,7 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(stream)
+	proxy.BufferPool = bufferPool
 	superDirector := proxy.Director
 	proxy.Transport = uh.roundTripper
 	proxy.Director = func(req *http.Request) {
