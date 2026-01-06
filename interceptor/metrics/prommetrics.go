@@ -9,7 +9,7 @@ import (
 	api "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 
 	"github.com/kedacore/http-add-on/pkg/build"
 )
@@ -34,8 +34,8 @@ func NewPrometheusMetrics(options ...prometheus.Option) *PrometheusMetrics {
 
 	res := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.ServiceNameKey.String("interceptor-proxy"),
-		semconv.ServiceVersionKey.String(build.Version()),
+		semconv.ServiceName("interceptor-proxy"),
+		semconv.ServiceVersion(build.Version()),
 	)
 
 	provider := metric.NewMeterProvider(
