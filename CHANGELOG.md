@@ -35,7 +35,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Operator**: Fix conflict errors when updating HTTPScaledObject status ([#1402](https://github.com/kedacore/http-add-on/issues/1402))
 
 ### Deprecations
 
