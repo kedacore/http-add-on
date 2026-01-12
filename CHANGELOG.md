@@ -32,6 +32,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Improvements
 
 - **General**: Make interceptor request logging optional ([#1375](https://github.com/kedacore/http-add-on/pull/1375))
+- **Interceptor**: Significant performance improvements ([#1403](https://github.com/kedacore/http-add-on/issues/1403))
 
 ### Fixes
 
