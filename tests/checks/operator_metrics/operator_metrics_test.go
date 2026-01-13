@@ -21,7 +21,6 @@ var (
 	testNamespace          = fmt.Sprintf("%s-ns", testName)
 	clientName             = fmt.Sprintf("%s-client", testName)
 	kedaOperatorMetricsURL = "http://keda-add-ons-http-operator-metrics.keda:8080/metrics"
-	operatorPodSelector    = "app.kubernetes.io/instance=operator"
 )
 
 type templateData struct {
