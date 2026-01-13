@@ -44,6 +44,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Other
 
+- **CI**: Replace stale bot with official GitHub Actions stale action
 - **CI**: Use GitHub-hosted ARM64 runners for e2e tests ([#1388](https://github.com/kedacore/http-add-on/issues/1388))
 - **DevContainer**: Fix devcontainer build by updating deprecated Go tools ([#1347](https://github.com/kedacore/http-add-on/issues/1347))
 
