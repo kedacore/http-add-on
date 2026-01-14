@@ -13,6 +13,7 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -22,6 +23,7 @@ type forwardingConfig struct {
 	respHeaderTimeout     time.Duration
 	forceAttemptHTTP2     bool
 	maxIdleConns          int
+	maxIdleConnsPerHost   int
 	idleConnTimeout       time.Duration
 	tlsHandshakeTimeout   time.Duration
 	expectContinueTimeout time.Duration
@@ -34,6 +36,7 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts, s *config.Serving) forw
 		respHeaderTimeout:     t.ResponseHeader,
 		forceAttemptHTTP2:     t.ForceHTTP2,
 		maxIdleConns:          t.MaxIdleConns,
+		maxIdleConnsPerHost:   t.MaxIdleConnsPerHost,
 		idleConnTimeout:       t.IdleConnTimeout,
 		tlsHandshakeTimeout:   t.TLSHandshakeTimeout,
 		expectContinueTimeout: t.ExpectContinueTimeout,
@@ -44,9 +47,6 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts, s *config.Serving) forw
 // newForwardingHandler takes in the service URL for the app backend
 // and forwards incoming requests to it. Note that it isn't multitenant.
 // It's intended to be deployed and scaled alongside the application itself.
-//
-// fwdSvcURL must have a valid scheme in it. The best way to do this is
-// creating a URL with url.Parse("https://...")
 func newForwardingHandler(
 	lggr logr.Logger,
 	dialCtxFunc kedanet.DialContextFunc,
@@ -55,6 +55,18 @@ func newForwardingHandler(
 	tlsCfg *tls.Config,
 	tracingCfg *config.Tracing,
 ) http.Handler {
+	transportPool := kedahttp.NewTransportPool(&http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialCtxFunc,
+		ForceAttemptHTTP2:     fwdCfg.forceAttemptHTTP2,
+		MaxIdleConns:          fwdCfg.maxIdleConns,
+		MaxIdleConnsPerHost:   fwdCfg.maxIdleConnsPerHost,
+		IdleConnTimeout:       fwdCfg.idleConnTimeout,
+		TLSHandshakeTimeout:   fwdCfg.tlsHandshakeTimeout,
+		ExpectContinueTimeout: fwdCfg.expectContinueTimeout,
+		TLSClientConfig:       tlsCfg,
+	})
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var uh *handler.Upstream
 		ctx := r.Context()
@@ -62,17 +74,7 @@ func newForwardingHandler(
 		hasFailover := httpso.Spec.ColdStartTimeoutFailoverRef != nil
 
 		conditionWaitTimeout := fwdCfg.waitTimeout
-		roundTripper := &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			DialContext:           dialCtxFunc,
-			ForceAttemptHTTP2:     fwdCfg.forceAttemptHTTP2,
-			MaxIdleConns:          fwdCfg.maxIdleConns,
-			IdleConnTimeout:       fwdCfg.idleConnTimeout,
-			TLSHandshakeTimeout:   fwdCfg.tlsHandshakeTimeout,
-			ExpectContinueTimeout: fwdCfg.expectContinueTimeout,
-			ResponseHeaderTimeout: fwdCfg.respHeaderTimeout,
-			TLSClientConfig:       tlsCfg,
-		}
+		responseHeaderTimeout := fwdCfg.respHeaderTimeout
 
 		if httpso.Spec.Timeouts != nil {
 			if httpso.Spec.Timeouts.ConditionWait.Duration > 0 {
@@ -80,7 +82,7 @@ func newForwardingHandler(
 			}
 
 			if httpso.Spec.Timeouts.ResponseHeader.Duration > 0 {
-				roundTripper.ResponseHeaderTimeout = httpso.Spec.Timeouts.ResponseHeader.Duration
+				responseHeaderTimeout = httpso.Spec.Timeouts.ResponseHeader.Duration
 			}
 		}
 
@@ -109,11 +111,14 @@ func newForwardingHandler(
 		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Name", httpso.Spec.ScaleTargetRef.Name)
 		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Namespace", httpso.Namespace)
 
+		// Get transport from pool based on timeout configuration
+		transport := transportPool.Get(responseHeaderTimeout)
+
 		shouldFailover := hasFailover && err != nil
 		if tracingCfg.Enabled {
-			uh = handler.NewUpstream(otelhttp.NewTransport(roundTripper), tracingCfg, shouldFailover)
+			uh = handler.NewUpstream(otelhttp.NewTransport(transport), tracingCfg, shouldFailover)
 		} else {
-			uh = handler.NewUpstream(roundTripper, &config.Tracing{}, shouldFailover)
+			uh = handler.NewUpstream(transport, &config.Tracing{}, shouldFailover)
 		}
 		uh.ServeHTTP(w, r)
 	})

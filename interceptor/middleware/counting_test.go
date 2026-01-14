@@ -30,7 +30,7 @@ func TestCountMiddleware(t *testing.T) {
 
 	httpso := &httpv1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "@",
+			Namespace: "test-namespace",
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
