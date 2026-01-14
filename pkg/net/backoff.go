@@ -6,14 +6,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-// MinTotalBackoffDuration returns the minimum duration that backoff
-// would wait, including all steps, not including any jitter
+// MinTotalBackoffDuration returns the minimum total sleep duration across all retry steps.
 func MinTotalBackoffDuration(backoff wait.Backoff) time.Duration {
-	initial := backoff.Duration.Milliseconds()
-	retMS := backoff.Duration.Milliseconds()
-	numSteps := backoff.Steps
-	for i := 2; i <= numSteps; i++ {
-		retMS += initial * int64(i)
+	var total time.Duration
+	duration := backoff.Duration
+	for range backoff.Steps {
+		if backoff.Cap > 0 && duration > backoff.Cap {
+			duration = backoff.Cap
+		}
+		total += duration
+		duration = time.Duration(float64(duration) * backoff.Factor)
 	}
-	return time.Duration(retMS) * time.Millisecond
+	return total
 }

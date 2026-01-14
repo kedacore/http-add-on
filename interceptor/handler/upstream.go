@@ -15,6 +15,8 @@ import (
 )
 
 var (
+	bufferPool = newBufferPool()
+
 	errNilStream = errors.New("context stream is nil")
 )
 
@@ -65,22 +67,21 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(stream)
-	superDirector := proxy.Director
-	proxy.Transport = uh.roundTripper
-	proxy.Director = func(req *http.Request) {
-		superDirector(req)
-		req.URL = stream
-		req.URL.Path = r.URL.Path
-		req.URL.RawPath = r.URL.RawPath
-		req.URL.RawQuery = r.URL.RawQuery
-		// delete the incoming X-Forwarded-For header so the proxy
-		// puts its own in. This is also important to prevent IP spoofing
-		req.Header.Del("X-Forwarded-For ")
-	}
-	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		sh := NewStatic(http.StatusBadGateway, err)
-		sh.ServeHTTP(w, r)
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetURL(stream)
+			// Preserve original Host header (SetURL rewrites it by default).
+			pr.Out.Host = pr.In.Host
+			// Preserve X-Forwarded-For chain before appending client IP.
+			pr.Out.Header["X-Forwarded-For"] = pr.In.Header["X-Forwarded-For"]
+			pr.SetXForwarded()
+		},
+		BufferPool: bufferPool,
+		Transport:  uh.roundTripper,
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			sh := NewStatic(http.StatusBadGateway, err)
+			sh.ServeHTTP(w, r)
+		},
 	}
 
 	proxy.ServeHTTP(w, r)
