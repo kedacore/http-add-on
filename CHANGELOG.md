@@ -36,7 +36,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Decouple connection retry backoff from TCP dial timeout for faster cold starts ([#1385](https://github.com/kedacore/http-add-on/issues/1385))
 
 ### Deprecations
 
@@ -45,6 +45,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Other
 
 - **General**: Get rid of kube-rbac-proxy ([#1123](https://github.com/kedacore/http-add-on/pull/1369))
+- **General**: Fix Makefile to support spaces in project base path ([#1392](https://github.com/kedacore/http-add-on/issues/1392))
 - **CI**: Replace stale bot with official GitHub Actions stale action
 - **CI**: Use GitHub-hosted ARM64 runners for e2e tests ([#1388](https://github.com/kedacore/http-add-on/issues/1388))
 - **DevContainer**: Fix devcontainer build by updating deprecated Go tools ([#1347](https://github.com/kedacore/http-add-on/issues/1347))

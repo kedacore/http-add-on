@@ -40,24 +40,20 @@ type Timeouts struct {
 	ExpectContinueTimeout time.Duration `envconfig:"KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT" default:"1s"`
 }
 
-// Backoff returns a wait.Backoff based on the timeouts in t
-func (t *Timeouts) Backoff(factor, jitter float64, steps int) wait.Backoff {
+// DefaultBackoff returns backoff config optimized for cold start pod availability polling.
+// Based on https://github.com/knative/networking/blob/main/test/conformance/ingress/util.go#L70
+func (t Timeouts) DefaultBackoff() wait.Backoff {
 	return wait.Backoff{
-		Duration: t.Connect,
-		Factor:   factor,
-		Jitter:   jitter,
-		Steps:    steps,
+		Cap:      1 * time.Second, // max sleep time per step, e.g. attempt a connection at least every second
+		Duration: 50 * time.Millisecond,
+		Factor:   1.4,
+		Jitter:   0.1, // adds up to +10% randomness
+		Steps:    10,
 	}
 }
 
-// DefaultBackoff calls t.Backoff with reasonable defaults and returns
-// the result
-func (t Timeouts) DefaultBackoff() wait.Backoff {
-	return t.Backoff(2, 0.5, 5)
-}
-
-// Parse parses standard configs using envconfig and returns a pointer to the
-// newly created config. Returns nil and a non-nil error if parsing failed
+// MustParseTimeouts parses standard configs using envconfig and returns a pointer to the
+// newly created config. It panics if parsing fails.
 func MustParseTimeouts() *Timeouts {
 	ret := new(Timeouts)
 	envconfig.MustProcess("", ret)
