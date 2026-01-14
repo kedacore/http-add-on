@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
+	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,7 +17,6 @@ var _ = Describe("Key", func() {
 	Context("New", func() {
 		const (
 			host0 = "kubernetes.io"
-			host1 = "kubernetes.io:443"
 			path0 = "abc/def"
 			path1 = "abc/def/"
 			path2 = "abc/def//"
@@ -25,10 +26,10 @@ var _ = Describe("Key", func() {
 			path6 = "//abc/def"
 			path7 = "//abc/def/"
 			path8 = "//abc/def//"
-			norm0 = "///"
-			norm1 = "//kubernetes.io/"
-			norm2 = "///abc/def/"
-			norm3 = "//kubernetes.io/abc/def/"
+			norm0 = "/"
+			norm1 = "kubernetes.io/"
+			norm2 = "/abc/def/"
+			norm3 = "kubernetes.io/abc/def/"
 		)
 
 		It("returns expected key for blank host and blank path", func() {
@@ -36,13 +37,8 @@ var _ = Describe("Key", func() {
 			Expect(key).To(Equal(Key(norm0)))
 		})
 
-		It("returns expected key for host without port", func() {
+		It("returns expected key for hostname", func() {
 			key := NewKey(host0, "")
-			Expect(key).To(Equal(Key(norm1)))
-		})
-
-		It("returns expected key for host with port", func() {
-			key := NewKey(host1, "")
 			Expect(key).To(Equal(Key(norm1)))
 		})
 
@@ -91,8 +87,8 @@ var _ = Describe("Key", func() {
 			Expect(key).To(Equal(Key(norm2)))
 		})
 
-		It("returns expected key for non-blank host and non-blank path", func() {
-			key := NewKey(host1, path8)
+		It("returns expected key for non-blank hostname and non-blank path", func() {
+			key := NewKey(host0, path8)
 			Expect(key).To(Equal(Key(norm3)))
 		})
 
@@ -107,7 +103,7 @@ var _ = Describe("Key", func() {
 			const (
 				host = "kubernetes.io"
 				path = "abc/def"
-				norm = "//kubernetes.io/abc/def/"
+				norm = "kubernetes.io/abc/def/"
 			)
 
 			url, err := url.Parse(fmt.Sprintf("https://%s:443/%s?123=456#789", host, path))
@@ -129,7 +125,7 @@ var _ = Describe("Key", func() {
 			const (
 				host = "kubernetes.io"
 				path = "abc/def"
-				norm = "//kubernetes.io/abc/def/"
+				norm = "kubernetes.io/abc/def/"
 			)
 
 			r, err := http.NewRequest("GET", fmt.Sprintf("https://%s:443/%s?123=456#789", host, path), nil)
@@ -150,7 +146,7 @@ var _ = Describe("Key", func() {
 		const (
 			host = "kubernetes.io"
 			path = "abc/def"
-			norm = "//kubernetes.io/abc/def/"
+			norm = "kubernetes.io/abc/def/"
 		)
 
 		It("returns expected string for key", func() {
@@ -175,7 +171,7 @@ var _ = Describe("Keys", func() {
 			const (
 				host = "kubernetes.io"
 				path = "abc/def"
-				norm = "//kubernetes.io/abc/def/"
+				norm = "kubernetes.io/abc/def/"
 			)
 
 			keys := NewKeysFromHTTPSO(&httpv1alpha1.HTTPScaledObject{
@@ -199,10 +195,10 @@ var _ = Describe("Keys", func() {
 				host1  = "kubernetes.io"
 				path0  = "abc/def"
 				path1  = "123/456"
-				norm00 = "//kubernetes.io/abc/def/"
-				norm01 = "//kubernetes.io/123/456/"
-				norm10 = "//keda.sh/abc/def/"
-				norm11 = "//keda.sh/123/456/"
+				norm00 = "kubernetes.io/abc/def/"
+				norm01 = "kubernetes.io/123/456/"
+				norm10 = "keda.sh/abc/def/"
+				norm11 = "keda.sh/123/456/"
 			)
 
 			keys := NewKeysFromHTTPSO(&httpv1alpha1.HTTPScaledObject{
@@ -231,3 +227,45 @@ var _ = Describe("Keys", func() {
 		})
 	})
 })
+
+func TestStripPort(t *testing.T) {
+	tests := map[string]struct {
+		host string
+		want string
+	}{
+		"no port":        {"example.com", "example.com"},
+		"with port":      {"example.com:8080", "example.com"},
+		"empty":          {"", ""},
+		"IPv6 with port": {"[::1]:8080", "::1"},
+		"localhost port": {"localhost:3000", "localhost"},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := stripPort(tt.host)
+			if got != tt.want {
+				t.Errorf("got = %q, want = %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWildcardHostnames(t *testing.T) {
+	tests := map[string]struct {
+		hostname string
+		want     []string
+	}{
+		"multi-level":  {"a.b.example.com", []string{"*.b.example.com", "*.example.com", "*.com"}},
+		"single-label": {"localhost", nil},
+		"empty":        {"", nil},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := wildcardHostnames(tt.hostname)
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("got = %v, want = %v", got, tt.want)
+			}
+		})
+	}
+}

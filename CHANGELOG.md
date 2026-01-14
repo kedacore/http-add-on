@@ -27,6 +27,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
+- **General**: Add multi-level wildcard host matching for HTTPScaledObject routing ([#281](https://github.com/kedacore/http-add-on/issues/281))
 - **General**: Add environment variables for leader election timing configuration ([#1365](https://github.com/kedacore/http-add-on/pull/1365))
 
 ### Improvements

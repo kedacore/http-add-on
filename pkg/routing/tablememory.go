@@ -12,7 +12,7 @@ type TableMemory interface {
 	Remember(httpso *httpv1alpha1.HTTPScaledObject) TableMemory
 	Recall(namespacedName *types.NamespacedName) *httpv1alpha1.HTTPScaledObject
 	Forget(namespacedName *types.NamespacedName) TableMemory
-	Route(key Key) *httpv1alpha1.HTTPScaledObject
+	Route(hostname, path string) *httpv1alpha1.HTTPScaledObject
 }
 
 type tableMemory struct {
@@ -101,8 +101,28 @@ func (tm tableMemory) Forget(namespacedName *types.NamespacedName) TableMemory {
 	}
 }
 
-func (tm tableMemory) Route(key Key) *httpv1alpha1.HTTPScaledObject {
+// Route finds an HTTPScaledObject matching hostname and path.
+// Tries exact match first, then wildcards, then catch-all.
+func (tm tableMemory) Route(hostname, path string) *httpv1alpha1.HTTPScaledObject {
+	// Try exact match
+	key := NewKey(hostname, path)
 	_, httpso, _ := tm.store.Root().LongestPrefix(key)
+	if httpso != nil {
+		return httpso
+	}
+
+	// Try wildcard matches (most specific to least specific)
+	for _, wildcardName := range wildcardHostnames(hostname) {
+		wildcardKey := NewKey(wildcardName, path)
+		_, httpso, _ = tm.store.Root().LongestPrefix(wildcardKey)
+		if httpso != nil {
+			return httpso
+		}
+	}
+
+	// Try catch-all
+	catchAllKey := NewKey(catchAllHostKey, path)
+	_, httpso, _ = tm.store.Root().LongestPrefix(catchAllKey)
 	return httpso
 }
 
