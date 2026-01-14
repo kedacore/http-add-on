@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
 - deployment.yaml
 - metrics_service.yaml
-- metrics_reader_role.yaml
 - role.yaml
 - role_binding.yaml
 - service_account.yaml

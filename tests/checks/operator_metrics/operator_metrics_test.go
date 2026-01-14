@@ -60,11 +60,22 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: keda-add-ons-http-operator-metrics-reader
+  name: {{.ClientName}}-metrics-reader
 subjects:
 - kind: ServiceAccount
   name: {{.ClientName}}
   namespace: {{.TestNamespace}}`
+
+	clusterRoleTemplate = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{.ClientName}}-metrics-reader
+rules:
+- nonResourceURLs:
+  - "/metrics"
+  verbs:
+  - get`
 )
 
 func TestOperatorMetrics(t *testing.T) {
@@ -128,6 +139,7 @@ func getTemplateData() (templateData, []Template) {
 		}, []Template{
 			{Name: "serviceAccountTemplate", Config: serviceAccountTemplate},
 			{Name: "clusterRoleBindingTemplate", Config: clusterRoleBindingTemplate},
+			{Name: "clusterRoleTemplate", Config: clusterRoleTemplate},
 			{Name: "clientTemplate", Config: clientTemplate},
 		}
 }
