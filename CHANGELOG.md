@@ -36,7 +36,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Decouple connection retry backoff from TCP dial timeout for faster cold starts ([#1385](https://github.com/kedacore/http-add-on/issues/1385))
 
 ### Deprecations
 

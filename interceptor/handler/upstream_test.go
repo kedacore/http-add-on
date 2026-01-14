@@ -299,8 +299,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	timeouts := defaultTimeouts()
 	timeouts.Connect = 1 * time.Millisecond
 	timeouts.ResponseHeader = 1 * time.Millisecond
-	backoff := timeouts.Backoff(2, 2, 1)
-	dialCtxFunc := retryDialContextFunc(timeouts, backoff)
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
@@ -388,8 +387,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	// forwardDoneSignal should close _after_ the total timeout of forwardRequest.
 	//
 	// forwardRequest uses dialCtxFunc to establish network connections, and dialCtxFunc does
-	// exponential backoff. It starts at 2ms (timeouts.Connect above), doubles every time, and stops after 5 tries,
-	// so that's 2ms + 4ms + 8ms + 16ms + 32ms, or SUM(2^N) where N is in [1, 5]
+	// exponential backoff.
 	expectedForwardTimeout := kedanet.MinTotalBackoffDuration(timeouts.DefaultBackoff())
 	r.GreaterOrEqualf(
 		elapsed,
@@ -428,8 +426,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	timeouts := defaultTimeouts()
 	timeouts.Connect = 10 * time.Millisecond
 	timeouts.ResponseHeader = 10 * time.Millisecond
-	backoff := timeouts.Backoff(2, 2, 1)
-	dialCtxFunc := retryDialContextFunc(timeouts, backoff)
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithStream(req, srvURL)
