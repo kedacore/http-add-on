@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -26,7 +25,6 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	externalScalerConfig config.ExternalScaler,
 	httpso *v1alpha1.HTTPScaledObject,
 ) error {
-	defer SaveStatus(context.Background(), logger, cl, httpso)
 	logger = logger.WithValues(
 		"reconciler.appObjects",
 		"addObjects",
@@ -34,18 +32,6 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		httpso.Name,
 		"HTTPScaledObject.namespace",
 		httpso.Namespace,
-	)
-
-	// set initial statuses
-	AddOrUpdateCondition(
-		httpso,
-		*SetMessage(
-			CreateCondition(
-				v1alpha1.Ready,
-				v1.ConditionUnknown,
-				v1alpha1.PendingCreation,
-			),
-			"Identified HTTPScaledObject creation signal"),
 	)
 
 	// We want to integrate http scaler with other
