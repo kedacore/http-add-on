@@ -21,9 +21,13 @@ type Timeouts struct {
 	WorkloadReplicas time.Duration `envconfig:"KEDA_CONDITION_WAIT_TIMEOUT" default:"1500ms"`
 	// ForceHTTP2 toggles whether to try to force HTTP2 for all requests
 	ForceHTTP2 bool `envconfig:"KEDA_HTTP_FORCE_HTTP2" default:"false"`
-	// MaxIdleConns is the max number of connections that can be idle in the
-	// interceptor's internal connection pool
+	// MaxIdleConns is the max number of idle connections to keep in the
+	// interceptor's internal connection pool across all backend services.
+	// Increase this if you proxy to many unique backend services.
 	MaxIdleConns int `envconfig:"KEDA_HTTP_MAX_IDLE_CONNS" default:"100"`
+	// MaxIdleConnsPerHost is the max number of idle connections to keep per backend service.
+	// Increase this if you observe many new connection establishments under load.
+	MaxIdleConnsPerHost int `envconfig:"KEDA_HTTP_MAX_IDLE_CONNS_PER_HOST" default:"20"`
 	// IdleConnTimeout is the timeout after which a connection in the interceptor's
 	// internal connection pool will be closed
 	IdleConnTimeout time.Duration `envconfig:"KEDA_HTTP_IDLE_CONN_TIMEOUT" default:"90s"`
@@ -36,24 +40,20 @@ type Timeouts struct {
 	ExpectContinueTimeout time.Duration `envconfig:"KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT" default:"1s"`
 }
 
-// Backoff returns a wait.Backoff based on the timeouts in t
-func (t *Timeouts) Backoff(factor, jitter float64, steps int) wait.Backoff {
+// DefaultBackoff returns backoff config optimized for cold start pod availability polling.
+// Based on https://github.com/knative/networking/blob/main/test/conformance/ingress/util.go#L70
+func (t Timeouts) DefaultBackoff() wait.Backoff {
 	return wait.Backoff{
-		Duration: t.Connect,
-		Factor:   factor,
-		Jitter:   jitter,
-		Steps:    steps,
+		Cap:      1 * time.Second, // max sleep time per step, e.g. attempt a connection at least every second
+		Duration: 50 * time.Millisecond,
+		Factor:   1.4,
+		Jitter:   0.1, // adds up to +10% randomness
+		Steps:    10,
 	}
 }
 
-// DefaultBackoff calls t.Backoff with reasonable defaults and returns
-// the result
-func (t Timeouts) DefaultBackoff() wait.Backoff {
-	return t.Backoff(2, 0.5, 5)
-}
-
-// Parse parses standard configs using envconfig and returns a pointer to the
-// newly created config. Returns nil and a non-nil error if parsing failed
+// MustParseTimeouts parses standard configs using envconfig and returns a pointer to the
+// newly created config. It panics if parsing fails.
 func MustParseTimeouts() *Timeouts {
 	ret := new(Timeouts)
 	envconfig.MustProcess("", ret)

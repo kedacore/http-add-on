@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -298,8 +299,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	timeouts := defaultTimeouts()
 	timeouts.Connect = 1 * time.Millisecond
 	timeouts.ResponseHeader = 1 * time.Millisecond
-	backoff := timeouts.Backoff(2, 2, 1)
-	dialCtxFunc := retryDialContextFunc(timeouts, backoff)
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
@@ -387,8 +387,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	// forwardDoneSignal should close _after_ the total timeout of forwardRequest.
 	//
 	// forwardRequest uses dialCtxFunc to establish network connections, and dialCtxFunc does
-	// exponential backoff. It starts at 2ms (timeouts.Connect above), doubles every time, and stops after 5 tries,
-	// so that's 2ms + 4ms + 8ms + 16ms + 32ms, or SUM(2^N) where N is in [1, 5]
+	// exponential backoff.
 	expectedForwardTimeout := kedanet.MinTotalBackoffDuration(timeouts.DefaultBackoff())
 	r.GreaterOrEqualf(
 		elapsed,
@@ -427,8 +426,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	timeouts := defaultTimeouts()
 	timeouts.Connect = 10 * time.Millisecond
 	timeouts.ResponseHeader = 10 * time.Millisecond
-	backoff := timeouts.Backoff(2, 2, 1)
-	dialCtxFunc := retryDialContextFunc(timeouts, backoff)
+	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithStream(req, srvURL)
@@ -440,6 +438,63 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	r.Equal("text/html; charset=utf-8", res.Header().Get("Content-Type"))
 	r.Equal("somethingcustom", res.Header().Get("X-Custom-Header"))
 	r.Equal("Hello from srv", res.Body.String())
+}
+
+func TestUpstreamSetsXForwardedFor(t *testing.T) {
+	tests := map[string]struct {
+		forwardedIPs []string
+	}{
+		"appends to existing header chain": {
+			forwardedIPs: []string{"1.2.3.4", "5.6.7.8"},
+		},
+		"sets header when not present": {
+			forwardedIPs: nil,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Prepare a fake backend
+			var receivedHeaders http.Header
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				receivedHeaders = r.Header.Clone()
+			}))
+			defer backend.Close()
+
+			backendURL, err := url.Parse(backend.URL)
+			if err != nil {
+				t.Fatalf("failed to parse backend URL: %v", err)
+			}
+
+			// Configure the Upstream and send a dummy request
+			upstream := NewUpstream(http.DefaultTransport, &config.Tracing{}, false)
+
+			req := httptest.NewRequest("GET", "/test", nil)
+			forwardedIPsStr := strings.Join(tt.forwardedIPs, ", ")
+			if tt.forwardedIPs != nil {
+				req.Header.Set("X-Forwarded-For", forwardedIPsStr)
+			}
+			req = util.RequestWithStream(req, backendURL)
+
+			upstream.ServeHTTP(httptest.NewRecorder(), req)
+
+			// Verify the test conditions
+			xff := receivedHeaders.Get("X-Forwarded-For")
+			if xff == "" {
+				t.Fatal("X-Forwarded-For should not be empty")
+			}
+
+			if tt.forwardedIPs != nil && !strings.HasPrefix(xff, forwardedIPsStr) {
+				t.Errorf("expected X-Forwarded-For to contain %q, got: %q", forwardedIPsStr, xff)
+			}
+
+			ips := strings.Split(xff, ", ")
+			expectedLen := len(tt.forwardedIPs) + 1
+			if len(ips) != expectedLen {
+				t.Errorf("expected %d IPs in X-Forwarded-For, got %d: %q", expectedLen, len(ips), xff)
+			}
+		})
+	}
 }
 
 func newRoundTripper(
