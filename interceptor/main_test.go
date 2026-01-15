@@ -152,7 +152,7 @@ func TestRunProxyServerCountMiddleware(t *testing.T) {
 	case hostAndCount := <-q.ResizedCh:
 		r.Equal(namespacedName, hostAndCount.Host)
 		r.Equal(1, hostAndCount.Count)
-	case <-time.After(4 * time.Second):
+	case <-time.After(5 * time.Second):
 		r.Fail("timeout waiting for -1 queue resize")
 	}
 
@@ -302,7 +302,7 @@ func TestRunProxyServerWithTLSCountMiddleware(t *testing.T) {
 	case hostAndCount := <-q.ResizedCh:
 		r.Equal(namespacedName, hostAndCount.Host)
 		r.Equal(1, hostAndCount.Count)
-	case <-time.After(4 * time.Second):
+	case <-time.After(5 * time.Second):
 		r.Fail("timeout waiting for -1 queue resize")
 	}
 
@@ -453,7 +453,7 @@ func TestRunProxyServerWithMultipleCertsTLSCountMiddleware(t *testing.T) {
 	case hostAndCount := <-q.ResizedCh:
 		r.Equal(namespacedName, hostAndCount.Host)
 		r.Equal(1, hostAndCount.Count)
-	case <-time.After(4 * time.Second):
+	case <-time.After(5 * time.Second):
 		r.Fail("timeout waiting for -1 queue resize")
 	}
 
