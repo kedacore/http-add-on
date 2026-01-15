@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -198,7 +197,7 @@ func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
 	req = util.RequestWithHTTPSO(req,
 		&httpv1alpha1.HTTPScaledObject{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "@" + host,
+				Namespace: "test-namespace",
 			},
 			Spec: httpv1alpha1.HTTPScaledObjectSpec{
 				ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
@@ -786,10 +785,9 @@ func targetFromURL(
 	workload string,
 	service string,
 ) *httpv1alpha1.HTTPScaledObject {
-	host := strings.Split(u.Host, ":")[0]
 	return &httpv1alpha1.HTTPScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "@" + host,
+			Namespace: "test-namespace",
 		},
 		Spec: httpv1alpha1.HTTPScaledObjectSpec{
 			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{

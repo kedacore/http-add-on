@@ -19,7 +19,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/middleware"
@@ -269,7 +268,6 @@ type harness struct {
 	originSrv    *httptest.Server
 	originURL    *url.URL
 	routingTable *routingtest.Table
-	dialCtxFunc  kedanet.DialContextFunc
 	endpCache    *k8s.FakeEndpointsCache
 	waitFunc     forwardWaitFunc
 }
@@ -281,15 +279,6 @@ func newHarness(
 	t.Helper()
 	lggr := logr.Discard()
 	routingTable := routingtest.NewTable()
-	dialContextFunc := kedanet.DialContextWithRetry(
-		&net.Dialer{
-			Timeout: 2 * time.Second,
-		},
-		wait.Backoff{
-			Steps:    2,
-			Duration: time.Second,
-		},
-	)
 
 	svcCache := k8s.NewFakeServiceCache()
 	endpCache := k8s.NewFakeEndpointsCache()
@@ -312,7 +301,7 @@ func newHarness(
 
 	proxyHdl := middleware.NewRouting(routingTable, nil, newForwardingHandler(
 		lggr,
-		dialContextFunc,
+		testDialerToOrigin(originSrvURL),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:       activeEndpointsTimeout,
@@ -338,7 +327,6 @@ func newHarness(
 		originSrv:    testOriginSrv,
 		originURL:    originSrvURL,
 		routingTable: routingTable,
-		dialCtxFunc:  dialContextFunc,
 		endpCache:    endpCache,
 		waitFunc:     waitFunc,
 	}, nil
@@ -360,6 +348,19 @@ func (h *harness) String() string {
 func hostForTest(t *testing.T) string {
 	t.Helper()
 	return fmt.Sprintf("%s.integrationtest.interceptor.kedahttp.dev", t.Name())
+}
+
+// testDialerToOrigin creates a DialContext function that routes all connections
+// to the test origin server, regardless of the requested hostname/port.
+// This allows tests to use proper Kubernetes-style service names and namespaces
+// without needing actual DNS resolution.
+func testDialerToOrigin(targetURL *url.URL) kedanet.DialContextFunc {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// Ignore the 'addr' parameter (e.g., "testservice.test-namespace:8080")
+		// and always connect to the test origin server instead
+		dialer := &net.Dialer{Timeout: 2 * time.Second}
+		return dialer.DialContext(ctx, network, targetURL.Host)
+	}
 }
 
 // similar to net.SplitHostPort (https://pkg.go.dev/net#SplitHostPort)

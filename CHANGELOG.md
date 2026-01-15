@@ -32,10 +32,13 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Improvements
 
 - **General**: Make interceptor request logging optional ([#1375](https://github.com/kedacore/http-add-on/pull/1375))
+- **Interceptor**: Significant performance improvements ([#1403](https://github.com/kedacore/http-add-on/issues/1403))
 
 ### Fixes
 
 - **Operator**: Prevent duplicate Ready conditions in HTTPScaledObject status by matching on Type instead of Reason ([#1390](https://github.com/kedacore/http-add-on/issues/1390))
+- **Operator**: Fix conflict errors when updating HTTPScaledObject status ([#1402](https://github.com/kedacore/http-add-on/issues/1402))
+- **Interceptor**: Decouple connection retry backoff from TCP dial timeout for faster cold starts ([#1385](https://github.com/kedacore/http-add-on/issues/1385))
 
 ### Deprecations
 
@@ -43,6 +46,8 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Other
 
+- **General**: Fix Makefile to support spaces in project base path ([#1392](https://github.com/kedacore/http-add-on/issues/1392))
+- **CI**: Replace stale bot with official GitHub Actions stale action
 - **CI**: Use GitHub-hosted ARM64 runners for e2e tests ([#1388](https://github.com/kedacore/http-add-on/issues/1388))
 - **DevContainer**: Fix devcontainer build by updating deprecated Go tools ([#1347](https://github.com/kedacore/http-add-on/issues/1347))
 
