@@ -36,6 +36,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
+- **Operator**: Prevent duplicate Ready conditions in HTTPScaledObject status by matching on Type instead of Reason ([#1390](https://github.com/kedacore/http-add-on/issues/1390))
 - **Operator**: Fix conflict errors when updating HTTPScaledObject status ([#1402](https://github.com/kedacore/http-add-on/issues/1402))
 - **Interceptor**: Decouple connection retry backoff from TCP dial timeout for faster cold starts ([#1385](https://github.com/kedacore/http-add-on/issues/1385))
 
