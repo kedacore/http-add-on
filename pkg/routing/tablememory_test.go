@@ -4,526 +4,224 @@ import (
 	"testing"
 	"time"
 
-	iradix "github.com/hashicorp/go-immutable-radix/v2"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
-var _ = Describe("TableMemory", func() {
-	const (
-		nameSuffix = "-br"
-		hostSuffix = ".br"
-	)
-
-	var (
-		httpso0 = httpv1alpha1.HTTPScaledObject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "keda-sh",
-			},
-			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-				Hosts: []string{
-					"keda.sh",
-				},
-			},
+func TestRemember(t *testing.T) {
+	t.Run("stores and routes single object", func(t *testing.T) {
+		httpso := &httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{Name: "test"},
+			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
 		}
 
-		httpso0NamespacedName = *k8s.NamespacedNameFromObject(&httpso0)
+		tm := NewTableMemory().Remember(httpso)
 
-		httpso1 = httpv1alpha1.HTTPScaledObject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "one-one-one-one",
-			},
-			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-				Hosts: []string{
-					"1.1.1.1",
-				},
-			},
+		route := tm.Route("example.com", "")
+		if route == nil {
+			t.Fatal("no route matched")
 		}
-
-		httpso1NamespacedName = *k8s.NamespacedNameFromObject(&httpso1)
-
-		httpsoList = httpv1alpha1.HTTPScaledObjectList{
-			Items: []httpv1alpha1.HTTPScaledObject{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "/",
-					},
-					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						Hosts: []string{
-							"localhost",
-						},
-						PathPrefixes: []string{
-							"/",
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "/f",
-					},
-					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						Hosts: []string{
-							"localhost",
-						},
-						PathPrefixes: []string{
-							"/f",
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "fo",
-					},
-					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						Hosts: []string{
-							"localhost",
-						},
-						PathPrefixes: []string{
-							"fo",
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "foo/",
-					},
-					Spec: httpv1alpha1.HTTPScaledObjectSpec{
-						Hosts: []string{
-							"localhost",
-						},
-						PathPrefixes: []string{
-							"foo/",
-						},
-					},
-				},
-			},
+		if route.Name != "test" {
+			t.Errorf("name=%q, want=%q", route.Name, "test")
 		}
-
-		assertIndex = func(tm tableMemory, input *httpv1alpha1.HTTPScaledObject, expected *httpv1alpha1.HTTPScaledObject) {
-			okMatcher := BeTrue()
-			if expected == nil {
-				okMatcher = BeFalse()
-			}
-
-			httpsoMatcher := Equal(expected)
-			if expected == nil {
-				httpsoMatcher = BeNil()
-			}
-
-			namespacedName := k8s.NamespacedNameFromObject(input)
-			indexKey := newTableMemoryIndexKey(namespacedName)
-			httpso, ok := tm.index.Get(indexKey)
-			Expect(ok).To(okMatcher)
-			Expect(httpso).To(httpsoMatcher)
-		}
-
-		assertStore = func(tm tableMemory, input *httpv1alpha1.HTTPScaledObject, expected *httpv1alpha1.HTTPScaledObject) {
-			okMatcher := BeTrue()
-			if expected == nil {
-				okMatcher = BeFalse()
-			}
-
-			httpsoMatcher := Equal(expected)
-			if expected == nil {
-				httpsoMatcher = BeNil()
-			}
-
-			storeKeys := NewKeysFromHTTPSO(input)
-			for _, storeKey := range storeKeys {
-				httpso, ok := tm.store.Get(storeKey)
-				Expect(ok).To(okMatcher)
-				Expect(httpso).To(httpsoMatcher)
-			}
-		}
-
-		assertTrees = func(tm tableMemory, input *httpv1alpha1.HTTPScaledObject, expected *httpv1alpha1.HTTPScaledObject) {
-			assertIndex(tm, input, expected)
-			assertStore(tm, input, expected)
-		}
-
-		insertIndex = func(tm tableMemory, httpso *httpv1alpha1.HTTPScaledObject) tableMemory {
-			namespacedName := k8s.NamespacedNameFromObject(httpso)
-			indexKey := newTableMemoryIndexKey(namespacedName)
-			tm.index, _, _ = tm.index.Insert(indexKey, httpso)
-
-			return tm
-		}
-
-		insertStore = func(tm tableMemory, httpso *httpv1alpha1.HTTPScaledObject) tableMemory {
-			storeKeys := NewKeysFromHTTPSO(httpso)
-			for _, storeKey := range storeKeys {
-				tm.store, _, _ = tm.store.Insert(storeKey, httpso)
-			}
-
-			return tm
-		}
-
-		insertTrees = func(tm tableMemory, httpso *httpv1alpha1.HTTPScaledObject) tableMemory {
-			tm = insertIndex(tm, httpso)
-			tm = insertStore(tm, httpso)
-			return tm
-		}
-	)
-
-	Context("New", func() {
-		It("returns a tableMemory with initialized tree", func() {
-			i := NewTableMemory()
-
-			tm, ok := i.(tableMemory)
-			Expect(ok).To(BeTrue())
-			Expect(tm.index).NotTo(BeNil())
-			Expect(tm.store).NotTo(BeNil())
-		})
 	})
 
-	Context("Remember", func() {
-		It("returns a tableMemory with new object inserted", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+	t.Run("retains other objects", func(t *testing.T) {
+		httpso1 := &httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{Name: "first"},
+			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"first.com"}},
+		}
+		httpso2 := &httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{Name: "second"},
+			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"second.com"}},
+		}
+
+		tm := NewTableMemory().Remember(httpso1).Remember(httpso2)
+
+		route1 := tm.Route("first.com", "")
+		if route1 == nil || route1.Name != "first" {
+			name := "<nil>"
+			if route1 != nil {
+				name = route1.Name
 			}
-			tm = tm.Remember(&httpso0).(tableMemory)
-
-			assertTrees(tm, &httpso0, &httpso0)
-		})
-
-		It("returns a tableMemory with new object inserted and other objects retained", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
+			t.Errorf("name=%q, want=%q", name, "first")
+		}
+		route2 := tm.Route("second.com", "")
+		if route2 == nil || route2.Name != "second" {
+			name := "<nil>"
+			if route2 != nil {
+				name = route2.Name
 			}
-			tm = tm.Remember(&httpso0).(tableMemory)
-			tm = tm.Remember(&httpso1).(tableMemory)
-
-			assertTrees(tm, &httpso1, &httpso1)
-			assertTrees(tm, &httpso0, &httpso0)
-		})
-
-		It("returns a tableMemory with old object of same key replaced", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = tm.Remember(&httpso0).(tableMemory)
-
-			httpso1 := *httpso0.DeepCopy()
-			httpso1.Spec.TargetPendingRequests = ptr.To[int32](1)
-			tm = tm.Remember(&httpso1).(tableMemory)
-
-			assertTrees(tm, &httpso0, &httpso1)
-		})
-
-		It("returns a tableMemory with old object of same key replaced and other objects retained", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = tm.Remember(&httpso0).(tableMemory)
-			tm = tm.Remember(&httpso1).(tableMemory)
-
-			httpso2 := *httpso1.DeepCopy()
-			httpso2.Spec.TargetPendingRequests = ptr.To[int32](1)
-			tm = tm.Remember(&httpso2).(tableMemory)
-
-			assertTrees(tm, &httpso1, &httpso2)
-			assertTrees(tm, &httpso0, &httpso0)
-		})
-
-		It("returns a tableMemory with deep-copied object", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-
-			httpso := *httpso0.DeepCopy()
-			tm = tm.Remember(&httpso).(tableMemory)
-
-			httpso.Spec.Hosts[0] += hostSuffix
-			assertTrees(tm, &httpso0, &httpso0)
-		})
-
-		It("gives precedence to the oldest object on conflict", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-
-			t0 := time.Now()
-
-			httpso00 := *httpso0.DeepCopy()
-			httpso00.CreationTimestamp = metav1.NewTime(t0)
-			tm = tm.Remember(&httpso00).(tableMemory)
-
-			httpso01 := *httpso0.DeepCopy()
-			httpso01.Name += nameSuffix
-			httpso01.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
-			tm = tm.Remember(&httpso01).(tableMemory)
-
-			httpso10 := *httpso1.DeepCopy()
-			httpso10.CreationTimestamp = metav1.NewTime(t0)
-			tm = tm.Remember(&httpso10).(tableMemory)
-
-			httpso11 := *httpso1.DeepCopy()
-			httpso11.Name += nameSuffix
-			httpso11.CreationTimestamp = metav1.NewTime(t0.Add(+time.Minute))
-			tm = tm.Remember(&httpso11).(tableMemory)
-
-			assertIndex(tm, &httpso00, &httpso00)
-			assertStore(tm, &httpso00, &httpso01)
-
-			assertIndex(tm, &httpso01, &httpso01)
-			assertStore(tm, &httpso01, &httpso01)
-
-			assertIndex(tm, &httpso10, &httpso10)
-			assertStore(tm, &httpso10, &httpso10)
-
-			assertIndex(tm, &httpso11, &httpso11)
-			assertStore(tm, &httpso11, &httpso10)
-		})
+			t.Errorf("name=%q, want=%q", name, "second")
+		}
 	})
 
-	Context("Forget", func() {
-		It("returns a tableMemory with old object deleted", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
+	t.Run("deep copies input", func(t *testing.T) {
+		httpso := &httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{Name: "test"},
+			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+		}
 
-			tm = tm.Forget(&httpso0NamespacedName).(tableMemory)
+		tm := NewTableMemory().Remember(httpso)
 
-			assertTrees(tm, &httpso0, nil)
-		})
+		// Modify original after storing
+		httpso.Spec.Hosts[0] = "modified.com"
 
-		It("returns a tableMemory with old object deleted and other objects retained", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
-			tm = insertTrees(tm, &httpso1)
-
-			tm = tm.Forget(&httpso0NamespacedName).(tableMemory)
-
-			assertTrees(tm, &httpso1, &httpso1)
-			assertTrees(tm, &httpso0, nil)
-		})
-
-		It("returns unchanged tableMemory when object is absent", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
-
-			index0 := *tm.index
-			store0 := *tm.store
-			tm = tm.Forget(&httpso1NamespacedName).(tableMemory)
-			index1 := *tm.index
-			store1 := *tm.store
-			Expect(index1).To(Equal(index0))
-			Expect(store1).To(Equal(store0))
-		})
-
-		It("forgets only when namespaced names match on conflict", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
-
-			t0 := time.Now()
-
-			httpso00 := *httpso0.DeepCopy()
-			httpso00.CreationTimestamp = metav1.NewTime(t0)
-			tm = insertTrees(tm, &httpso00)
-
-			httpso01 := *httpso0.DeepCopy()
-			httpso01.Name += nameSuffix
-			httpso01.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
-			tm = insertTrees(tm, &httpso01)
-
-			httpso10 := *httpso1.DeepCopy()
-			httpso10.Name += nameSuffix
-			httpso10.CreationTimestamp = metav1.NewTime(t0)
-			tm = insertTrees(tm, &httpso10)
-
-			httpso11 := *httpso1.DeepCopy()
-			httpso11.CreationTimestamp = metav1.NewTime(t0.Add(-time.Minute))
-			tm = insertTrees(tm, &httpso11)
-
-			tm = tm.Forget(&httpso0NamespacedName).(tableMemory)
-			tm = tm.Forget(&httpso1NamespacedName).(tableMemory)
-
-			assertIndex(tm, &httpso00, nil)
-			assertStore(tm, &httpso00, &httpso01)
-
-			assertIndex(tm, &httpso01, &httpso01)
-			assertStore(tm, &httpso01, &httpso01)
-
-			assertIndex(tm, &httpso10, &httpso10)
-			assertStore(tm, &httpso10, nil)
-
-			assertIndex(tm, &httpso11, nil)
-			assertStore(tm, &httpso11, nil)
-		})
+		// Should still route to original host, not modified one
+		if tm.Route("example.com", "") == nil {
+			t.Error("expected route for original host")
+		}
+		if tm.Route("modified.com", "") != nil {
+			t.Error("expected no route for modified host")
+		}
 	})
 
-	Context("Recall", func() {
-		It("returns object with matching key", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
+	t.Run("replaces object with same host", func(t *testing.T) {
+		httpso1 := &httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{Name: "v1"},
+			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+		}
+		httpso2 := &httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{Name: "v2"},
+			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+		}
 
-			httpso := tm.Recall(&httpso0NamespacedName)
-			Expect(httpso).To(Equal(&httpso0))
-		})
+		tm := NewTableMemory().Remember(httpso1).Remember(httpso2)
 
-		It("returns nil when object is absent", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
+		route := tm.Route("example.com", "")
+		if route == nil {
+			t.Fatal("no route matched")
+		}
+		if route.Name != "v2" {
+			t.Errorf("name=%q, want=%q", route.Name, "v2")
+		}
+	})
+}
 
-			httpso := tm.Recall(&httpso1NamespacedName)
-			Expect(httpso).To(BeNil())
-		})
+func TestRememberOldestWins(t *testing.T) {
+	now := time.Now()
 
-		It("returns deep-copied object", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
+	// Two objects with same host, different creation times
+	older := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "older",
+			CreationTimestamp: metav1.NewTime(now.Add(-time.Hour)),
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+	}
+	newer := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "newer",
+			CreationTimestamp: metav1.NewTime(now),
+		},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+	}
 
-			httpso := tm.Recall(&httpso0NamespacedName)
-			Expect(httpso).To(Equal(&httpso0))
+	t.Run("older object wins when added first", func(t *testing.T) {
+		tm := NewTableMemory().Remember(older).Remember(newer)
 
-			httpso.Spec.Hosts[0] += hostSuffix
-
-			assertTrees(tm, &httpso0, &httpso0)
-		})
+		route := tm.Route("example.com", "")
+		if route == nil {
+			t.Fatal("no route matched")
+		}
+		if route.Name != "older" {
+			t.Errorf("name=%q, want=%q", route.Name, "older")
+		}
 	})
 
-	Context("Route", func() {
-		It("returns nil when no matching host", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
+	t.Run("older object wins when added second", func(t *testing.T) {
+		tm := NewTableMemory().Remember(newer).Remember(older)
 
-			httpso := tm.Route(httpso0.Spec.Hosts[0]+".br", "")
-			Expect(httpso).To(BeNil())
-		})
-
-		It("returns expected object with matching host", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpso0)
-			tm = insertTrees(tm, &httpso1)
-
-			ret0 := tm.Route(httpso0.Spec.Hosts[0], "")
-			Expect(ret0).To(Equal(&httpso0))
-
-			ret1 := tm.Route(httpso1.Spec.Hosts[0], "/abc/def")
-			Expect(ret1).To(Equal(&httpso1))
-		})
-
-		It("returns nil when no matching pathPrefix", func() {
-			httpsoFoo := httpsoList.Items[3]
-
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			tm = insertTrees(tm, &httpsoFoo)
-
-			httpso := tm.Route(httpsoFoo.Spec.Hosts[0], "/bar"+httpsoFoo.Spec.PathPrefixes[0])
-			Expect(httpso).To(BeNil())
-		})
-
-		It("returns expected object with matching pathPrefix", func() {
-			tm := tableMemory{
-				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
-			}
-			for _, httpso := range httpsoList.Items {
-				tm = insertTrees(tm, &httpso)
-			}
-
-			for _, httpso := range httpsoList.Items {
-				ret := tm.Route(httpso.Spec.Hosts[0], httpso.Spec.PathPrefixes[0])
-				Expect(ret).To(Equal(&httpso))
-			}
-
-			for _, httpso := range httpsoList.Items {
-				ret := tm.Route(httpso.Spec.Hosts[0], httpso.Spec.PathPrefixes[0]+"/bar")
-				Expect(ret).To(Equal(&httpso))
-			}
-		})
+		route := tm.Route("example.com", "")
+		if route == nil {
+			t.Fatal("no route matched")
+		}
+		if route.Name != "older" {
+			t.Errorf("name=%q, want=%q", route.Name, "older")
+		}
 	})
+}
 
-	Context("E2E", func() {
-		It("succeeds", func() {
+func TestRoute(t *testing.T) {
+	exampleHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+	}
+	apiHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "api"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}, PathPrefixes: []string{"/api/"}},
+	}
+	rootHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "root"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}, PathPrefixes: []string{"/"}},
+	}
+
+	tests := []struct {
+		name   string
+		stored []*httpv1alpha1.HTTPScaledObject
+		host   string
+		path   string
+		want   string // expected Name, or "" for nil
+	}{
+		{
+			name:   "no matching host returns nil",
+			stored: []*httpv1alpha1.HTTPScaledObject{exampleHTTPSO},
+			host:   "other.com",
+			want:   "",
+		},
+		{
+			name:   "exact host match",
+			stored: []*httpv1alpha1.HTTPScaledObject{exampleHTTPSO},
+			host:   "example.com",
+			path:   "/any/path",
+			want:   "test",
+		},
+		{
+			name:   "path prefix match",
+			stored: []*httpv1alpha1.HTTPScaledObject{apiHTTPSO},
+			host:   "example.com",
+			path:   "/api/v1/users",
+			want:   "api",
+		},
+		{
+			name:   "path prefix no match",
+			stored: []*httpv1alpha1.HTTPScaledObject{apiHTTPSO},
+			host:   "example.com",
+			path:   "/other/path",
+			want:   "",
+		},
+		{
+			name:   "longest path prefix wins",
+			stored: []*httpv1alpha1.HTTPScaledObject{rootHTTPSO, apiHTTPSO},
+			host:   "example.com",
+			path:   "/api/v1",
+			want:   "api",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			tm := NewTableMemory()
+			for _, httpso := range tt.stored {
+				tm = tm.Remember(httpso)
+			}
 
-			ret0 := tm.Recall(&httpso0NamespacedName)
-			Expect(ret0).To(BeNil())
+			route := tm.Route(tt.host, tt.path)
 
-			tm = tm.Remember(&httpso0)
-
-			ret1 := tm.Recall(&httpso0NamespacedName)
-			Expect(ret1).To(Equal(&httpso0))
-
-			tm = tm.Forget(&httpso0NamespacedName)
-
-			ret2 := tm.Recall(&httpso0NamespacedName)
-			Expect(ret2).To(BeNil())
-
-			tm = tm.Remember(&httpso0)
-			tm = tm.Remember(&httpso1)
-
-			ret3 := tm.Recall(&httpso0NamespacedName)
-			Expect(ret3).To(Equal(&httpso0))
-
-			ret4 := tm.Recall(&httpso1NamespacedName)
-			Expect(ret4).To(Equal(&httpso1))
-
-			ret5 := tm.Route(httpso0.Spec.Hosts[0], "")
-			Expect(ret5).To(Equal(&httpso0))
-
-			ret6 := tm.Route(httpso1.Spec.Hosts[0], "/abc/def")
-			Expect(ret6).To(Equal(&httpso1))
-
-			ret7 := tm.Route("0.0.0.0", "")
-			Expect(ret7).To(BeNil())
-
-			tm = tm.Forget(&httpso0NamespacedName)
-
-			ret8 := tm.Route(httpso0.Spec.Hosts[0], "")
-			Expect(ret8).To(BeNil())
-
-			httpso := *httpso1.DeepCopy()
-			httpso.Spec.TargetPendingRequests = ptr.To[int32](1)
-
-			tm = tm.Remember(&httpso)
-
-			ret9 := tm.Route(httpso1.Spec.Hosts[0], "/abc/def")
-			Expect(ret9).To(Equal(&httpso))
+			switch {
+			case route == nil && tt.want == "":
+				// ok
+			case route == nil && tt.want != "":
+				t.Errorf("route=nil, want %q", tt.want)
+			case route != nil && tt.want == "":
+				t.Errorf("route=%q, want nil", route.Name)
+			case route != nil && route.Name != tt.want:
+				t.Errorf("route=%q, want %q", route.Name, tt.want)
+			}
 		})
-	})
-})
+	}
+}
 
 func TestRouteWildcardMultiLevel(t *testing.T) {
 	wildcardHTTPSO := &httpv1alpha1.HTTPScaledObject{

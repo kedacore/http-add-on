@@ -39,7 +39,7 @@ type table struct {
 	httpScaledObjectEventHandlerRegistration cache.ResourceEventHandlerRegistration
 	httpScaledObjects                        map[types.NamespacedName]*httpv1alpha1.HTTPScaledObject
 	httpScaledObjectsMutex                   sync.RWMutex
-	memoryHolder                             util.AtomicValue[TableMemory]
+	memoryHolder                             util.AtomicValue[*TableMemory]
 	memorySignaler                           util.Signaler
 	queueCounter                             queue.Counter
 }
@@ -103,7 +103,7 @@ func (t *table) refreshMemory(ctx context.Context) error {
 	}
 }
 
-func (t *table) newMemoryFromHTTPSOs() TableMemory {
+func (t *table) newMemoryFromHTTPSOs() *TableMemory {
 	t.httpScaledObjectsMutex.RLock()
 	defer t.httpScaledObjectsMutex.RUnlock()
 
