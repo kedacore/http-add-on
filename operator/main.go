@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
@@ -56,10 +57,16 @@ func init() {
 
 func main() {
 	var metricsAddr string
+	var metricsSecure bool
+	var metricsAuth bool
+	var metricsCertDir string
 	var enableLeaderElection bool
 	var probeAddr string
 	var profilingAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(&metricsSecure, "metrics-secure", false, "Enable secure serving for metrics endpoint.")
+	flag.BoolVar(&metricsAuth, "metrics-auth", false, "Enable authentication and authorization for metrics endpoint.")
+	flag.StringVar(&metricsCertDir, "metrics-cert-dir", "", "The directory that contains the server certificate and key (tls.crt and tls.key) for the metrics endpoint.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -117,11 +124,23 @@ func main() {
 		}
 	}
 
+	// Switch between HTTP (8080) and HTTPS (8443) based on metricsSecure flag
+	if metricsSecure {
+		metricsAddr = ":8443"
+	}
+
+	metricsOpts := server.Options{
+		BindAddress:   metricsAddr,
+		SecureServing: metricsSecure,
+		CertDir:       metricsCertDir,
+	}
+	if metricsAuth {
+		metricsOpts.FilterProvider = filters.WithAuthenticationAndAuthorization
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
-		Metrics: server.Options{
-			BindAddress: metricsAddr,
-		},
+		Scheme:                        scheme,
+		Metrics:                       metricsOpts,
 		PprofBindAddress:              profilingAddr,
 		HealthProbeBindAddress:        probeAddr,
 		LeaderElection:                enableLeaderElection,

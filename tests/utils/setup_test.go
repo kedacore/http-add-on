@@ -66,7 +66,13 @@ kind: Deployment
 metadata:
   name: opentelemetry-collector
 spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opentelemetry-collector
     spec:
       containers:
       - name: opentelemetry-collector
@@ -123,16 +129,16 @@ spec:
         app: zipkin
     spec:
       containers:
-      - image: openzipkin/zipkin
+      - image: openzipkin/zipkin:3
         name: zipkin
         env:
         - name: "JAVA_OPTS"
-          value: "-Xmx500M"
+          value: "-XX:MaxRAMPercentage=80 -XX:InitialRAMPercentage=80"
         resources:
           limits:
-            memory: "700M"
+            memory: "256M"
           requests:
-            memory: "5M"
+            memory: "256M"
 ---
 apiVersion: v1
 kind: Service
@@ -313,7 +319,7 @@ func TestDeployZipkin(t *testing.T) {
 	_, err = ExecuteCommand(fmt.Sprintf("kubectl apply -f  %s -n %s", zipkinTemplateFileName, "zipkin"))
 	require.NoErrorf(t, err, "cannot deploy zipkin - %s", err)
 
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "zipkin", "zipkin", 1, 6, 5),
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "zipkin", "zipkin", 1, 6, 10),
 		"replica count should be 1 after 3 minutes")
 }
 

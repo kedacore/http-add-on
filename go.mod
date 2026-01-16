@@ -61,6 +61,16 @@ require (
 )
 
 require (
+	cel.dev/expr v0.24.0 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
+	github.com/google/cel-go v0.26.0 // indirect
+	github.com/stoewer/go-strcase v1.3.1 // indirect
+	k8s.io/apiserver v0.33.5 // indirect
+	k8s.io/component-base v0.33.5 // indirect
+	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.2 // indirect
+)
+
+require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect

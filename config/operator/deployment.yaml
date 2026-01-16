@@ -37,8 +37,10 @@ spec:
         - name: KEDA_HTTP_OPERATOR_WATCH_NAMESPACE
           value: ""
         ports:
-        - name: metrics
+        - name: metrics-http
           containerPort: 8080
+        - name: metrics-https
+          containerPort: 8443
         - name: probes
           containerPort: 8081
         livenessProbe:
