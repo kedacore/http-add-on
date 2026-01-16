@@ -125,7 +125,7 @@ func (t *table) Start(ctx context.Context) error {
 }
 
 func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
-	if req == nil {
+	if req == nil || req.URL == nil {
 		return nil
 	}
 
@@ -134,8 +134,9 @@ func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
 		return nil
 	}
 
-	key := NewKeyFromRequest(req)
-	return tm.Route(key)
+	hostname := stripPort(req.Host)
+
+	return tm.Route(hostname, req.URL.Path)
 }
 
 func (t *table) HasSynced() bool {

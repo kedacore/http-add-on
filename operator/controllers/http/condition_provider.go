@@ -29,18 +29,33 @@ func SaveStatus(
 	}
 }
 
-// AddOrUpdateCondition adds or update a condition to the HTTPScaledObject
+// AddOrUpdateCondition adds or updates a condition to the HTTPScaledObject.
+// Conditions are matched by Type following Kubernetes API conventions where
+// each condition Type should appear at most once in the conditions list.
+//
+// TODO(v1): Remove duplicate cleanup logic in v1, everything should be deduplicated until then
 func AddOrUpdateCondition(httpso *httpv1alpha1.HTTPScaledObject, condition httpv1alpha1.HTTPScaledObjectCondition) *httpv1alpha1.HTTPScaledObject {
-	found := false
-	for i := range httpso.Status.Conditions {
-		if httpso.Status.Conditions[i].Reason == condition.Reason {
-			found = true
-			httpso.Status.Conditions[i] = condition
+	seen := make(map[httpv1alpha1.HTTPScaledObjectCreationStatus]bool)
+	var result []httpv1alpha1.HTTPScaledObjectCondition
+
+	for _, existing := range httpso.Status.Conditions {
+		if seen[existing.Type] {
+			continue // Skip duplicate
+		}
+		seen[existing.Type] = true
+
+		if existing.Type == condition.Type {
+			result = append(result, condition)
+		} else {
+			result = append(result, existing)
 		}
 	}
-	if !found {
-		httpso.Status.Conditions = append(httpso.Status.Conditions, condition)
+
+	if !seen[condition.Type] {
+		result = append(result, condition)
 	}
+
+	httpso.Status.Conditions = result
 	return httpso
 }
 

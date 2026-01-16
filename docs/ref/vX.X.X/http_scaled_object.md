@@ -1,6 +1,6 @@
 # The `HTTPScaledObject`
 
->This document reflects the specification of the `HTTPScaledObject` resource for the `vX.X.X` version.
+> This document reflects the specification of the `HTTPScaledObject` resource for the `vX.X.X` version.
 
 Each `HTTPScaledObject` looks approximately like the below:
 
@@ -8,31 +8,32 @@ Each `HTTPScaledObject` looks approximately like the below:
 kind: HTTPScaledObject
 apiVersion: http.keda.sh/v1alpha1
 metadata:
-    name: xkcd
-    annotations:
-        httpscaledobject.keda.sh/skip-scaledobject-creation: "false"
+  name: xkcd
+  annotations:
+    httpscaledobject.keda.sh/skip-scaledobject-creation: "false"
 spec:
-    hosts:
+  hosts:
     - myhost.com
-    pathPrefixes:
+    - "*.example.com"
+  pathPrefixes:
     - /test
-    scaleTargetRef:
-        name: xkcd
-        kind: Deployment
-        apiVersion: apps/v1
-        service: xkcd
-        port: 8080
-    replicas:
-        min: 5
-        max: 10
-    scaledownPeriod: 300
-    scalingMetric: # requestRate and concurrency are mutually exclusive
-        requestRate:
-            granularity: 1s
-            targetValue: 100
-            window: 1m
-        concurrency:
-            targetValue: 100
+  scaleTargetRef:
+    name: xkcd
+    kind: Deployment
+    apiVersion: apps/v1
+    service: xkcd
+    port: 8080
+  replicas:
+    min: 5
+    max: 10
+  scaledownPeriod: 300
+  scalingMetric: # requestRate and concurrency are mutually exclusive
+    requestRate:
+      granularity: 1s
+      targetValue: 100
+      window: 1m
+    concurrency:
+      targetValue: 100
 ```
 
 This document is a narrated reference guide for the `HTTPScaledObject`.
@@ -41,14 +42,17 @@ This document is a narrated reference guide for the `HTTPScaledObject`.
 
 This annotation will disable the ScaledObject generation and management but keeping the routing and metrics available. This is done removing the current ScaledObject if it has been already created, allowing to use user managed ScaledObjects pointing the add-on scaler directly (supporting all the ScaledObject configurations and multiple triggers). You can read more about this [here](./../../walkthrough.md#integrating-http-add-on-scaler-with-other-keda-scalers)
 
-
 ## `hosts`
 
 These are the hosts to apply this scaling rule to. All incoming requests with one of these values in their `Host` header will be forwarded to the `Service` and port specified in the below `scaleTargetRef`, and that same `scaleTargetRef`'s workload will be scaled accordingly.
 
+Wildcard patterns are supported using a leading `*.` prefix. For example, `*.example.com` matches any subdomain of `example.com`, including multi-level subdomains like `foo.bar.example.com`. More specific wildcards take precedence over less specific ones (e.g., `*.bar.example.com` wins over `*.example.com`). Exact host matches always take precedence over wildcard matches.
+
+An empty host or `*` acts as a catch-all that matches any hostname. This is useful as a fallback when no other routes match.
+
 ## `pathPrefixes`
 
->Default: "/"
+> Default: "/"
 
 These are the paths to apply this scaling rule to. All incoming requests with one of these values as path prefix will be forwarded to the `Service` and port specified in the below `scaleTargetRef`, and that same `scaleTargetRef`'s workload will be scaled accordingly.
 
@@ -86,12 +90,11 @@ Alternatively, the port can be referenced using it's `name` as defined in the `S
 
 ### `scaledownPeriod`
 
->Default: 300
+> Default: 300
 
 The period to wait after the last reported active before scaling the resource back to 0.
 
 > Note: This time is measured on KEDA side based on in-flight requests, so workloads with few and random traffic could have unexpected scale to 0 cases. In those case we recommend to extend this period to ensure it doesn't happen.
-
 
 ## `scalingMetric`
 
@@ -107,19 +110,19 @@ This section enables scaling based on the request rate.
 
 #### `targetValue`
 
->Default: 100
+> Default: 100
 
 This is the target value for the scaling configuration.
 
 #### `window`
 
->Default: "1m"
+> Default: "1m"
 
 This value defines the aggregation window for the request rate calculation.
 
 #### `granularity`
 
->Default: "1s"
+> Default: "1s"
 
 This value defines the granualarity of the aggregated requests for the request rate calculation.
 
@@ -131,6 +134,6 @@ This section enables scaling based on the request concurrency.
 
 #### `targetValue`
 
->Default: 100
+> Default: 100
 
 This is the target value for the scaling configuration.

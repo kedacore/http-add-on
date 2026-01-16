@@ -117,10 +117,29 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		r.ExternalScalerConfig,
 		httpso,
 	)
+	// Define the HTTPScaledObject ready condition based on the error
 	if err != nil {
+		SaveStatus(
+			ctx,
+			logger,
+			r.Client,
+			AddOrUpdateCondition(
+				httpso,
+				*SetMessage(
+					CreateCondition(
+						httpv1alpha1.Ready,
+						v1.ConditionFalse,
+						httpv1alpha1.HTTPScaledObjectIsReady,
+					),
+					"Failed to create scaled objects",
+				),
+			),
+		)
+		logger.Error(err, "Failed to create scaled objects")
 		return ctrl.Result{}, err
 	}
 
+	// TODO: make SaveStatus to return error
 	SaveStatus(
 		ctx,
 		logger,
