@@ -1,8 +1,7 @@
 package routing
 
 import (
-	"fmt"
-	"net/url"
+	"testing"
 	"time"
 
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
@@ -415,23 +414,18 @@ var _ = Describe("TableMemory", func() {
 	})
 
 	Context("Route", func() {
-		It("returns nil when no matching host for URL", func() {
+		It("returns nil when no matching host", func() {
 			tm := tableMemory{
 				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
 				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
 			}
 			tm = insertTrees(tm, &httpso0)
 
-			url, err := url.Parse(fmt.Sprintf("https://%s.br", httpso0.Spec.Hosts[0]))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(url).NotTo(BeNil())
-			urlKey := NewKeyFromURL(url)
-			Expect(urlKey).NotTo(BeNil())
-			httpso := tm.Route(urlKey)
+			httpso := tm.Route(httpso0.Spec.Hosts[0]+".br", "")
 			Expect(httpso).To(BeNil())
 		})
 
-		It("returns expected object with matching host for URL", func() {
+		It("returns expected object with matching host", func() {
 			tm := tableMemory{
 				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
 				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
@@ -439,28 +433,15 @@ var _ = Describe("TableMemory", func() {
 			tm = insertTrees(tm, &httpso0)
 			tm = insertTrees(tm, &httpso1)
 
-			//goland:noinspection HttpUrlsUsage
-			url0, err := url.Parse(fmt.Sprintf("http://%s", httpso0.Spec.Hosts[0]))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(url0).NotTo(BeNil())
-			url0Key := NewKeyFromURL(url0)
-			Expect(url0Key).NotTo(BeNil())
-			ret0 := tm.Route(url0Key)
+			ret0 := tm.Route(httpso0.Spec.Hosts[0], "")
 			Expect(ret0).To(Equal(&httpso0))
 
-			url1, err := url.Parse(fmt.Sprintf("https://%s:443/abc/def?123=456#789", httpso1.Spec.Hosts[0]))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(url1).NotTo(BeNil())
-			url1Key := NewKeyFromURL(url1)
-			Expect(url1Key).NotTo(BeNil())
-			ret1 := tm.Route(url1Key)
+			ret1 := tm.Route(httpso1.Spec.Hosts[0], "/abc/def")
 			Expect(ret1).To(Equal(&httpso1))
 		})
 
-		It("returns nil when no matching pathPrefix for URL", func() {
-			var (
-				httpsoFoo = httpsoList.Items[3]
-			)
+		It("returns nil when no matching pathPrefix", func() {
+			httpsoFoo := httpsoList.Items[3]
 
 			tm := tableMemory{
 				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
@@ -468,17 +449,11 @@ var _ = Describe("TableMemory", func() {
 			}
 			tm = insertTrees(tm, &httpsoFoo)
 
-			//goland:noinspection HttpUrlsUsage
-			url, err := url.Parse(fmt.Sprintf("http://%s/bar%s", httpsoFoo.Spec.Hosts[0], httpsoFoo.Spec.PathPrefixes[0]))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(url).NotTo(BeNil())
-			urlKey := NewKeyFromURL(url)
-			Expect(urlKey).NotTo(BeNil())
-			httpso := tm.Route(urlKey)
+			httpso := tm.Route(httpsoFoo.Spec.Hosts[0], "/bar"+httpsoFoo.Spec.PathPrefixes[0])
 			Expect(httpso).To(BeNil())
 		})
 
-		It("returns expected object with matching pathPrefix for URL", func() {
+		It("returns expected object with matching pathPrefix", func() {
 			tm := tableMemory{
 				index: iradix.New[*httpv1alpha1.HTTPScaledObject](),
 				store: iradix.New[*httpv1alpha1.HTTPScaledObject](),
@@ -488,22 +463,12 @@ var _ = Describe("TableMemory", func() {
 			}
 
 			for _, httpso := range httpsoList.Items {
-				url, err := url.Parse(fmt.Sprintf("https://%s/%s", httpso.Spec.Hosts[0], httpso.Spec.PathPrefixes[0]))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(url).NotTo(BeNil())
-				urlKey := NewKeyFromURL(url)
-				Expect(urlKey).NotTo(BeNil())
-				ret := tm.Route(urlKey)
+				ret := tm.Route(httpso.Spec.Hosts[0], httpso.Spec.PathPrefixes[0])
 				Expect(ret).To(Equal(&httpso))
 			}
 
 			for _, httpso := range httpsoList.Items {
-				url, err := url.Parse(fmt.Sprintf("https://%s/%s/bar", httpso.Spec.Hosts[0], httpso.Spec.PathPrefixes[0]))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(url).NotTo(BeNil())
-				urlKey := NewKeyFromURL(url)
-				Expect(urlKey).NotTo(BeNil())
-				ret := tm.Route(urlKey)
+				ret := tm.Route(httpso.Spec.Hosts[0], httpso.Spec.PathPrefixes[0]+"/bar")
 				Expect(ret).To(Equal(&httpso))
 			}
 		})
@@ -535,40 +500,18 @@ var _ = Describe("TableMemory", func() {
 			ret4 := tm.Recall(&httpso1NamespacedName)
 			Expect(ret4).To(Equal(&httpso1))
 
-			//goland:noinspection HttpUrlsUsage
-			url0, err := url.Parse(fmt.Sprintf("http://%s:80?123=456#789", httpso0.Spec.Hosts[0]))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(url0).NotTo(BeNil())
-
-			url0Key := NewKeyFromURL(url0)
-			Expect(url0Key).NotTo(BeNil())
-
-			ret5 := tm.Route(url0Key)
+			ret5 := tm.Route(httpso0.Spec.Hosts[0], "")
 			Expect(ret5).To(Equal(&httpso0))
 
-			url1, err := url.Parse(fmt.Sprintf("https://user:pass@%s:443/abc/def", httpso1.Spec.Hosts[0]))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(url1).NotTo(BeNil())
-
-			url1Key := NewKeyFromURL(url1)
-			Expect(url1Key).NotTo(BeNil())
-
-			ret6 := tm.Route(url1Key)
+			ret6 := tm.Route(httpso1.Spec.Hosts[0], "/abc/def")
 			Expect(ret6).To(Equal(&httpso1))
 
-			url2, err := url.Parse("http://0.0.0.0")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(url2).NotTo(BeNil())
-
-			url2Key := NewKeyFromURL(url2)
-			Expect(url2Key).NotTo(BeNil())
-
-			ret7 := tm.Route(url2Key)
+			ret7 := tm.Route("0.0.0.0", "")
 			Expect(ret7).To(BeNil())
 
 			tm = tm.Forget(&httpso0NamespacedName)
 
-			ret8 := tm.Route(url0Key)
+			ret8 := tm.Route(httpso0.Spec.Hosts[0], "")
 			Expect(ret8).To(BeNil())
 
 			httpso := *httpso1.DeepCopy()
@@ -576,8 +519,162 @@ var _ = Describe("TableMemory", func() {
 
 			tm = tm.Remember(&httpso)
 
-			ret9 := tm.Route(url1Key)
+			ret9 := tm.Route(httpso1.Spec.Hosts[0], "/abc/def")
 			Expect(ret9).To(Equal(&httpso))
 		})
 	})
 })
+
+func TestRouteWildcardMultiLevel(t *testing.T) {
+	wildcardHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-example"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*.example.com"}},
+	}
+
+	t.Run("matches single-level subdomain", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO},
+			"bar.example.com", "", wildcardHTTPSO)
+	})
+
+	t.Run("matches nested subdomain", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO},
+			"foo.bar.example.com", "", wildcardHTTPSO)
+	})
+
+	t.Run("matches deeply nested subdomain", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO},
+			"a.b.c.example.com", "", wildcardHTTPSO)
+	})
+
+	t.Run("rejects different domain", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO},
+			"foo.other.com", "", nil)
+	})
+}
+
+func TestRouteWildcardPrecedence(t *testing.T) {
+	wildcardHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-example"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*.example.com"}},
+	}
+	moreSpecificWildcardHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-bar-example"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*.bar.example.com"}},
+	}
+	exactHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "exact-foo"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"foo.example.com"}},
+	}
+	catchAllHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "catch-all"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*"}},
+	}
+
+	t.Run("exact wins over wildcard", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO, exactHTTPSO},
+			"foo.example.com", "", exactHTTPSO)
+	})
+
+	t.Run("exact wins regardless of storage order", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{exactHTTPSO, wildcardHTTPSO},
+			"foo.example.com", "", exactHTTPSO)
+	})
+
+	t.Run("more specific wildcard wins", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO, moreSpecificWildcardHTTPSO},
+			"foo.bar.example.com", "", moreSpecificWildcardHTTPSO)
+	})
+
+	t.Run("falls back to less specific wildcard", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO, moreSpecificWildcardHTTPSO},
+			"foo.baz.example.com", "", wildcardHTTPSO)
+	})
+
+	t.Run("wildcard wins over catch-all", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{catchAllHTTPSO, wildcardHTTPSO},
+			"bar.example.com", "", wildcardHTTPSO)
+	})
+
+	t.Run("falls back to catch-all when no wildcard matches", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{catchAllHTTPSO, wildcardHTTPSO},
+			"bar.other.com", "", catchAllHTTPSO)
+	})
+}
+
+func TestRouteCatchAll(t *testing.T) {
+	catchAllHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "catch-all"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*"}},
+	}
+	emptyHostHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "empty-host"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{""}},
+	}
+	nilHostHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "nil-host"},
+		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: nil},
+	}
+
+	t.Run("star matches single-label host", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{catchAllHTTPSO},
+			"localhost", "", catchAllHTTPSO)
+	})
+
+	t.Run("star matches multi-label host", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{catchAllHTTPSO},
+			"foo.example.com", "", catchAllHTTPSO)
+	})
+
+	t.Run("empty host matches any hostname", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{emptyHostHTTPSO},
+			"anything.example.com", "", emptyHostHTTPSO)
+	})
+
+	t.Run("nil hosts matches any hostname", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{nilHostHTTPSO},
+			"example.com", "", nilHostHTTPSO)
+	})
+}
+
+func TestRouteWildcardWithPath(t *testing.T) {
+	wildcardWithPathHTTPSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-with-path"},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Hosts:        []string{"*.example.com"},
+			PathPrefixes: []string{"/api/"},
+		},
+	}
+
+	t.Run("matches with path prefix", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardWithPathHTTPSO},
+			"bar.example.com", "/api/v1/users", wildcardWithPathHTTPSO)
+	})
+
+	t.Run("rejects wrong path", func(t *testing.T) {
+		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardWithPathHTTPSO},
+			"bar.example.com", "/other/", nil)
+	})
+}
+
+// runRouteTest is a helper that creates a TableMemory, stores the given
+// HTTPScaledObjects, and verifies that Route returns the expected result.
+func runRouteTest(t *testing.T, stored []*httpv1alpha1.HTTPScaledObject, reqHost, reqPath string, want *httpv1alpha1.HTTPScaledObject) {
+	t.Helper()
+	tm := NewTableMemory()
+	for _, httpso := range stored {
+		tm = tm.Remember(httpso)
+	}
+
+	route := tm.Route(reqHost, reqPath)
+
+	switch {
+	case route == nil && want == nil:
+		// ok
+	case route == nil:
+		t.Errorf("route=nil, want=%q", want.Name)
+	case want == nil:
+		t.Errorf("route=%q, want=nil", route.Name)
+	case route.Name != want.Name:
+		t.Errorf("route=%q, want=%q", route.Name, want.Name)
+	}
+}
