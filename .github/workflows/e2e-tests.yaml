@@ -23,9 +23,9 @@ jobs:
           - AMD64
           - ARM64
         kindVersion:
-          - v1.33.4
-          - v1.32.8
-          - v1.31.12
+          - v1.35.0
+          - v1.34.3
+          - v1.33.7
         include:
           - arch: AMD64
             runner: ubuntu-latest
@@ -53,7 +53,7 @@ jobs:
         with:
           node_image: kindest/node:${{ matrix.kindVersion }}
           cluster_name: cluster
-          version: v0.30.0
+          version: v0.31.0
 
       - name: Generate images and push to the cluster
         run: |
