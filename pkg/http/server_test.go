@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -17,6 +18,11 @@ func TestServeContext(t *testing.T) {
 		context.Background(),
 	)
 	hdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rc := http.NewResponseController(w)
+		if err := rc.EnableFullDuplex(); err != nil {
+			t.Fatalf("error enabling full duplex: %v", err)
+		}
+
 		w.Header().Set("foo", "bar")
 		_, err := w.Write([]byte("hello world"))
 		if err != nil {
@@ -24,8 +30,18 @@ func TestServeContext(t *testing.T) {
 		}
 	})
 	addr := "localhost:1234"
-	const cancelDur = 500 * time.Millisecond
+	const waitDur = 100 * time.Millisecond
+	const cancelDur = 400 * time.Millisecond
 	go func() {
+		time.Sleep(waitDur)
+
+		// send a request so the handler runs
+		resp, err := http.Get("http://" + addr)
+		if err != nil {
+			panic(fmt.Sprintf("error sending request to the server: %v", err))
+		}
+		defer resp.Body.Close()
+
 		time.Sleep(cancelDur)
 		done()
 	}()

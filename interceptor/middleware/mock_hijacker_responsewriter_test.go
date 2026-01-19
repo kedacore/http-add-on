@@ -61,6 +61,20 @@ func (m *MockHijackerResponseWriter) EXPECT() *MockHijackerResponseWriterMockRec
 	return m.recorder
 }
 
+// EnableFullDuplex mocks base method.
+func (m *MockHijackerResponseWriter) EnableFullDuplex() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnableFullDuplex")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnableFullDuplex indicates an expected call of EnableFullDuplex.
+func (mr *MockHijackerResponseWriterMockRecorder) EnableFullDuplex() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnableFullDuplex", reflect.TypeOf((*MockHijackerResponseWriter)(nil).EnableFullDuplex))
+}
+
 // Header mocks base method.
 func (m *MockHijackerResponseWriter) Header() http.Header {
 	m.ctrl.T.Helper()

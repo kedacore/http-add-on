@@ -202,4 +202,64 @@ var _ = Describe("responseWriter", func() {
 			Expect(readWriter).To(BeNil())
 		})
 	})
+
+	Context("Full Duplex", func() {
+		var ctrl *gomock.Controller
+
+		BeforeEach(func() {
+			ctrl = gomock.NewController(GinkgoT())
+		})
+
+		AfterEach(func() {
+			ctrl.Finish()
+		})
+
+		It("successfully enables full duplex when downstream ResponseWriter supports it", func() {
+			// Create mocks using the generated mocks
+			mockWriter := NewMockHijackerResponseWriter(ctrl)
+
+			// Set up expectations
+			mockWriter.EXPECT().EnableFullDuplex().Return(nil)
+
+			rw := &responseWriter{
+				downstreamResponseWriter: mockWriter,
+			}
+
+			err := rw.EnableFullDuplex()
+
+			Expect(err).To(BeNil())
+		})
+
+		It("returns error when downstream ResponseWriter does not support full duplex", func() {
+			var (
+				w = httptest.NewRecorder()
+			)
+
+			rw := &responseWriter{
+				downstreamResponseWriter: w,
+			}
+
+			err := rw.EnableFullDuplex()
+
+			Expect(err).NotTo(BeNil())
+			Expect(err.Error()).To(Equal("EnableFullDuplex() not implemented"))
+		})
+
+		It("forwards error when downstream hijacker returns error", func() {
+			expectedError := fmt.Errorf("enable full duplex failed")
+			mockWriter := NewMockHijackerResponseWriter(ctrl)
+
+			// Set up expectations
+			mockWriter.EXPECT().EnableFullDuplex().Return(expectedError)
+
+			rw := &responseWriter{
+				downstreamResponseWriter: mockWriter,
+			}
+
+			err := rw.EnableFullDuplex()
+
+			Expect(err).NotTo(BeNil())
+			Expect(err.Error()).To(Equal("enable full duplex failed"))
+		})
+	})
 })
