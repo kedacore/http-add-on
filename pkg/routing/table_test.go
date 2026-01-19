@@ -203,8 +203,7 @@ var _ = Describe("Table", func() {
 			Expect(tm).NotTo(BeNil())
 
 			for _, httpso := range httpsoList.Items {
-				namespacedName := k8s.NamespacedNameFromObject(&httpso)
-				ret := tm.Recall(namespacedName)
+				ret := tm.Route(httpso.Spec.Hosts[0], "")
 				Expect(ret).To(Equal(&httpso))
 			}
 		})
@@ -250,13 +249,12 @@ var _ = Describe("Table", func() {
 			Expect(tm).NotTo(BeNil())
 
 			for _, httpso := range append(httpsoList.Items[1:], httpso) {
-				namespacedName := k8s.NamespacedNameFromObject(&httpso)
-				ret := tm.Recall(namespacedName)
+				ret := tm.Route(httpso.Spec.Hosts[0], "")
 				Expect(ret).To(Equal(&httpso))
 			}
 
-			namespacedName := k8s.NamespacedNameFromObject(&first)
-			ret := tm.Recall(namespacedName)
+			// First item was deleted, should not be routable
+			ret := tm.Route(first.Spec.Hosts[0], "")
 			Expect(ret).To(BeNil())
 		})
 
@@ -288,9 +286,7 @@ var _ = Describe("Table", func() {
 			tm := t.newMemoryFromHTTPSOs()
 
 			for _, httpso := range httpsoList.Items {
-				namespacedName := k8s.NamespacedNameFromObject(&httpso)
-
-				ret := tm.Recall(namespacedName)
+				ret := tm.Route(httpso.Spec.Hosts[0], "")
 				Expect(ret).To(Equal(&httpso))
 			}
 		})

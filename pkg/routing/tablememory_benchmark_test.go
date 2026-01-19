@@ -131,7 +131,7 @@ func BenchmarkNoMatch(b *testing.B) {
 	})
 }
 
-func setup100ExactRoutes() TableMemory {
+func setup100ExactRoutes() *TableMemory {
 	tm := NewTableMemory()
 	for i := range 100 {
 		httpso := &httpv1alpha1.HTTPScaledObject{
