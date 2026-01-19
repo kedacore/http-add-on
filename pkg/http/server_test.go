@@ -36,10 +36,11 @@ func TestServeContext(t *testing.T) {
 		time.Sleep(waitDur)
 
 		// send a request so the handler runs
-		_, err := http.Get("http://" + addr)
+		resp, err := http.Get("http://" + addr)
 		if err != nil {
 			panic(fmt.Sprintf("error sending request to the server: %v", err))
 		}
+		defer resp.Body.Close()
 
 		time.Sleep(cancelDur)
 		done()
