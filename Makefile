@@ -43,7 +43,7 @@ endif
 
 GOPATH:=$(shell go env GOPATH)
 
-GOLANGCI_VERSION:=2.5.0
+GOLANGCI_VERSION:=2.7.1
 
 define DOMAINS
 basicConstraints=CA:FALSE

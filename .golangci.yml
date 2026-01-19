@@ -47,11 +47,19 @@ linters:
           - revive
           - unparam
         path: _test\.go
+      - path: pkg/http/
+        linters:
+          - revive
+        text: "avoid package names that conflict with Go standard library"
       # Exclude for utils packages with meaningful package names
       - linters:
           - revive
-        text: 'var-naming: avoid meaningless package names'
+        text: "var-naming: avoid meaningless package names"
         path: operator/controllers/util/predicate.go
+      - linters:
+          - revive
+        text: "var-naming: avoid meaningless package names"
+        path: pkg/util/
     paths:
       - vendor
       - third_party$

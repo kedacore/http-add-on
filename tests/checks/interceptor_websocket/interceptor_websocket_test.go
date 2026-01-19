@@ -111,7 +111,7 @@ spec:
       containers:
       - name: websocket-client
         image: ghcr.io/kedacore/tests-websockets:245a788
-        command: 
+        command:
         - node
         - client.js
         - {{.ClientJobName}}
@@ -191,15 +191,15 @@ spec:
         - -c
         - |
           echo "Installing websocat..."
-         
+
           echo "Testing WebSocket connection through interceptor..."
           echo "Connecting to ws://keda-add-ons-http-interceptor-proxy.keda:8080/ws with Host: {{.Host}}"
-          
+
           # Test WebSocket connection with Host header
           timeout 30 /usr/local/bin/websocat -H "Host: {{.Host}}" ws://keda-add-ons-http-interceptor-proxy.keda:8080/ws --ping-interval 5 --ping-timeout 10 --text --exit-on-eof <<EOF || echo "WebSocket test completed"
           {"type": "ping", "message": "test connection"}
           EOF
-          
+
           echo "WebSocket curl test completed"
       restartPolicy: Never
   activeDeadlineSeconds: 120

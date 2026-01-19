@@ -27,20 +27,20 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: Add multi-level wildcard host matching for HTTPScaledObject routing ([#281](https://github.com/kedacore/http-add-on/issues/281))
 - **General**: Add environment variables for leader election timing configuration ([#1365](https://github.com/kedacore/http-add-on/pull/1365))
+- **General**: Add multi-level wildcard host matching for HTTPScaledObject routing ([#281](https://github.com/kedacore/http-add-on/issues/281))
 
 ### Improvements
 
 - **General**: Make interceptor request logging optional ([#1375](https://github.com/kedacore/http-add-on/pull/1375))
-- **Interceptor**: Significant performance improvements ([#1403](https://github.com/kedacore/http-add-on/issues/1403))
 - **Interceptor**: Add support for full-duplex HTTP1.1 ([#1386](https://github.com/kedacore/http-add-on/pull/1386))
+- **Interceptor**: Significant performance improvements ([#1403](https://github.com/kedacore/http-add-on/issues/1403))
 
 ### Fixes
 
-- **Operator**: Prevent duplicate Ready conditions in HTTPScaledObject status by matching on Type instead of Reason ([#1390](https://github.com/kedacore/http-add-on/issues/1390))
-- **Operator**: Fix conflict errors when updating HTTPScaledObject status ([#1402](https://github.com/kedacore/http-add-on/issues/1402))
 - **Interceptor**: Decouple connection retry backoff from TCP dial timeout for faster cold starts ([#1385](https://github.com/kedacore/http-add-on/issues/1385))
+- **Operator**: Fix conflict errors when updating HTTPScaledObject status ([#1402](https://github.com/kedacore/http-add-on/issues/1402))
+- **Operator**: Prevent duplicate Ready conditions in HTTPScaledObject status by matching on Type instead of Reason ([#1390](https://github.com/kedacore/http-add-on/issues/1390))
 
 ### Deprecations
 
@@ -48,12 +48,12 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Other
 
-- **General**: Get rid of kube-rbac-proxy ([#1123](https://github.com/kedacore/http-add-on/pull/1369))
 - **General**: Fix Makefile to support spaces in project base path ([#1392](https://github.com/kedacore/http-add-on/issues/1392))
-- **CI**: Replace stale bot with official GitHub Actions stale action
+- **General**: Get rid of kube-rbac-proxy ([#1369](https://github.com/kedacore/http-add-on/pull/1369))
+- **General**: Update OpenTelemetry semconv version to v1.37.0 ([#1407](https://github.com/kedacore/http-add-on/issues/1407))
+- **CI**: Replace stale bot with official GitHub Actions stale action ([#1398](https://github.com/kedacore/http-add-on/issues/1398))
 - **CI**: Use GitHub-hosted ARM64 runners for e2e tests ([#1388](https://github.com/kedacore/http-add-on/issues/1388))
 - **DevContainer**: Fix devcontainer build by updating deprecated Go tools ([#1347](https://github.com/kedacore/http-add-on/issues/1347))
-- **General** update OpenTelemetry semconv version to v1.37.0
 
 ## v0.11.1
 
@@ -70,11 +70,11 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: Add failover service on cold-start ([#1280](https://github.com/kedacore/http-add-on/pull/1280))
 - **General**: Add configurable tracing support to the interceptor proxy ([#1021](https://github.com/kedacore/http-add-on/pull/1021))
-- **General**: Allow using HSO and SO with different names ([#1293](https://github.com/kedacore/http-add-on/issues/1293))
-- **General**: Support profiling for KEDA components ([#4789](https://github.com/kedacore/keda/issues/4789))
+- **General**: Add failover service on cold-start ([#1280](https://github.com/kedacore/http-add-on/pull/1280))
 - **General**: Add possibility to skip TLS verification for upstreams in interceptor ([#1307](https://github.com/kedacore/http-add-on/pull/1307))
+- **General**: Allow using HSO and SO with different names ([#1293](https://github.com/kedacore/http-add-on/issues/1293))
+- **General**: Support profiling for KEDA components ([#1308](https://github.com/kedacore/http-add-on/issues/1308))
 
 ### Improvements
 
@@ -88,9 +88,9 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: Fix infrastructure crashes when deleting ScaledObject while scaling
+- **General**: Fix infrastructure crashes when deleting ScaledObject while scaling ([#1245](https://github.com/kedacore/http-add-on/issues/1245))
 - **General**: Fix kubectl active printcolumn ([#1211](https://github.com/kedacore/http-add-on/issues/1211))
-- **General**: Support InitialCooldownPeriod for HTTPScaledObject [#1213](https://github.com/kedacore/http-add-on/issues/1213)
+- **General**: Support InitialCooldownPeriod for HTTPScaledObject ([#1213](https://github.com/kedacore/http-add-on/issues/1213))
 
 ### Other
 
