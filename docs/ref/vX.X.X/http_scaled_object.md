@@ -63,7 +63,7 @@ These are the paths to apply this scaling rule to. All incoming requests with on
 
 > Default: No headers
 
-To further refine which requests this scaling rule applies to, you can specify a list of HTTP headers. Headers can be specified with or without values—if a value is provided, it must match exactly; if no value is provided, only the header's presence is required. All incoming requests that satisfy these header conditions will be forwarded to the `Service` and port specified in the below `scaleTargetRef`, and that same `scaleTargetRef`'s workload will be scaled accordingly. Most specific matches take precedence over less specific ones.
+To further refine which requests this scaling rule applies to, you can specify a list of HTTP headers. Headers can be specified with or without values - if a value is provided, it must match exactly; if no value is provided, only the header's presence is required. All incoming requests that satisfy these header conditions will be forwarded to the `Service` and port specified in the below `scaleTargetRef`, and that same `scaleTargetRef`'s workload will be scaled accordingly. Most specific matches take precedence over less specific ones. This means that rules with more headers defined will be prioritized over those with fewer headers when multiple rules could apply to a request. Also a match for header with key and value takes precedence over a match for header with only a key.
 
 ## `scaleTargetRef`
 

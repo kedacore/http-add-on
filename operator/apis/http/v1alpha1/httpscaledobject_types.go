@@ -134,8 +134,9 @@ type HTTPScaledObjectTimeoutsSpec struct {
 
 // Header contains the definition for matching on header name and/or value
 type Header struct {
-	Name  string `json:"name"`
-	Value string `json:"value,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Name  string  `json:"name"`
+	Value *string `json:"value,omitempty"`
 }
 
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
@@ -158,6 +159,8 @@ type HTTPScaledObjectSpec struct {
 	// If the headers can't be matched, then use first one without .spec.headers supplied
 	// If that doesn't exist then routing will fail.
 	// +optional
+	// +listType=map
+	// +listMapKey=name
 	Headers []Header `json:"headers,omitempty"`
 	// The name of the deployment to route HTTP requests to (and to autoscale).
 	// Including validation as a requirement to define either the PortName or the Port

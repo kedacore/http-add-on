@@ -99,6 +99,7 @@ spec:
                     name and/or value
                   properties:
                     name:
+                      minLength: 1
                       type: string
                     value:
                       type: string
@@ -106,6 +107,9 @@ spec:
                   - name
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               hosts:
                 description: |-
                   The hosts to route. All requests which the "Host" header

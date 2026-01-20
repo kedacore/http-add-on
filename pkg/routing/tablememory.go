@@ -1,8 +1,9 @@
 package routing
 
 import (
-	"net/textproto"
-	"sort"
+	"net/http"
+	"slices"
+	"strings"
 
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
 
@@ -42,7 +43,7 @@ func (tm *TableMemory) Remember(httpso *httpv1alpha1.HTTPScaledObject) *TableMem
 // Route finds an HTTPScaledObject matching hostname, path and headers.
 // Tries exact match first the hostname, then filter by headers and find the most specific match
 // then it moves to wildcards with similar header matching rule, finally catch-all.
-func (tm *TableMemory) Route(hostname, path string, headers map[string][]string) *httpv1alpha1.HTTPScaledObject {
+func (tm *TableMemory) Route(hostname, path string, headers http.Header) *httpv1alpha1.HTTPScaledObject {
 	// Try exact match
 	key := NewKey(hostname, path)
 	_, httpsoList, _ := tm.store.Root().LongestPrefix(key)
@@ -57,54 +58,43 @@ func (tm *TableMemory) Route(hostname, path string, headers map[string][]string)
 	// Try wildcard matches (most specific to least specific)
 	for _, wildcardName := range wildcardHostnames(hostname) {
 		wildcardKey := NewKey(wildcardName, path)
-		_, httpsoList, _ = tm.store.Root().LongestPrefix(wildcardKey)
-		for _, httpso := range httpsoList {
-			if headersMatch(httpso, headers) {
-				return httpso
-			}
+		if httpso := tm.tryWithKey(wildcardKey, headers); httpso != nil {
+			return httpso
 		}
 	}
 
 	// Try catch-all
 	catchAllKey := NewKey(catchAllHostKey, path)
-	_, httpsoList, _ = tm.store.Root().LongestPrefix(catchAllKey)
+	return tm.tryWithKey(catchAllKey, headers)
+}
+
+// tryWithKey attempts to find an HTTPScaledObject for the given key and headers.
+func (tm *TableMemory) tryWithKey(key Key, headers http.Header) *httpv1alpha1.HTTPScaledObject {
+	_, httpsoList, _ := tm.store.Root().LongestPrefix(key)
 	for _, httpso := range httpsoList {
 		if headersMatch(httpso, headers) {
 			return httpso
 		}
 	}
-
-	// No match found
 	return nil
 }
 
 // headersMatch checks if the provided headers match the HTTPScaledObject's header requirements.
-func headersMatch(httpso *httpv1alpha1.HTTPScaledObject, reqHeaders map[string][]string) bool {
+func headersMatch(httpso *httpv1alpha1.HTTPScaledObject, reqHeaders http.Header) bool {
 	if httpso == nil || len(httpso.Spec.Headers) == 0 {
 		// No header requirements, always match
 		return true
 	}
 
 	for _, hsoHeader := range httpso.Spec.Headers {
-		hsoHeaderName := textproto.CanonicalMIMEHeaderKey(hsoHeader.Name)
-		reqHeaderValues, exists := reqHeaders[hsoHeaderName]
-		if !exists {
+		reqHeaderValues := reqHeaders.Values(hsoHeader.Name)
+		if hsoHeader.Value == nil && len(reqHeaderValues) == 0 {
+			// Required header not present
 			return false
 		}
-		foundMatchingHeaderValue := false
-		if hsoHeader.Value == "" {
-			// Header presence is enough if no value is specified
-			foundMatchingHeaderValue = true
-		} else {
-			// Check for matching header value if specified
-			for _, v := range reqHeaderValues {
-				if hsoHeader.Value == v {
-					foundMatchingHeaderValue = true
-					break
-				}
-			}
-		}
-		if !foundMatchingHeaderValue {
+
+		if hsoHeader.Value != nil && !slices.Contains(reqHeaderValues, *hsoHeader.Value) {
+			// Required header with value not present
 			return false
 		}
 	}
@@ -120,45 +110,37 @@ func remember(store *iradix.Tree[[]*httpv1alpha1.HTTPScaledObject], key Key, htt
 		newStore, _, _ := store.Insert(key, []*httpv1alpha1.HTTPScaledObject{httpso})
 		return newStore
 	}
-	newSlice := make([]*httpv1alpha1.HTTPScaledObject, len(existing))
-	copy(newSlice, existing)
-	existing = newSlice
+	existing = slices.Clone(existing)
 
-	foundHSO := false
-	for i, existingHTTPSO := range existing {
-		if existingHTTPSO.Name == httpso.Name && existingHTTPSO.Namespace == httpso.Namespace {
-			// Update existing entry
-			foundHSO = true
-			existing[i] = httpso
-			break
-		}
-	}
-	if !foundHSO {
+	if i := slices.IndexFunc(existing, func(hi *httpv1alpha1.HTTPScaledObject) bool {
+		return hi.Name == httpso.Name && hi.Namespace == httpso.Namespace
+	}); i != -1 { // Update existing entry
+		existing[i] = httpso
+	} else { // Add new entry
 		existing = append(existing, httpso)
 	}
 
-	sort.Slice(existing, func(i, j int) bool {
+	slices.SortFunc(existing, func(hi, hj *httpv1alpha1.HTTPScaledObject) int {
 		// first by number of headers, more headers first
-		hi, hj := existing[i], existing[j]
 		hih, hjh := len(hi.Spec.Headers), len(hj.Spec.Headers)
 		if hih != hjh {
-			return hih > hjh
+			return hjh - hih
 		}
 		// then by specificity of header values, more specific first
 		specificityI, specificityJ := specificityOfHeaders(hi), specificityOfHeaders(hj)
 		if specificityI != specificityJ {
-			return specificityI > specificityJ
+			return specificityJ - specificityI
 		}
 
 		// then by creation timestamp, older first
-		if !hi.CreationTimestamp.Time.Equal(hj.CreationTimestamp.Time) {
-			return hj.CreationTimestamp.After(hi.CreationTimestamp.Time)
+		if diff := hi.CreationTimestamp.Compare(hj.CreationTimestamp.Time); diff != 0 {
+			return diff
 		}
 		// tiebreaker by namespace/name, lexicographically (descending)
-		if hi.Namespace != hj.Namespace {
-			return hi.Namespace > hj.Namespace
+		if diff := strings.Compare(hi.Namespace, hj.Namespace); diff != 0 {
+			return -diff
 		}
-		return hi.Name > hj.Name
+		return -strings.Compare(hi.Name, hj.Name)
 	})
 
 	newRadix, _, _ := store.Insert(key, existing)
@@ -172,7 +154,7 @@ func specificityOfHeaders(httpso *httpv1alpha1.HTTPScaledObject) int {
 	}
 	specificity := 0
 	for _, header := range httpso.Spec.Headers {
-		if header.Value != "" {
+		if header.Value != nil {
 			specificity++
 		}
 	}

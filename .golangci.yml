@@ -50,7 +50,15 @@ linters:
       - path: pkg/http/
         linters:
           - revive
-        text: "avoid package names that conflict with Go standard library"
+        text: "var-naming: avoid package names that conflict with Go standard library"
+      - linters:
+          - revive
+        text: "var-naming: avoid package names that conflict with Go standard library"
+        path: pkg/net/
+      - linters:
+          - revive
+        text: "var-naming: avoid package names that conflict with Go standard library"
+        path: operator/controllers/http
       # Exclude for utils packages with meaningful package names
       - linters:
           - revive
