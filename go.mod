@@ -1,6 +1,6 @@
 module github.com/kedacore/http-add-on
 
-go 1.24.7
+go 1.25.5
 
 replace (
 	// pin k8s.io to v0.33.5 & sigs.k8s.io/controller-runtime to v0.21.0
