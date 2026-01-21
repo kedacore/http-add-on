@@ -5,6 +5,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 )
@@ -18,7 +19,7 @@ func TestRemember(t *testing.T) {
 
 		tm := NewTableMemory().Remember(httpso)
 
-		route := tm.Route("example.com", "")
+		route := tm.Route("example.com", "", nil)
 		if route == nil {
 			t.Fatal("no route matched")
 		}
@@ -39,7 +40,7 @@ func TestRemember(t *testing.T) {
 
 		tm := NewTableMemory().Remember(httpso1).Remember(httpso2)
 
-		route1 := tm.Route("first.com", "")
+		route1 := tm.Route("first.com", "", nil)
 		if route1 == nil || route1.Name != "first" {
 			name := "<nil>"
 			if route1 != nil {
@@ -47,7 +48,7 @@ func TestRemember(t *testing.T) {
 			}
 			t.Errorf("name=%q, want=%q", name, "first")
 		}
-		route2 := tm.Route("second.com", "")
+		route2 := tm.Route("second.com", "", nil)
 		if route2 == nil || route2.Name != "second" {
 			name := "<nil>"
 			if route2 != nil {
@@ -69,10 +70,10 @@ func TestRemember(t *testing.T) {
 		httpso.Spec.Hosts[0] = "modified.com"
 
 		// Should still route to original host, not modified one
-		if tm.Route("example.com", "") == nil {
+		if tm.Route("example.com", "", nil) == nil {
 			t.Error("expected route for original host")
 		}
-		if tm.Route("modified.com", "") != nil {
+		if tm.Route("modified.com", "", nil) != nil {
 			t.Error("expected no route for modified host")
 		}
 	})
@@ -89,12 +90,46 @@ func TestRemember(t *testing.T) {
 
 		tm := NewTableMemory().Remember(httpso1).Remember(httpso2)
 
-		route := tm.Route("example.com", "")
+		route := tm.Route("example.com", "", nil)
 		if route == nil {
 			t.Fatal("no route matched")
 		}
 		if route.Name != "v2" {
 			t.Errorf("name=%q, want=%q", route.Name, "v2")
+		}
+	})
+
+	t.Run("oldest wins with headers", func(t *testing.T) {
+		now := time.Now()
+		older := &httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "older-with-headers",
+				CreationTimestamp: metav1.NewTime(now.Add(-time.Hour)),
+			},
+			Spec: httpv1alpha1.HTTPScaledObjectSpec{
+				Hosts:   []string{"example.com"},
+				Headers: []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("value")}},
+			},
+		}
+		newer := &httpv1alpha1.HTTPScaledObject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "newer-with-headers",
+				CreationTimestamp: metav1.NewTime(now),
+			},
+			Spec: httpv1alpha1.HTTPScaledObjectSpec{
+				Hosts:   []string{"example.com"},
+				Headers: []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("value")}},
+			},
+		}
+
+		tm := NewTableMemory().Remember(newer).Remember(older)
+
+		route := tm.Route("example.com", "", map[string][]string{"X-Custom-Header": {"value"}})
+		if route == nil {
+			t.Fatal("no route matched")
+		}
+		if route.Name != "older-with-headers" {
+			t.Errorf("name=%q, want=%q", route.Name, "older-with-headers")
 		}
 	})
 }
@@ -121,7 +156,7 @@ func TestRememberOldestWins(t *testing.T) {
 	t.Run("older object wins when added first", func(t *testing.T) {
 		tm := NewTableMemory().Remember(older).Remember(newer)
 
-		route := tm.Route("example.com", "")
+		route := tm.Route("example.com", "", nil)
 		if route == nil {
 			t.Fatal("no route matched")
 		}
@@ -133,12 +168,245 @@ func TestRememberOldestWins(t *testing.T) {
 	t.Run("older object wins when added second", func(t *testing.T) {
 		tm := NewTableMemory().Remember(newer).Remember(older)
 
-		route := tm.Route("example.com", "")
+		route := tm.Route("example.com", "", nil)
 		if route == nil {
 			t.Fatal("no route matched")
 		}
 		if route.Name != "older" {
 			t.Errorf("name=%q, want=%q", route.Name, "older")
+		}
+	})
+}
+
+func TestRouteWithHeaders(t *testing.T) {
+	fooHSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "foo"},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Hosts:        []string{"example.com"},
+			PathPrefixes: []string{"/api/"},
+			Headers:      []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("foo")}},
+		},
+	}
+	differentPathHSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "different-path"},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Hosts:        []string{"example.com"},
+			PathPrefixes: []string{"/other/"},
+			Headers:      []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("foo")}},
+		},
+	}
+	barHSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Hosts:        []string{"example.com"},
+			PathPrefixes: []string{"/api/"},
+			Headers:      []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("bar")}},
+		},
+	}
+	bazHSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "baz"},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			PathPrefixes: []string{"/api/"},
+			Hosts:        []string{"example.com"},
+		},
+	}
+	headerKeyHSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "header-key-only"},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Hosts:        []string{"example.com"},
+			PathPrefixes: []string{"/api/"},
+			Headers:      []httpv1alpha1.Header{{Name: "X-Custom-Header"}},
+		},
+	}
+	manyHeadersHSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "many-headers"},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Hosts:        []string{"example.com"},
+			PathPrefixes: []string{"/api/"},
+			Headers: []httpv1alpha1.Header{
+				{Name: "X-Custom-Header", Value: ptr.To("foo")},
+				{Name: "X-Another-Header", Value: ptr.To("baz")},
+			},
+		},
+	}
+	manyHeadersButKeyOnlyHSO := &httpv1alpha1.HTTPScaledObject{
+		ObjectMeta: metav1.ObjectMeta{Name: "many-headers-but-key-only"},
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Hosts:        []string{"example.com"},
+			PathPrefixes: []string{"/api/"},
+			Headers: []httpv1alpha1.Header{
+				{Name: "X-Custom-Header"},
+				{Name: "X-Another-Header", Value: ptr.To("baz")},
+			},
+		},
+	}
+
+	tm := NewTableMemory().Remember(fooHSO)
+	tm = tm.Remember(differentPathHSO)
+	tm = tm.Remember(barHSO)
+	tm = tm.Remember(bazHSO)
+	tm = tm.Remember(headerKeyHSO)
+	tm = tm.Remember(manyHeadersHSO)
+	tm = tm.Remember(manyHeadersButKeyOnlyHSO)
+
+	tests := []struct {
+		name    string
+		headers map[string][]string
+		path    string
+		want    string // expected Name, or "" for nil
+	}{
+		{
+			name:    "matches foo header",
+			headers: map[string][]string{"X-Custom-Header": {"foo"}},
+			path:    "/api/v1/resource",
+			want:    "foo",
+		},
+		{
+			name:    "matches bar header",
+			headers: map[string][]string{"X-Custom-Header": {"bar"}},
+			path:    "/api/v1/resource",
+			want:    "bar",
+		},
+		{
+			name:    "random headers returns baz (no header match) because it is the most specific",
+			headers: map[string][]string{"X-Other-Header": {"value"}},
+			path:    "/api/v1/resource",
+			want:    "baz",
+		},
+		{
+			name:    "no header returns baz (no header requirement)",
+			headers: map[string][]string{},
+			path:    "/api/v1/resource",
+			want:    "baz",
+		},
+		{
+			name:    "different path returns correct object",
+			headers: map[string][]string{"X-Custom-Header": {"foo"}},
+			path:    "/other/resource",
+			want:    "different-path",
+		},
+		{
+			name:    "header key only matches any value",
+			headers: map[string][]string{"X-Custom-Header": {"any-value"}},
+			path:    "/api/v1/resource",
+			want:    "header-key-only",
+		},
+		{
+			name:    "no match returns nil",
+			headers: map[string][]string{"X-Custom-Header": {"non-matching"}},
+			path:    "/other/resource",
+			want:    "",
+		},
+		{
+			name:    "matches many headers",
+			headers: map[string][]string{"X-Custom-Header": {"foo"}, "X-Another-Header": {"baz"}},
+			path:    "/api/v1/resource",
+			want:    "many-headers",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			route := tm.Route("example.com", tt.path, tt.headers)
+
+			switch {
+			case route == nil && tt.want == "":
+				// ok
+			case route == nil && tt.want != "":
+				t.Errorf("route=nil, want %q", tt.want)
+			case route != nil && tt.want == "":
+				t.Errorf("route=%q, want nil", route.Name)
+			case route != nil && route.Name != tt.want:
+				t.Errorf("route=%q, want %q", route.Name, tt.want)
+			}
+		})
+	}
+}
+
+func TestHeadersMatch(t *testing.T) {
+	httpso := &httpv1alpha1.HTTPScaledObject{
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Headers: []httpv1alpha1.Header{
+				{Name: "X-Required-Header", Value: ptr.To("expected")},
+				{Name: "X-Key-Only-Header"},
+			},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		headers map[string][]string
+		want    bool
+	}{
+		{
+			name:    "matches exact header",
+			headers: map[string][]string{"X-Required-Header": {"expected"}, "X-Key-Only-Header": {"any-value"}},
+			want:    true,
+		},
+		{
+			name:    "missing required but has key-only header",
+			headers: map[string][]string{"X-Key-Only-Header": {"any-value"}},
+			want:    false,
+		},
+		{
+			name:    "missing key-only header",
+			headers: map[string][]string{"X-Required-Header": {"expected"}},
+			want:    false,
+		},
+		{
+			name:    "wrong value for required header",
+			headers: map[string][]string{"X-Required-Header": {"wrong"}, "X-Key-Only-Header": {"any-value"}},
+			want:    false,
+		},
+		{
+			name:    "empty string as value",
+			headers: map[string][]string{"X-Required-Header": {"expected"}, "X-Key-Only-Header": {""}},
+			want:    true,
+		},
+		{
+			name:    "no headers provided",
+			headers: map[string][]string{},
+			want:    false,
+		},
+		{
+			name:    "extra headers provided",
+			headers: map[string][]string{"X-Required-Header": {"expected"}, "X-Key-Only-Header": {"any-value"}, "X-Extra-Header": {"extra"}},
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := headersMatch(httpso, tt.headers)
+			if result != tt.want {
+				t.Errorf("headersMatch()=%v, want=%v", result, tt.want)
+			}
+		})
+	}
+}
+
+func TestHeadersMatchForEmptyHeaderValues(t *testing.T) {
+	httpso := &httpv1alpha1.HTTPScaledObject{
+		Spec: httpv1alpha1.HTTPScaledObjectSpec{
+			Headers: []httpv1alpha1.Header{
+				{Name: "X-Empty-Value-Header", Value: ptr.To("")},
+			},
+		},
+	}
+
+	t.Run("matches empty string header value", func(t *testing.T) {
+		headers := map[string][]string{"X-Empty-Value-Header": {""}}
+		result := headersMatch(httpso, headers)
+		if !result {
+			t.Error("expected headers to match")
+		}
+	})
+
+	t.Run("does not match non-empty string for empty value header", func(t *testing.T) {
+		headers := map[string][]string{"X-Empty-Value-Header": {"non-empty"}}
+		result := headersMatch(httpso, headers)
+		if result {
+			t.Error("expected headers not to match")
 		}
 	})
 }
@@ -207,7 +475,7 @@ func TestRoute(t *testing.T) {
 				tm = tm.Remember(httpso)
 			}
 
-			route := tm.Route(tt.host, tt.path)
+			route := tm.Route(tt.host, tt.path, nil)
 
 			switch {
 			case route == nil && tt.want == "":
@@ -363,7 +631,7 @@ func runRouteTest(t *testing.T, stored []*httpv1alpha1.HTTPScaledObject, reqHost
 		tm = tm.Remember(httpso)
 	}
 
-	route := tm.Route(reqHost, reqPath)
+	route := tm.Route(reqHost, reqPath, nil)
 
 	switch {
 	case route == nil && want == nil:

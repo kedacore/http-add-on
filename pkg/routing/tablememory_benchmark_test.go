@@ -18,7 +18,7 @@ func BenchmarkExactMatch(b *testing.B) {
 		tm := NewTableMemory().Remember(httpso)
 
 		for b.Loop() {
-			tm.Route("foo.example.com", "/api/v1")
+			tm.Route("foo.example.com", "/api/v1", nil)
 		}
 	})
 
@@ -26,7 +26,7 @@ func BenchmarkExactMatch(b *testing.B) {
 		tm := setup100ExactRoutes()
 
 		for b.Loop() {
-			tm.Route("host50.example.com", "/api/v1")
+			tm.Route("host50.example.com", "/api/v1", nil)
 		}
 	})
 }
@@ -40,7 +40,7 @@ func BenchmarkWildcard(b *testing.B) {
 		tm := NewTableMemory().Remember(httpso)
 
 		for b.Loop() {
-			tm.Route("foo.example.com", "/api/v1")
+			tm.Route("foo.example.com", "/api/v1", nil)
 		}
 	})
 
@@ -52,7 +52,7 @@ func BenchmarkWildcard(b *testing.B) {
 		tm := NewTableMemory().Remember(httpso)
 
 		for b.Loop() {
-			tm.Route("a.b.c.example.com", "/api/v1")
+			tm.Route("a.b.c.example.com", "/api/v1", nil)
 		}
 	})
 
@@ -64,7 +64,7 @@ func BenchmarkWildcard(b *testing.B) {
 		tm := NewTableMemory().Remember(httpso)
 
 		for b.Loop() {
-			tm.Route("a.b.c.d.e.example.com", "/api/v1")
+			tm.Route("a.b.c.d.e.example.com", "/api/v1", nil)
 		}
 	})
 
@@ -77,7 +77,7 @@ func BenchmarkWildcard(b *testing.B) {
 		tm = tm.Remember(wildcardHTTPSO)
 
 		for b.Loop() {
-			tm.Route("foo.other.com", "/api/v1")
+			tm.Route("foo.other.com", "/api/v1", nil)
 		}
 	})
 }
@@ -91,7 +91,7 @@ func BenchmarkCatchAll(b *testing.B) {
 		tm := NewTableMemory().Remember(httpso)
 
 		for b.Loop() {
-			tm.Route("unknown.domain.com", "/api/v1")
+			tm.Route("unknown.domain.com", "/api/v1", nil)
 		}
 	})
 
@@ -104,7 +104,7 @@ func BenchmarkCatchAll(b *testing.B) {
 		tm = tm.Remember(catchAllHTTPSO)
 
 		for b.Loop() {
-			tm.Route("unknown.domain.com", "/api/v1")
+			tm.Route("unknown.domain.com", "/api/v1", nil)
 		}
 	})
 }
@@ -118,7 +118,7 @@ func BenchmarkNoMatch(b *testing.B) {
 		tm := NewTableMemory().Remember(httpso)
 
 		for b.Loop() {
-			tm.Route("other.domain.com", "/api/v1")
+			tm.Route("other.domain.com", "/api/v1", nil)
 		}
 	})
 
@@ -126,7 +126,7 @@ func BenchmarkNoMatch(b *testing.B) {
 		tm := setup100ExactRoutes()
 
 		for b.Loop() {
-			tm.Route("unknown.domain.com", "/api/v1")
+			tm.Route("unknown.domain.com", "/api/v1", nil)
 		}
 	})
 }

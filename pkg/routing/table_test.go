@@ -203,7 +203,7 @@ var _ = Describe("Table", func() {
 			Expect(tm).NotTo(BeNil())
 
 			for _, httpso := range httpsoList.Items {
-				ret := tm.Route(httpso.Spec.Hosts[0], "")
+				ret := tm.Route(httpso.Spec.Hosts[0], "", nil)
 				Expect(ret).To(Equal(&httpso))
 			}
 		})
@@ -249,12 +249,12 @@ var _ = Describe("Table", func() {
 			Expect(tm).NotTo(BeNil())
 
 			for _, httpso := range append(httpsoList.Items[1:], httpso) {
-				ret := tm.Route(httpso.Spec.Hosts[0], "")
+				ret := tm.Route(httpso.Spec.Hosts[0], "", nil)
 				Expect(ret).To(Equal(&httpso))
 			}
 
 			// First item was deleted, should not be routable
-			ret := tm.Route(first.Spec.Hosts[0], "")
+			ret := tm.Route(first.Spec.Hosts[0], "", nil)
 			Expect(ret).To(BeNil())
 		})
 
@@ -286,7 +286,7 @@ var _ = Describe("Table", func() {
 			tm := t.newMemoryFromHTTPSOs()
 
 			for _, httpso := range httpsoList.Items {
-				ret := tm.Route(httpso.Spec.Hosts[0], "")
+				ret := tm.Route(httpso.Spec.Hosts[0], "", nil)
 				Expect(ret).To(Equal(&httpso))
 			}
 		})

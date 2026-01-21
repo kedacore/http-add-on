@@ -136,7 +136,7 @@ func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
 
 	hostname := stripPort(req.Host)
 
-	return tm.Route(hostname, req.URL.Path)
+	return tm.Route(hostname, req.URL.Path, req.Header)
 }
 
 func (t *table) HasSynced() bool {

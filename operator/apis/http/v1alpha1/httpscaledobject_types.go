@@ -132,6 +132,13 @@ type HTTPScaledObjectTimeoutsSpec struct {
 	ResponseHeader metav1.Duration `json:"responseHeader" description:"How long to wait between when the HTTP request is sent to the backing app and when response headers need to arrive"`
 }
 
+// Header contains the definition for matching on header name and/or value
+type Header struct {
+	// +kubebuilder:validation:MinLength=1
+	Name  string  `json:"name"`
+	Value *string `json:"value,omitempty"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -145,6 +152,16 @@ type HTTPScaledObjectSpec struct {
 	// the scaleTargetRef.
 	// +optional
 	PathPrefixes []string `json:"pathPrefixes,omitempty"`
+	// The custom headers used to route. Once Hosts and PathPrefixes have been matched,
+	// it will look for requests which have headers that match all the headers defined
+	// in .spec.headers, it will be routed to the Service and Port specified in
+	// the scaleTargetRef. Interceptor will take precedence for most specific header match.
+	// If the headers can't be matched, then use first one without .spec.headers supplied
+	// If that doesn't exist then routing will fail.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Headers []Header `json:"headers,omitempty"`
 	// The name of the deployment to route HTTP requests to (and to autoscale).
 	// Including validation as a requirement to define either the PortName or the Port
 	// +kubebuilder:validation:XValidation:rule="has(self.portName) != has(self.port)",message="must define either the 'portName' or the 'port'"
