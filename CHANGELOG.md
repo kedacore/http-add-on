@@ -23,7 +23,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Operator**: Migrate HTTPScaledObject status conditions to standard `metav1.Condition` type ([#1409](https://github.com/kedacore/http-add-on/issues/1409))
 
 ### New
 

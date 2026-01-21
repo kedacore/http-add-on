@@ -3,6 +3,7 @@ package util
 import (
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -18,26 +19,21 @@ func (HTTPScaledObjectReadyConditionPredicate) Update(e event.UpdateEvent) bool 
 		return false
 	}
 
-	var newReadyCondition, oldReadyCondition v1alpha1.HTTPScaledObjectCondition
-
 	oldObj, ok := e.ObjectOld.(*v1alpha1.HTTPScaledObject)
 	if !ok {
 		return false
 	}
-	oldReadyCondition = oldObj.Status.Conditions.GetReadyCondition()
 
 	newObj, ok := e.ObjectNew.(*v1alpha1.HTTPScaledObject)
 	if !ok {
 		return false
 	}
-	newReadyCondition = newObj.Status.Conditions.GetReadyCondition()
+
+	oldReady := meta.IsStatusConditionTrue(oldObj.Status.Conditions, v1alpha1.ConditionTypeReady)
+	newReady := meta.IsStatusConditionTrue(newObj.Status.Conditions, v1alpha1.ConditionTypeReady)
 
 	// False/Unknown -> True
-	if !oldReadyCondition.IsTrue() && newReadyCondition.IsTrue() {
-		return true
-	}
-
-	return false
+	return !oldReady && newReady
 }
 
 type ScaledObjectSpecChangedPredicate struct {

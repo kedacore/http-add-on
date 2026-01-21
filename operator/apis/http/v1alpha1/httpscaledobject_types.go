@@ -198,8 +198,11 @@ type HTTPScaledObjectStatus struct {
 	// TargetService reflects details about the scaled service.
 	// +optional
 	TargetService string `json:"targetService,omitempty" description:"It reflects details about the scaled service"`
-	// Conditions of the operator
-	Conditions Conditions `json:"conditions,omitempty" description:"List of auditable conditions of the operator"`
+	// Conditions of the HTTPScaledObject.
+	// +listType=map
+	// +listMapKey=type
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty" description:"Represents the current state of the HTTPScaledObject"`
 }
 
 // +genclient
@@ -210,7 +213,7 @@ type HTTPScaledObjectStatus struct {
 // +kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.replicas.min"
 // +kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.replicas.max"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:printcolumn:name="Active",type="string",JSONPath=".status.conditions[?(@.reason==\"HTTPScaledObjectIsReady\")].status"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status"
 // +kubebuilder:resource:shortName=httpso
 // +kubebuilder:subresource:status
 
