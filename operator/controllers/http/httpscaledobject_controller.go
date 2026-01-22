@@ -23,7 +23,8 @@ import (
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -108,6 +109,9 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	// Migrate old-format conditions that would cause status updates to fail
+	httpso.Status.Conditions = MigrateConditions(httpso.Status.Conditions)
+
 	// Create required app objects for the application defined by the CRD
 	err := r.createOrUpdateApplicationResources(
 		ctx,
@@ -119,43 +123,32 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	)
 	// Define the HTTPScaledObject ready condition based on the error
 	if err != nil {
-		SaveStatus(
-			ctx,
-			logger,
-			r.Client,
-			AddOrUpdateCondition(
-				httpso,
-				*SetMessage(
-					CreateCondition(
-						httpv1alpha1.Ready,
-						v1.ConditionFalse,
-						httpv1alpha1.HTTPScaledObjectIsReady,
-					),
-					"Failed to create scaled objects",
-				),
-			),
-		)
 		logger.Error(err, "Failed to create scaled objects")
+
+		meta.SetStatusCondition(&httpso.Status.Conditions, metav1.Condition{
+			Type:               httpv1alpha1.ConditionTypeReady,
+			Status:             metav1.ConditionFalse,
+			ObservedGeneration: httpso.Generation,
+			Reason:             httpv1alpha1.ConditionReasonCreateError,
+			Message:            fmt.Sprintf("Failed to create scaled objects: %v", err),
+		})
+		if statusErr := SaveStatus(ctx, logger, r.Client, httpso); statusErr != nil {
+			logger.Error(statusErr, "Failed to update status")
+		}
 		return ctrl.Result{}, err
 	}
 
-	// TODO: make SaveStatus to return error
-	SaveStatus(
-		ctx,
-		logger,
-		r.Client,
-		AddOrUpdateCondition(
-			httpso,
-			*SetMessage(
-				CreateCondition(
-					httpv1alpha1.Ready,
-					v1.ConditionTrue,
-					httpv1alpha1.HTTPScaledObjectIsReady,
-				),
-				"Finished object creation",
-			),
-		),
-	)
+	meta.SetStatusCondition(&httpso.Status.Conditions, metav1.Condition{
+		Type:               httpv1alpha1.ConditionTypeReady,
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: httpso.Generation,
+		Reason:             httpv1alpha1.ConditionReasonReconciled,
+		Message:            "ScaledObject created and configured",
+	})
+	if err := SaveStatus(ctx, logger, r.Client, httpso); err != nil {
+		logger.Error(err, "Failed to update status")
+		return ctrl.Result{}, err
+	}
 
 	// success reconciling
 	logger.Info("Reconcile success")

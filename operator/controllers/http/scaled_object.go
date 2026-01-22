@@ -6,7 +6,6 @@ import (
 	"github.com/go-logr/logr"
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -75,33 +74,10 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateScaledObject(
 				return err
 			}
 		} else {
-			AddOrUpdateCondition(
-				httpso,
-				*SetMessage(
-					CreateCondition(
-						httpv1alpha1.Ready,
-						v1.ConditionFalse,
-						httpv1alpha1.ErrorCreatingAppScaledObject,
-					),
-					err.Error(),
-				),
-			)
-
 			logger.Error(err, "Creating ScaledObject")
 			return err
 		}
 	}
 
-	AddOrUpdateCondition(
-		httpso,
-		*SetMessage(
-			CreateCondition(
-				httpv1alpha1.Ready,
-				v1.ConditionTrue,
-				httpv1alpha1.AppScaledObjectCreated,
-			),
-			"App ScaledObject created",
-		),
-	)
 	return nil
 }
