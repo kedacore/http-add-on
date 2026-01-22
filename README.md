@@ -17,6 +17,10 @@
 
 <p style="font-size: 25px" align="center"><b>Kubernetes-based Event Driven Autoscaling - HTTP Add-on</b></p>
 <p style="font-size: 25px" align="center">
+<a href="https://github.com/kedacore/http-add-on/actions/workflows/e2e-tests.yaml"><img src="https://github.com/kedacore/http-add-on/actions/workflows/e2e-tests.yaml/badge.svg?branch=main" alt="e2e"></a>
+<a href="https://app.fossa.com/projects/custom%2B162%2Fgithub.com%2Fkedacore%2Fhttp-add-on?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/custom%2B162%2Fgithub.com%2Fkedacore%2Fhttp-add-on.svg?type=shield"/></a>
+<a href="https://twitter.com/kedaorg"><img src="https://img.shields.io/twitter/follow/kedaorg?style=social" alt="Twitter"></a></p>
+
 
 The KEDA HTTP Add-on allows Kubernetes users to automatically scale their HTTP servers up and down (including to/from zero) based on incoming HTTP traffic. Please see our [use cases document](./docs/use_cases.md) to learn more about how and why you would use this project.
 
