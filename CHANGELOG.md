@@ -79,6 +79,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
+- **General**: License compliance monitored with FOSSA ([#1423](https://github.com/kedacore/http-add-on/pull/1423))
 - **Interceptor**: Support HTTPScaledObject scoped timeout ([#813](https://github.com/kedacore/http-add-on/issues/813))
 
 ### Other
