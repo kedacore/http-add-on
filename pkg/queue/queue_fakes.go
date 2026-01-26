@@ -84,7 +84,9 @@ func (f *FakeCounter) EnsureKey(host string, _, _ time.Duration) {
 	}
 }
 
-func (f *FakeCounter) UpdateBuckets(_ string, _, _ time.Duration) {}
+func (f *FakeCounter) UpdateBuckets(host string, window, granularity time.Duration) {
+	f.EnsureKey(host, window, granularity)
+}
 
 func (f *FakeCounter) RemoveKey(host string) bool {
 	f.mapMut.Lock()

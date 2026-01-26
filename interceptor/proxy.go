@@ -8,10 +8,10 @@ import (
 
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/middleware"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
@@ -24,7 +24,7 @@ type ProxyHandlerConfig struct {
 	WaitFunc     forwardWaitFunc
 	RoutingTable routing.Table
 	ProbeHandler http.Handler
-	ServiceCache k8s.ServiceCache
+	Reader       client.Reader
 	Timeouts     config.Timeouts
 	Serving      config.Serving
 	TLSConfig    *tls.Config
@@ -85,7 +85,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		cfg.RoutingTable,
 		cfg.ProbeHandler,
 		handler,
-		cfg.ServiceCache,
+		cfg.Reader,
 		cfg.TLSConfig != nil,
 	)
 

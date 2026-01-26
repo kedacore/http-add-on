@@ -151,16 +151,12 @@ release: manifests kustomize ## Produce new KEDA Http Add-on release in keda-add
 
 # Development
 
-generate: codegen mockgen manifests  ## Generate code, manifests, and mocks.
+generate: codegen manifests  ## Generate code and manifests.
 
-verify: verify-codegen verify-mockgen verify-manifests ## Verify code, manifests, and mocks.
+verify: verify-manifests ## Verify manifests.
 
-codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+codegen: controller-gen ## Generate DeepCopy method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
-	./hack/update-codegen.sh
-
-verify-codegen: ## Verify code is up to date.
-	./hack/verify-codegen.sh
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	"$(CONTROLLER_GEN)" crd rbac:roleName='operator' webhook paths='./operator/...' output:crd:artifacts:config='config/crd/bases' output:rbac:artifacts:config='config/operator'
@@ -177,13 +173,6 @@ sign-images: ## Sign KEDA images published on GitHub Container Registry
 	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_INTERCEPTOR_SHA_TAG)
 	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_SCALER_VERSIONED_TAG)
 	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_SCALER_SHA_TAG)
-
-.PHONY: mockgen-gen
-mockgen-gen: mockgen ## Generate mock implementations of Go interfaces.
-	./hack/update-mockgen.sh
-
-verify-mockgen: ## Verify mocks are up to date.
-	./hack/verify-mockgen.sh
 
 fmt: ## Run go fmt against code.
 	go fmt ./...

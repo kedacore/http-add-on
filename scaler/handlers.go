@@ -15,9 +15,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
+	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -38,19 +40,19 @@ func init() {
 }
 
 type impl struct {
-	lggr           logr.Logger
-	pinger         *queuePinger
-	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer
-	targetMetric   int64
+	lggr         logr.Logger
+	pinger       *queuePinger
+	reader       client.Reader
+	targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(lggr logr.Logger, pinger *queuePinger, httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer, defaultTargetMetric int64) *impl {
+func newImpl(lggr logr.Logger, pinger *queuePinger, reader client.Reader, defaultTargetMetric int64) *impl {
 	return &impl{
-		lggr:           lggr,
-		pinger:         pinger,
-		httpsoInformer: httpsoInformer,
-		targetMetric:   defaultTargetMetric,
+		lggr:         lggr,
+		pinger:       pinger,
+		reader:       reader,
+		targetMetric: defaultTargetMetric,
 	}
 }
 
@@ -110,7 +112,7 @@ func (e *impl) StreamIsActive(scaledObject *externalscaler.ScaledObjectRef, serv
 	}
 }
 
-func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.GetMetricSpecResponse, error) {
+func (e *impl) GetMetricSpec(ctx context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.GetMetricSpecResponse, error) {
 	lggr := e.lggr.WithName("GetMetricSpec")
 
 	scalerMetadata := sor.GetScalerMetadata()
@@ -128,8 +130,8 @@ func (e *impl) GetMetricSpec(_ context.Context, sor *externalscaler.ScaledObject
 		return nil, err
 	}
 
-	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(httpScaledObjectName)
-	if err != nil {
+	httpso := &httpv1alpha1.HTTPScaledObject{}
+	if err := e.reader.Get(ctx, types.NamespacedName{Namespace: sor.Namespace, Name: httpScaledObjectName}, httpso); err != nil {
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
 		return nil, err
 	}
@@ -179,7 +181,7 @@ func (e *impl) interceptorMetricSpec(metricName string, interceptorTargetPending
 	return res, nil
 }
 
-func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMetricsRequest) (*externalscaler.GetMetricsResponse, error) {
+func (e *impl) GetMetrics(ctx context.Context, metricRequest *externalscaler.GetMetricsRequest) (*externalscaler.GetMetricsResponse, error) {
 	lggr := e.lggr.WithName("GetMetrics")
 	sor := metricRequest.ScaledObjectRef
 
@@ -198,8 +200,8 @@ func (e *impl) GetMetrics(_ context.Context, metricRequest *externalscaler.GetMe
 		return nil, err
 	}
 
-	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(httpScaledObjectName)
-	if err != nil {
+	httpso := &httpv1alpha1.HTTPScaledObject{}
+	if err := e.reader.Get(ctx, types.NamespacedName{Namespace: sor.Namespace, Name: httpScaledObjectName}, httpso); err != nil {
 		lggr.Error(err, "unable to get HTTPScaledObject", "name", httpScaledObjectName, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
 		return nil, err
 	}
