@@ -7,18 +7,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"maps"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 	k8sinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -393,7 +394,7 @@ func getTLSConfig(tlsConfig map[string]interface{}, logger logr.Logger) (*tls.Co
 		}
 		return nil, fmt.Errorf("no certificate found for %s", hello.ServerName)
 	}
-	servingTLS.Certificates = maps.Values(uriDomainsToCerts)
+	servingTLS.Certificates = slices.Collect(maps.Values(uriDomainsToCerts))
 	return servingTLS, nil
 }
 
