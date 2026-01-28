@@ -11,7 +11,7 @@ The HTTP Add-on is highly modular and, as expected, builds on top of KEDA core. 
 
 Both KEDA and the HTTP Add-on can be installed in either cluster-global or namespaced mode. In the former case, your `ScaledObject`s and `HTTPScaledObject`s (respectively) can be installed in any namespace, and one installation will detect and process it. In the latter case, you must install your `ScaledObject`s and `HTTPScaledObject`s in a specific namespace.
 
-You have the option of installing KEDA and the HTTP Add-on in either mode, but if you install one as cluster-global, the other must also be cluster-global. Similarly, if you install one as namespaced, the also must also be namespaced in the same namespace.
+You have the option of installing KEDA and the HTTP Add-on in either mode, but if you install one as cluster-global, the other must also be cluster-global. Similarly, if you install one as namespaced, the other must also be namespaced in the same namespace.
 ## Installing KEDA
 
 Before you install any of these components, you need to install KEDA. Below are simplified instructions for doing so with [Helm](https://helm.sh), but if you need anything more customized, please see the [official KEDA deployment documentation](https://keda.sh/docs/2.0/deploy/). If you need to install Helm, refer to the [installation guide](https://helm.sh/docs/intro/install/).
@@ -33,7 +33,7 @@ The Helm chart for this project is within KEDA's default helm repository at [ked
 ```console
 helm install http-add-on kedacore/keda-add-ons-http --namespace ${NAMESPACE}
 ```
->The above command installed the HTTP Add-on in cluster-global mode. Add `--set operator.watchNamespace=<target namespace>` to install the HTTP Add-on in namepaced mode. If you do this, you must also install KEDA in namespaced mode and use the same target namespace.
+>The above command installed the HTTP Add-on in cluster-global mode. Add `--set operator.watchNamespace=<target namespace>` to install the HTTP Add-on in namespaced mode. If you do this, you must also install KEDA in namespaced mode and use the same target namespace.
 
 >Installing the HTTP Add-on won't affect any running workloads in your cluster. You'll need to install an `HTTPScaledObject` for each individual `Deployment` you want to scale. For more on how to do that, please see the [walkthrough](./walkthrough.md).
 
@@ -75,7 +75,8 @@ helm upgrade kedahttp ./charts/keda-add-ons-http \
 
 | HTTP Add-On version | KEDA version      | Kubernetes version |
 |---------------------|-------------------|--------------------|
-| main                | v2.18             | v1.31 - v1.33      |
+| main                | v2.18             | v1.33 - v1.35      |
+| 0.12.0              | v2.18             | v1.33 - v1.35      |
 | 0.11.1              | v2.18             | v1.31 - v1.33      |
 | 0.11.0              | v2.17             | v1.31 - v1.33      |
 | 0.10.0              | v2.16             | v1.20 - v1.32      |

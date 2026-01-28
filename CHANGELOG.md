@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.12.0](#v0120)
 - [v0.11.1](#v0111)
 - [v0.11.0](#v0110)
 - [v0.10.0](#v0100)
@@ -20,6 +21,32 @@ This changelog keeps track of work items that have been completed and are ready 
 - [v0.5.0](#v050)
 
 ## Unreleased
+
+### Breaking Changes
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### New
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Improvements
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Fixes
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.12.0
 
 ### Breaking Changes
 
@@ -45,7 +72,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Deprecations
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+None
 
 ### Other
 

@@ -82,7 +82,7 @@ This is the port to route to on the service that you specified in the `service` 
 
 ### `portName`
 
-Alternatively, the port can be referenced using it's `name` as defined in the `Service`.
+Alternatively, the port can be referenced using its `name` as defined in the `Service`.
 
 ### `scaledownPeriod`
 
@@ -101,9 +101,9 @@ This is the second most important part of the `spec` because it describes how th
 
 This section enables scaling based on the request rate.
 
-> **NOTE**: Requests information is stored in memory, aggragating long periods (longer than 5 minutes) or too fine granularity (less than 1 second) could produce perfomance issues or memory usage increase.
+> **NOTE**: Requests information is stored in memory, aggregating long periods (longer than 5 minutes) or too fine granularity (less than 1 second) could produce performance issues or memory usage increase.
 
-> **NOTE 2**: Although updating `window` and/or `granularity` is something doable, the process just replaces all the stored request count infomation. This can produce unexpected scaling behaviours until the window is populated again.
+> **NOTE 2**: Although updating `window` and/or `granularity` is something doable, the process just replaces all the stored request count information. This can produce unexpected scaling behaviours until the window is populated again.
 
 #### `targetValue`
 
@@ -121,7 +121,7 @@ This value defines the aggregation window for the request rate calculation.
 
 >Default: "1s"
 
-This value defines the granualarity of the aggregated requests for the request rate calculation.
+This value defines the granularity of the aggregated requests for the request rate calculation.
 
 ### `concurrency`
 

@@ -7,8 +7,8 @@
 1. **Proxy Service in Virtual Service:**
 
    - Within the Istio virtual service definition, add a proxy service as a route destination.
-   - Set the host of this proxy service to `keda-add-ons-http-interceptor-proxy`` (the KEDA HTTP Addon interceptor service).
-   - Set the port to `8080`` (the default interceptor port).
+   - Set the host of this proxy service to `keda-add-ons-http-interceptor-proxy` (the KEDA HTTP Addon interceptor service).
+   - Set the port to `8080` (the default interceptor port).
 
 **Example yaml**
 
@@ -42,7 +42,7 @@ spec:
 
    - This error indicates that the `KEDA_CONDITION_WAIT_TIMEOUT` value (default: 20 seconds) might be too low. The workload scaling process may not be complete within this timeframe.
    - To increase the timeout:
-     - If using Helm, adjust the `interceptor.replicas.waitTimeout`` parameter (see reference below).
+     - If using Helm, adjust the `interceptor.replicas.waitTimeout` parameter (see reference below).
      - Reference: [https://github.com/kedacore/charts/blob/main/http-add-on/values.yaml#L139](https://github.com/kedacore/charts/blob/main/http-add-on/values.yaml#L139)
 
 2. **502 Errors with POST Requests:**
