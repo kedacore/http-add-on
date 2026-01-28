@@ -82,7 +82,7 @@ This is the port to route to on the service that you specified in the `service` 
 
 ### `portName`
 
-Alternatively, the port can be referenced using it's `name` as defined in the `Service`.
+Alternatively, the port can be referenced using its `name` as defined in the `Service`.
 
 ### `scaledownPeriod`
 

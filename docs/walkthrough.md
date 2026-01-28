@@ -4,7 +4,7 @@ After you've installed KEDA and the HTTP Add-on (this project, we'll call it the
 
 If you haven't installed KEDA and the HTTP Add-on (this project), please do so first. Follow instructions [install.md](./install.md) to complete your installation.
 
->Before you continue, make sure that you have your `NAMESPACE` environment variable set to the same value as it was when you installed.
+> Before you continue, make sure that you have your `NAMESPACE` environment variable set to the same value as it was when you installed.
 
 ## Creating An Application
 
@@ -15,6 +15,7 @@ helm install xkcd ./examples/xkcd -n ${NAMESPACE}
 ```
 
 #### xkcd exposed with GatewayAPI
+
 Alternatively if you'd like to try the addon along with GatewayAPI, you can install first GatewayAPI CRDs and some GatewayAPI implementation, for example as described in a [section below](#installing-and-using-the-eg-gatewayapi) and install the application as with `httproute=true` which will deploy properly configured `HTTPRoute` too.
 
 ```console
@@ -23,19 +24,19 @@ helm install xkcd ./examples/xkcd -n ${NAMESPACE} --set httproute=true
 
 You'll need to clone the repository to get access to this chart. If you have your own workload and `Service` installed, you can go right to creating an `HTTPScaledObject` in the next section.
 
->If you are running KEDA and the HTTP Add-on in cluster-global mode, you can install the XKCD chart in any namespace you choose. If you do so, make sure you add `--set ingressNamespace=${NAMESPACE}` to the above installation command.
+> If you are running KEDA and the HTTP Add-on in cluster-global mode, you can install the XKCD chart in any namespace you choose. If you do so, make sure you add `--set ingressNamespace=${NAMESPACE}` to the above installation command.
 
->To remove the app, run `helm delete xkcd -n ${NAMESPACE}`
+> To remove the app, run `helm delete xkcd -n ${NAMESPACE}`
 
 ## Creating an `HTTPScaledObject`
 
 You interact with the operator via a CRD called `HTTPScaledObject`. This CRD object instructs interceptors to forward requests for a given host to your app's backing `Service`. To get an example app up and running, read the notes below and then run the subsequent command from the root of this repository.
 
 ```console
-kubectl apply -n $NAMESPACE -f examples/v0.11.1/httpscaledobject.yaml
+kubectl apply -n $NAMESPACE -f examples/v0.12.0/httpscaledobject.yaml
 ```
 
->If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.11.1/http_scaled_object.md).
+> If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](./ref/v0.12.0/http_scaled_object.md).
 
 ## Testing Your Installation
 
@@ -69,26 +70,31 @@ helm install ingress-nginx ingress-nginx/ingress-nginx -n ${NAMESPACE}
 
 An [`Ingress`](https://kubernetes.io/docs/concepts/services-networking/ingress/) resource was already created as part of the [xkcd chart](../examples/xkcd/templates/ingress.yaml), so the installed NGINX ingress controller will initialize, detect the `Ingress`, and begin routing to the xkcd interceptor `Service`.
 
->NOTE: You may have to create an external service `type: ExternalName` pointing to the interceptor namespace and use it from `Ingress` manifest.
+> NOTE: You may have to create an external service `type: ExternalName` pointing to the interceptor namespace and use it from `Ingress` manifest.
 
 When you're ready, please run `kubectl get svc -n ${NAMESPACE}`, find the `ingress-nginx-controller` service, and copy and paste its `EXTERNAL-IP`. This is the IP address that your application will be running at on the public internet.
 
->Note: you should go further and set your DNS records appropriately and set up a TLS certificate for this IP address. Instructions to do that are out of scope of this document, though.
+> Note: you should go further and set your DNS records appropriately and set up a TLS certificate for this IP address. Instructions to do that are out of scope of this document, though.
 
 #### Installing and Using the [eg](https://gateway.envoyproxy.io/latest/install/install-helm/) GatewayAPI
 
-Similarly to exposing your service with `Ingress`, you can expose your service with `HTTPRoute` as part of [GatewayAPI](https://github.com/kubernetes-sigs/gateway-api). Following steps describe how to install one of may GatewayAPI implementations - Envoy Gateway.
+Similarly to exposing your service with `Ingress`, you can expose your service with `HTTPRoute` as part of [GatewayAPI](https://github.com/kubernetes-sigs/gateway-api). Following steps describe how to install one of many GatewayAPI implementations - Envoy Gateway.
 You should install the `xkcd` helm chart with `--set httproute=true` as [explained above](#xkcd-exposed-with-gatewayapi).
 
-The helm chart is publically available and hosted by DockerHub
+The helm chart is publicly available and hosted by DockerHub
+
 ```console
 helm install eg oci://docker.io/envoyproxy/gateway-helm --version v1.0.2 -n envoy-gateway-system --create-namespace
 ```
+
 Before creating new `Gateway`, wait for Envoy Gateway to become available
+
 ```console
 kubectl wait --timeout=5m -n envoy-gateway-system deployment/envoy-gateway --for=condition=Available
 ```
+
 Create `GatewayClass` and `Gateway`
+
 ```console
 cat << 'EOF' | kubectl apply -f -
 apiVersion: gateway.networking.k8s.io/v1
@@ -114,14 +120,18 @@ spec:
           from: All
 EOF
 ```
+
 > 💡 Note the `ExternalName` type `Service` used to route traffic from `Ingress` defined in one namespace to the interceptor `Service` defined in another is not necessary with GatewayAPI.
 > The GatewayAPI defines [`ReferenceGrant`](https://gateway-api.sigs.k8s.io/api-types/referencegrant/) to allow `HTTPRoutes` referencing `Services` and other types of backend from different `Namespaces`.
 
 You can see the IP address for following rest of the document with
+
 ```console
 kubectl get gateway -n envoy-gateway-system
 ```
+
 For example (your IP will likely differ)
+
 ```
 NAME   CLASS   ADDRESS          PROGRAMMED   AGE
 eg     eg      172.24.255.201   True         16s
@@ -137,7 +147,7 @@ Regardless, you can use the below `curl` command to make a request to your appli
 curl -H "Host: myhost.com" <Your IP>/test
 ```
 
->Note the `-H` flag above to specify the `Host` header. This is needed to tell the interceptor how to route the request. If you have a DNS name set up for the IP, you don't need this header.
+> Note the `-H` flag above to specify the `Host` header. This is needed to tell the interceptor how to route the request. If you have a DNS name set up for the IP, you don't need this header.
 
 You can also use port-forward to interceptor service for making the request:
 
@@ -148,7 +158,7 @@ curl -H "Host: myhost.com" localhost:8080/test
 
 ### Integrating HTTP Add-On Scaler with other KEDA scalers
 
-For scenerios where you want to integrate HTTP Add-On scaler with other keda scalers, you can set the `"httpscaledobject.keda.sh/skip-scaledobject-creation"` annotation to true on your `HTTPScaledObject`.  The reconciler will then skip the KEDA core ScaledObject creation which will allow you to create your own `ScaledObject` and add HTTP scaler as one of your triggers.
+For scenarios where you want to integrate HTTP Add-On scaler with other keda scalers, you can set the `"httpscaledobject.keda.sh/skip-scaledobject-creation"` annotation to true on your `HTTPScaledObject`. The reconciler will then skip the KEDA core ScaledObject creation which will allow you to create your own `ScaledObject` and add HTTP scaler as one of your triggers.
 
 > 💡 Ensure that your ScaledObject is created with a different name than the `HTTPScaledObject` to ensure your ScaledObject is not removed by the reconciler.
 
@@ -181,6 +191,5 @@ annotations:
 ```
 
 4. Add the `external-push` trigger taken from step 2 to your own ScaledObject and apply this.
-
 
 [Go back to landing page](./)
