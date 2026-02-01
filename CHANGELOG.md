@@ -28,8 +28,9 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **General**: Add custom placeholder pages for scale-from-zero scenarios ([#874](https://github.com/kedacore/http-add-on/issues/874))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
 ### Improvements
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
