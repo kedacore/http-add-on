@@ -5,7 +5,9 @@ package placeholderpages_test
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes"
@@ -134,6 +136,18 @@ spec:
 
 	// Test plain text placeholder
 	testPlainTextPlaceholder(t, kc, data)
+
+	// Test placeholder disabled (backward compatibility)
+	testPlaceholderDisabled(t, kc, data)
+
+	// Test timestamp template variable
+	testTimestampTemplateVariable(t, kc, data)
+
+	// Test request ID template variable
+	testRequestIDTemplateVariable(t, kc, data)
+
+	// Test transition from placeholder to real service
+	testPlaceholderToRealServiceTransition(t, kc, data)
 }
 
 func testPlaceholderResponse(t *testing.T, kc *kubernetes.Clientset) {
@@ -350,4 +364,287 @@ spec:
 	// Verify it's plain text (no HTML tags)
 	assert.NotContains(t, stdout, "<html>", "should NOT have HTML tags")
 	assert.NotContains(t, stdout, "<body>", "should NOT have body tag")
+}
+
+func testPlaceholderDisabled(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+	t.Log("--- testing placeholder disabled (backward compatibility) ---")
+
+	// HTTPScaledObject WITHOUT placeholderConfig - should NOT return placeholder header
+	disabledTemplate := `
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: {{.TestName}}-disabled
+  namespace: {{.TestNamespace}}
+spec:
+  hosts:
+  - {{.TestName}}-disabled.test
+  scaleTargetRef:
+    name: {{.TestName}}
+    service: {{.TestName}}
+    port: 80
+  replicas:
+    min: 0
+    max: 10
+  scaledownPeriod: 10
+`
+
+	KubectlApplyWithTemplate(t, data, "disabled-placeholder", disabledTemplate)
+	defer KubectlDeleteWithTemplate(t, data, "disabled-placeholder", disabledTemplate)
+
+	// Make request with short timeout - should either timeout or get gateway timeout
+	// The key assertion is that there's NO X-Keda-Http-Placeholder-Served header
+	curlCmd := fmt.Sprintf("curl -si --max-time 3 -H 'Host: %s-disabled.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
+	stdout, _, _ := ExecCommandOnSpecificPod(t, "curl-client", testNamespace, curlCmd)
+	stdout = RemoveANSI(stdout)
+	t.Logf("Disabled placeholder output: %s", stdout)
+
+	// Verify NO placeholder header - this confirms backward compatibility
+	// Without placeholderConfig, the interceptor should NOT serve a placeholder
+	assert.NotContains(t, stdout, "X-Keda-Http-Placeholder-Served",
+		"should NOT have placeholder header when placeholderConfig is not set")
+}
+
+func testTimestampTemplateVariable(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+	t.Log("--- testing timestamp template variable ---")
+
+	timestampTemplate := `
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: {{.TestName}}-timestamp
+  namespace: {{.TestNamespace}}
+spec:
+  hosts:
+  - {{.TestName}}-timestamp.test
+  scaleTargetRef:
+    name: {{.TestName}}
+    service: {{.TestName}}
+    port: 80
+  replicas:
+    min: 0
+    max: 10
+  scaledownPeriod: 10
+  placeholderConfig:
+    enabled: true
+    statusCode: 503
+    refreshInterval: 5
+    headers:
+      Content-Type: "application/json"
+    content: |
+      {
+        "status": "warming_up",
+        "timestamp": "{{ "{{" }} .Timestamp {{ "}}" }}"
+      }
+`
+
+	KubectlApplyWithTemplate(t, data, "timestamp-placeholder", timestampTemplate)
+	defer KubectlDeleteWithTemplate(t, data, "timestamp-placeholder", timestampTemplate)
+
+	// Record time before request
+	beforeRequest := time.Now().Add(-time.Second)
+
+	// Make request to timestamp placeholder
+	curlCmd := fmt.Sprintf("curl -si -H 'Host: %s-timestamp.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
+	stdout, stderr, err := ExecCommandOnSpecificPod(t, "curl-client", testNamespace, curlCmd)
+	stdout = RemoveANSI(stdout)
+	t.Logf("Timestamp placeholder output: %s", stdout)
+	if stderr != "" {
+		t.Logf("Timestamp placeholder stderr: %s", stderr)
+	}
+
+	// Record time after request
+	afterRequest := time.Now().Add(time.Second)
+
+	assert.NoError(t, err, "curl command should succeed")
+	assert.Contains(t, stdout, "HTTP/1.1 503", "should return 503 status")
+	assert.Contains(t, stdout, "X-Keda-Http-Placeholder-Served", "should have placeholder header")
+
+	// Extract timestamp from response using regex for RFC3339 format
+	// RFC3339 format: 2006-01-02T15:04:05Z07:00
+	timestampRegex := regexp.MustCompile(`"timestamp":\s*"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[Z+-][^"]*)"`)
+	matches := timestampRegex.FindStringSubmatch(stdout)
+	assert.NotEmpty(t, matches, "should contain a timestamp in RFC3339 format")
+
+	if len(matches) > 1 {
+		parsedTime, err := time.Parse(time.RFC3339, matches[1])
+		assert.NoError(t, err, "timestamp should be valid RFC3339")
+		assert.True(t, parsedTime.After(beforeRequest), "timestamp should be after request start")
+		assert.True(t, parsedTime.Before(afterRequest), "timestamp should be before request end")
+		t.Logf("Parsed timestamp: %v", parsedTime)
+	}
+}
+
+func testRequestIDTemplateVariable(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+	t.Log("--- testing request ID template variable ---")
+
+	requestIDTemplate := `
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: {{.TestName}}-requestid
+  namespace: {{.TestNamespace}}
+spec:
+  hosts:
+  - {{.TestName}}-requestid.test
+  scaleTargetRef:
+    name: {{.TestName}}
+    service: {{.TestName}}
+    port: 80
+  replicas:
+    min: 0
+    max: 10
+  scaledownPeriod: 10
+  placeholderConfig:
+    enabled: true
+    statusCode: 503
+    refreshInterval: 5
+    headers:
+      Content-Type: "text/plain"
+    content: "Request ID: {{ "{{" }} .RequestID {{ "}}" }}"
+`
+
+	KubectlApplyWithTemplate(t, data, "requestid-placeholder", requestIDTemplate)
+	defer KubectlDeleteWithTemplate(t, data, "requestid-placeholder", requestIDTemplate)
+
+	// Make request with custom X-Request-ID header
+	testRequestID := "test-request-id-12345"
+	curlCmd := fmt.Sprintf("curl -si -H 'Host: %s-requestid.test' -H 'X-Request-ID: %s' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName, testRequestID)
+	stdout, stderr, err := ExecCommandOnSpecificPod(t, "curl-client", testNamespace, curlCmd)
+	stdout = RemoveANSI(stdout)
+	t.Logf("Request ID placeholder output: %s", stdout)
+	if stderr != "" {
+		t.Logf("Request ID placeholder stderr: %s", stderr)
+	}
+
+	assert.NoError(t, err, "curl command should succeed")
+	assert.Contains(t, stdout, "HTTP/1.1 503", "should return 503 status")
+	assert.Contains(t, stdout, "X-Keda-Http-Placeholder-Served", "should have placeholder header")
+	assert.Contains(t, stdout, testRequestID, "should contain the custom request ID in response body")
+	assert.Contains(t, stdout, "Request ID: "+testRequestID, "should have the exact request ID format")
+}
+
+func testPlaceholderToRealServiceTransition(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+	t.Log("--- testing transition from placeholder to real service ---")
+
+	transitionTemplate := `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.TestName}}-transition
+  namespace: {{.TestNamespace}}
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: {{.TestName}}-transition
+  template:
+    metadata:
+      labels:
+        app: {{.TestName}}-transition
+    spec:
+      containers:
+      - name: {{.TestName}}-transition
+        image: registry.k8s.io/e2e-test-images/agnhost:2.45
+        args: ["netexec"]
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.TestName}}-transition
+  namespace: {{.TestNamespace}}
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: {{.TestName}}-transition
+---
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: {{.TestName}}-transition
+  namespace: {{.TestNamespace}}
+spec:
+  hosts:
+  - {{.TestName}}-transition.test
+  scaleTargetRef:
+    name: {{.TestName}}-transition
+    service: {{.TestName}}-transition
+    port: 80
+  replicas:
+    min: 0
+    max: 10
+  scaledownPeriod: 300
+  placeholderConfig:
+    enabled: true
+    statusCode: 503
+    refreshInterval: 5
+    headers:
+      Content-Type: "text/plain"
+    content: "Service is starting..."
+`
+
+	KubectlApplyWithTemplate(t, data, "transition-placeholder", transitionTemplate)
+	defer KubectlDeleteWithTemplate(t, data, "transition-placeholder", transitionTemplate)
+
+	// Step 1: Verify placeholder response while scaled to 0
+	t.Log("Step 1: Verify placeholder response while scaled to 0")
+	curlCmd := fmt.Sprintf("curl -si -H 'Host: %s-transition.test' http://keda-add-ons-http-interceptor-proxy.keda:8080/", testName)
+	stdout, _, err := ExecCommandOnSpecificPod(t, "curl-client", testNamespace, curlCmd)
+	stdout = RemoveANSI(stdout)
+	t.Logf("Placeholder response (scaled to 0): %s", stdout)
+
+	assert.NoError(t, err, "curl command should succeed")
+	assert.Contains(t, stdout, "X-Keda-Http-Placeholder-Served", "should have placeholder header when scaled to 0")
+	assert.Contains(t, stdout, "Service is starting", "should have placeholder content")
+
+	// Step 2: Scale deployment to 1 replica
+	t.Log("Step 2: Scaling deployment to 1 replica")
+	KubectlApplyWithTemplate(t, data, "scale-up", fmt.Sprintf(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: %s-transition
+  namespace: %s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: %s-transition
+  template:
+    metadata:
+      labels:
+        app: %s-transition
+    spec:
+      containers:
+      - name: %s-transition
+        image: registry.k8s.io/e2e-test-images/agnhost:2.45
+        args: ["netexec"]
+        ports:
+        - containerPort: 8080
+`, testName, testNamespace, testName, testName, testName))
+
+	// Step 3: Wait for pod to be ready
+	t.Log("Step 3: Waiting for deployment pod to be ready")
+	assert.True(t, WaitForPodCountInNamespace(t, kc, testNamespace, 2, 120, 2),
+		"should have 2 pods (curl + service)")
+	assert.True(t, WaitForAllPodRunningInNamespace(t, kc, testNamespace, 120, 2),
+		"all pods should be running")
+
+	// Give some time for the routing table to update
+	time.Sleep(5 * time.Second)
+
+	// Step 4: Verify real service response
+	t.Log("Step 4: Verify real service response after scale up")
+	stdout, _, err = ExecCommandOnSpecificPod(t, "curl-client", testNamespace, curlCmd)
+	stdout = RemoveANSI(stdout)
+	t.Logf("Real service response (scaled to 1): %s", stdout)
+
+	assert.NoError(t, err, "curl command should succeed")
+	assert.Contains(t, stdout, "HTTP/1.1 200", "should return 200 OK from real service")
+	assert.NotContains(t, stdout, "X-Keda-Http-Placeholder-Served",
+		"should NOT have placeholder header when real service is available")
 }

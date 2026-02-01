@@ -411,7 +411,7 @@ func runProxyServer(
 	tlsEnabled bool,
 	tlsConfig map[string]interface{},
 	tracingConfig *config.Tracing,
-	k8sClient kubernetes.Interface,
+	_ kubernetes.Interface,
 	endpointsCache k8s.EndpointsCache,
 ) error {
 	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
