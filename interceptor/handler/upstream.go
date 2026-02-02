@@ -72,9 +72,16 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pr.SetURL(stream)
 			// Preserve original Host header (SetURL rewrites it by default).
 			pr.Out.Host = pr.In.Host
-			// Preserve X-Forwarded-For chain before appending client IP.
+
+			// Preserve and extend X-Forwarded-... headers from upstream proxies
 			pr.Out.Header["X-Forwarded-For"] = pr.In.Header["X-Forwarded-For"]
 			pr.SetXForwarded()
+			if host := pr.In.Header.Get("X-Forwarded-Host"); host != "" {
+				pr.Out.Header.Set("X-Forwarded-Host", host)
+			}
+			if proto := pr.In.Header.Get("X-Forwarded-Proto"); proto != "" {
+				pr.Out.Header.Set("X-Forwarded-Proto", proto)
+			}
 		},
 		BufferPool: bufferPool,
 		Transport:  uh.roundTripper,
