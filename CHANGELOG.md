@@ -36,7 +36,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Preserve `X-Forwarded-Proto` and `X-Forwarded-Host` headers from upstream proxies ([#1432](https://github.com/kedacore/http-add-on/issues/1432))
 
 ### Deprecations
 

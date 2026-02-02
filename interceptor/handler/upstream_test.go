@@ -440,15 +440,36 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	r.Equal("Hello from srv", res.Body.String())
 }
 
-func TestUpstreamSetsXForwardedFor(t *testing.T) {
+func TestUpstreamPreservesXForwardedHeaders(t *testing.T) {
 	tests := map[string]struct {
-		forwardedIPs []string
+		forwardedFor   string
+		forwardedHost  string
+		forwardedProto string
+		forwardedPort  string
 	}{
-		"appends to existing header chain": {
-			forwardedIPs: []string{"1.2.3.4", "5.6.7.8"},
+		"preserves and extends forwarded IPs": {
+			forwardedFor: "198.51.100.1",
+		},
+		"preserves forwarded host": {
+			forwardedHost: "example.org",
+		},
+		"preserves forwarded proto": {
+			forwardedProto: "http",
+		},
+		"preserves forwarded port": {
+			forwardedPort: "443",
+		},
+		"preserves and extends existing headers": {
+			forwardedFor:   "1.2.3.4, 5.6.7.8",
+			forwardedHost:  "keda.sh",
+			forwardedProto: "https",
+			forwardedPort:  "8443",
 		},
 		"sets header when not present": {
-			forwardedIPs: nil,
+			forwardedFor:   "",
+			forwardedHost:  "",
+			forwardedProto: "",
+			forwardedPort:  "",
 		},
 	}
 
@@ -470,9 +491,17 @@ func TestUpstreamSetsXForwardedFor(t *testing.T) {
 			upstream := NewUpstream(http.DefaultTransport, &config.Tracing{}, false)
 
 			req := httptest.NewRequest("GET", "/test", nil)
-			forwardedIPsStr := strings.Join(tt.forwardedIPs, ", ")
-			if tt.forwardedIPs != nil {
-				req.Header.Set("X-Forwarded-For", forwardedIPsStr)
+			if tt.forwardedFor != "" {
+				req.Header.Set("X-Forwarded-For", tt.forwardedFor)
+			}
+			if tt.forwardedHost != "" {
+				req.Header.Set("X-Forwarded-Host", tt.forwardedHost)
+			}
+			if tt.forwardedProto != "" {
+				req.Header.Set("X-Forwarded-Proto", tt.forwardedProto)
+			}
+			if tt.forwardedPort != "" {
+				req.Header.Set("X-Forwarded-Port", tt.forwardedPort)
 			}
 			req = util.RequestWithStream(req, backendURL)
 
@@ -480,18 +509,36 @@ func TestUpstreamSetsXForwardedFor(t *testing.T) {
 
 			// Verify the test conditions
 			xff := receivedHeaders.Get("X-Forwarded-For")
-			if xff == "" {
-				t.Fatal("X-Forwarded-For should not be empty")
+			if tt.forwardedFor != "" {
+				if !strings.HasPrefix(xff, tt.forwardedFor+", ") {
+					t.Errorf("expected X-Forwarded-For to start with %q, got: %q", tt.forwardedFor+", ", xff)
+				}
+			} else if xff == "" {
+				t.Error("X-Forwarded-For should contain at least the client IP")
 			}
 
-			if tt.forwardedIPs != nil && !strings.HasPrefix(xff, forwardedIPsStr) {
-				t.Errorf("expected X-Forwarded-For to contain %q, got: %q", forwardedIPsStr, xff)
+			xfh := receivedHeaders.Get("X-Forwarded-Host")
+			if tt.forwardedHost != "" {
+				if tt.forwardedHost != xfh {
+					t.Errorf("expected forwarded host %q, got %q", tt.forwardedHost, xfh)
+				}
+			} else if xfh != req.Host {
+				t.Errorf("expected default forwarded host %q, got %q", req.Host, xfh)
 			}
 
-			ips := strings.Split(xff, ", ")
-			expectedLen := len(tt.forwardedIPs) + 1
-			if len(ips) != expectedLen {
-				t.Errorf("expected %d IPs in X-Forwarded-For, got %d: %q", expectedLen, len(ips), xff)
+			xfproto := receivedHeaders.Get("X-Forwarded-Proto")
+			if tt.forwardedProto != "" {
+				if tt.forwardedProto != xfproto {
+					t.Errorf("expected forwarded proto %q, got %q", tt.forwardedProto, xfproto)
+				}
+			} else if xfproto != "http" {
+				t.Errorf("expected default forwarded proto %q, got %q", "http", xfproto)
+			}
+
+			// Ensure that X-Forwarded-Port is preserved even if we don't set a default for it
+			xfport := receivedHeaders.Get("X-Forwarded-Port")
+			if xfport != tt.forwardedPort {
+				t.Errorf("expected forwarded port %q, got %q", tt.forwardedPort, xfport)
 			}
 		})
 	}
