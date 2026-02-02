@@ -75,6 +75,8 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// Preserve X-Forwarded-For chain before appending client IP.
 			pr.Out.Header["X-Forwarded-For"] = pr.In.Header["X-Forwarded-For"]
 			pr.SetXForwarded()
+			// Preserve X-Forwarded-Proto to preserve behavior behind TLS teminating proxy
+			pr.Out.Header["X-Forwarded-Proto"] = pr.In.Header["X-Forwarded-Proto"]
 		},
 		BufferPool: bufferPool,
 		Transport:  uh.roundTripper,
