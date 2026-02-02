@@ -71,15 +71,14 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &tls.Config{}),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&tls.Config{},
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -124,15 +123,14 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &TestTLSConfig),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&TestTLSConfig,
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -181,15 +179,14 @@ func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &tls.Config{}),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           0,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&tls.Config{},
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -242,15 +239,14 @@ func TestWaitFailedConnection(t *testing.T) {
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &tls.Config{}),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&tls.Config{},
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	stream, err := url.Parse("http://0.0.0.0:0")
 	r.NoError(err)
@@ -294,15 +290,14 @@ func TestWaitFailedConnectionTLS(t *testing.T) {
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &TestTLSConfig),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&TestTLSConfig,
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	stream, err := url.Parse("http://0.0.0.0:0")
 	r.NoError(err)
@@ -347,15 +342,14 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &tls.Config{}),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&tls.Config{},
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	stream, err := url.Parse("http://1.1.1.1")
 	r.NoError(err)
@@ -421,15 +415,14 @@ func TestTimesOutOnWaitFuncTLS(t *testing.T) {
 
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &TestTLSConfig),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&TestTLSConfig,
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	stream, err := url.Parse("http://1.1.1.1")
 	r.NoError(err)
@@ -506,15 +499,14 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	r.NoError(err)
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &tls.Config{}),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&tls.Config{},
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -574,15 +566,14 @@ func TestWaitsForWaitFuncTLS(t *testing.T) {
 	r.NoError(err)
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &TestTLSConfig),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&TestTLSConfig,
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -646,15 +637,14 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &tls.Config{}),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&tls.Config{},
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -706,15 +696,14 @@ func TestWaitHeaderTimeoutTLS(t *testing.T) {
 	}
 	hdl := newForwardingHandler(
 		logr.Discard(),
-		dialCtxFunc,
+		testTransport(dialCtxFunc, &TestTLSConfig),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:           timeouts.WorkloadReplicas,
 			respHeaderTimeout:     timeouts.ResponseHeader,
 			enableColdStartHeader: true,
 		},
-		&TestTLSConfig,
-		&config.Tracing{},
+		config.Tracing{},
 	)
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
@@ -822,6 +811,15 @@ func retryDialContextFunc(
 		timeouts.KeepAlive,
 	)
 	return kedanet.DialContextWithRetry(dialer, backoff)
+}
+
+// testTransport creates a base transport for tests using the given dial function and TLS config.
+func testTransport(dialCtxFunc kedanet.DialContextFunc, tlsCfg *tls.Config) *http.Transport {
+	return &http.Transport{
+		Proxy:           http.ProxyFromEnvironment,
+		DialContext:     dialCtxFunc,
+		TLSClientConfig: tlsCfg,
+	}
 }
 
 func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {

@@ -20,7 +20,7 @@ import (
 
 var serviceName = "keda-http-interceptor"
 
-func SetupOTelSDK(ctx context.Context, tCfg *config.Tracing) (shutdown func(context.Context) error, err error) {
+func SetupOTelSDK(ctx context.Context, tCfg config.Tracing) (shutdown func(context.Context) error, err error) {
 	var shutdownFuncs []func(context.Context) error
 
 	// shutdown calls cleanup functions registered via shutdownFuncs.
@@ -74,7 +74,7 @@ func NewPropagator() propagation.TextMapPropagator {
 	)
 }
 
-func newTraceProvider(ctx context.Context, res *resource.Resource, tCfg *config.Tracing) (*trace.TracerProvider, error) {
+func newTraceProvider(ctx context.Context, res *resource.Resource, tCfg config.Tracing) (*trace.TracerProvider, error) {
 	traceExporter, err := newExporter(ctx, tCfg)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func newTraceProvider(ctx context.Context, res *resource.Resource, tCfg *config.
 	return traceProvider, nil
 }
 
-func newExporter(ctx context.Context, tCfg *config.Tracing) (trace.SpanExporter, error) {
+func newExporter(ctx context.Context, tCfg config.Tracing) (trace.SpanExporter, error) {
 	switch strings.ToLower(tCfg.Exporter) {
 	case "console":
 		return stdouttrace.New()

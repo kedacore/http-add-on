@@ -12,10 +12,10 @@ type Tracing struct {
 	Exporter string `envconfig:"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL" default:"console"`
 }
 
-// Parse parses standard configs using envconfig and returns a pointer to the
-// newly created config. Returns nil and a non-nil error if parsing failed
-func MustParseTracing() *Tracing {
-	ret := new(Tracing)
-	envconfig.MustProcess("", ret)
+// MustParseTracing parses standard configs using envconfig and returns the
+// newly created config. It panics if parsing fails.
+func MustParseTracing() Tracing {
+	var ret Tracing
+	envconfig.MustProcess("", &ret)
 	return ret
 }

@@ -13,11 +13,7 @@ import (
 // signature
 type DialContextFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
-// DialContextWithRetry creates a new DialContextFunc --
-// which has the same signature as the net.Conn.DialContext function --
-// that calls coreDialer.DialContext multiple times with an exponential backoff.
-// The timeout of the first dial will be coreDialer.Timeout, and it will
-// multiply by a factor of two from there.
+// DialContextWithRetry wraps a dialer with exponential backoff retry logic.
 //
 // This function is mainly used in the interceptor so that, once it sees that the target deployment has
 // 1 or more replicas, it can forward the request. If the deployment's state changed
@@ -39,7 +35,7 @@ func DialContextWithRetry(coreDialer *net.Dialer, backoff wait.Backoff) DialCont
 		// executes. Using a standard counter makes this algorithm less likely to introduce
 		// a bug
 		var lastError error
-		for i := 0; i < numDialTries; i++ {
+		for range numDialTries {
 			conn, err := coreDialer.DialContext(ctx, network, addr)
 			if err == nil {
 				return conn, nil

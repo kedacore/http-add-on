@@ -19,11 +19,24 @@ type FakeCounter struct {
 	ResizeTimeout time.Duration
 }
 
+// NewFakeCounter creates a FakeCounter with an unbuffered channel.
+// Use this when tests need to synchronize on queue events.
 func NewFakeCounter() *FakeCounter {
+	return newFakeCounter(0)
+}
+
+// NewFakeCounterBuffered creates a FakeCounter with a buffered channel.
+// Use this when tests don't need to synchronize on queue events.
+// The buffered channel prevents blocking on Increase/Decrease calls.
+func NewFakeCounterBuffered() *FakeCounter {
+	return newFakeCounter(100)
+}
+
+func newFakeCounter(bufferSize int) *FakeCounter {
 	return &FakeCounter{
 		mapMut:        new(sync.RWMutex),
 		RetMap:        map[string]Count{},
-		ResizedCh:     make(chan HostAndCount),
+		ResizedCh:     make(chan HostAndCount, bufferSize),
 		ResizeTimeout: 1 * time.Second,
 	}
 }

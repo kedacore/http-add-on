@@ -52,10 +52,10 @@ func (t Timeouts) DefaultBackoff() wait.Backoff {
 	}
 }
 
-// MustParseTimeouts parses standard configs using envconfig and returns a pointer to the
+// MustParseTimeouts parses standard configs using envconfig and returns the
 // newly created config. It panics if parsing fails.
-func MustParseTimeouts() *Timeouts {
-	ret := new(Timeouts)
-	envconfig.MustProcess("", ret)
+func MustParseTimeouts() Timeouts {
+	var ret Timeouts
+	envconfig.MustProcess("", &ret)
 	return ret
 }
