@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.12.1](#v0121)
 - [v0.12.0](#v0120)
 - [v0.11.1](#v0111)
 - [v0.11.0](#v0110)
@@ -36,7 +37,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: Preserve `X-Forwarded-Proto` and `X-Forwarded-Host` headers from upstream proxies ([#1432](https://github.com/kedacore/http-add-on/issues/1432))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Deprecations
 
@@ -45,6 +46,12 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Other
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.12.1
+
+### Fixes
+
+- **Interceptor**: Preserve `X-Forwarded-Proto` and `X-Forwarded-Host` headers from upstream proxies ([#1432](https://github.com/kedacore/http-add-on/issues/1432))
 
 ## v0.12.0
 
