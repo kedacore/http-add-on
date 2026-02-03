@@ -14,7 +14,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/sync/semaphore"
 	"k8s.io/client-go/kubernetes"
@@ -139,8 +138,7 @@ func getStressTestFiles() []string {
 		return []string{}
 	}
 
-	// We randomize the executions
-	rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Randomize the test execution order
 	rand.Shuffle(len(testFiles), func(i, j int) {
 		testFiles[i], testFiles[j] = testFiles[j], testFiles[i]
 	})
