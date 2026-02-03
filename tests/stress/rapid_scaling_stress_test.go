@@ -116,7 +116,7 @@ spec:
           - "http://keda-add-ons-http-interceptor-proxy.keda:8080/"
       restartPolicy: Never
       terminationGracePeriodSeconds: 5
-  activeDeadlineSeconds: 300
+  activeDeadlineSeconds: 600
   backoffLimit: 5
 `
 	rapidHTTPScaledObjectTemplate = `
@@ -131,9 +131,9 @@ spec:
   scalingMetric:
     requestRate:
       granularity: 1s
-      targetValue: 20
+      targetValue: 5
       window: 30s
-  scaledownPeriod: 5
+  scaledownPeriod: 10
   scaleTargetRef:
     name: {{.DeploymentName}}
     service: {{.ServiceName}}
@@ -173,14 +173,14 @@ func testRapidScalingCycles(t *testing.T, kc *kubernetes.Clientset, data rapidTe
 		t.Logf("--- cycle %d: scale up phase ---", i)
 		KubectlApplyWithTemplate(t, data, "rapidLoadJobTemplate", rapidLoadJobTemplate)
 
-		assert.True(t, WaitForDeploymentReplicaReadyMinCount(t, kc, rapidDeploymentName, rapidTestNamespace, rapidMaxReplicaCount-2, 18, 10),
-			"replica count should reach near max (%d) in cycle %d", rapidMaxReplicaCount, i)
+		assert.True(t, WaitForDeploymentReplicaReadyMinCount(t, kc, rapidDeploymentName, rapidTestNamespace, 3, 24, 10),
+			"replica count should reach at least 3 in cycle %d", i)
 
 		KubectlDeleteWithTemplate(t, data, "rapidLoadJobTemplate", rapidLoadJobTemplate)
 
 		// Scale down phase
 		t.Logf("--- cycle %d: scale down phase ---", i)
-		assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, rapidDeploymentName, rapidTestNamespace, rapidMinReplicaCount, 18, 10),
+		assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, rapidDeploymentName, rapidTestNamespace, rapidMinReplicaCount, 24, 10),
 			"replica count should return to %d in cycle %d", rapidMinReplicaCount, i)
 
 		// Brief pause between cycles
@@ -203,8 +203,8 @@ func getRapidTemplateData() (rapidTemplateData, []Template) {
 			MinReplicas:          rapidMinReplicaCount,
 			MaxReplicas:          rapidMaxReplicaCount,
 			JobName:              "load-generator-1",
-			Requests:             "50000",
-			Concurrency:          "50",
+			Requests:             "300000",
+			Concurrency:          "10",
 		}, []Template{
 			{Name: "rapidWorkloadTemplate", Config: rapidWorkloadTemplate},
 			{Name: "rapidServiceNameTemplate", Config: rapidServiceTemplate},

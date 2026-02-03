@@ -36,9 +36,9 @@ Tests the system's ability to handle continuous load over an extended period.
 ### 3. Rapid Scaling Stress Test (`rapid_scaling_stress_test.go`)
 Tests the system's ability to handle rapid scale up and down cycles.
 
-- **Load Pattern**: 3 cycles of rapid scale-up and scale-down (50,000 requests per cycle)
+- **Load Pattern**: 3 cycles of rapid scale-up and scale-down (300,000 requests per cycle with 10 concurrent connections)
 - **Purpose**: Validates system stability during frequent scaling operations
-- **Duration**: ~10 minutes
+- **Duration**: ~20 minutes
 - **Validates**:
   - Quick response to load spikes
   - Rapid scale-down when load drops
