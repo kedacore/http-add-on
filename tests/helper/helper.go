@@ -126,7 +126,7 @@ func ExecCommandOnSpecificPod(t *testing.T, podName string, namespace string, co
 			Stdin:   false,
 			Stdout:  true,
 			Stderr:  true,
-			TTY:     true,
+			TTY:     false,
 		}, scheme.ParameterCodec)
 	exec, err := remotecommand.NewSPDYExecutor(KubeConfig, "POST", request.URL())
 	assert.NoErrorf(t, err, "cannot execute command - %s", err)

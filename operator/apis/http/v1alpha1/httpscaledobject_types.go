@@ -139,6 +139,36 @@ type Header struct {
 	Value *string `json:"value,omitempty"`
 }
 
+// PlaceholderConfig defines the configuration for serving placeholder responses during scale-from-zero
+type PlaceholderConfig struct {
+	// +kubebuilder:default=false
+	// +optional
+	// Enable placeholder response when replicas are scaled to zero
+	Enabled bool `json:"enabled"`
+	// Inline content for placeholder response. Supports any format (HTML, JSON, XML, plain text, etc.)
+	// Content is processed as a Go template with variables: ServiceName, Namespace, RefreshInterval, RequestID, Timestamp
+	// Content-Type should be set via the Headers field to match your content format
+	// +optional
+	Content string `json:"content,omitempty"`
+	// +kubebuilder:default=503
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:Maximum=599
+	// +optional
+	// HTTP status code to return with placeholder response
+	StatusCode int32 `json:"statusCode,omitempty"`
+	// RefreshInterval is a template variable available in content (in seconds)
+	// This is just data passed to the template, not used by the interceptor for automatic refresh
+	// +kubebuilder:default=5
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=60
+	// +optional
+	RefreshInterval int32 `json:"refreshInterval,omitempty"`
+	// Additional HTTP headers to include with placeholder response
+	// Use this to set Content-Type matching your content format (e.g., 'Content-Type: application/json')
+	// +optional
+	Headers map[string]string `json:"headers,omitempty"`
+}
+
 // HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
 type HTTPScaledObjectSpec struct {
 	// The hosts to route. All requests which the "Host" header
@@ -188,6 +218,9 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Timeouts that override the global ones
 	// +optional
 	Timeouts *HTTPScaledObjectTimeoutsSpec `json:"timeouts,omitempty" description:"Timeouts that override the global ones"`
+	// (optional) Configuration for placeholder pages during scale-from-zero
+	// +optional
+	PlaceholderConfig *PlaceholderConfig `json:"placeholderConfig,omitempty" description:"Configuration for placeholder pages during scale-from-zero"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject

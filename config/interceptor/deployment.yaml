@@ -54,6 +54,8 @@ spec:
           value: "10s"
         - name: KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT
           value: "1s"
+        - name: KEDA_HTTP_PLACEHOLDER_DEFAULT_TEMPLATE_PATH
+          value: "/placeholder-templates/default.html"
         ports:
         - name: admin
           containerPort: 9090
@@ -83,9 +85,17 @@ spec:
           capabilities:
             drop:
               - ALL
+        volumeMounts:
+        - name: placeholder-templates
+          mountPath: /placeholder-templates
+          readOnly: true
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       serviceAccountName: interceptor
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: placeholder-templates
+        configMap:
+          name: interceptor-placeholder-templates
