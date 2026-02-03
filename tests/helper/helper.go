@@ -392,6 +392,26 @@ func WaitForDeploymentReplicaReadyCount(t *testing.T, kc *kubernetes.Clientset, 
 	return false
 }
 
+// WaitForDeploymentReplicaReadyMinCount waits until deployment ready replicas reach at least the minimum target or number of iterations are done.
+func WaitForDeploymentReplicaReadyMinCount(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
+	minTarget, iterations, intervalSeconds int) bool {
+	for i := 0; i < iterations; i++ {
+		deployment, _ := kc.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		replicas := deployment.Status.ReadyReplicas
+
+		t.Logf("Waiting for deployment replicas to reach minimum target. Deployment - %s, Current  - %d, Min Target - %d",
+			name, replicas, minTarget)
+
+		if replicas >= int32(minTarget) {
+			return true
+		}
+
+		time.Sleep(time.Duration(intervalSeconds) * time.Second)
+	}
+
+	return false
+}
+
 // Waits until ingress resource is ready or number of iterations are done.
 func WaitForIngressReady(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
 	iterations, intervalSeconds int) bool {
