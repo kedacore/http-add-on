@@ -29,7 +29,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Add customizable cold start message for scale-to-zero applications ([#TBD](https://github.com/kedacore/http-add-on/pull/TBD))
 
 ### Improvements
 

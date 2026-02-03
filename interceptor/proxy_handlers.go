@@ -90,6 +90,31 @@ func newForwardingHandler(
 			conditionWaitTimeout = time.Duration(httpso.Spec.ColdStartTimeoutFailoverRef.TimeoutSeconds) * time.Second
 		}
 
+		// NEW: Check if we should show cold start message immediately
+		// If ColdStartMessage is configured, check endpoints and return HTML immediately if scaled to zero
+		if httpso.Spec.ColdStartMessage != "" {
+			waitFuncCtx, done := context.WithTimeout(ctx, 100*time.Millisecond)
+			defer done()
+			isColdStart, err := waitFunc(
+				waitFuncCtx,
+				httpso.GetNamespace(),
+				httpso.Spec.ScaleTargetRef.Service,
+			)
+			// If we're at zero replicas (cold start), immediately return warming page
+			if err != nil || isColdStart {
+				lggr.Info("Cold start detected, returning warming page", "namespace", httpso.GetNamespace(), "service", httpso.Spec.ScaleTargetRef.Service)
+				html := generateWarmingPageHTML(httpso.Spec.ColdStartMessage)
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.WriteHeader(http.StatusOK)
+				if _, err := w.Write([]byte(html)); err != nil {
+					lggr.Error(err, "failed to write warming page response")
+				}
+				return
+			}
+			// If we have endpoints, continue with normal flow
+		}
+
 		waitFuncCtx, done := context.WithTimeout(ctx, conditionWaitTimeout)
 		defer done()
 		isColdStart, err := waitFunc(

@@ -188,6 +188,11 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Timeouts that override the global ones
 	// +optional
 	Timeouts *HTTPScaledObjectTimeoutsSpec `json:"timeouts,omitempty" description:"Timeouts that override the global ones"`
+	// (optional) Custom message to display when the application is scaled to zero.
+	// If not set, a default message will be shown.
+	// The message will be displayed in an auto-refreshing HTML page.
+	// +optional
+	ColdStartMessage string `json:"coldStartMessage,omitempty" description:"Custom message to display when scaled to zero"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject

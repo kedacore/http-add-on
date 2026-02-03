@@ -60,6 +60,12 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
+              coldStartMessage:
+                description: |-
+                  (optional) Custom message to display when the application is scaled to zero.
+                  If not set, a default message will be shown.
+                  The message will be displayed in an auto-refreshing HTML page.
+                type: string
               coldStartTimeoutFailoverRef:
                 description: (optional) The name of the failover service to route
                   HTTP requests to when the target is not available
