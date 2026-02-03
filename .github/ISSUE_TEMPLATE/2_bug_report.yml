@@ -52,6 +52,7 @@ body:
     label: "HTTP Add-on Version"
     description: "What version of the KEDA HTTP Add-on are you running?"
     options:
+    - "0.12.1"
     - "0.12.0"
     - "0.11.1"
     - "0.11.0"
