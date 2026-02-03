@@ -1,5 +1,5 @@
-//go:build e2e
-// +build e2e
+//go:build e2e || stress
+// +build e2e stress
 
 package helper
 

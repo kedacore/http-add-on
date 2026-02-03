@@ -1,0 +1,75 @@
+name: stress tests
+on:
+  # Manual trigger only - stress tests are resource intensive
+  workflow_dispatch:
+    inputs:
+      kindVersion:
+        description: 'Kubernetes version to test'
+        required: false
+        default: 'v1.35.0'
+        type: choice
+        options:
+          - v1.35.0
+          - v1.34.3
+          - v1.33.7
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  stress_tests:
+    runs-on: ubuntu-latest
+    name: stress tests / ${{ inputs.kindVersion || 'v1.35.0' }}
+    steps:
+      - name: Install prerequisites
+        run: |
+          sudo apt update
+          sudo apt install curl make ca-certificates gcc libc-dev -y
+        env:
+          DEBIAN_FRONTEND: noninteractive
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Helm install
+        uses: Azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+
+      - name: Create Kind Cluster
+        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
+        with:
+          node_image: kindest/node:${{ inputs.kindVersion || 'v1.35.0' }}
+          cluster_name: cluster
+          version: v0.31.0
+
+      - name: Generate images and push to the cluster
+        run: |
+          make docker-build
+          kind load docker-image ghcr.io/kedacore/http-add-on-operator:${VERSION} --name cluster
+          kind load docker-image ghcr.io/kedacore/http-add-on-interceptor:${VERSION} --name cluster
+          kind load docker-image ghcr.io/kedacore/http-add-on-scaler:${VERSION} --name cluster
+        env:
+          VERSION: ${{ github.sha }}
+
+      - name: Show Kubernetes version
+        run: kubectl version
+
+      - name: Run stress tests
+        run: make stress-test
+        env:
+          VERSION: ${{ github.sha }}
+        timeout-minutes: 90
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@84480863f228bb9747b473957fcc9e309aa96097 # v4
+        with:
+          name: stress-test-logs
+          path: tests/stress/*.log
+          retention-days: 7
