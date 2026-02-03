@@ -1,97 +1,96 @@
 name: Report a bug 🐛
 description: Create a report to help us improve
-labels: ["bug"]
+labels: "bug"
 body:
-- type: textarea
-  id: description
-  attributes:
-    label: Report
-    description: "What bug have you encountered?"
-    placeholder: "A clear and concise description of what the bug is."
-- type: textarea
-  id: expected-behavior
-  attributes:
-    label: Expected Behavior
-    description: What did you expect to happen?
-    placeholder: What did you expect to happen?
-  validations:
-    required: true
-- type: textarea
-  id: actual-behavior
-  attributes:
-    label: Actual Behavior
-    description: Also tell us, what did you see is happen?
-    placeholder: Tell us what you see that is happening
-  validations:
-    required: true
-- type: textarea
-  id: repro-steps
-  attributes:
-    label: Steps to Reproduce the Problem
-    description: "How can we reproduce this bug? Please walk us through it step by step."
-    value: |
-      1.
-      2.
-      3.
-  validations:
-    required: true
-- type: textarea
-  id: logs
-  attributes:
-    label: Logs from KEDA HTTP operator
-    description: "Provide logs from the KEDA HTTP operator, if need be."
-    value: |
-      ```
-      example
-      ```
-  validations:
-    required: false
-- type: dropdown
-  id: keda-http-version
-  attributes:
-    label: "HTTP Add-on Version"
-    description: "What version of the KEDA HTTP Add-on are you running?"
-    options:
-    - "0.12.1"
-    - "0.12.0"
-    - "0.11.1"
-    - "0.11.0"
-    - "0.10.0"
-    - "0.9.0"
-    - "0.8.0"
-    - "Other"
-  validations:
-    required: false
-- type: dropdown
-  id: kubernetes-version
-  attributes:
-    label: Kubernetes Version
-    description: What version of Kubernetes that are you running?
-    options:
-    - "1.33"
-    - "1.32"
-    - "1.31"
-    - "< 1.31"
-    - "Other"
-  validations:
-    required: false
-- type: dropdown
-  id: cluster-type
-  attributes:
-    label: Platform
-    description: Where is your cluster running?
-    options:
-    - Any
-    - Alibaba Cloud
-    - Amazon Web Services
-    - Google Cloud
-    - Microsoft Azure
-    - Red Hat OpenShift
-    - Other
-  validations:
-    required: false
-- type: textarea
-  id: anything-else
-  attributes:
-    label: Anything else?
-    description: "Let us know if you have anything else to share"
+  - type: textarea
+    attributes:
+      label: Report
+      description: "What bug have you encountered?"
+      placeholder: "A clear and concise description of what the bug is."
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual Behavior
+      description: Also tell us, what did you see is happen?
+      placeholder: Tell us what you see that is happening
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to Reproduce the Problem
+      description: "How can we reproduce this bug? Please walk us through it step by step."
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Logs from KEDA HTTP Add-on
+      description: "Provide logs from the KEDA HTTP Add-on, if need be."
+      value: |
+        ```
+        example
+        ```
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: HTTP Add-on Version
+      description: What version of the KEDA HTTP Add-on are you running?
+      options:
+        - "0.12.1"
+        - "0.12.0"
+        - "0.11.1"
+        - "0.11.0"
+        - "0.10.0"
+        - "Other"
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: Kubernetes Version
+      description: What version of Kubernetes that are you running?
+      options:
+        - "1.35"
+        - "1.34"
+        - "1.33"
+        - "1.32"
+        - "< 1.32"
+        - "Other"
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: Platform
+      description: Where is your cluster running?
+      options:
+        - Any
+        - Alibaba Cloud
+        - Amazon Web Services
+        - Google Cloud
+        - Microsoft Azure
+        - Red Hat OpenShift
+        - Other
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: Would you be open to contributing a fix?
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: false
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else?
+      description: "Let us know if you have anything else to share"
