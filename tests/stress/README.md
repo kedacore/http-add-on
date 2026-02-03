@@ -13,9 +13,9 @@ Stress tests differ from e2e tests in their focus:
 ### 1. High Concurrency Stress Test (`high_concurrency_stress_test.go`)
 Tests the system's ability to handle a large number of concurrent requests.
 
-- **Load Pattern**: 100,000 requests with 100 concurrent connections
+- **Load Pattern**: 500,000 requests with 50 concurrent connections
 - **Purpose**: Validates that the system can scale up to maximum replicas and remain stable under high concurrent load
-- **Duration**: ~10 minutes
+- **Duration**: ~15 minutes
 - **Validates**:
   - Scaling to maximum replicas
   - System stability at maximum capacity

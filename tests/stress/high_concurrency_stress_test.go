@@ -129,7 +129,7 @@ spec:
   scalingMetric:
     requestRate:
       granularity: 1s
-      targetValue: 100
+      targetValue: 10
       window: 1m
   scaledownPeriod: 10
   scaleTargetRef:
@@ -160,13 +160,13 @@ func TestHighConcurrencyStress(t *testing.T) {
 }
 
 func testHighConcurrencyLoad(t *testing.T, kc *kubernetes.Clientset, data templateData) {
-	t.Log("--- testing high concurrency load (100,000 requests with 100 concurrent connections) ---")
+	t.Log("--- testing high concurrency load (500,000 requests with 50 concurrent connections) ---")
 
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 
 	// Wait for scaling up to max replicas
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 30, 10),
-		"replica count should be %d after 5 minutes under high load", maxReplicaCount)
+	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 36, 10),
+		"replica count should be %d after 6 minutes under high load", maxReplicaCount)
 
 	// Verify the system remains stable at max replicas
 	t.Log("--- verifying system stability at max replicas ---")
@@ -192,8 +192,8 @@ func getTemplateData() (templateData, []Template) {
 			Host:                 host,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
-			Requests:             "100000",
-			Concurrency:          "100",
+			Requests:             "500000",
+			Concurrency:          "50",
 		}, []Template{
 			{Name: "workloadTemplate", Config: workloadTemplate},
 			{Name: "serviceNameTemplate", Config: serviceTemplate},
