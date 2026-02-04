@@ -33,6 +33,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
+- **General**: Add stress tests next to e2e tests ([#238](https://github.com/kedacore/http-add-on/issues/238))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Fixes
