@@ -3,23 +3,17 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
-	"maps"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"path/filepath"
 	"runtime"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/sync/errgroup"
 	k8sinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -29,14 +23,12 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
 	"github.com/kedacore/http-add-on/interceptor/metrics"
-	"github.com/kedacore/http-add-on/interceptor/middleware"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
 	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
 	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
 	"github.com/kedacore/http-add-on/pkg/build"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -65,7 +57,7 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	if err := config.Validate(servingCfg, *timeoutCfg, ctrl.Log); err != nil {
+	if err := config.Validate(servingCfg, timeoutCfg); err != nil {
 		setupLog.Error(err, "invalid configuration")
 		runtime.Goexit()
 	}
@@ -99,10 +91,6 @@ func main() {
 	k8sSharedInformerFactory := k8sinformers.NewSharedInformerFactory(cl, time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS))
 	svcCache := k8s.NewInformerBackedServiceCache(ctrl.Log, cl, k8sSharedInformerFactory)
 	endpointsCache := k8s.NewInformerBackedEndpointsCache(ctrl.Log, cl, time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS))
-	if err != nil {
-		setupLog.Error(err, "creating new endpoints cache")
-		runtime.Goexit()
-	}
 	waitFunc := newWorkloadReplicasForwardWaitFunc(ctrl.Log, endpointsCache)
 
 	httpCl, err := clientset.NewForConfig(cfg)
@@ -129,13 +117,15 @@ func main() {
 
 	if tracingCfg.Enabled {
 		shutdown, err := tracing.SetupOTelSDK(ctx, tracingCfg)
-
 		if err != nil {
 			setupLog.Error(err, "Error setting up tracer")
+			runtime.Goexit()
 		}
 
 		defer func() {
-			err = errors.Join(err, shutdown(context.Background()))
+			if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
+				setupLog.Error(shutdownErr, "Error during tracer shutdown")
+			}
 		}()
 	}
 
@@ -193,13 +183,24 @@ func main() {
 	// start a proxy server with TLS
 	if proxyTLSEnabled {
 		eg.Go(func() error {
-			proxyTLSConfig := map[string]interface{}{"certificatePath": servingCfg.TLSCertPath, "keyPath": servingCfg.TLSKeyPath, "certstorePaths": servingCfg.TLSCertStorePaths, "skipVerify": servingCfg.TLSSkipVerify}
+			tlsCfg, err := BuildTLSConfig(TLSOptions{
+				CertificatePath:    servingCfg.TLSCertPath,
+				KeyPath:            servingCfg.TLSKeyPath,
+				CertStorePaths:     servingCfg.TLSCertStorePaths,
+				InsecureSkipVerify: servingCfg.TLSSkipVerify,
+			}, setupLog)
+
+			if err != nil {
+				setupLog.Error(err, "failed to configure TLS")
+				return fmt.Errorf("failed to configure TLS: %w", err)
+			}
+
 			proxyTLSPort := servingCfg.TLSPort
 			k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyTLSPort, proxyTLSEnabled, proxyTLSConfig, tracingCfg); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyTLSPort, tlsCfg, tracingCfg); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -212,8 +213,7 @@ func main() {
 		k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
 		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
 
-		k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyPort, false, nil, tracingCfg); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyPort, nil, tracingCfg); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -267,137 +267,6 @@ func runMetricsServer(
 	return kedahttp.ServeContext(ctx, addr, promhttp.Handler(), nil)
 }
 
-// addCert adds a certificate to the map of certificates based on the certificate's SANs
-func addCert(m map[string]tls.Certificate, certPath, keyPath string, logger logr.Logger) (*tls.Certificate, error) {
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		return nil, fmt.Errorf("error loading certificate and key: %w", err)
-	}
-	if cert.Leaf == nil {
-		if len(cert.Certificate) == 0 {
-			return nil, fmt.Errorf("no certificate found in certificate chain")
-		}
-		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-		if err != nil {
-			return nil, fmt.Errorf("error parsing certificate: %w", err)
-		}
-	}
-	for _, d := range cert.Leaf.DNSNames {
-		logger.Info("adding certificate", "dns", d)
-		m[d] = cert
-	}
-	for _, ip := range cert.Leaf.IPAddresses {
-		logger.Info("adding certificate", "ip", ip.String())
-		m[ip.String()] = cert
-	}
-	for _, uri := range cert.Leaf.URIs {
-		logger.Info("adding certificate", "uri", uri.String())
-		m[uri.String()] = cert
-	}
-	return &cert, nil
-}
-
-func defaultCertPool(logger logr.Logger) *x509.CertPool {
-	systemCAs, err := x509.SystemCertPool()
-	if err == nil {
-		return systemCAs
-	}
-
-	logger.Info("error loading system CA pool, using empty pool", "error", err)
-	return x509.NewCertPool()
-}
-
-// getTLSConfig creates a TLS config from KEDA_HTTP_PROXY_TLS_CERT_PATH, KEDA_HTTP_PROXY_TLS_KEY_PATH and KEDA_HTTP_PROXY_TLS_CERTSTORE_PATHS
-// The matching between request and certificate is performed by comparing TLS/SNI server name with x509 SANs
-func getTLSConfig(tlsConfig map[string]interface{}, logger logr.Logger) (*tls.Config, error) {
-	certPath, _ := tlsConfig["certificatePath"].(string)
-	keyPath, _ := tlsConfig["keyPath"].(string)
-	certStorePaths, _ := tlsConfig["certstorePaths"].(string)
-	insecureSkipVerify, _ := tlsConfig["skipVerify"].(bool)
-
-	servingTLS := &tls.Config{
-		RootCAs:            defaultCertPool(logger),
-		InsecureSkipVerify: insecureSkipVerify,
-	}
-	var defaultCert *tls.Certificate
-
-	uriDomainsToCerts := make(map[string]tls.Certificate)
-	if certPath != "" && keyPath != "" {
-		cert, err := addCert(uriDomainsToCerts, certPath, keyPath, logger)
-		if err != nil {
-			return servingTLS, fmt.Errorf("error adding certificate and key: %w", err)
-		}
-		defaultCert = cert
-		rawCert, err := os.ReadFile(certPath)
-		if err != nil {
-			return servingTLS, fmt.Errorf("error reading certificate: %w", err)
-		}
-		servingTLS.RootCAs.AppendCertsFromPEM(rawCert)
-	}
-
-	if certStorePaths != "" {
-		certFiles := make(map[string]string)
-		keyFiles := make(map[string]string)
-		dirPaths := strings.Split(certStorePaths, ",")
-		for _, dir := range dirPaths {
-			err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-				if info.IsDir() {
-					return nil
-				}
-				switch {
-				case strings.HasSuffix(path, "-key.pem"):
-					certID := path[:len(path)-8]
-					keyFiles[certID] = path
-				case strings.HasSuffix(path, ".pem"):
-					certID := path[:len(path)-4]
-					certFiles[certID] = path
-				case strings.HasSuffix(path, ".key"):
-					certID := path[:len(path)-4]
-					keyFiles[certID] = path
-				case strings.HasSuffix(path, ".crt"):
-					certID := path[:len(path)-4]
-					certFiles[certID] = path
-				}
-				return nil
-			})
-			if err != nil {
-				return servingTLS, fmt.Errorf("error walking certificate store: %w", err)
-			}
-		}
-
-		for certID, certPath := range certFiles {
-			logger.Info("adding certificate", "certID", certID, "certPath", certPath)
-			keyPath, ok := keyFiles[certID]
-			if !ok {
-				return servingTLS, fmt.Errorf("no key found for certificate %s", certPath)
-			}
-			if _, err := addCert(uriDomainsToCerts, certPath, keyPath, logger); err != nil {
-				return servingTLS, fmt.Errorf("error adding certificate %s: %w", certPath, err)
-			}
-			rawCert, err := os.ReadFile(certPath)
-			if err != nil {
-				return servingTLS, fmt.Errorf("error reading certificate: %w", err)
-			}
-			servingTLS.RootCAs.AppendCertsFromPEM(rawCert)
-		}
-	}
-
-	servingTLS.GetCertificate = func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		if cert, ok := uriDomainsToCerts[hello.ServerName]; ok {
-			return &cert, nil
-		}
-		if defaultCert != nil {
-			return defaultCert, nil
-		}
-		return nil, fmt.Errorf("no certificate found for %s", hello.ServerName)
-	}
-	servingTLS.Certificates = slices.Collect(maps.Values(uriDomainsToCerts))
-	return servingTLS, nil
-}
-
 func runProxyServer(
 	ctx context.Context,
 	logger logr.Logger,
@@ -405,77 +274,32 @@ func runProxyServer(
 	waitFunc forwardWaitFunc,
 	routingTable routing.Table,
 	svcCache k8s.ServiceCache,
-	timeouts *config.Timeouts,
-	serving *config.Serving,
+	timeouts config.Timeouts,
+	serving config.Serving,
 	port int,
-	tlsEnabled bool,
-	tlsConfig map[string]interface{},
-	tracingConfig *config.Tracing,
+	tlsCfg *tls.Config,
+	tracingConfig config.Tracing,
 ) error {
-	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
-	dialContextFunc := kedanet.DialContextWithRetry(dialer, timeouts.DefaultBackoff())
-
 	probeHandler := handler.NewProbe([]util.HealthChecker{
 		routingTable,
 	})
 	go probeHandler.Start(ctx)
 
-	var tlsCfg *tls.Config
-	if tlsEnabled {
-		cfg, err := getTLSConfig(tlsConfig, logger)
-		if err != nil {
-			logger.Error(fmt.Errorf("error creating certGetter for proxy server"), "error", err)
-			os.Exit(1)
-		}
-		tlsCfg = cfg
-	}
-
-	var upstreamHandler http.Handler
-	forwardingTLSCfg := &tls.Config{}
-	if tlsCfg != nil {
-		forwardingTLSCfg.RootCAs = tlsCfg.RootCAs
-		forwardingTLSCfg.Certificates = tlsCfg.Certificates
-		forwardingTLSCfg.InsecureSkipVerify = tlsCfg.InsecureSkipVerify
-	}
-
-	upstreamHandler = newForwardingHandler(
-		logger,
-		dialContextFunc,
-		waitFunc,
-		newForwardingConfigFromTimeouts(timeouts, serving),
-		forwardingTLSCfg,
-		tracingConfig,
-	)
-	upstreamHandler = middleware.NewCountingMiddleware(
-		q,
-		upstreamHandler,
-	)
-
-	var rootHandler http.Handler
-	rootHandler = middleware.NewRouting(
-		routingTable,
-		probeHandler,
-		upstreamHandler,
-		svcCache,
-		tlsEnabled,
-	)
-
-	if tracingConfig.Enabled {
-		rootHandler = otelhttp.NewHandler(rootHandler, "keda-http-interceptor")
-	}
-
-	if serving.LogRequests {
-		rootHandler = middleware.NewLogging(logger, rootHandler)
-	}
-
-	rootHandler = middleware.NewMetrics(
-		rootHandler,
-	)
+	// Build handler chain using the shared builder
+	rootHandler := BuildProxyHandler(&ProxyHandlerConfig{
+		Logger:       logger,
+		Queue:        q,
+		WaitFunc:     waitFunc,
+		RoutingTable: routingTable,
+		ProbeHandler: probeHandler,
+		ServiceCache: svcCache,
+		Timeouts:     timeouts,
+		Serving:      serving,
+		TLSConfig:    tlsCfg,
+		Tracing:      tracingConfig,
+	})
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	logger.Info("proxy server starting", "address", addr)
-	if tlsEnabled {
-		return kedahttp.ServeContext(ctx, addr, rootHandler, tlsCfg)
-	}
-	return kedahttp.ServeContext(ctx, addr, rootHandler, nil)
+	return kedahttp.ServeContext(ctx, addr, rootHandler, tlsCfg)
 }

@@ -24,11 +24,6 @@ type Serving struct {
 	// ConfigMapCacheRsyncPeriod is the time interval
 	// for the configmap informer to rsync the local cache.
 	ConfigMapCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
-	// Deprecated: The interceptor has an internal process that periodically fetches the state
-	// of deployment that is running the servers it forwards to.
-	//
-	// This is the interval (in milliseconds) representing how often to do a fetch
-	DeploymentCachePollIntervalMS int `envconfig:"KEDA_HTTP_DEPLOYMENT_CACHE_POLLING_INTERVAL_MS" default:"250"`
 	// The interceptor has an internal process that periodically fetches the state
 	// of endpoints that is running the servers it forwards to.
 	//
@@ -55,10 +50,10 @@ type Serving struct {
 	LogRequests bool `envconfig:"KEDA_HTTP_LOG_REQUESTS" default:"false"`
 }
 
-// Parse parses standard configs using envconfig and returns a pointer to the
-// newly created config. Returns nil and a non-nil error if parsing failed
-func MustParseServing() *Serving {
-	ret := new(Serving)
-	envconfig.MustProcess("", ret)
+// MustParseServing parses standard configs using envconfig and returns the
+// newly created config. It panics if parsing fails.
+func MustParseServing() Serving {
+	var ret Serving
+	envconfig.MustProcess("", &ret)
 	return ret
 }

@@ -22,11 +22,11 @@ var (
 
 type Upstream struct {
 	roundTripper   http.RoundTripper
-	tracingCfg     *config.Tracing
+	tracingCfg     config.Tracing
 	shouldFailover bool
 }
 
-func NewUpstream(roundTripper http.RoundTripper, tracingCfg *config.Tracing, shouldFailover bool) *Upstream {
+func NewUpstream(roundTripper http.RoundTripper, tracingCfg config.Tracing, shouldFailover bool) *Upstream {
 	return &Upstream{
 		roundTripper:   roundTripper,
 		tracingCfg:     tracingCfg,

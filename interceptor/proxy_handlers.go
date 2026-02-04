@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,32 +13,19 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
-	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 type forwardingConfig struct {
 	waitTimeout           time.Duration
 	respHeaderTimeout     time.Duration
-	forceAttemptHTTP2     bool
-	maxIdleConns          int
-	maxIdleConnsPerHost   int
-	idleConnTimeout       time.Duration
-	tlsHandshakeTimeout   time.Duration
-	expectContinueTimeout time.Duration
 	enableColdStartHeader bool
 }
 
-func newForwardingConfigFromTimeouts(t *config.Timeouts, s *config.Serving) forwardingConfig {
+func newForwardingConfigFromTimeouts(t config.Timeouts, s config.Serving) forwardingConfig {
 	return forwardingConfig{
 		waitTimeout:           t.WorkloadReplicas,
 		respHeaderTimeout:     t.ResponseHeader,
-		forceAttemptHTTP2:     t.ForceHTTP2,
-		maxIdleConns:          t.MaxIdleConns,
-		maxIdleConnsPerHost:   t.MaxIdleConnsPerHost,
-		idleConnTimeout:       t.IdleConnTimeout,
-		tlsHandshakeTimeout:   t.TLSHandshakeTimeout,
-		expectContinueTimeout: t.ExpectContinueTimeout,
 		enableColdStartHeader: s.EnableColdStartHeader,
 	}
 }
@@ -49,23 +35,12 @@ func newForwardingConfigFromTimeouts(t *config.Timeouts, s *config.Serving) forw
 // It's intended to be deployed and scaled alongside the application itself.
 func newForwardingHandler(
 	lggr logr.Logger,
-	dialCtxFunc kedanet.DialContextFunc,
+	baseTransport *http.Transport,
 	waitFunc forwardWaitFunc,
 	fwdCfg forwardingConfig,
-	tlsCfg *tls.Config,
-	tracingCfg *config.Tracing,
+	tracingCfg config.Tracing,
 ) http.Handler {
-	transportPool := kedahttp.NewTransportPool(&http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           dialCtxFunc,
-		ForceAttemptHTTP2:     fwdCfg.forceAttemptHTTP2,
-		MaxIdleConns:          fwdCfg.maxIdleConns,
-		MaxIdleConnsPerHost:   fwdCfg.maxIdleConnsPerHost,
-		IdleConnTimeout:       fwdCfg.idleConnTimeout,
-		TLSHandshakeTimeout:   fwdCfg.tlsHandshakeTimeout,
-		ExpectContinueTimeout: fwdCfg.expectContinueTimeout,
-		TLSClientConfig:       tlsCfg,
-	})
+	transportPool := kedahttp.NewTransportPool(baseTransport)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var uh *handler.Upstream
@@ -123,7 +98,7 @@ func newForwardingHandler(
 		if tracingCfg.Enabled {
 			uh = handler.NewUpstream(otelhttp.NewTransport(transport), tracingCfg, shouldFailover)
 		} else {
-			uh = handler.NewUpstream(transport, &config.Tracing{}, shouldFailover)
+			uh = handler.NewUpstream(transport, config.Tracing{}, shouldFailover)
 		}
 		uh.ServeHTTP(w, r)
 	})

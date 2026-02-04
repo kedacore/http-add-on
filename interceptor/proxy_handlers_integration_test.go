@@ -301,14 +301,13 @@ func newHarness(
 
 	proxyHdl := middleware.NewRouting(routingTable, nil, newForwardingHandler(
 		lggr,
-		testDialerToOrigin(originSrvURL),
+		testTransport(testDialerToOrigin(originSrvURL), &tls.Config{}),
 		waitFunc,
 		forwardingConfig{
 			waitTimeout:       activeEndpointsTimeout,
 			respHeaderTimeout: time.Second,
 		},
-		&tls.Config{},
-		&config.Tracing{}),
+		config.Tracing{}),
 		svcCache,
 		false,
 	)
