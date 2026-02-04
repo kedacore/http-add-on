@@ -168,13 +168,13 @@ func testSustainedLoad(t *testing.T, kc *kubernetes.Clientset, data sustainedTem
 
 	// Wait for initial scale up
 	t.Log("--- waiting for initial scale up ---")
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, 5, 18, 10),
+	assert.True(t, WaitForDeploymentReplicaReadyMinCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, 5, 18, 10),
 		"replica count should reach at least 5 after 3 minutes")
 
 	// Verify the system continues to handle load and scales appropriately
 	t.Log("--- verifying continued scaling and stability under sustained load ---")
 	// The system should scale up more as load continues
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, 8, 30, 10),
+	assert.True(t, WaitForDeploymentReplicaReadyMinCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, 8, 30, 10),
 		"replica count should reach at least 8 after 5 minutes of sustained load")
 
 	// Let the load continue and verify system remains stable
