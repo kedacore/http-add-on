@@ -101,7 +101,7 @@ None
 
 ### Breaking Changes
 
-- **General**: Migrate from deprecated `v1.Endpoints` to `discoveryv1.EndpointSlices` ([#1297](https://github.com/kedacore/http-add-on/issues/1297)).
+- **General**: Migrate from deprecated `v1.Endpoints` to `discoveryv1.EndpointSlices` ([#1297](https://github.com/kedacore/http-add-on/issues/1297))
 
 ### New
 

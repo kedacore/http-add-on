@@ -1,73 +1,99 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+CHANGELOG="${1:-$SCRIPT_ROOT/CHANGELOG.md}"
 
-# Define filename
-filename="$SCRIPT_ROOT/CHANGELOG.md"
-
-# Check if file exists
-if [[ ! -f "$filename" ]]; then
-    echo "Error: $filename does not exist."
+if [[ ! -f "$CHANGELOG" ]]; then
+    echo "Error: $CHANGELOG not found" >&2
     exit 1
 fi
 
-# Storing the version to be checked
-mapfile -t versions < <(awk '/## History/{flag=1;next}/## /{flag=0}flag' "$filename" | grep -o '\[[^]]*\]' | grep -v "v1." | sed 's/[][]//g')
+# Format: - **Component**: description ([#NUM](URL)|...) where NUM matches URL path
+LINK='\[#([0-9]+|TODO)\]\(https://github\.com/kedacore/[^/]+/(pull|issues|discussions)/([0-9]+|TODO)\)'
+LINE_PATTERN="^- \\*\\*[^*]+\\*\\*: .+\\($LINK(\\|$LINK)*\\)\$"
 
-# Define a function to extract and sort sections
-function extract_and_check() {
-  local section=$1
-  local content_block=$2
-  local content=$(awk "/### $section/{flag=1;next}/### /{flag=0}flag" <<< "$content_block" | grep '^- \*\*')
+SECTIONS=("Breaking Changes" "New" "Improvements" "Fixes" "Deprecations" "Other")
 
-  # Skip if content does not exist
-  if [[ -z "$content" ]]; then
-    return
-  fi
+errors=0
 
-  # Separate and sort the **General**: lines
-  local sorted_general_lines=$(echo "$content" | grep '^- \*\*General\*\*:' | LC_ALL=en_US sort --ignore-case)
-
-  # Sort the remaining lines
-  local sorted_content=$(echo "$content" | grep -v '^- \*\*General\*\*:' | LC_ALL=en_US sort --ignore-case)
-
-  # Check if sorted_general_lines is not empty, then concatenate
-  if [[ -n "$sorted_general_lines" ]]; then
-      sorted_content=$(printf "%s\n%s" "$sorted_general_lines" "$sorted_content")
-  fi
-
-  # Check pattern and throw error if wrong pattern found
-  while IFS= read -r line; do
-      echo "Error: Wrong pattern found in section: $section , line: $line"
-      exit 1
-  done < <(grep -Pv '^(-\s\*\*[^*]+\*\*: .*\(\[#([\d|TODO]+)\]\(https:\/\/github\.com\/kedacore\/(http-add-on|charts|governance)\/(pull|issues|discussions)\/\2\)(?:\|\[#(\d+)\]\(https:\/\/github\.com\/kedacore\/(http-add-on|charts|governance)\/(pull|issues|discussions)\/(?:\5)\)){0,}\))$' <<< "$content")
-
-  if [ "$content" != "$sorted_content" ]; then
-      echo "Error: Section: $section is not sorted correctly. Correct order:"
-      echo "$sorted_content"
-      exit 1
-  fi
+# Get content between two markdown headers
+get_section() {
+    local version="$1"
+    local section="$2"
+    # Match until next ## header (v* or Unreleased) or EOF
+    sed -n "/^## $version\$/,/^## [vU]/p" "$CHANGELOG" | sed -n "/^### $section\$/,/^### /p" | grep '^- \*\*' || true
 }
 
+# Validate [#NUM] matches URL path number (skips TODO links)
+validate_link_numbers() {
+    local line="$1" link link_num url_num valid=0
+    for link in $(echo "$line" | grep -oE '\[#[0-9]+\]\([^)]+\)'); do
+        link_num=$(echo "$link" | grep -oE '\[#[0-9]+\]' | tr -d '[]#')
+        url_num=$(echo "$link" | grep -oE '(pull|issues|discussions)/[0-9]+' | grep -oE '[0-9]+$' || true)
+        if [[ -z "$url_num" ]]; then
+            echo "could not extract URL number from: $link" >&2
+            valid=1
+        elif [[ "$link_num" != "$url_num" ]]; then
+            echo "link [#$link_num] does not match URL number $url_num" >&2
+            valid=1
+        fi
+    done
+    return $valid
+}
 
-# Extract release sections, including "Unreleased", and check them
-for version in "${versions[@]}"; do
-  release_content=$(awk "/## $version/{flag=1;next}/## v[0-9\.]+/{flag=0}flag" "$filename")
+# Sort: General lines first, then rest alphabetically
+sort_section() {
+    local input general_lines other_lines
+    input=$(cat)
+    general_lines=$(echo "$input" | grep '^- \*\*General\*\*:' | LC_ALL=C sort -f || true)
+    other_lines=$(echo "$input" | grep -v '^- \*\*General\*\*:' | LC_ALL=C sort -f || true)
+    # Output non-empty parts, avoiding extra newlines
+    [[ -n "$general_lines" ]] && echo "$general_lines"
+    [[ -n "$other_lines" ]] && echo "$other_lines"
+    true
+}
 
+# Get versions from History section
+versions=$(sed -n '/^## History/,/^## /p' "$CHANGELOG" | grep -o '\[[^]]*\]' | tr -d '[]' || true)
 
-  if [[ -z "$release_content" ]]; then
-    echo "No content found for $version Skipping."
-    continue
-  fi
+if [[ -z "$versions" ]]; then
+    echo "Error: No versions found in ## History section" >&2
+    exit 1
+fi
 
-  echo "Checking section: $version"
+for version in $versions; do
+    echo "Checking: $version"
 
-  # Separate content into different sections and check sorting for each release
-  extract_and_check "New" "$release_content"
-  extract_and_check "Experimental" "$release_content"
-  extract_and_check "Improvements" "$release_content"
-  extract_and_check "Fixes" "$release_content"
-  extract_and_check "Deprecations" "$release_content"
-  extract_and_check "Other" "$release_content"
+    for section in "${SECTIONS[@]}"; do
+        content=$(get_section "$version" "$section")
+        [[ -z "$content" ]] && continue
 
+        # Check format and link numbers
+        while IFS= read -r line; do
+            if ! echo "$line" | grep -qE "$LINE_PATTERN"; then
+                echo "  Error: [$section] Invalid format: $line" >&2
+                errors=1
+            elif ! validate_link_numbers "$line"; then
+                echo "  Error: [$section] $line" >&2
+                errors=1
+            fi
+        done <<< "$content"
+
+        # Check sorting
+        sorted=$(echo "$content" | sort_section)
+        if [[ "$content" != "$sorted" ]]; then
+            echo "  Error: [$section] Not sorted. Expected:" >&2
+            echo "$sorted" | sed 's/^/    /' >&2
+            errors=1
+        fi
+    done
 done
+
+if [[ $errors -eq 0 ]]; then
+    echo "OK"
+else
+    echo "Validation failed" >&2
+fi
+
+exit $errors
