@@ -361,7 +361,6 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 		Queue:        queueCounter,
 		WaitFunc:     waitFunc,
 		RoutingTable: routingTable,
-		ProbeHandler: nil,
 		Reader:       fake.NewClientBuilder().WithScheme(kedacache.NewScheme()).Build(),
 		Timeouts: config.Timeouts{
 			WorkloadReplicas: 5 * time.Second,

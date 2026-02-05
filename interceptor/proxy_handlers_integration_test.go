@@ -301,7 +301,7 @@ func newHarness(
 		return nil, err
 	}
 
-	proxyHdl := middleware.NewRouting(routingTable, nil, newForwardingHandler(
+	proxyHdl := middleware.NewRouting(routingTable, newForwardingHandler(
 		lggr,
 		testTransport(testDialerToOrigin(originSrvURL), &tls.Config{}),
 		waitFunc,

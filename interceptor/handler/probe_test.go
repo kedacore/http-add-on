@@ -24,13 +24,11 @@ var _ = Describe("ProbeHandler", func() {
 			)
 
 			var b bool
-			healthCheckers := []util.HealthChecker{
-				util.HealthCheckerFunc(func(_ context.Context) error {
-					b = true
+			healthCheckers := util.HealthCheckerFunc(func(_ context.Context) error {
+				b = true
 
-					return ret
-				}),
-			}
+				return ret
+			})
 
 			ph := NewProbe(healthCheckers)
 			Expect(ph).NotTo(BeNil())

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -17,24 +16,16 @@ import (
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-var (
-	kubernetesProbeUserAgent = regexp.MustCompile(`(^|\s)kube-probe/`)
-	googleHCUserAgent        = regexp.MustCompile(`(^|\s)GoogleHC/`)
-	awsELBserAgent           = regexp.MustCompile(`(^|\s)ELB-HealthChecker/`)
-)
-
 type Routing struct {
 	routingTable    routing.Table
-	probeHandler    http.Handler
 	upstreamHandler http.Handler
 	reader          client.Reader
 	tlsEnabled      bool
 }
 
-func NewRouting(routingTable routing.Table, probeHandler http.Handler, upstreamHandler http.Handler, reader client.Reader, tlsEnabled bool) *Routing {
+func NewRouting(routingTable routing.Table, upstreamHandler http.Handler, reader client.Reader, tlsEnabled bool) *Routing {
 	return &Routing{
 		routingTable:    routingTable,
-		probeHandler:    probeHandler,
 		upstreamHandler: upstreamHandler,
 		reader:          reader,
 		tlsEnabled:      tlsEnabled,
@@ -46,11 +37,6 @@ var _ http.Handler = (*Routing)(nil)
 func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	httpso := rm.routingTable.Route(r)
 	if httpso == nil {
-		if rm.isProbe(r) {
-			rm.probeHandler.ServeHTTP(w, r)
-			return
-		}
-
 		sh := handler.NewStatic(http.StatusNotFound, nil)
 		sh.ServeHTTP(w, r)
 
@@ -129,10 +115,4 @@ func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HT
 		Scheme: scheme,
 		Host:   fmt.Sprintf("%s.%s:%d", reference.GetServiceName(), httpso.GetNamespace(), port),
 	}, nil
-}
-
-func (rm *Routing) isProbe(r *http.Request) bool {
-	ua := r.UserAgent()
-
-	return kubernetesProbeUserAgent.Match([]byte(ua)) || googleHCUserAgent.Match([]byte(ua)) || awsELBserAgent.Match([]byte(ua))
 }

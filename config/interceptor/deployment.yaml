@@ -64,11 +64,11 @@ spec:
         livenessProbe:
           httpGet:
             path: /livez
-            port: proxy
+            port: admin
         readinessProbe:
           httpGet:
             path: /readyz
-            port: proxy
+            port: admin
         # TODO(pedrotorres): set better default values avoiding overcommitment
         resources:
           requests:
