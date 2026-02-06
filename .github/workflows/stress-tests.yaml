@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   stress_tests:
-    runs-on: ubuntu-latest
+    runs-on: load
     name: stress tests / ${{ inputs.kindVersion || 'v1.35.0' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
