@@ -14,11 +14,12 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
@@ -361,7 +362,7 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 		WaitFunc:     waitFunc,
 		RoutingTable: routingTable,
 		ProbeHandler: nil,
-		ServiceCache: k8s.NewFakeServiceCache(),
+		Reader:       fake.NewClientBuilder().WithScheme(kedacache.NewScheme()).Build(),
 		Timeouts: config.Timeouts{
 			WorkloadReplicas: 5 * time.Second,
 			ResponseHeader:   5 * time.Second,

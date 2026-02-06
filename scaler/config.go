@@ -26,9 +26,9 @@ type config struct {
 	// KEDA, if that value is not set on an incoming
 	// `HTTPScaledObject`
 	TargetPendingRequests int `envconfig:"KEDA_HTTP_SCALER_TARGET_PENDING_REQUESTS" default:"100"`
-	// ConfigMapCacheRsyncPeriod is the time interval
-	// for the configmap informer to rsync the local cache.
-	ConfigMapCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
+	// CacheSyncPeriod is the time interval for the controller-runtime cache to resync.
+	// TODO: consider removing this to use the default value, otherwise align the env var name
+	CacheSyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
 	// DeploymentCacheRsyncPeriod is the time interval
 	// for the deployment informer to rsync the local cache.
 	DeploymentCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_DEPLOYMENT_INFORMER_RSYNC_PERIOD" default:"60m"`

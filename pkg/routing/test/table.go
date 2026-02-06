@@ -21,6 +21,9 @@ func NewTable() *Table {
 
 var _ routing.Table = (*Table)(nil)
 
+func (t Table) Signal() {
+}
+
 func (t Table) Start(_ context.Context) error {
 	return nil
 }

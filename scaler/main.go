@@ -24,12 +24,12 @@ import (
 	"google.golang.org/grpc/reflection"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
-	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
-	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/build"
+	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -76,13 +76,14 @@ func main() {
 		cfg.DeploymentCacheRsyncPeriod,
 	)
 
-	httpCl, err := clientset.NewForConfig(k8sCfg)
+	ctrlCache, err := cache.New(k8sCfg, cache.Options{
+		Scheme:     kedacache.NewScheme(),
+		SyncPeriod: &cfg.CacheSyncPeriod,
+	})
 	if err != nil {
-		setupLog.Error(err, "creating new HTTP ClientSet")
+		setupLog.Error(err, "creating cache")
 		os.Exit(1)
 	}
-	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, cfg.ConfigMapCacheRsyncPeriod)
-	httpsoInformer := informershttpv1alpha1.New(sharedInformerFactory, "", nil).HTTPScaledObjects()
 
 	ctx := ctrl.SetupSignalHandler()
 	ctx = util.ContextWithLogger(ctx, setupLog)
@@ -97,12 +98,10 @@ func main() {
 		return nil
 	})
 
-	// start the httpso informer
+	// start the controller-runtime cache
 	eg.Go(func() error {
-		setupLog.Info("starting the httpso informer")
-
-		httpsoInformer.Informer().Run(ctx.Done())
-		return nil
+		setupLog.Info("starting the controller-runtime cache")
+		return ctrlCache.Start(ctx)
 	})
 
 	eg.Go(func() error {
@@ -123,10 +122,16 @@ func main() {
 		})
 	}
 
+	// Wait for cache to sync before starting the GRPC server
+	if !ctrlCache.WaitForCacheSync(ctx) {
+		setupLog.Error(nil, "cache failed to sync")
+		os.Exit(1)
+	}
+
 	eg.Go(func() error {
 		setupLog.Info("starting the grpc server")
 
-		if err := startGrpcServer(ctx, cfg, ctrl.Log, grpcPort, pinger, httpsoInformer, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
+		if err := startGrpcServer(ctx, cfg, ctrl.Log, grpcPort, pinger, ctrlCache, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "grpc server failed")
 			return err
 		}
@@ -144,7 +149,7 @@ func main() {
 	setupLog.Info("Bye!")
 }
 
-func startGrpcServer(ctx context.Context, cfg *config, lggr logr.Logger, port int, pinger *queuePinger, httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer, targetPendingRequests int64) error {
+func startGrpcServer(ctx context.Context, cfg *config, lggr logr.Logger, port int, pinger *queuePinger, reader client.Reader, targetPendingRequests int64) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("starting grpc server", "address", addr)
 
@@ -185,7 +190,7 @@ func startGrpcServer(ctx context.Context, cfg *config, lggr logr.Logger, port in
 
 	grpc_health_v1.RegisterHealthServer(grpcServer, hs)
 
-	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(lggr, pinger, httpsoInformer, targetPendingRequests))
+	externalscaler.RegisterExternalScalerServer(grpcServer, newImpl(lggr, pinger, reader, targetPendingRequests))
 
 	go func() {
 		<-ctx.Done()

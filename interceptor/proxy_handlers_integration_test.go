@@ -19,9 +19,11 @@ import (
 	"golang.org/x/sync/errgroup"
 	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/middleware"
+	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
@@ -280,7 +282,7 @@ func newHarness(
 	lggr := logr.Discard()
 	routingTable := routingtest.NewTable()
 
-	svcCache := k8s.NewFakeServiceCache()
+	fakeClient := fake.NewClientBuilder().WithScheme(kedacache.NewScheme()).Build()
 	endpCache := k8s.NewFakeEndpointsCache()
 	waitFunc := newWorkloadReplicasForwardWaitFunc(
 		logr.Discard(),
@@ -308,7 +310,7 @@ func newHarness(
 			respHeaderTimeout: time.Second,
 		},
 		config.Tracing{}),
-		svcCache,
+		fakeClient,
 		false,
 	)
 

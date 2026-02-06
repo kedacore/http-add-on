@@ -21,9 +21,9 @@ type Serving struct {
 	// This is the server that the external scaler will issue metrics
 	// requests to
 	AdminPort int `envconfig:"KEDA_HTTP_ADMIN_PORT" required:"true"`
-	// ConfigMapCacheRsyncPeriod is the time interval
-	// for the configmap informer to rsync the local cache.
-	ConfigMapCacheRsyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
+	// CacheSyncPeriod is the time interval for the controller-runtime cache to resync.
+	// TODO: consider removing this to use the default value, otherwise align the env var name
+	CacheSyncPeriod time.Duration `envconfig:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" default:"60m"`
 	// The interceptor has an internal process that periodically fetches the state
 	// of endpoints that is running the servers it forwards to.
 	//

@@ -15,18 +15,20 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/errgroup"
-	k8sinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
 	"github.com/kedacore/http-add-on/interceptor/metrics"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
-	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
-	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
+	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/build"
+	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
@@ -88,23 +90,43 @@ func main() {
 		runtime.Goexit()
 	}
 
-	k8sSharedInformerFactory := k8sinformers.NewSharedInformerFactory(cl, time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS))
-	svcCache := k8s.NewInformerBackedServiceCache(ctrl.Log, cl, k8sSharedInformerFactory)
 	endpointsCache := k8s.NewInformerBackedEndpointsCache(ctrl.Log, cl, time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS))
 	waitFunc := newWorkloadReplicasForwardWaitFunc(ctrl.Log, endpointsCache)
 
-	httpCl, err := clientset.NewForConfig(cfg)
+	cacheOpts := cache.Options{
+		Scheme:     kedacache.NewScheme(),
+		SyncPeriod: &servingCfg.CacheSyncPeriod,
+	}
+	if servingCfg.WatchNamespace != "" {
+		cacheOpts.DefaultNamespaces = map[string]cache.Config{
+			servingCfg.WatchNamespace: {},
+		}
+	}
+
+	ctrlCache, err := cache.New(cfg, cacheOpts)
 	if err != nil {
-		setupLog.Error(err, "creating new HTTP ClientSet")
+		setupLog.Error(err, "creating cache")
 		runtime.Goexit()
 	}
 
 	queues := queue.NewMemory()
 
-	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, servingCfg.ConfigMapCacheRsyncPeriod)
-	routingTable, err := routing.NewTable(sharedInformerFactory, servingCfg.WatchNamespace, queues)
+	routingTable := routing.NewTable(ctrlCache, queues)
+
+	// Setup informer to signal routing table on HTTPSO changes
+	informer, err := ctrlCache.GetInformer(context.Background(), &v1alpha1.HTTPScaledObject{})
 	if err != nil {
-		setupLog.Error(err, "fetching routing table")
+		setupLog.Error(err, "getting HTTPScaledObject informer")
+		runtime.Goexit()
+	}
+
+	_, err = informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+		AddFunc:    func(_ any) { routingTable.Signal() },
+		UpdateFunc: func(_, _ any) { routingTable.Signal() },
+		DeleteFunc: func(_ any) { routingTable.Signal() },
+	})
+	if err != nil {
+		setupLog.Error(err, "adding event handlers")
 		runtime.Goexit()
 	}
 
@@ -129,12 +151,22 @@ func main() {
 		}()
 	}
 
+	eg.Go(func() error {
+		setupLog.Info("starting the controller-runtime cache")
+		return ctrlCache.Start(ctx)
+	})
+
+	// Wait for cache to sync before starting components that depend on it
+	if !ctrlCache.WaitForCacheSync(ctx) {
+		setupLog.Error(nil, "cache failed to sync")
+		runtime.Goexit()
+	}
+
 	// start the endpoints cache updater
 	eg.Go(func() error {
 		setupLog.Info("starting the endpoints cache")
 
 		endpointsCache.Start(ctx)
-		k8sSharedInformerFactory.Start(ctx.Done())
 		return nil
 	})
 
@@ -196,11 +228,10 @@ func main() {
 			}
 
 			proxyTLSPort := servingCfg.TLSPort
-			k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyTLSPort, tlsCfg, tracingCfg); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, ctrlCache, timeoutCfg, servingCfg, proxyTLSPort, tlsCfg, tracingCfg); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -210,10 +241,9 @@ func main() {
 
 	// start a proxy server without TLS.
 	eg.Go(func() error {
-		k8sSharedInformerFactory.WaitForCacheSync(ctx.Done())
 		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
 
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, svcCache, timeoutCfg, servingCfg, proxyPort, nil, tracingCfg); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, ctrlCache, timeoutCfg, servingCfg, proxyPort, nil, tracingCfg); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -273,7 +303,7 @@ func runProxyServer(
 	q queue.Counter,
 	waitFunc forwardWaitFunc,
 	routingTable routing.Table,
-	svcCache k8s.ServiceCache,
+	reader client.Reader,
 	timeouts config.Timeouts,
 	serving config.Serving,
 	port int,
@@ -292,7 +322,7 @@ func runProxyServer(
 		WaitFunc:     waitFunc,
 		RoutingTable: routingTable,
 		ProbeHandler: probeHandler,
-		ServiceCache: svcCache,
+		Reader:       reader,
 		Timeouts:     timeouts,
 		Serving:      serving,
 		TLSConfig:    tlsCfg,

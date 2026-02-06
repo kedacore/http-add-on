@@ -8,9 +8,11 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/cache"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
 
@@ -25,9 +27,9 @@ var _ = Describe("RoutingMiddleware", func() {
 			emptyHandler := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 			probeHandler.Handle("/probe", emptyHandler)
 			upstreamHandler.Handle("/upstream", emptyHandler)
-			svcCache := k8s.NewFakeServiceCache()
+			fakeClient := fake.NewClientBuilder().WithScheme(cache.NewScheme()).Build()
 
-			rm := NewRouting(routingTable, probeHandler, upstreamHandler, svcCache, false)
+			rm := NewRouting(routingTable, probeHandler, upstreamHandler, fakeClient, false)
 			Expect(rm).NotTo(BeNil())
 			Expect(rm.routingTable).To(Equal(routingTable))
 			Expect(rm.probeHandler).To(Equal(probeHandler))
@@ -44,7 +46,7 @@ var _ = Describe("RoutingMiddleware", func() {
 		var (
 			upstreamHandler   *http.ServeMux
 			probeHandler      *http.ServeMux
-			svcCache          *k8s.FakeServiceCache
+			client            client.Reader
 			routingTable      *routingtest.Table
 			routingMiddleware *Routing
 			w                 *httptest.ResponseRecorder
@@ -96,8 +98,8 @@ var _ = Describe("RoutingMiddleware", func() {
 			upstreamHandler = http.NewServeMux()
 			probeHandler = http.NewServeMux()
 			routingTable = routingtest.NewTable()
-			svcCache = k8s.NewFakeServiceCache()
-			routingMiddleware = NewRouting(routingTable, probeHandler, upstreamHandler, svcCache, false)
+			client = fake.NewClientBuilder().WithScheme(cache.NewScheme()).Build()
+			routingMiddleware = NewRouting(routingTable, probeHandler, upstreamHandler, client, false)
 
 			w = httptest.NewRecorder()
 
@@ -139,7 +141,9 @@ var _ = Describe("RoutingMiddleware", func() {
 
 		When("route is found with portName", func() {
 			It("routes to the upstream handler", func() {
-				svcCache.Add(*svc)
+				clientWithSvc := fake.NewClientBuilder().WithScheme(cache.NewScheme()).WithObjects(svc).Build()
+				routingMiddleware = NewRouting(routingTable, probeHandler, upstreamHandler, clientWithSvc, false)
+
 				var (
 					sc = http.StatusTeapot
 					st = http.StatusText(sc)
