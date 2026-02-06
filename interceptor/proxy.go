@@ -23,7 +23,6 @@ type ProxyHandlerConfig struct {
 	Queue        queue.Counter
 	WaitFunc     forwardWaitFunc
 	RoutingTable routing.Table
-	ProbeHandler http.Handler
 	Reader       client.Reader
 	Timeouts     config.Timeouts
 	Serving      config.Serving
@@ -83,7 +82,6 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 
 	handler = middleware.NewRouting(
 		cfg.RoutingTable,
-		cfg.ProbeHandler,
 		handler,
 		cfg.Reader,
 		cfg.TLSConfig != nil,

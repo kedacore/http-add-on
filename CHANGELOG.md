@@ -37,7 +37,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Fix health probes failing when HTTPScaledObject has no hosts configured ([#1447](https://github.com/kedacore/http-add-on/issues/1447))
 
 ### Deprecations
 

@@ -189,7 +189,7 @@ func main() {
 	eg.Go(func() error {
 		setupLog.Info("starting the admin server", "port", adminPort)
 
-		if err := runAdminServer(ctx, ctrl.Log, queues, adminPort); !util.IsIgnoredErr(err) {
+		if err := runAdminServer(ctx, ctrl.Log, adminPort, queues, routingTable); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "admin server failed")
 			return err
 		}
@@ -271,20 +271,20 @@ func main() {
 func runAdminServer(
 	ctx context.Context,
 	lggr logr.Logger,
-	q queue.Counter,
 	port int,
+	q queue.Counter,
+	routingTable routing.Table,
 ) error {
 	lggr = lggr.WithName("runAdminServer")
-	adminServer := http.NewServeMux()
-	queue.AddCountsRoute(
-		lggr,
-		adminServer,
-		q,
-	)
+
+	probeHandler := handler.NewProbe(routingTable)
+	go probeHandler.Start(ctx)
+
+	adminHandler := BuildAdminHandler(lggr, q, probeHandler)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, adminServer, nil)
+	return kedahttp.ServeContext(ctx, addr, adminHandler, nil)
 }
 
 func runMetricsServer(
@@ -310,18 +310,12 @@ func runProxyServer(
 	tlsCfg *tls.Config,
 	tracingConfig config.Tracing,
 ) error {
-	probeHandler := handler.NewProbe([]util.HealthChecker{
-		routingTable,
-	})
-	go probeHandler.Start(ctx)
-
 	// Build handler chain using the shared builder
 	rootHandler := BuildProxyHandler(&ProxyHandlerConfig{
 		Logger:       logger,
 		Queue:        q,
 		WaitFunc:     waitFunc,
 		RoutingTable: routingTable,
-		ProbeHandler: probeHandler,
 		Reader:       reader,
 		Timeouts:     timeouts,
 		Serving:      serving,

@@ -14,7 +14,7 @@ type Probe struct {
 	healthy        atomic.Bool
 }
 
-func NewProbe(healthChecks []util.HealthChecker) *Probe {
+func NewProbe(healthChecks ...util.HealthChecker) *Probe {
 	return &Probe{
 		healthCheckers: healthChecks,
 	}
