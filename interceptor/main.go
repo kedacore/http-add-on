@@ -95,7 +95,7 @@ func main() {
 
 	cacheOpts := cache.Options{
 		Scheme:     kedacache.NewScheme(),
-		SyncPeriod: &servingCfg.ConfigMapCacheRsyncPeriod,
+		SyncPeriod: &servingCfg.CacheSyncPeriod,
 	}
 	if servingCfg.WatchNamespace != "" {
 		cacheOpts.DefaultNamespaces = map[string]cache.Config{
