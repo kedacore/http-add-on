@@ -6,8 +6,10 @@ package stress
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
@@ -25,6 +27,10 @@ var (
 	host                 = testName
 	minReplicaCount      = 0
 	maxReplicaCount      = 10
+
+	// Thresholds for high concurrency stress test validation
+	scaleUpThreshold   = 80 * time.Second  // Max time to scale up to max replicas under high load
+	scaleDownThreshold = 120 * time.Second // Max time to scale down after load stops
 )
 
 type templateData struct {
@@ -101,10 +107,11 @@ spec:
   template:
     spec:
       containers:
-      - name: apache-ab
-        image: ghcr.io/kedacore/tests-apache-ab
+      - name: oha
+        image: ghcr.io/hatoo/oha:1.13
         imagePullPolicy: Always
         args:
+          - "--no-tui"
           - "-n"
           - "{{.Requests}}"
           - "-c"
@@ -149,7 +156,20 @@ func TestHighConcurrencyStress(t *testing.T) {
 	data, templates := getTemplateData()
 	CreateKubernetesResources(t, kc, testNamespace, data, templates)
 
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 6, 10),
+	// OPTIONAL: Uncomment below to use different HPA stabilization window (30s instead of 5min)
+	// This patches the ScaledObject to speed up scale-down (not recommended for CI)
+	// See https://github.com/kedacore/http-add-on/issues/1457 for native HTTPScaledObject support
+	// NOTE: If you enable the patch below, the current scaleDownThreshold should be adjusted to 60s.
+	/*
+		t.Log("--- patching ScaledObject for faster scale-down ---")
+		patchCmd := fmt.Sprintf(
+			`kubectl patch scaledobject %s -n %s --type=merge -p '{"spec":{"advanced":{"horizontalPodAutoscalerConfig":{"behavior":{"scaleDown":{"stabilizationWindowSeconds":30}}}}}}'`,
+			httpScaledObjectName, testNamespace)
+		_, err := ExecuteCommand(patchCmd)
+		require.NoError(t, err, "failed to patch ScaledObject stabilization window")
+	*/
+
+	require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 6, 10),
 		"replica count should be %d after 1 minute", minReplicaCount)
 
 	testHighConcurrencyLoad(t, kc, data)
@@ -164,9 +184,15 @@ func testHighConcurrencyLoad(t *testing.T, kc *kubernetes.Clientset, data templa
 
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 
-	// Wait for scaling up to max replicas
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 36, 10),
+	// Wait for scaling up to max replicas and measure duration
+	scaleUpStart := time.Now()
+	require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 36, 10),
 		"replica count should be %d after 6 minutes under high load", maxReplicaCount)
+	scaleUpDuration := time.Since(scaleUpStart)
+
+	t.Logf("--- scale-up completed in %v (threshold: %v) ---", scaleUpDuration.Round(time.Second), scaleUpThreshold)
+	require.LessOrEqual(t, scaleUpDuration, scaleUpThreshold,
+		"scale-up took %v, exceeds threshold %v", scaleUpDuration, scaleUpThreshold)
 
 	// Verify the system remains stable at max replicas
 	t.Log("--- verifying system stability at max replicas ---")
@@ -179,8 +205,14 @@ func testHighConcurrencyLoad(t *testing.T, kc *kubernetes.Clientset, data templa
 func testScaleIn(t *testing.T, kc *kubernetes.Clientset) {
 	t.Log("--- testing scale in after stress test ---")
 
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 24, 10),
+	scaleDownStart := time.Now()
+	require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 24, 10),
 		"replica count should be %d after 4 minutes", minReplicaCount)
+	scaleDownDuration := time.Since(scaleDownStart)
+
+	t.Logf("--- scale-down completed in %v (threshold: %v) ---", scaleDownDuration.Round(time.Second), scaleDownThreshold)
+	require.LessOrEqual(t, scaleDownDuration, scaleDownThreshold,
+		"scale-down took %v, exceeds threshold %v", scaleDownDuration, scaleDownThreshold)
 }
 
 func getTemplateData() (templateData, []Template) {
