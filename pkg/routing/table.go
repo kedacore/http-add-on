@@ -119,6 +119,7 @@ func (t *table) HasSynced() bool {
 var _ util.HealthChecker = (*table)(nil)
 
 func (t *table) HealthCheck(_ context.Context) error {
+	// TODO: HasSynced never fails after passing once, it is not testing health over time
 	if !t.HasSynced() {
 		return errNotSyncedTable
 	}

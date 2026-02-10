@@ -170,9 +170,8 @@ func main() {
 		return nil
 	})
 
-	// start the update loop that updates the routing table from
-	// the ConfigMap that the operator updates as HTTPScaledObjects
-	// enter and exit the system
+	// Start the update loop that refreshes the routing table
+	// when HTTPScaledObjects are added, updated, or removed
 	eg.Go(func() error {
 		setupLog.Info("starting the routing table")
 
