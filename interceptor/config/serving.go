@@ -28,7 +28,8 @@ type Serving struct {
 	// of endpoints that is running the servers it forwards to.
 	//
 	// This is the interval (in milliseconds) representing how often to do a fetch
-	EndpointsCachePollIntervalMS int `envconfig:"KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS" default:"250"`
+	// TODO: this is actually the informer resync period, not a poll interval, default is too aggressive
+	EndpointsCachePollIntervalMS int `envconfig:"KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS" default:"1000"`
 	// ProxyTLSEnabled is a flag to specify whether the interceptor proxy should
 	// be running using a TLS enabled server
 	ProxyTLSEnabled bool `envconfig:"KEDA_HTTP_PROXY_TLS_ENABLED" default:"false"`

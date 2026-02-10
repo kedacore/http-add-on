@@ -38,6 +38,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **Interceptor**: Fix health probes failing when HTTPScaledObject has no hosts configured ([#1447](https://github.com/kedacore/http-add-on/issues/1447))
+- **Interceptor**: Set endpoint informer resync default to 1s to suppress warning ([#1455](https://github.com/kedacore/http-add-on/issues/1455))
 
 ### Deprecations
 
