@@ -145,7 +145,7 @@ func ExecCommandOnSpecificPod(t *testing.T, podName string, namespace string, co
 func WaitForSuccessfulExecCommandOnSpecificPod(t *testing.T, podName string, namespace string, command string, iterations, intervalSeconds int) (bool, string, string, error) {
 	var out, errOut string
 	var err error
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		out, errOut, err = ExecCommandOnSpecificPod(t, podName, namespace, command)
 		t.Logf("Waiting for successful execution of command on Pod; Output: %s, Error: %s", out, errOut)
 		if err == nil {
@@ -234,7 +234,7 @@ func DeleteNamespace(t *testing.T, nsName string) {
 }
 
 func WaitForJobSuccess(t *testing.T, kc *kubernetes.Clientset, jobName, namespace string, iterations, interval int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		job, err := kc.BatchV1().Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 		if err != nil {
 			t.Logf("cannot run job - %s", err)
@@ -250,7 +250,7 @@ func WaitForJobSuccess(t *testing.T, kc *kubernetes.Clientset, jobName, namespac
 }
 
 func WaitForAllJobsSuccess(t *testing.T, kc *kubernetes.Clientset, namespace string, iterations, interval int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		jobs, err := kc.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			t.Logf("cannot list jobs - %s", err)
@@ -287,7 +287,7 @@ func WaitForNamespaceDeletion(t *testing.T, nsName string) bool {
 
 func WaitForJobCount(t *testing.T, kc *kubernetes.Clientset, namespace string,
 	target, iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		jobList, _ := kc.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 		count := len(jobList.Items)
 
@@ -308,7 +308,7 @@ func WaitForJobCountUntilIteration(t *testing.T, kc *kubernetes.Clientset, names
 	target, iterations, intervalSeconds int) bool {
 	var isTargetAchieved = false
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		jobList, _ := kc.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 		count := len(jobList.Items)
 
@@ -330,7 +330,7 @@ func WaitForJobCountUntilIteration(t *testing.T, kc *kubernetes.Clientset, names
 // Waits until deployment count hits target or number of iterations are done.
 func WaitForPodCountInNamespace(t *testing.T, kc *kubernetes.Clientset, namespace string,
 	target, iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		pods, _ := kc.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
 
 		t.Logf("Waiting for pods in namespace to hit target. Namespace - %s, Current  - %d, Target - %d",
@@ -348,7 +348,7 @@ func WaitForPodCountInNamespace(t *testing.T, kc *kubernetes.Clientset, namespac
 
 // Waits until all the pods in the namespace have a running status.
 func WaitForAllPodRunningInNamespace(t *testing.T, kc *kubernetes.Clientset, namespace string, iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		runningCount := 0
 		pods, _ := kc.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
 
@@ -375,7 +375,7 @@ func WaitForAllPodRunningInNamespace(t *testing.T, kc *kubernetes.Clientset, nam
 // Waits until deployment ready replica count hits target or number of iterations are done.
 func WaitForDeploymentReplicaReadyCount(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
 	target, iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		deployment, _ := kc.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		replicas := deployment.Status.ReadyReplicas
 
@@ -395,7 +395,7 @@ func WaitForDeploymentReplicaReadyCount(t *testing.T, kc *kubernetes.Clientset, 
 // WaitForDeploymentReplicaReadyMinCount waits until deployment ready replicas reach at least the minimum target or number of iterations are done.
 func WaitForDeploymentReplicaReadyMinCount(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
 	minTarget, iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		deployment, _ := kc.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		replicas := deployment.Status.ReadyReplicas
 
@@ -415,7 +415,7 @@ func WaitForDeploymentReplicaReadyMinCount(t *testing.T, kc *kubernetes.Clientse
 // Waits until ingress resource is ready or number of iterations are done.
 func WaitForIngressReady(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
 	iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		ingress, _ := kc.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		if ingress.Status.LoadBalancer.Ingress != nil {
 			return true
@@ -429,7 +429,7 @@ func WaitForIngressReady(t *testing.T, kc *kubernetes.Clientset, name, namespace
 }
 
 func WaitForHTTPRouteAccepted(t *testing.T, gc *gatewayapiv1clientset.GatewayV1Client, name, namespace string, iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		httpRoute, _ := gc.HTTPRoutes(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		for _, parent := range httpRoute.Status.Parents {
 			for _, condition := range parent.Conditions {
@@ -448,7 +448,7 @@ func WaitForHTTPRouteAccepted(t *testing.T, gc *gatewayapiv1clientset.GatewayV1C
 // Waits until statefulset count hits target or number of iterations are done.
 func WaitForStatefulsetReplicaReadyCount(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
 	target, iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		statefulset, _ := kc.AppsV1().StatefulSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		replicas := statefulset.Status.ReadyReplicas
 
@@ -471,7 +471,7 @@ func WaitForDeploymentReplicaCountChange(t *testing.T, kc *kubernetes.Clientset,
 	var replicas, prevReplicas int32
 	prevReplicas = -1
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		deployment, _ := kc.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		replicas = deployment.Status.Replicas
 
@@ -493,7 +493,7 @@ func AssertReplicaCountNotChangeDuringTimePeriod(t *testing.T, kc *kubernetes.Cl
 	t.Logf("Waiting for some time to ensure deployment replica count doesn't change from %d", target)
 	var replicas int32
 
-	for i := 0; i < intervalSeconds; i++ {
+	for range intervalSeconds {
 		deployment, _ := kc.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		replicas = deployment.Status.Replicas
 
@@ -512,7 +512,7 @@ func WaitForHpaCreation(t *testing.T, kc *kubernetes.Clientset, name, namespace 
 	iterations, intervalSeconds int) (*autoscalingv2.HorizontalPodAutoscaler, error) {
 	hpa := &autoscalingv2.HorizontalPodAutoscaler{}
 	var err error
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		hpa, err = kc.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		t.Log("Waiting for hpa creation")
 		if err == nil {
@@ -680,7 +680,7 @@ func DeletePodsInNamespaceBySelector(t *testing.T, kc *kubernetes.Clientset, sel
 // Wait for Pods identified by selector to complete termination
 func WaitForPodsTerminated(t *testing.T, kc *kubernetes.Clientset, selector, namespace string,
 	iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		pods, err := kc.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: selector})
 		if (err != nil && errors.IsNotFound(err)) || len(pods.Items) == 0 {
 			t.Logf("No pods with label %s", selector)
