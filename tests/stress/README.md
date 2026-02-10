@@ -16,19 +16,26 @@ Tests the system's ability to handle a large number of concurrent requests.
 - **Load Pattern**: 500,000 requests with 50 concurrent connections
 - **Purpose**: Validates that the system can scale up to maximum replicas and remain stable under high concurrent load
 - **Duration**: ~15 minutes
+- **Thresholds**:
+  - Scale-up: 80 seconds (configurable)
+  - Scale-down: 120 seconds (configurable)
 - **Validates**:
-  - Scaling to maximum replicas
+  - Scaling to maximum replicas within threshold
   - System stability at maximum capacity
-  - Proper scale-down after load removal
+  - Proper scale-down after load removal within threshold
 
 ### 2. Sustained Load Stress Test (`sustained_load_stress_test.go`)
 Tests the system's ability to handle continuous load over an extended period.
 
-- **Load Pattern**: 500,000 requests with 50 concurrent connections over 10 minutes
+- **Load Pattern**: 10 minutes of continuous traffic with 50 concurrent connections (duration-based)
 - **Purpose**: Validates system stability during prolonged periods of sustained traffic
-- **Duration**: ~15 minutes
+- **Duration**: ~20 minutes
+- **Thresholds**:
+  - Initial scale-up (to 5 replicas): 60 seconds (configurable)
+  - Full scale-up (to 8 replicas): 10 seconds (configurable)
+  - Scale-down: 300 seconds (configurable)
 - **Validates**:
-  - Progressive scaling under sustained load
+  - Progressive scaling under sustained load within thresholds
   - System stability over extended periods
   - Proper resource management during long-running operations
   - Graceful scale-down after sustained load
@@ -36,14 +43,19 @@ Tests the system's ability to handle continuous load over an extended period.
 ### 3. Rapid Scaling Stress Test (`rapid_scaling_stress_test.go`)
 Tests the system's ability to handle rapid scale up and down cycles.
 
-- **Load Pattern**: 3 cycles of rapid scale-up and scale-down (300,000 requests per cycle with 10 concurrent connections)
+- **Load Pattern**: 3 cycles of burst load (60 seconds per burst with 20 concurrent connections) plus continuous base load (3 req/s)
 - **Purpose**: Validates system stability during frequent scaling operations
-- **Duration**: ~20 minutes
+- **Duration**: ~25 minutes
+- **Thresholds**:
+  - Scale-up per cycle: 30 seconds (configurable)
+  - Scale-down per cycle: 360 seconds (configurable, due to HPA stabilization window)
 - **Validates**:
-  - Quick response to load spikes
-  - Rapid scale-down when load drops
+  - Quick response to load spikes within threshold
+  - Rapid scale-down when load drops within threshold
   - System stability across multiple scaling cycles
   - No resource leaks or degradation after multiple cycles
+
+> **Note**: The scale-down threshold is set to 360 seconds by default due to the HPA stabilization window (5 minutes). You can enable the optional ScaledObject patch in the test to reduce this to ~60 seconds.
 
 ## Prerequisites
 
