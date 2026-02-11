@@ -73,15 +73,16 @@ var (
 	// Base load: very low concurrency with rate limit, runs for entire test duration
 	// Uses -q (queries per second) to limit request rate to ~3 req/s total
 	// This should keep ~1 replica active (targetValue=5)
+	// Duration must be long enough to cover all cycles (3 cycles × ~8 min scale-down each = ~25 min)
 	rapidBaseLoadJobSpec = OhaLoadJobSpec{
 		Name:                       "base-load-generator",
 		Namespace:                  rapidTestNamespace,
 		Host:                       rapidHost,
-		Duration:                   "600s",
+		Duration:                   "1800s",
 		Concurrency:                1,
 		RateLimit:                  3,
 		TerminationGracePeriodSecs: 5,
-		ActiveDeadlineSeconds:      900,
+		ActiveDeadlineSeconds:      2100,
 		BackoffLimit:               1,
 	}
 )
@@ -188,10 +189,10 @@ func testRapidScalingCycles(t *testing.T, kc *kubernetes.Clientset) {
 		_ = KubectlDeleteYAML(t, burstJobSpec.Name, BuildOhaLoadJobYAML(burstJobSpec))
 
 		// Scale down phase - should scale down to ~1 replica due to base load (3 req/s)
-		// HPA stabilization window is 5 minutes by default, so wait up to 6 minutes (84 * 5s)
+		// HPA stabilization window is 5 minutes by default, so wait up to 8 minutes (96 * 5s)
 		// If you enabled the ScaledObject patch above, you can use (18, 5) instead for faster testing
 		t.Logf("--- cycle %d: scale down phase (base load still running) ---", i)
-		require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, rapidDeploymentName, rapidTestNamespace, rapidBaseLoadExpectedReplicas, 84, 5),
+		require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, rapidDeploymentName, rapidTestNamespace, rapidBaseLoadExpectedReplicas, 96, 5),
 			"replica count should return to %d in cycle %d", rapidBaseLoadExpectedReplicas, i)
 		scaleDownDuration := time.Since(scaleDownStart)
 		scaleDownTimes = append(scaleDownTimes, scaleDownDuration)
