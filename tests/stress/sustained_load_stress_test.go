@@ -25,8 +25,8 @@ var (
 	sustainedServiceName          = fmt.Sprintf("%s-service", sustainedTestName)
 	sustainedHTTPScaledObjectName = fmt.Sprintf("%s-http-so", sustainedTestName)
 	sustainedHost                 = sustainedTestName
-	sustainedMinReplicaCount      = 1
-	sustainedMaxReplicaCount      = 15
+	sustainedMinReplicaCount      = int32(1)
+	sustainedMaxReplicaCount      = int32(15)
 
 	// Thresholds for sustained load stress test validation
 	sustainedInitialScaleUpThreshold = 60 * time.Second  // Max time to reach 5 replicas
@@ -34,128 +34,67 @@ var (
 	sustainedScaleDownThreshold      = 360 * time.Second // Max time to scale down after load stops
 )
 
-type sustainedTemplateData struct {
-	TestNamespace        string
-	DeploymentName       string
-	ServiceName          string
-	HTTPScaledObjectName string
-	Host                 string
-	MinReplicas          int
-	MaxReplicas          int
-	Requests             string
-	Concurrency          string
-}
+// Resource specifications using typed structs
+var (
+	sustainedServiceSpec = ServiceSpec{
+		Name:       sustainedServiceName,
+		Namespace:  sustainedTestNamespace,
+		App:        sustainedDeploymentName,
+		Port:       8080,
+		TargetPort: "http",
+	}
 
-const (
-	sustainedServiceTemplate = `
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{.ServiceName}}
-  namespace: {{.TestNamespace}}
-  labels:
-    app: {{.DeploymentName}}
-spec:
-  ports:
-    - port: 8080
-      targetPort: http
-      protocol: TCP
-      name: http
-  selector:
-    app: {{.DeploymentName}}
-`
+	sustainedDeploymentSpec = DeploymentSpec{
+		Name:          sustainedDeploymentName,
+		Namespace:     sustainedTestNamespace,
+		App:           sustainedDeploymentName,
+		Replicas:      1,
+		Image:         "registry.k8s.io/e2e-test-images/agnhost:2.45",
+		Args:          []string{"netexec"},
+		ContainerPort: 8080,
+		ReadinessPath: "/",
+		ReadinessPort: "http",
+	}
 
-	sustainedWorkloadTemplate = `
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{.DeploymentName}}
-  namespace: {{.TestNamespace}}
-  labels:
-    app: {{.DeploymentName}}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: {{.DeploymentName}}
-  template:
-    metadata:
-      labels:
-        app: {{.DeploymentName}}
-    spec:
-      containers:
-        - name: {{.DeploymentName}}
-          image: registry.k8s.io/e2e-test-images/agnhost:2.45
-          args:
-          - netexec
-          ports:
-            - name: http
-              containerPort: 8080
-              protocol: TCP
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-`
+	sustainedHTTPScaledObjectSpec = HTTPScaledObjectSpec{
+		Name:            sustainedHTTPScaledObjectName,
+		Namespace:       sustainedTestNamespace,
+		Hosts:           []string{sustainedHost},
+		DeploymentName:  sustainedDeploymentName,
+		ServiceName:     sustainedServiceName,
+		Port:            8080,
+		MinReplicas:     sustainedMinReplicaCount,
+		MaxReplicas:     sustainedMaxReplicaCount,
+		ScaledownPeriod: 30,
+		TargetValue:     50,
+		RateWindow:      time.Minute,
+		RateGranularity: time.Second,
+	}
 
-	sustainedLoadJobTemplate = `
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: sustained-load-generator
-  namespace: {{.TestNamespace}}
-spec:
-  template:
-    spec:
-      containers:
-      - name: oha
-        image: ghcr.io/hatoo/oha:1.13
-        imagePullPolicy: Always
-        args:
-          - "--no-tui"
-          - "-c"
-          - "{{.Concurrency}}"
-          - "-z"
-          - "600s"
-          - "-H"
-          - "Host: {{.Host}}"
-          - "http://keda-add-ons-http-interceptor-proxy.keda:8080/"
-      restartPolicy: Never
-      terminationGracePeriodSeconds: 5
-  activeDeadlineSeconds: 1800
-  backoffLimit: 5
-`
-	sustainedHTTPScaledObjectTemplate = `
-kind: HTTPScaledObject
-apiVersion: http.keda.sh/v1alpha1
-metadata:
-  name: {{.HTTPScaledObjectName}}
-  namespace: {{.TestNamespace}}
-spec:
-  hosts:
-  - {{.Host}}
-  scalingMetric:
-    requestRate:
-      granularity: 1s
-      targetValue: 50
-      window: 1m
-  scaledownPeriod: 30
-  scaleTargetRef:
-    name: {{.DeploymentName}}
-    service: {{.ServiceName}}
-    port: 8080
-  replicas:
-    min: {{ .MinReplicas }}
-    max: {{ .MaxReplicas }}
-`
+	sustainedLoadJobSpec = OhaLoadJobSpec{
+		Name:                       "sustained-load-generator",
+		Namespace:                  sustainedTestNamespace,
+		Host:                       sustainedHost,
+		Duration:                   "600s",
+		Concurrency:                50,
+		TerminationGracePeriodSecs: 5,
+		ActiveDeadlineSeconds:      1800,
+		BackoffLimit:               5,
+	}
 )
 
 func TestSustainedLoadStress(t *testing.T) {
 	// setup
 	t.Log("--- setting up sustained load stress test ---")
 	kc := GetKubernetesClient(t)
-	data, templates := getSustainedTemplateData()
-	CreateKubernetesResources(t, kc, sustainedTestNamespace, data, templates)
+
+	// Create namespace
+	CreateNamespace(t, kc, sustainedTestNamespace)
+
+	// Apply resources using typed structs
+	require.NoError(t, KubectlApplyYAML(t, "service", BuildServiceYAML(sustainedServiceSpec)))
+	require.NoError(t, KubectlApplyYAML(t, "deployment", BuildDeploymentYAML(sustainedDeploymentSpec)))
+	require.NoError(t, KubectlApplyYAML(t, "httpscaledobject", BuildHTTPScaledObjectYAML(sustainedHTTPScaledObjectSpec)))
 
 	// OPTIONAL: Uncomment below to use different HPA stabilization window (30s instead of 5min)
 	// This patches the ScaledObject to speed up scale-down (not recommended for CI)
@@ -170,20 +109,20 @@ func TestSustainedLoadStress(t *testing.T) {
 		require.NoError(t, err, "failed to patch ScaledObject stabilization window")
 	*/
 
-	require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, sustainedMinReplicaCount, 6, 10),
+	require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, int(sustainedMinReplicaCount), 6, 10),
 		"replica count should be %d after 1 minute", sustainedMinReplicaCount)
 
-	testSustainedLoad(t, kc, data)
+	testSustainedLoad(t, kc)
 	testSustainedScaleIn(t, kc)
 
 	// cleanup
-	DeleteKubernetesResources(t, sustainedTestNamespace, data, templates)
+	DeleteNamespace(t, sustainedTestNamespace)
 }
 
-func testSustainedLoad(t *testing.T, kc *kubernetes.Clientset, data sustainedTemplateData) {
+func testSustainedLoad(t *testing.T, kc *kubernetes.Clientset) {
 	t.Log("--- testing sustained load (10 minutes of continuous traffic with 50 concurrent connections) ---")
 
-	KubectlApplyWithTemplate(t, data, "sustainedLoadJobTemplate", sustainedLoadJobTemplate)
+	require.NoError(t, KubectlApplyYAML(t, "sustained-load", BuildOhaLoadJobYAML(sustainedLoadJobSpec)))
 
 	// Wait for initial scale up and measure duration
 	t.Log("--- waiting for initial scale up ---")
@@ -214,7 +153,7 @@ func testSustainedLoad(t *testing.T, kc *kubernetes.Clientset, data sustainedTem
 	assert.True(t, WaitForDeploymentReplicaReadyMinCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, 5, 24, 10),
 		"replica count should remain at least 5 during sustained load")
 
-	KubectlDeleteWithTemplate(t, data, "sustainedLoadJobTemplate", sustainedLoadJobTemplate)
+	_ = KubectlDeleteYAML(t, "sustained-load", BuildOhaLoadJobYAML(sustainedLoadJobSpec))
 }
 
 func testSustainedScaleIn(t *testing.T, kc *kubernetes.Clientset) {
@@ -222,29 +161,11 @@ func testSustainedScaleIn(t *testing.T, kc *kubernetes.Clientset) {
 
 	scaleDownStart := time.Now()
 	// If you enabled the ScaledObject patch above, you can use (18, 5) instead for faster testing
-	require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, sustainedMinReplicaCount, 72, 5),
+	require.True(t, WaitForDeploymentReplicaReadyCount(t, kc, sustainedDeploymentName, sustainedTestNamespace, int(sustainedMinReplicaCount), 72, 5),
 		"replica count should be %d after 6 minutes", sustainedMinReplicaCount)
 	scaleDownDuration := time.Since(scaleDownStart)
 
 	t.Logf("--- scale-down completed in %v (threshold: %v) ---", scaleDownDuration.Round(time.Second), sustainedScaleDownThreshold)
 	require.LessOrEqual(t, scaleDownDuration, sustainedScaleDownThreshold,
 		"scale-down took %v, exceeds threshold %v", scaleDownDuration, sustainedScaleDownThreshold)
-}
-
-func getSustainedTemplateData() (sustainedTemplateData, []Template) {
-	return sustainedTemplateData{
-			TestNamespace:        sustainedTestNamespace,
-			DeploymentName:       sustainedDeploymentName,
-			ServiceName:          sustainedServiceName,
-			HTTPScaledObjectName: sustainedHTTPScaledObjectName,
-			Host:                 sustainedHost,
-			MinReplicas:          sustainedMinReplicaCount,
-			MaxReplicas:          sustainedMaxReplicaCount,
-			Requests:             "500000",
-			Concurrency:          "50",
-		}, []Template{
-			{Name: "sustainedWorkloadTemplate", Config: sustainedWorkloadTemplate},
-			{Name: "sustainedServiceNameTemplate", Config: sustainedServiceTemplate},
-			{Name: "sustainedHTTPScaledObjectTemplate", Config: sustainedHTTPScaledObjectTemplate},
-		}
 }
