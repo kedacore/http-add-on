@@ -37,7 +37,7 @@ type ProxyHandlerConfig struct {
 // BuildProxyHandler constructs the proxy handler chain.
 func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	dialer := kedanet.NewNetDialer(cfg.Timeouts.Connect, cfg.Timeouts.KeepAlive)
-	dialFunc := kedanet.DialContextWithRetry(dialer, cfg.Timeouts.DefaultBackoff())
+	dialFunc := kedanet.DialContextWithRetry(dialer, cfg.Timeouts.DialRetryTimeout)
 
 	// Wrap dialer to redirect if override is set (for testing)
 	if cfg.dialAddressOverride != "" {
