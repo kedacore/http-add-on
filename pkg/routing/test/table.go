@@ -28,6 +28,10 @@ func (t Table) Start(_ context.Context) error {
 	return nil
 }
 
+func (t Table) WaitForSync(_ context.Context) error {
+	return nil
+}
+
 func (t Table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
 	return t.Memory[req.Host]
 }

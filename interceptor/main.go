@@ -276,6 +276,13 @@ func runAdminServer(
 ) error {
 	lggr = lggr.WithName("runAdminServer")
 
+	// Wait for routing table to complete initial sync before starting health checks
+	lggr.Info("waiting for routing table initial sync")
+	if err := routingTable.WaitForSync(ctx); err != nil {
+		return fmt.Errorf("waiting for routing table sync: %w", err)
+	}
+	lggr.Info("routing table synced, starting probe handler")
+
 	probeHandler := handler.NewProbe(routingTable)
 	go probeHandler.Start(ctx)
 

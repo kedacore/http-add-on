@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,11 +26,14 @@ type Table interface {
 	Route(req *http.Request) *httpv1alpha1.HTTPScaledObject
 	Signal()
 	Start(ctx context.Context) error
+	WaitForSync(ctx context.Context) error
 }
 
 type table struct {
 	memoryHolder   util.AtomicValue[*TableMemory]
 	memorySignaler util.Signaler
+	syncedOnce     sync.Once
+	syncedCh       chan struct{}
 	previousKeys   map[string]struct{}
 	reader         client.Reader
 	queueCounter   queue.Counter
@@ -40,6 +44,7 @@ var _ Table = (*table)(nil)
 func NewTable(reader client.Reader, counter queue.Counter) Table {
 	return &table{
 		memorySignaler: util.NewSignaler(),
+		syncedCh:       make(chan struct{}),
 		previousKeys:   make(map[string]struct{}),
 		queueCounter:   counter,
 		reader:         reader,
@@ -82,6 +87,11 @@ func (t *table) refreshMemory(ctx context.Context) error {
 
 		t.memoryHolder.Set(tm)
 
+		// Signal that initial sync is complete
+		t.syncedOnce.Do(func() {
+			close(t.syncedCh)
+		})
+
 		if err := t.memorySignaler.Wait(ctx); err != nil {
 			return err
 		}
@@ -94,6 +104,15 @@ func (t *table) Signal() {
 
 func (t *table) Start(ctx context.Context) error {
 	return t.refreshMemory(ctx)
+}
+
+func (t *table) WaitForSync(ctx context.Context) error {
+	select {
+	case <-t.syncedCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (t *table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
