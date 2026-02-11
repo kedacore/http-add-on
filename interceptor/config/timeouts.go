@@ -17,7 +17,7 @@ type Timeouts struct {
 	ResponseHeader time.Duration `envconfig:"KEDA_RESPONSE_HEADER_TIMEOUT" default:"500ms"`
 	// WorkloadReplicas is how long to wait for the backing workload
 	// to have 1 or more replicas before connecting and sending the HTTP request.
-	WorkloadReplicas time.Duration `envconfig:"KEDA_CONDITION_WAIT_TIMEOUT" default:"1500ms"`
+	WorkloadReplicas time.Duration `envconfig:"KEDA_CONDITION_WAIT_TIMEOUT" default:"20s"`
 	// ForceHTTP2 toggles whether to try to force HTTP2 for all requests
 	ForceHTTP2 bool `envconfig:"KEDA_HTTP_FORCE_HTTP2" default:"false"`
 	// MaxIdleConns is the max number of idle connections to keep in the
