@@ -12,6 +12,7 @@ import (
 type Probe struct {
 	healthCheckers []util.HealthChecker
 	healthy        atomic.Bool
+	hasBeenHealthy atomic.Bool
 }
 
 func NewProbe(healthChecks ...util.HealthChecker) *Probe {
@@ -60,10 +61,17 @@ func (ph *Probe) check(ctx context.Context) {
 		if err := hc.HealthCheck(ctx); err != nil {
 			ph.healthy.Store(false)
 
-			logger.Error(err, "health check function failed")
+			// Log at info level before the first successful check to avoid
+			// noisy error logs during normal startup sequencing.
+			if ph.hasBeenHealthy.Load() {
+				logger.Error(err, "health check function failed")
+			} else {
+				logger.Info("waiting for health check to pass", "error", err)
+			}
 			return
 		}
 	}
 
 	ph.healthy.Store(true)
+	ph.hasBeenHealthy.Store(true)
 }

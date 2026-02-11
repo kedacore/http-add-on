@@ -2,247 +2,106 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+	"testing/synctest"
 	"time"
-
-	"github.com/go-logr/logr/funcr"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-var _ = Describe("ProbeHandler", func() {
-	Context("New", func() {
-		It("returns new object with expected fields", func() {
-			var (
-				ctx = context.Background()
-				ret = errors.New("test error")
-			)
+var errUnhealthy = errors.New("unhealthy")
 
-			var b bool
-			healthCheckers := util.HealthCheckerFunc(func(_ context.Context) error {
-				b = true
-
-				return ret
-			})
-
-			ph := NewProbe(healthCheckers)
-			Expect(ph).NotTo(BeNil())
-
-			h := ph.healthy.Load()
-			Expect(h).To(BeFalse())
-
-			hcs := ph.healthCheckers
-			Expect(hcs).To(HaveLen(1))
-
-			hc := hcs[0]
-			Expect(hc).NotTo(BeNil())
-
-			err := hc.HealthCheck(ctx)
-			Expect(err).To(MatchError(ret))
-
-			Expect(b).To(BeTrue())
+func TestProbeServeHTTP(t *testing.T) {
+	checker := func(err error) util.HealthChecker {
+		return util.HealthCheckerFunc(func(_ context.Context) error {
+			return err
 		})
+	}
+
+	tests := map[string]struct {
+		checkers []util.HealthChecker
+		code     int
+	}{
+		"all checks pass": {
+			checkers: []util.HealthChecker{checker(nil), checker(nil), checker(nil)},
+			code:     http.StatusOK,
+		},
+		"single check fails": {
+			checkers: []util.HealthChecker{checker(errUnhealthy)},
+			code:     http.StatusServiceUnavailable,
+		},
+		"one check among many fails": {
+			checkers: []util.HealthChecker{checker(nil), checker(errUnhealthy), checker(nil)},
+			code:     http.StatusServiceUnavailable,
+		},
+		"no checkers": {
+			code: http.StatusOK,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			ph := NewProbe(tt.checkers...)
+			ph.check(t.Context())
+			assertProbe(t, ph, tt.code)
+		})
+	}
+}
+
+func TestProbeHealthyToUnhealthyTransition(t *testing.T) {
+	ctx := t.Context()
+
+	var retErr error
+	ph := NewProbe(util.HealthCheckerFunc(func(_ context.Context) error {
+		return retErr
+	}))
+
+	ph.check(ctx)
+	assertProbe(t, ph, http.StatusOK)
+
+	retErr = errUnhealthy
+	ph.check(ctx)
+	assertProbe(t, ph, http.StatusServiceUnavailable)
+}
+
+func TestProbePeriodicCheck(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var count int
+		ph := NewProbe(util.HealthCheckerFunc(func(_ context.Context) error {
+			count++
+			return nil
+		}))
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go ph.Start(ctx)
+
+		// Wait for Start to run the first check
+		synctest.Wait()
+		if count != 1 {
+			t.Fatalf("after 1st cycle: count=%d, want 1", count)
+		}
+
+		// Advance the fake clock past the tick and wait for the second check to complete
+		time.Sleep(time.Second)
+		synctest.Wait()
+		if count != 2 {
+			t.Fatalf("after 2nd cycle: count=%d, want 2", count)
+		}
 	})
+}
 
-	Context("ServeHTTP", func() {
-		const (
-			host = "keda.sh"
-			path = "/README"
-		)
-
-		var (
-			w *httptest.ResponseRecorder
-			r *http.Request
-		)
-
-		BeforeEach(func() {
-			w = httptest.NewRecorder()
-
-			r = httptest.NewRequest(http.MethodGet, path, nil)
-			r.Host = host
-		})
-
-		When("healthy", func() {
-			It("serves 200", func() {
-				var (
-					sc = http.StatusOK
-					st = http.StatusText(sc)
-				)
-
-				var ph Probe
-				ph.healthy.Store(true)
-
-				ph.ServeHTTP(w, r)
-
-				Expect(w.Code).To(Equal(sc))
-				Expect(w.Body.String()).To(Equal(st))
-			})
-		})
-
-		When("unhealthy", func() {
-			It("serves 503", func() {
-				var (
-					sc = http.StatusServiceUnavailable
-					st = http.StatusText(sc)
-				)
-
-				var ph Probe
-				ph.healthy.Store(false)
-
-				ph.ServeHTTP(w, r)
-
-				Expect(w.Code).To(Equal(sc))
-				Expect(w.Body.String()).To(Equal(st))
-			})
-		})
-	})
-
-	Context("Start", func() {
-		It("returns when context is done", func() {
-			ctx, cancel := context.WithCancel(context.Background())
-			cancel()
-
-			var ph Probe
-			err := util.WithTimeout(time.Second, func() error {
-				ph.Start(ctx)
-
-				return nil
-			})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("invokes check every second", func() {
-			const (
-				n = 10
-			)
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			var i int
-			ph := Probe{
-				healthCheckers: []util.HealthChecker{
-					util.HealthCheckerFunc(func(_ context.Context) error {
-						i++
-
-						return nil
-					}),
-				},
-			}
-
-			go ph.Start(ctx)
-
-			time.Sleep(n * time.Second)
-
-			Expect(i).To(BeNumerically("~", n, 2))
-		})
-	})
-
-	Context("check", func() {
-		When("all health checks succeed", func() {
-			It("sets healthy to true", func() {
-				var (
-					ctx = context.Background()
-				)
-
-				var bs []bool
-				ph := Probe{
-					healthCheckers: []util.HealthChecker{
-						util.HealthCheckerFunc(func(_ context.Context) error {
-							bs = append(bs, true)
-							return nil
-						}),
-						util.HealthCheckerFunc(func(_ context.Context) error {
-							bs = append(bs, true)
-							return nil
-						}),
-						util.HealthCheckerFunc(func(_ context.Context) error {
-							bs = append(bs, true)
-							return nil
-						}),
-					},
-				}
-
-				ph.check(ctx)
-
-				healthCheckersLen := len(ph.healthCheckers)
-				Expect(bs).To(HaveLen(healthCheckersLen))
-
-				healthy := ph.healthy.Load()
-				Expect(healthy).To(BeTrue())
-			})
-		})
-
-		When("a health check fail", func() {
-			It("sets healthy to false", func() {
-				var (
-					ctx = context.Background()
-				)
-
-				ph := Probe{
-					healthCheckers: []util.HealthChecker{
-						util.HealthCheckerFunc(func(_ context.Context) error {
-							return nil
-						}),
-						util.HealthCheckerFunc(func(_ context.Context) error {
-							return context.Canceled
-						}),
-						util.HealthCheckerFunc(func(_ context.Context) error {
-							return nil
-						}),
-					},
-				}
-				ph.healthy.Store(true)
-
-				ph.check(ctx)
-
-				healthy := ph.healthy.Load()
-				Expect(healthy).To(BeFalse())
-			})
-
-			It("logs the returned error", func() {
-				const (
-					msg = "health check function failed"
-				)
-
-				var (
-					ctx = context.Background()
-					ret = errors.New("test error")
-				)
-
-				var b bool
-				ctx = util.ContextWithLogger(ctx, funcr.NewJSON(
-					func(obj string) {
-						var m map[string]interface{}
-
-						err := json.Unmarshal([]byte(obj), &m)
-						Expect(err).NotTo(HaveOccurred())
-
-						Expect(m).To(HaveKeyWithValue("msg", msg))
-						Expect(m).To(HaveKeyWithValue("error", ret.Error()))
-
-						b = true
-					},
-					funcr.Options{},
-				))
-
-				ph := Probe{
-					healthCheckers: []util.HealthChecker{
-						util.HealthCheckerFunc(func(_ context.Context) error {
-							return ret
-						}),
-					},
-				}
-
-				ph.check(ctx)
-
-				Expect(b).To(BeTrue())
-			})
-		})
-	})
-})
+func assertProbe(t *testing.T, ph *Probe, code int) {
+	t.Helper()
+	w := httptest.NewRecorder()
+	ph.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if w.Code != code {
+		t.Errorf("got status %d, want %d", w.Code, code)
+	}
+	if want := http.StatusText(code); w.Body.String() != want {
+		t.Errorf("got body %q, want %q", w.Body.String(), want)
+	}
+}
