@@ -3,76 +3,76 @@ kind: Deployment
 metadata:
   name: scaler
 spec:
-  replicas: 3
+  replicas: 1
+  selector:
+    # TODO: selector labels are immutable and must match v0.12.1 for upgrade
+    # compatibility. Fix to use name/component/part-of when a breaking change
+    # is acceptable (requires delete+recreate of deployments).
+    matchLabels:
+      app.kubernetes.io/component: add-on
+      app.kubernetes.io/instance: external-scaler
+      app.kubernetes.io/name: http
+      app.kubernetes.io/part-of: keda
   template:
+    metadata:
+      # TODO: must match selector.matchLabels above, fix together
+      labels:
+        app.kubernetes.io/component: add-on
+        app.kubernetes.io/instance: external-scaler
+        app.kubernetes.io/name: http
+        app.kubernetes.io/part-of: keda
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/os
-                operator: In
-                values:
-                - linux
-              - key: kubernetes.io/arch
-                operator: In
-                values:
-                - amd64
-                - arm64
       containers:
-      - name: scaler
-        image: ghcr.io/kedacore/http-add-on-scaler
-        args:
-        - --zap-log-level=info
-        - --zap-encoder=console
-        - --zap-time-encoding=rfc3339
-        env:
-        - name: KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT
-          value: "keda-add-ons-http-interceptor"
-        - name: KEDA_HTTP_SCALER_PORT
-          value: "9090"
-        - name: KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE
-          value: "keda"
-        - name: KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE
-          value: "keda-add-ons-http-interceptor-admin"
-        - name: KEDA_HTTP_SCALER_TARGET_ADMIN_PORT
-          value: "9090"
-        - name: KEDA_HTTP_SCALER_STREAM_INTERVAL_MS
-          value: "200"
-        ports:
-        - name: grpc
-          containerPort: 9090
-        livenessProbe:
-          grpc:
-            port: 9090
-            service: liveness
-          timeoutSeconds: 1
-          periodSeconds: 5
-          successThreshold: 1
-          failureThreshold: 3
-        readinessProbe:
-          grpc:
-            port: 9090
-            service: readiness
-          timeoutSeconds: 1
-          periodSeconds: 1
-          successThreshold: 1
-          failureThreshold: 3
-        # TODO(pedrotorres): set better default values avoiding overcommitment
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
-          limits:
-            cpu: 1000m
-            memory: 1000Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
+        - name: scaler
+          image: ko://github.com/kedacore/http-add-on/scaler
+          args:
+            - --zap-log-level=info
+            - --zap-encoder=console
+            - --zap-time-encoding=rfc3339
+          env:
+            - name: KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE
+              value: "keda"
+            - name: KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT
+              value: "keda-add-ons-http-interceptor"
+            - name: KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE
+              value: "keda-add-ons-http-interceptor-admin"
+            - name: KEDA_HTTP_SCALER_TARGET_ADMIN_PORT
+              value: "9090"
+            - name: KEDA_HTTP_SCALER_PORT
+              value: "9090"
+          ports:
+            - name: grpc
+              containerPort: 9090
+          livenessProbe:
+            grpc:
+              port: 9090
+              service: liveness
+            timeoutSeconds: 1
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            grpc:
+              port: 9090
+              service: readiness
+            timeoutSeconds: 1
+            periodSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          # TODO(pedrotorres): set better default values avoiding overcommitment
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 1000m
+              memory: 1000Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
       securityContext:
         runAsNonRoot: true
         seccompProfile:

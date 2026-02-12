@@ -1,0 +1,14 @@
+# ko configuration
+# See https://ko.build/configuration/ for details
+
+# Preferred over chainguard/static (missing s390x) and distroless/static (12 vs 1 layer)
+defaultBaseImage: ghcr.io/wolfi-dev/static:alpine
+
+defaultEnv:
+  - CGO_ENABLED=0
+  - VERSION=HEAD
+
+defaultLdflags:
+  - -s -w
+  - -X github.com/kedacore/http-add-on/pkg/build.version={{.Env.VERSION}}
+  - -X github.com/kedacore/http-add-on/pkg/build.gitCommit={{.Git.FullCommit}}

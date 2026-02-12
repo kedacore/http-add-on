@@ -1,17 +1,22 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: external-scaler
+  name: operator-metrics
 spec:
+  type: ClusterIP
   # TODO: selector must match pod template labels, fix together with
   # deployment selector.matchLabels when breaking change is acceptable.
   selector:
     app.kubernetes.io/component: add-on
-    app.kubernetes.io/instance: external-scaler
+    app.kubernetes.io/instance: operator
     app.kubernetes.io/name: http
     app.kubernetes.io/part-of: keda
   ports:
-    - name: grpc
+    - name: metrics-http
       protocol: TCP
-      port: 9090
-      targetPort: grpc
+      port: 8080
+      targetPort: metrics-http
+    - name: metrics-https
+      protocol: TCP
+      port: 8443
+      targetPort: metrics-https
