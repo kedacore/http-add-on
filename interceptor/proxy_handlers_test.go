@@ -18,7 +18,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
@@ -65,7 +64,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	r.NoError(err)
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	waitFunc := func(context.Context, string, string) (bool, error) {
 		return false, nil
 	}
@@ -117,7 +116,7 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 	r.NoError(err)
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	waitFunc := func(context.Context, string, string) (bool, error) {
 		return false, nil
 	}
@@ -173,7 +172,7 @@ func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
 	r.NoError(err)
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	waitFunc := func(ctx context.Context, _ string, _ string) (bool, error) {
 		return false, errors.New("nothing")
 	}
@@ -228,12 +227,7 @@ func TestWaitFailedConnection(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	backoff := timeouts.DefaultBackoff()
-	backoff.Steps = 2
-	dialCtxFunc := retryDialContextFunc(
-		timeouts,
-		backoff,
-	)
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	waitFunc := func(context.Context, string, string) (bool, error) {
 		return false, nil
 	}
@@ -279,12 +273,7 @@ func TestWaitFailedConnectionTLS(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	backoff := timeouts.DefaultBackoff()
-	backoff.Steps = 2
-	dialCtxFunc := retryDialContextFunc(
-		timeouts,
-		backoff,
-	)
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	waitFunc := func(context.Context, string, string) (bool, error) {
 		return false, nil
 	}
@@ -334,7 +323,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	timeouts := defaultTimeouts()
 	timeouts.WorkloadReplicas = 25 * time.Millisecond
 	timeouts.ResponseHeader = 25 * time.Millisecond
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
 	defer finishWaitFunc()
@@ -407,7 +396,7 @@ func TestTimesOutOnWaitFuncTLS(t *testing.T) {
 	timeouts := defaultTimeouts()
 	timeouts.WorkloadReplicas = 25 * time.Millisecond
 	timeouts.ResponseHeader = 25 * time.Millisecond
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
 	defer finishWaitFunc()
@@ -481,7 +470,7 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
 	const (
@@ -548,7 +537,7 @@ func TestWaitsForWaitFuncTLS(t *testing.T) {
 	r := require.New(t)
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 
 	waitFunc, waitFuncCalledCh, finishWaitFunc := notifyingFunc()
 	const (
@@ -631,7 +620,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	defer srv.Close()
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	waitFunc := func(context.Context, string, string) (bool, error) {
 		return false, nil
 	}
@@ -690,7 +679,7 @@ func TestWaitHeaderTimeoutTLS(t *testing.T) {
 	defer srv.Close()
 
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	waitFunc := func(context.Context, string, string) (bool, error) {
 		return false, nil
 	}
@@ -795,22 +784,13 @@ func defaultTimeouts() config.Timeouts {
 		KeepAlive:        100 * time.Millisecond,
 		ResponseHeader:   500 * time.Millisecond,
 		WorkloadReplicas: 1 * time.Second,
+		DialRetryTimeout: 1 * time.Second,
 	}
 }
 
-// returns a kedanet.DialContextFunc by calling kedanet.DialContextWithRetry. if you pass nil for the
-// timeoutConfig, it uses standard values. otherwise it uses the one you passed.
-//
-// the returned config.Timeouts is what was passed to the DialContextWithRetry function
-func retryDialContextFunc(
-	timeouts config.Timeouts,
-	backoff wait.Backoff,
-) kedanet.DialContextFunc {
-	dialer := kedanet.NewNetDialer(
-		timeouts.Connect,
-		timeouts.KeepAlive,
-	)
-	return kedanet.DialContextWithRetry(dialer, backoff)
+func retryDialContextFunc(timeouts config.Timeouts) kedanet.DialContextFunc {
+	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
+	return kedanet.DialContextWithRetry(dialer, timeouts.DialRetryTimeout)
 }
 
 // testTransport creates a base transport for tests using the given dial function and TLS config.

@@ -4,12 +4,11 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // Timeouts is the configuration for connection and HTTP timeouts
 type Timeouts struct {
-	// Connect is the connection timeout
+	// Connect is the per-attempt TCP dial timeout (net.Dialer.Timeout)
 	Connect time.Duration `envconfig:"KEDA_HTTP_CONNECT_TIMEOUT" default:"500ms"`
 	// KeepAlive is the interval between keepalive probes
 	KeepAlive time.Duration `envconfig:"KEDA_HTTP_KEEP_ALIVE" default:"1s"`
@@ -35,21 +34,11 @@ type Timeouts struct {
 	// wait to establish a TLS connection
 	TLSHandshakeTimeout time.Duration `envconfig:"KEDA_HTTP_TLS_HANDSHAKE_TIMEOUT" default:"10s"`
 	// ExpectContinueTimeout is the max amount of time the interceptor will wait
-	// after sending request headers if the server returned an Expect: 100-continue
-	// header
+	// for a 100 Continue response from the backend after sending request headers
+	// with Expect: 100-continue
 	ExpectContinueTimeout time.Duration `envconfig:"KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT" default:"1s"`
-}
-
-// DefaultBackoff returns backoff config optimized for cold start pod availability polling.
-// Based on https://github.com/knative/networking/blob/main/test/conformance/ingress/util.go#L70
-func (t Timeouts) DefaultBackoff() wait.Backoff {
-	return wait.Backoff{
-		Cap:      1 * time.Second, // max sleep time per step, e.g. attempt a connection at least every second
-		Duration: 50 * time.Millisecond,
-		Factor:   1.4,
-		Jitter:   0.1, // adds up to +10% randomness
-		Steps:    10,
-	}
+	// DialRetryTimeout caps the total time spent retrying failed dial attempts.
+	DialRetryTimeout time.Duration `envconfig:"KEDA_HTTP_DIAL_RETRY_TIMEOUT" default:"15s"`
 }
 
 // MustParseTimeouts parses standard configs using envconfig and returns the

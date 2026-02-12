@@ -2,13 +2,11 @@ package net
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // getUnreachableAddr returns an address that is guaranteed to be unreachable
@@ -16,93 +14,135 @@ import (
 func getUnreachableAddr(t *testing.T) string {
 	t.Helper()
 	listener, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
 	addr := listener.Addr().String()
 	listener.Close()
 	return addr
 }
 
-func TestDialContextWithRetry(t *testing.T) {
-	t.Run("retries with exponential backoff on connection failure", func(t *testing.T) {
-		r := require.New(t)
+func TestDialContextWithRetry_SucceedsImmediately(t *testing.T) {
+	srv, srvURL, err := StartTestServer(NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}),
+	))
+	if err != nil {
+		t.Fatalf("failed to start test server: %v", err)
+	}
+	defer srv.Close()
 
-		backoff := wait.Backoff{
-			Duration: 10 * time.Millisecond,
-			Factor:   2,
-			Jitter:   0.1,
-			Steps:    3,
+	dialer := NewNetDialer(100*time.Millisecond, 1*time.Second)
+	dialRetry := DialContextWithRetry(dialer, 1*time.Second)
+
+	start := time.Now()
+	conn, err := dialRetry(t.Context(), "tcp", srvURL.Host)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if conn == nil {
+		t.Fatal("expected non-nil connection")
+	}
+	conn.Close()
+
+	// Should connect well before the retry interval fires.
+	if elapsed >= 50*time.Millisecond {
+		t.Errorf("elapsed %v; should connect immediately", elapsed)
+	}
+}
+
+func TestDialContextWithRetry_RetriesUntilReachable(t *testing.T) {
+	addr := getUnreachableAddr(t)
+
+	// Start a listener on the same address after a delay.
+	ready := make(chan struct{})
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			return
 		}
-
-		dialer := NewNetDialer(5*time.Millisecond, 10*time.Millisecond)
-		dialRetry := DialContextWithRetry(dialer, backoff)
-
-		start := time.Now()
-		_, err := dialRetry(context.Background(), "tcp", getUnreachableAddr(t))
-		elapsed := time.Since(start)
-
-		r.Error(err, "should fail when connecting to unreachable address")
-
-		// Verify backoff was applied by checking we took at least the minimum backoff time
-		minExpected := MinTotalBackoffDuration(backoff)
-		r.GreaterOrEqual(elapsed, minExpected, "should take at least minimum backoff duration")
-	})
-
-	t.Run("succeeds immediately when connection available", func(t *testing.T) {
-		r := require.New(t)
-
-		backoff := wait.Backoff{
-			Duration: 50 * time.Millisecond,
-			Factor:   2,
-			Jitter:   0.1,
-			Steps:    5,
+		close(ready)
+		conn, err := ln.Accept()
+		if err != nil {
+			ln.Close()
+			return
 		}
+		conn.Close()
+		ln.Close()
+	}()
 
-		srv, srvURL, err := StartTestServer(NewTestHTTPHandlerWrapper(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			}),
-		))
-		r.NoError(err)
-		defer srv.Close()
+	dialer := NewNetDialer(50*time.Millisecond, 1*time.Second)
+	dialRetry := DialContextWithRetry(dialer, 2*time.Second)
 
-		dialer := NewNetDialer(100*time.Millisecond, 1*time.Second)
-		dialRetry := DialContextWithRetry(dialer, backoff)
+	conn, err := dialRetry(t.Context(), "tcp", addr)
+	if err != nil {
+		t.Fatalf("expected success after target becomes reachable: %v", err)
+	}
+	conn.Close()
+	<-ready
+}
 
-		start := time.Now()
-		conn, err := dialRetry(context.Background(), "tcp", srvURL.Host)
-		elapsed := time.Since(start)
+func TestDialContextWithRetry_StopsAtTimeout(t *testing.T) {
+	dialer := NewNetDialer(1*time.Millisecond, 10*time.Millisecond)
+	retryTimeout := 200 * time.Millisecond
+	dialRetry := DialContextWithRetry(dialer, retryTimeout)
 
-		r.NoError(err)
-		r.NotNil(conn)
-		if conn != nil {
-			conn.Close()
-		}
+	start := time.Now()
+	_, err := dialRetry(t.Context(), "tcp", getUnreachableAddr(t))
+	elapsed := time.Since(start)
 
-		r.Less(elapsed, backoff.Duration)
-	})
+	if err == nil {
+		t.Fatal("expected error when connecting to unreachable address")
+	}
 
-	t.Run("respects context cancellation", func(t *testing.T) {
-		r := require.New(t)
+	// Should stop around retryTimeout, with some slack for the last interval.
+	maxExpected := retryTimeout + 50*time.Millisecond
+	if elapsed > maxExpected {
+		t.Errorf("elapsed %v > max expected %v", elapsed, maxExpected)
+	}
+	// Should run for at least close to the timeout.
+	minExpected := retryTimeout - 50*time.Millisecond
+	if elapsed < minExpected {
+		t.Errorf("elapsed %v < min expected %v", elapsed, minExpected)
+	}
+}
 
-		backoff := wait.Backoff{
-			Duration: 100 * time.Millisecond,
-			Factor:   2,
-			Jitter:   0.1,
-			Steps:    5,
-		}
+func TestDialContextWithRetry_RespectsParentContext(t *testing.T) {
+	dialer := NewNetDialer(10*time.Millisecond, 1*time.Second)
+	dialRetry := DialContextWithRetry(dialer, 5*time.Second)
 
-		dialer := NewNetDialer(10*time.Millisecond, 1*time.Second)
-		dialRetry := DialContextWithRetry(dialer, backoff)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-		defer cancel()
+	start := time.Now()
+	_, err := dialRetry(ctx, "tcp", getUnreachableAddr(t))
+	elapsed := time.Since(start)
 
-		start := time.Now()
-		_, err := dialRetry(ctx, "tcp", getUnreachableAddr(t))
-		elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("expected error on context cancellation")
+	}
+	// Should stop around the parent context timeout (100ms), not the retryTimeout (5s).
+	if elapsed > 200*time.Millisecond {
+		t.Errorf("elapsed %v; should have stopped near parent context timeout", elapsed)
+	}
+}
 
-		r.Error(err)
-		r.Contains(err.Error(), "context")
-		r.Less(elapsed, MinTotalBackoffDuration(backoff))
-	})
+func TestDialContextWithRetry_WrapsError(t *testing.T) {
+	dialer := NewNetDialer(1*time.Millisecond, 10*time.Millisecond)
+	dialRetry := DialContextWithRetry(dialer, 100*time.Millisecond)
+
+	addr := getUnreachableAddr(t)
+	_, err := dialRetry(t.Context(), "tcp", addr)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	// The underlying dial error should be unwrappable.
+	var opErr *net.OpError
+	if !errors.As(err, &opErr) {
+		t.Errorf("expected wrapped *net.OpError, got %T: %v", err, err)
+	}
 }

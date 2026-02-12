@@ -16,7 +16,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
-	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
@@ -258,7 +257,7 @@ func TestForwarderSuccess(t *testing.T) {
 	r.NoError(err)
 	req = util.RequestWithStream(req, forwardURL)
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
 	uh := NewUpstream(rt, config.Tracing{}, false)
 	uh.ServeHTTP(res, req)
@@ -299,7 +298,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	timeouts := defaultTimeouts()
 	timeouts.Connect = 1 * time.Millisecond
 	timeouts.ResponseHeader = 1 * time.Millisecond
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithStream(req, originURL)
@@ -344,7 +343,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 		ResponseHeader: originDelay * 4,
 	}
 
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	go func() {
 		time.Sleep(originDelay)
 		close(originWaitCh)
@@ -367,12 +366,9 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	noSuchURL, err := url.Parse("https://localhost:65533")
 	r.NoError(err)
 
-	timeouts := config.Timeouts{
-		Connect:        10 * time.Millisecond,
-		KeepAlive:      1 * time.Millisecond,
-		ResponseHeader: 50 * time.Millisecond,
-	}
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	timeouts := defaultTimeouts()
+	timeouts.DialRetryTimeout = 500 * time.Millisecond
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	res, req, err := reqAndRes("/test")
 	r.NoError(err)
 	req = util.RequestWithStream(req, noSuchURL)
@@ -384,17 +380,12 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	elapsed := time.Since(start)
 	log.Printf("forwardRequest took %s", elapsed)
 
-	// forwardDoneSignal should close _after_ the total timeout of forwardRequest.
-	//
-	// forwardRequest uses dialCtxFunc to establish network connections, and dialCtxFunc does
-	// exponential backoff.
-	expectedForwardTimeout := kedanet.MinTotalBackoffDuration(timeouts.DefaultBackoff())
 	r.GreaterOrEqualf(
 		elapsed,
-		expectedForwardTimeout,
+		timeouts.DialRetryTimeout,
 		"proxy returned after %s, expected not to return until %s",
-		time.Since(start),
-		expectedForwardTimeout,
+		elapsed,
+		timeouts.DialRetryTimeout,
 	)
 	r.Equal(
 		502,
@@ -426,7 +417,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	timeouts := defaultTimeouts()
 	timeouts.Connect = 10 * time.Millisecond
 	timeouts.ResponseHeader = 10 * time.Millisecond
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithStream(req, srvURL)
@@ -560,22 +551,13 @@ func defaultTimeouts() config.Timeouts {
 		KeepAlive:        100 * time.Millisecond,
 		ResponseHeader:   500 * time.Millisecond,
 		WorkloadReplicas: 1 * time.Second,
+		DialRetryTimeout: 1 * time.Second,
 	}
 }
 
-// returns a kedanet.DialContextFunc by calling kedanet.DialContextWithRetry. if you pass nil for the
-// timeoutConfig, it uses standard values. otherwise it uses the one you passed.
-//
-// the returned config.Timeouts is what was passed to the DialContextWithRetry function
-func retryDialContextFunc(
-	timeouts config.Timeouts,
-	backoff wait.Backoff,
-) kedanet.DialContextFunc {
-	dialer := kedanet.NewNetDialer(
-		timeouts.Connect,
-		timeouts.KeepAlive,
-	)
-	return kedanet.DialContextWithRetry(dialer, backoff)
+func retryDialContextFunc(timeouts config.Timeouts) kedanet.DialContextFunc {
+	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
+	return kedanet.DialContextWithRetry(dialer, timeouts.DialRetryTimeout)
 }
 
 func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {
@@ -602,7 +584,7 @@ func ensureSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) 
 
 func serveHTTP(w http.ResponseWriter, r *http.Request) {
 	timeouts := defaultTimeouts()
-	dialCtxFunc := retryDialContextFunc(timeouts, timeouts.DefaultBackoff())
+	dialCtxFunc := retryDialContextFunc(timeouts)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
 	upstream := NewUpstream(rt, config.Tracing{Enabled: true}, false)
 
