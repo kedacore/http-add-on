@@ -1,0 +1,48 @@
+name: stress tests
+on:
+  # Manual trigger only - stress tests are resource intensive
+  workflow_dispatch:
+    inputs:
+      kindVersion:
+        description: 'Kubernetes version to test'
+        required: false
+        default: 'v1.35.0'
+        type: choice
+        options:
+          - v1.35.0
+          - v1.34.3
+          - v1.33.7
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  stress_tests:
+    runs-on: load
+    name: stress tests / ${{ inputs.kindVersion || 'v1.35.0' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment
+        with:
+          kindVersion: ${{ inputs.kindVersion || 'v1.35.0' }}
+          version: ${{ github.sha }}
+
+      - name: Run stress tests
+        run: make stress-test
+        env:
+          VERSION: ${{ github.sha }}
+        timeout-minutes: 90
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@84480863f228bb9747b473957fcc9e309aa96097 # v4
+        with:
+          name: stress-test-logs
+          path: tests/stress/*.log
+          retention-days: 7

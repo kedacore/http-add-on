@@ -65,6 +65,7 @@ metadata:
   labels:
     app: {{.StatefulSetName}}
 spec:
+  serviceName: {{.ServiceName}}
   replicas: 0
   selector:
     matchLabels:

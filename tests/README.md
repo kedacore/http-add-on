@@ -3,6 +3,16 @@
 - [go](https://go.dev/)
 - `kubectl` logged into a Kubernetes cluster.
 
+## Test Types
+
+This directory contains two types of tests:
+
+### E2E Tests
+End-to-end tests that verify functional correctness of the HTTP Add-on features. See below for running instructions.
+
+### Stress Tests
+Performance and scalability tests that validate system behavior under heavy load. These are located in the `stress/` subdirectory. See [stress/README.md](stress/README.md) for details on running stress tests.
+
 ## Running tests:
 
 ### All tests
