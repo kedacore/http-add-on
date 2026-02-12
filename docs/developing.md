@@ -10,6 +10,17 @@ to have the following tools installed:
 - [Golang](http://golang.org/) for development
 - [Docker](https://docker.com) for building the images and testing it locally
 - [Pre-commit](https://pre-commit.com/) for static checks (_optional_)
+- [golangci-lint](https://golangci-lint.run/) for Go linting
+
+## Setting up pre-commit hooks
+
+Install [pre-commit](https://pre-commit.com/#install) and [golangci-lint](https://golangci-lint.run/welcome/install/), then register the git hooks:
+
+```bash
+pre-commit install --hook-type pre-commit --hook-type pre-push
+```
+
+This enables automatic static checks (formatting, linting, changelog validation, etc.) on `git commit` and `git push` as configured in `.pre-commit-config.yaml`. To run all checks manually: `make pre-commit`.
 
 ## Prerequisites
 
