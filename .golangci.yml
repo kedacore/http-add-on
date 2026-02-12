@@ -59,6 +59,14 @@ linters:
           - revive
         text: "var-naming: avoid package names that conflict with Go standard library"
         path: operator/controllers/http
+      - linters:
+          - revive
+        text: "var-naming: avoid package names that conflict with Go standard library"
+        path: interceptor/metrics/
+      - linters:
+          - revive
+        text: "var-naming: avoid package names that conflict with Go standard library"
+        path: pkg/build/
       # Exclude for utils packages with meaningful package names
       - linters:
           - revive
