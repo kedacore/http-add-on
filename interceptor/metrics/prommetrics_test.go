@@ -21,7 +21,7 @@ func TestPromRequestCountMetric(t *testing.T) {
     interceptor_request_count_total{code="200",host="test-host",method="post",otel_scope_name="keda-interceptor-proxy",otel_scope_schema_url="",otel_scope_version="",path="/test"} 1
 	# HELP target_info Target metadata
 	# TYPE target_info gauge
-	target_info{service_name="interceptor-proxy",service_version="main"} 1
+	target_info{service_name="interceptor-proxy",service_version="HEAD"} 1
 	`
 	expectedOutputReader := strings.NewReader(expectedOutput)
 	testPrometheus.RecordRequestCount("post", "/test", 500, "test-host")
@@ -40,7 +40,7 @@ func TestPromPendingRequestCountMetric(t *testing.T) {
 	interceptor_pending_request_count{host="test-host",otel_scope_name="keda-interceptor-proxy",otel_scope_schema_url="",otel_scope_version=""} 10
 	# HELP target_info Target metadata
 	# TYPE target_info gauge
-	target_info{service_name="interceptor-proxy",service_version="main"} 1
+	target_info{service_name="interceptor-proxy",service_version="HEAD"} 1
 	`
 	expectedOutputReader := strings.NewReader(expectedOutput)
 	testPrometheus.RecordPendingRequestCount("test-host", 10)

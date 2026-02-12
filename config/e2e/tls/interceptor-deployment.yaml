@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keda-add-ons-http-interceptor
+  namespace: keda
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: interceptor
+          ports:
+            - name: proxy-tls
+              containerPort: 8443
+          env:
+            - name: KEDA_HTTP_PROXY_TLS_ENABLED
+              value: "true"
+            - name: KEDA_HTTP_PROXY_TLS_CERT_PATH
+              value: "/certs/tls.crt"
+            - name: KEDA_HTTP_PROXY_TLS_KEY_PATH
+              value: "/certs/tls.key"
+            - name: KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS
+              value: "/additional-certs"
+            - name: KEDA_HTTP_PROXY_TLS_PORT
+              value: "8443"
+          volumeMounts:
+            - readOnly: true
+              mountPath: "/certs"
+              name: certs
+            - readOnly: true
+              mountPath: "/additional-certs/abc-certs"
+              name: abc-certs
+      volumes:
+        - name: certs
+          secret:
+            secretName: keda-tls
+        - name: abc-certs
+          secret:
+            secretName: abc-certs

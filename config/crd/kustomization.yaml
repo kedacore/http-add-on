@@ -1,5 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- bases/http.keda.sh_httpscaledobjects.yaml
+  - bases/http.keda.sh_httpscaledobjects.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
+labels:
+  - includeSelectors: false
+    includeTemplates: false
+    pairs:
+      app.kubernetes.io/name: http-add-on
+      app.kubernetes.io/part-of: keda

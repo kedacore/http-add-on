@@ -1,18 +1,22 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: keda
+namePrefix: keda-add-ons-http-
 resources:
-- deployment.yaml
-- role.yaml
-- role_binding.yaml
-- admin.service.yaml
-- proxy.service.yaml
-- metrics.service.yaml
-- service_account.yaml
-- scaledobject.yaml
+  - deployment.yaml
+  - admin-service.yaml
+  - proxy-service.yaml
+  - metrics-service.yaml
+  - role.yaml
+  - role-binding.yaml
+  - service-account.yaml
+  - scaledobject.yaml
 configurations:
-- transformerconfig.yaml
+  - transformerconfig.yaml
 labels:
-- includeSelectors: true
-  includeTemplates: true
-  pairs:
-    app.kubernetes.io/instance: interceptor
+  - includeSelectors: false
+    includeTemplates: false
+    pairs:
+      app.kubernetes.io/name: http-add-on
+      app.kubernetes.io/component: interceptor
+      app.kubernetes.io/part-of: keda

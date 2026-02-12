@@ -1,6 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: scaler
+  name: keda-add-ons-http-scaler
+  namespace: keda
 spec:
   replicas: 1

@@ -3,86 +3,68 @@ kind: Deployment
 metadata:
   name: interceptor
 spec:
-  replicas: 3
+  replicas: 1
+  selector:
+    # TODO: selector labels are immutable and must match v0.12.1 for upgrade
+    # compatibility. Fix to use name/component/part-of when a breaking change
+    # is acceptable (requires delete+recreate of deployments).
+    matchLabels:
+      app.kubernetes.io/component: add-on
+      app.kubernetes.io/instance: interceptor
+      app.kubernetes.io/name: http
+      app.kubernetes.io/part-of: keda
   template:
+    metadata:
+      # TODO: must match selector.matchLabels above, fix together
+      labels:
+        app.kubernetes.io/component: add-on
+        app.kubernetes.io/instance: interceptor
+        app.kubernetes.io/name: http
+        app.kubernetes.io/part-of: keda
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/os
-                operator: In
-                values:
-                - linux
-              - key: kubernetes.io/arch
-                operator: In
-                values:
-                - amd64
-                - arm64
       containers:
-      - name: interceptor
-        image: ghcr.io/kedacore/http-add-on-interceptor
-        args:
-        - --zap-log-level=info
-        - --zap-encoder=console
-        - --zap-time-encoding=rfc3339
-        env:
-        - name: KEDA_HTTP_CURRENT_NAMESPACE
-          value: "keda"
-        - name: KEDA_HTTP_PROXY_PORT
-          value: "8080"
-        - name: KEDA_HTTP_ADMIN_PORT
-          value: "9090"
-        - name: KEDA_HTTP_CONNECT_TIMEOUT
-          value: "500ms"
-        - name: KEDA_HTTP_KEEP_ALIVE
-          value: "1s"
-        - name: KEDA_RESPONSE_HEADER_TIMEOUT
-          value: "500ms"
-        - name: KEDA_CONDITION_WAIT_TIMEOUT
-          value: "20s"
-        - name: KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS
-          value: "1000"
-        - name: KEDA_HTTP_FORCE_HTTP2
-          value: "false"
-        - name: KEDA_HTTP_MAX_IDLE_CONNS
-          value: "100"
-        - name: KEDA_HTTP_IDLE_CONN_TIMEOUT
-          value: "90s"
-        - name: KEDA_HTTP_TLS_HANDSHAKE_TIMEOUT
-          value: "10s"
-        - name: KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT
-          value: "1s"
-        ports:
-        - name: admin
-          containerPort: 9090
-        - name: proxy
-          containerPort: 8080
-        - name: metrics
-          containerPort: 2223
-        livenessProbe:
-          httpGet:
-            path: /livez
-            port: admin
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: admin
-        # TODO(pedrotorres): set better default values avoiding overcommitment
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
-          limits:
-            cpu: 1000m
-            memory: 1000Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-              - ALL
+        - name: interceptor
+          image: ko://github.com/kedacore/http-add-on/interceptor
+          args:
+            - --zap-log-level=info
+            - --zap-encoder=console
+            - --zap-time-encoding=rfc3339
+          env:
+            - name: KEDA_HTTP_CURRENT_NAMESPACE
+              value: "keda"
+            - name: KEDA_HTTP_PROXY_PORT
+              value: "8080"
+            - name: KEDA_HTTP_ADMIN_PORT
+              value: "9090"
+          ports:
+            - name: admin
+              containerPort: 9090
+            - name: proxy
+              containerPort: 8080
+            - name: metrics
+              containerPort: 2223
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: admin
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: admin
+          # TODO(pedrotorres): set better default values avoiding overcommitment
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 1000m
+              memory: 1000Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
       securityContext:
         runAsNonRoot: true
         seccompProfile:
