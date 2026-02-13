@@ -73,6 +73,9 @@ build-operator:
 build-interceptor:
 	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/interceptor ./interceptor
 
+build-interceptor-new:
+	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/interceptor-new ./interceptor-new
+
 build-scaler:
 	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/scaler ./scaler
 
