@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	version   = "main"
+	version   = "HEAD"
 	gitCommit string
 )
 

@@ -1,21 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- ../crd
-- ../interceptor
-- ../operator
-- ../scaler
-namespace: keda
-namePrefix: keda-add-ons-http-
+  - ../crd
+  - ../interceptor
+  - ../operator
+  - ../scaler
 labels:
-- includeSelectors: true
-  includeTemplates: true
-  pairs:
-    app.kubernetes.io/name: http
-    app.kubernetes.io/component: add-on
-    app.kubernetes.io/part-of: keda
-- includeSelectors: false
-  includeTemplates: false
-  pairs:
-    app.kubernetes.io/version: HEAD
-    app.kubernetes.io/managed-by: kustomize
+  - includeSelectors: false
+    includeTemplates: false
+    pairs:
+      app.kubernetes.io/version: HEAD
+      app.kubernetes.io/managed-by: kustomize

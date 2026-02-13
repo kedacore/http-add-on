@@ -337,7 +337,7 @@ func TestSetupTLSConfiguration(t *testing.T) {
 }
 
 func TestDeployKEDAHttpAddOn(t *testing.T) {
-	out, err := ExecuteCommandWithDir("make deploy", "../..")
+	out, err := ExecuteCommandWithDir("make deploy-e2e", "../..")
 	require.NoErrorf(t, err, "error deploying KEDA Http Add-on - %s", err)
 
 	t.Log(string(out))

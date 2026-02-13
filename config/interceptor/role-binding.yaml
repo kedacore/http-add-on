@@ -8,5 +8,5 @@ roleRef:
   kind: ClusterRole
   name: interceptor
 subjects:
-- kind: ServiceAccount
-  name: interceptor
+  - kind: ServiceAccount
+    name: interceptor

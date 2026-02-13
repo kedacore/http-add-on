@@ -2,39 +2,35 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: keda-http-operator-auth-delegator
+  name: operator-auth-delegator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: system:auth-delegator
 subjects:
-- kind: ServiceAccount
-  name: keda-add-ons-http-operator
-  namespace: keda
+  - kind: ServiceAccount
+    name: operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: keda-http-operator
+  name: operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: operator
 subjects:
-- kind: ServiceAccount
-  name: keda-add-ons-http-operator
-  namespace: keda
+  - kind: ServiceAccount
+    name: operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: operator
-  namespace: keda
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: operator
 subjects:
-- kind: ServiceAccount
-  name: keda-add-ons-http-operator
-  namespace: keda
+  - kind: ServiceAccount
+    name: operator
