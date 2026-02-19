@@ -34,6 +34,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Improvements
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Increase default connection pool sizes for higher throughput ([#1469](https://github.com/kedacore/http-add-on/pull/1469))
 
 ### Fixes
 
