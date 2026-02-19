@@ -22,6 +22,7 @@ type InformerBackedEndpointsCache struct {
 	lggr                   logr.Logger
 	endpointSlicesInformer infdiscov1.EndpointSliceInformer
 	bcaster                *watch.Broadcaster
+	readyCache             *ReadyEndpointsCache
 }
 
 func (i *InformerBackedEndpointsCache) MarshalJSON() ([]byte, error) {
@@ -73,6 +74,37 @@ func (i *InformerBackedEndpointsCache) Watch(
 	}), nil
 }
 
+// ReadyCache returns the embedded ReadyEndpointsCache, which provides
+// O(1) hot-path readiness checks and an efficient broadcast-based
+// cold-start wait mechanism.
+func (i *InformerBackedEndpointsCache) ReadyCache() *ReadyEndpointsCache {
+	return i.readyCache
+}
+
+// updateReadyCache updates the ready cache for the service that owns
+// the given EndpointSlice.
+func (i *InformerBackedEndpointsCache) updateReadyCache(slice *discov1.EndpointSlice) {
+	svcName, ok := slice.Labels[discov1.LabelServiceName]
+	if !ok || svcName == "" {
+		return
+	}
+	ns := slice.Namespace
+
+	req, err := labels.NewRequirement(discov1.LabelServiceName, selection.Equals, []string{svcName})
+	if err != nil {
+		return
+	}
+	sel := labels.NewSelector().Add(*req)
+	allSlices, err := i.endpointSlicesInformer.Lister().EndpointSlices(ns).List(sel)
+	if err != nil {
+		i.lggr.Error(err, "failed to list endpoint slices for ready cache update",
+			"namespace", ns, "service", svcName)
+		return
+	}
+
+	i.readyCache.Update(ns+"/"+svcName, allSlices)
+}
+
 func (i *InformerBackedEndpointsCache) addEvtHandler(obj any) {
 	depl, ok := obj.(*discov1.EndpointSlice)
 	if !ok {
@@ -86,6 +118,7 @@ func (i *InformerBackedEndpointsCache) addEvtHandler(obj any) {
 	if err := i.bcaster.Action(watch.Added, depl); err != nil {
 		i.lggr.Error(err, "informer expected service")
 	}
+	i.updateReadyCache(depl)
 }
 
 func (i *InformerBackedEndpointsCache) updateEvtHandler(_, newObj any) {
@@ -101,13 +134,14 @@ func (i *InformerBackedEndpointsCache) updateEvtHandler(_, newObj any) {
 	if err := i.bcaster.Action(watch.Modified, depl); err != nil {
 		i.lggr.Error(err, "informer expected service")
 	}
+	i.updateReadyCache(depl)
 }
 
 func (i *InformerBackedEndpointsCache) deleteEvtHandler(obj any) {
-	depl, ok := obj.(*discov1.EndpointSlice)
-	if !ok {
+	depl, err := endpointSliceFromDeleteObj(obj)
+	if err != nil {
 		i.lggr.Error(
-			fmt.Errorf("informer expected service, got %v", obj),
+			err,
 			"not forwarding event",
 		)
 		return
@@ -116,8 +150,29 @@ func (i *InformerBackedEndpointsCache) deleteEvtHandler(obj any) {
 	if err := i.bcaster.Action(watch.Deleted, depl); err != nil {
 		i.lggr.Error(err, "informer expected service")
 	}
+	i.updateReadyCache(depl)
 }
 
+// endpointSliceFromDeleteObj unwraps EndpointSlice delete events from either
+// a direct object or a DeletedFinalStateUnknown tombstone.
+func endpointSliceFromDeleteObj(obj interface{}) (*discov1.EndpointSlice, error) {
+	switch t := obj.(type) {
+	case *discov1.EndpointSlice:
+		return t, nil
+	case cache.DeletedFinalStateUnknown:
+		depl, ok := t.Obj.(*discov1.EndpointSlice)
+		if !ok {
+			return nil, fmt.Errorf("informer expected EndpointSlice in tombstone, got %T", t.Obj)
+		}
+		return depl, nil
+	default:
+		return nil, fmt.Errorf("informer expected EndpointSlice, got %T", obj)
+	}
+}
+
+// TODO: migrate from client-go SharedInformerFactory to controller-runtime
+// cache, which is already used for HTTPScaledObject watching. This would
+// eliminate the separate informer lifecycle and kubernetes.Interface dependency.
 func NewInformerBackedEndpointsCache(
 	lggr logr.Logger,
 	cl kubernetes.Interface,
@@ -132,6 +187,7 @@ func NewInformerBackedEndpointsCache(
 		lggr:                   lggr,
 		bcaster:                watch.NewBroadcaster(0, watch.WaitIfChannelFull),
 		endpointSlicesInformer: endpointSlicesInformer,
+		readyCache:             NewReadyEndpointsCache(lggr),
 	}
 	_, err := ret.endpointSlicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    ret.addEvtHandler,
