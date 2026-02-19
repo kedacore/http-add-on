@@ -3,7 +3,7 @@ kind: ScaledObject
 metadata:
   name: interceptor
 spec:
-  minReplicaCount: 3
+  minReplicaCount: 1
   maxReplicaCount: 50
   pollingInterval: 1
   scaleTargetRef:
@@ -14,4 +14,4 @@ spec:
     - type: external
       metadata:
         scalerAddress: external-scaler:9090
-        interceptorTargetPendingRequests: '200'
+        interceptorTargetPendingRequests: "200"

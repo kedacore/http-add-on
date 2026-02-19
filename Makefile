@@ -1,49 +1,39 @@
 ##################################################
 # Variables                                      #
 ##################################################
-SHELL           = /bin/bash
+SHELL          = /bin/bash
+.DEFAULT_GOAL := ko-build
 
-IMAGE_REGISTRY 	?= ghcr.io
-IMAGE_REPO     	?= kedacore
-VERSION 		?= main
+IMAGE_REGISTRY ?= ghcr.io
+IMAGE_REPO     ?= kedacore
+VERSION        ?= HEAD
 
-IMAGE_OPERATOR 		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-operator
-IMAGE_INTERCEPTOR	?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-interceptor
-IMAGE_SCALER		?= ${IMAGE_REGISTRY}/${IMAGE_REPO}/http-add-on-scaler
+IMAGE_OPERATOR     ?= $(IMAGE_REGISTRY)/$(IMAGE_REPO)/http-add-on-operator
+IMAGE_INTERCEPTOR  ?= $(IMAGE_REGISTRY)/$(IMAGE_REPO)/http-add-on-interceptor
+IMAGE_SCALER       ?= $(IMAGE_REGISTRY)/$(IMAGE_REPO)/http-add-on-scaler
 
-IMAGE_OPERATOR_VERSIONED_TAG	?= ${IMAGE_OPERATOR}:$(VERSION)
-IMAGE_INTERCEPTOR_VERSIONED_TAG	?= ${IMAGE_INTERCEPTOR}:$(VERSION)
-IMAGE_SCALER_VERSIONED_TAG		?= ${IMAGE_SCALER}:$(VERSION)
+GIT_COMMIT       ?= $(shell git rev-list -1 HEAD)
+GIT_COMMIT_SHORT ?= $(shell git rev-parse --short HEAD)
+DATE             ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-IMAGE_OPERATOR_SHA_TAG		?= ${IMAGE_OPERATOR}:$(GIT_COMMIT_SHORT)
-IMAGE_INTERCEPTOR_SHA_TAG	?= ${IMAGE_INTERCEPTOR}:$(GIT_COMMIT_SHORT)
-IMAGE_SCALER_SHA_TAG		?= ${IMAGE_SCALER}:$(GIT_COMMIT_SHORT)
+IMAGE_OPERATOR_VERSIONED_TAG     ?= $(IMAGE_OPERATOR):$(VERSION)
+IMAGE_INTERCEPTOR_VERSIONED_TAG  ?= $(IMAGE_INTERCEPTOR):$(VERSION)
+IMAGE_SCALER_VERSIONED_TAG       ?= $(IMAGE_SCALER):$(VERSION)
 
-ARCH       ?=amd64
-CGO        ?=0
-TARGET_OS  ?=linux
+IMAGE_OPERATOR_SHA_TAG     ?= $(IMAGE_OPERATOR):$(GIT_COMMIT_SHORT)
+IMAGE_INTERCEPTOR_SHA_TAG  ?= $(IMAGE_INTERCEPTOR):$(GIT_COMMIT_SHORT)
+IMAGE_SCALER_SHA_TAG       ?= $(IMAGE_SCALER):$(GIT_COMMIT_SHORT)
 
-BUILD_PLATFORMS ?= linux/amd64,linux/arm64
-OUTPUT_TYPE     ?= registry
+KO_RELEASE_PLATFORMS ?= linux/amd64,linux/arm64
 
-GO_BUILD_VARS= GO111MODULE=on CGO_ENABLED=$(CGO) GOOS=$(TARGET_OS) GOARCH=$(ARCH)
-GO_LDFLAGS="-X github.com/kedacore/http-add-on/pkg/build.version=${VERSION} -X github.com/kedacore/http-add-on/pkg/build.gitCommit=${GIT_COMMIT}"
+COSIGN_FLAGS ?= -y -a GIT_HASH=$(GIT_COMMIT) -a GIT_VERSION=$(VERSION) -a BUILD_DATE=$(DATE)
 
-GIT_COMMIT  ?= $(shell git rev-list -1 HEAD)
-GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
+## Location to install dependencies to
+LOCALBIN ?= $(CURDIR)/bin
 
-COSIGN_FLAGS ?= -y -a GIT_HASH=${GIT_COMMIT} -a GIT_VERSION=${VERSION} -a BUILD_DATE=${DATE}
-
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
-
-GOPATH:=$(shell go env GOPATH)
-
-GOLANGCI_VERSION:=2.7.1
+## Tool Binaries
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+MOCKGEN ?= $(LOCALBIN)/mockgen
 
 define DOMAINS
 basicConstraints=CA:FALSE
@@ -65,20 +55,40 @@ DNS.1 = abc
 endef
 export ABC_DOMAINS
 
-# Build targets
+##################################################
+# Go build                                       #
+##################################################
 
 build-operator:
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/operator ./operator
+	go build -o bin/operator ./operator
 
 build-interceptor:
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/interceptor ./interceptor
+	go build -o bin/interceptor ./interceptor
 
 build-scaler:
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -trimpath -a -o bin/scaler ./scaler
+	go build -o bin/scaler ./scaler
 
 build: build-operator build-interceptor build-scaler
 
-# generate certs for local unit and e2e tests
+##################################################
+# Ko build                                       #
+##################################################
+
+ko-build-operator:
+	ko build --local ./operator
+
+ko-build-interceptor:
+	ko build --local ./interceptor
+
+ko-build-scaler:
+	ko build --local ./scaler
+
+ko-build: ko-build-operator ko-build-interceptor ko-build-scaler
+
+##################################################
+# Testing                                        #
+##################################################
+
 rootca-test-certs:
 	mkdir -p certs
 	openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout certs/RootCA.key -out certs/RootCA.pem -subj "/C=US/CN=Keda-Root-CA"
@@ -93,10 +103,9 @@ test-certs: rootca-test-certs
 	openssl x509 -req -sha256 -days 1024 -in certs/abc.tls.csr -CA certs/RootCA.pem -CAkey certs/RootCA.key -CAcreateserial -extfile certs/abc_domains.ext -out certs/abc.tls.crt
 
 clean-test-certs:
-	rm -r certs || true
+	rm -rf certs
 
-# Test targets
-test: fmt vet test-certs
+test: test-certs
 	go test ./...
 
 e2e-test:
@@ -108,52 +117,11 @@ e2e-test-setup:
 e2e-test-local:
 	SKIP_SETUP=true go run -tags e2e ./tests/run-all.go
 
-# Docker targets
-docker-build-operator:
-	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_OPERATOR_VERSIONED_TAG} -t ${IMAGE_OPERATOR_SHA_TAG} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
-
-docker-build-interceptor:
-	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_INTERCEPTOR_VERSIONED_TAG} -t ${IMAGE_INTERCEPTOR_SHA_TAG} -f interceptor/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
-
-docker-build-scaler:
-	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_SCALER_VERSIONED_TAG} -t ${IMAGE_SCALER_SHA_TAG} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
-
-docker-build: docker-build-operator docker-build-interceptor docker-build-scaler
-
-docker-publish: docker-build ## Push images on to Container Registry (default: ghcr.io).
-	docker push $(IMAGE_OPERATOR_VERSIONED_TAG)
-	docker push $(IMAGE_OPERATOR_SHA_TAG)
-	docker push $(IMAGE_INTERCEPTOR_VERSIONED_TAG)
-	docker push $(IMAGE_INTERCEPTOR_SHA_TAG)
-	docker push $(IMAGE_SCALER_VERSIONED_TAG)
-	docker push $(IMAGE_SCALER_SHA_TAG)
-
-publish-operator-multiarch:
-	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_OPERATOR_VERSIONED_TAG} -t ${IMAGE_OPERATOR_SHA_TAG} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
-
-publish-interceptor-multiarch:
-	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_INTERCEPTOR_VERSIONED_TAG} -t ${IMAGE_INTERCEPTOR_SHA_TAG} -f interceptor/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
-
-publish-scaler-multiarch:
-	docker buildx build --output=type=${OUTPUT_TYPE} --platform=${BUILD_PLATFORMS} . -t ${IMAGE_SCALER_VERSIONED_TAG} -t ${IMAGE_SCALER_SHA_TAG} -f scaler/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
-
-publish-multiarch: publish-operator-multiarch publish-interceptor-multiarch publish-scaler-multiarch
-
-release: manifests kustomize ## Produce new KEDA Http Add-on release in keda-add-ons-http-$(VERSION).yaml file.
-	cd config/interceptor && \
-	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
-	cd config/scaler && \
-	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
-	cd config/operator && \
-	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
-	"$(KUSTOMIZE)" build config/default > keda-add-ons-http-$(VERSION).yaml
-	"$(KUSTOMIZE)" build config/crd     > keda-add-ons-http-$(VERSION)-crds.yaml
-
-# Development
+##################################################
+# Code generation & manifests                    #
+##################################################
 
 generate: codegen manifests  ## Generate code and manifests.
-
-verify: verify-manifests ## Verify manifests.
 
 codegen: controller-gen ## Generate DeepCopy method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
@@ -166,83 +134,89 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 verify-manifests: ## Verify manifests are up to date.
 	./hack/verify-manifests.sh
 
-sign-images: ## Sign KEDA images published on GitHub Container Registry
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_OPERATOR_VERSIONED_TAG)
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_OPERATOR_SHA_TAG)
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_INTERCEPTOR_VERSIONED_TAG)
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_INTERCEPTOR_SHA_TAG)
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_SCALER_VERSIONED_TAG)
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMAGE_SCALER_SHA_TAG)
+##################################################
+# Linting & static checks                        #
+##################################################
 
-fmt: ## Run go fmt against code.
-	go fmt ./...
+lint:
+	golangci-lint run
 
-vet: ## Run go vet against code.
-	go vet ./...
-
-HAS_GOLANGCI_VERSION:=$(shell "$(GOPATH)/bin/golangci-lint" version --format short 2>/dev/null || "$(GOPATH)/bin/golangci-lint" version)
-.PHONY: lint
-lint: ## Run golangci against code.
-ifneq ($(HAS_GOLANGCI_VERSION), $(GOLANGCI_VERSION))
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(GOPATH)/bin" v$(GOLANGCI_VERSION)
-endif
-	golangci-lint run -v
+lint-fix:
+	golangci-lint run --fix
 
 pre-commit: ## Run static-checks.
 	pre-commit run --all-files
 
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	"$(KUSTOMIZE)" build config/crd | kubectl apply -f -
+##################################################
+# Deployment (local cluster)                     #
+##################################################
 
-deploy: manifests kustomize ## Deploy to the K8s cluster specified in ~/.kube/config.
-	cd config/interceptor && \
-	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-interceptor=${IMAGE_INTERCEPTOR_VERSIONED_TAG}
+install:
+	kustomize build config/crd | kubectl apply -f -
 
-	cd config/interceptor && \
-	"$(KUSTOMIZE)" edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+deploy:
+	kustomize build config/default | ko apply -f -
 
-	cd config/interceptor && \
-	"$(KUSTOMIZE)" edit add patch --path e2e-test/otel/scaledobject.yaml --group keda.sh --kind ScaledObject --name interceptor --version v1alpha1
+deploy-e2e:
+	kustomize build config/e2e | ko apply -f -
 
-	cd config/interceptor && \
-	"$(KUSTOMIZE)" edit add patch --path e2e-test/tls/deployment.yaml --group apps --kind Deployment --name interceptor --version v1
+deploy-operator:
+	kustomize build config/operator | ko apply -f -
 
-	cd config/interceptor && \
-	"$(KUSTOMIZE)" edit add patch --path e2e-test/tls/proxy.service.yaml --kind Service --name interceptor-proxy --version v1
+deploy-interceptor:
+	kustomize build config/interceptor | ko apply -f -
 
-	cd config/scaler && \
-	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-scaler=${IMAGE_SCALER_VERSIONED_TAG}
-
-	cd config/scaler && \
-	"$(KUSTOMIZE)" edit add patch --path e2e-test/otel/deployment.yaml --group apps --kind Deployment --name scaler --version v1
-
-	cd config/operator && \
-	"$(KUSTOMIZE)" edit set image ghcr.io/kedacore/http-add-on-operator=${IMAGE_OPERATOR_VERSIONED_TAG}
-
-	"$(KUSTOMIZE)" build config/default | kubectl apply -f -
+deploy-scaler:
+	kustomize build config/scaler | ko apply -f -
 
 undeploy:
-	"$(KUSTOMIZE)" build config/default | kubectl delete -f -
+	kustomize build config/default | ko delete -f - || true
 
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
+##################################################
+# Publish, release & signing                     #
+##################################################
+
+publish-operator:
+	# --bare preserves image names like ghcr.io/kedacore/http-add-on-operator
+	KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./operator
+
+publish-interceptor:
+	KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./interceptor
+
+publish-scaler:
+	KO_DOCKER_REPO=$(IMAGE_SCALER) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./scaler
+
+publish: publish-operator publish-interceptor publish-scaler
+
+release: manifests ## Produce new KEDA Http Add-on release in keda-add-ons-http-$(VERSION).yaml file.
+	kustomize build config/crd > keda-add-ons-http-$(VERSION).yaml
+	echo '---' >> keda-add-ons-http-$(VERSION).yaml
+	kustomize build config/operator | KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	echo '---' >> keda-add-ons-http-$(VERSION).yaml
+	kustomize build config/interceptor | KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	echo '---' >> keda-add-ons-http-$(VERSION).yaml
+	kustomize build config/scaler | KO_DOCKER_REPO=$(IMAGE_SCALER) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	kustomize build config/crd > keda-add-ons-http-$(VERSION)-crds.yaml
+
+sign-images: ## Sign KEDA images published on GitHub Container Registry
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_OPERATOR_VERSIONED_TAG)
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_OPERATOR_SHA_TAG)
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_INTERCEPTOR_VERSIONED_TAG)
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_INTERCEPTOR_SHA_TAG)
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_SCALER_VERSIONED_TAG)
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_SCALER_SHA_TAG)
+
+##################################################
+# Tool dependencies                              #
+##################################################
 
 .PHONY: localbin
 localbin:
 	mkdir -p "$(LOCALBIN)"
 
-## Tool Binaries
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-MOCKGEN ?= $(LOCALBIN)/mockgen
-
 .PHONY: controller-gen
-controller-gen: localbin ## Install controller-gen from vendor dir if necessary.
+controller-gen: localbin ## Install controller-gen if necessary.
 	test -s "$(LOCALBIN)/controller-gen" || GOBIN="$(LOCALBIN)" go install sigs.k8s.io/controller-tools/cmd/controller-gen
-
-.PHONY: kustomize
-kustomize: localbin ## Install kustomize from vendor dir if necessary.
-	test -s "$(LOCALBIN)/kustomize" || GOBIN="$(LOCALBIN)" go install sigs.k8s.io/kustomize/kustomize/v5
 
 .PHONY: mockgen
 mockgen: localbin ## Install mockgen from vendor dir if necessary.

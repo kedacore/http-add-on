@@ -16,57 +16,33 @@ jobs:
   validate:
     name: validate - ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
-    container: ghcr.io/kedacore/keda-tools:1.24.7
     strategy:
       matrix:
         include:
-        - runner: ARM64
-          name: arm64
-        - runner: ubuntu-latest
-          name: amd64
+          - runner: ubuntu-24.04-arm
+            name: arm64
+          - runner: ubuntu-latest
+            name: amd64
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
-    - name: Register workspace path
-      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: "go.mod"
 
-    - name: Check go version
-      run: go version
+      - name: Manifests
+        run: make verify-manifests
 
-    - name: Set Go paths
-      id: go-paths
-      run: |
-        echo ::set-output name=mod_cache::$(go env GOMODCACHE)
-        echo ::set-output name=build_cache::$(go env GOCACHE)
+      - name: Build
+        run: make build
 
-    - name: Go modules cache
-      uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
-      with:
-        path: ${{ steps.go-paths.outputs.mod_cache }}
-        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
-
-    - name: Go build cache
-      uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
-      with:
-        path: ${{ steps.go-paths.outputs.build_cache }}
-        key: ${{ runner.os }}-go-build-cache-${{ hashFiles('**/go.sum') }}
-
-    - name: Go modules sync
-      run: go mod tidy -compat=1.24 && go mod vendor
-
-    - name: Manifests
-      run: make verify-manifests
-
-    - name: Build
-      run: ARCH=${{ matrix.name }} make build
-
-    - name: Test
-      run: ARCH=${{ matrix.name }} make test
+      - name: Test
+        run: make test
 
   statics:
     permissions:
-      contents: read  # for actions/checkout to fetch code
-      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
+      contents: read # for actions/checkout to fetch code
+      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
     name: Static Checks
     runs-on: ubuntu-latest
     steps:
@@ -74,4 +50,7 @@ jobs:
       - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version-file: "go.mod"
+      - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
       - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
+        env:
+          SKIP: golangci-lint

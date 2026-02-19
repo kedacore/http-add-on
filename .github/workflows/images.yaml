@@ -11,38 +11,19 @@ permissions:
   contents: read
 
 jobs:
-  build_scaler:
+  build:
+    name: ${{ matrix.component }}
     runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.25.5
+    strategy:
+      matrix:
+        component: [scaler, operator, interceptor]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
-      - name: Register workspace path
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Build The Scaler
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          VERSION=${COMMIT} make docker-build-scaler
-
-  build_operator:
-    runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.25.5
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
-      - name: Register workspace path
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Build The Operator
-        run: |
-          COMMIT=$(git rev-parse --short=7 HEAD)
-          VERSION=${COMMIT} make docker-build-operator
-
-  build_interceptor:
-    runs-on: ubuntu-latest
-    container: ghcr.io/kedacore/keda-tools:1.25.5
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
-      - name: Register workspace path
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Build The Interceptor
-        run: |
-          COMMIT=$(git rev-parse --short=7 HEAD)
-          VERSION=${COMMIT} make docker-build-interceptor
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: "go.mod"
+      - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d # v0.9
+      - name: Build ${{ matrix.component }}
+        run: make ko-build-${{ matrix.component }}
+        env:
+          VERSION: ${{ github.sha }}
