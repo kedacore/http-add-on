@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    // See https://docs.renovatebot.com/presets-config/#configbest-practices
+    "config:best-practices",
+    "schedule:weekly",
+    ":gitSignOff",
+  ],
+  "commitBodyTable": true,
+  "labels": ["dependencies"],
+  // Experimental: OSV-based vulnerability alerts for direct dependencies
+  "osvVulnerabilityAlerts": true,
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+    },
+    {
+      // Group minor/patch together; major updates get individual PRs
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Go Dependencies (non-major)",
+    },
+    {
+      "matchManagers": ["pre-commit"],
+      "groupName": "Pre-commit Hooks",
+    },
+  ],
+  // Experimental: pre-commit manager is in beta and disabled by default
+  "pre-commit": {
+    "enabled": true,
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "addLabels": ["security"],
+  },
+}
