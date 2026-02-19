@@ -23,10 +23,10 @@ type Timeouts struct {
 	// MaxIdleConns is the max number of idle connections to keep in the
 	// interceptor's internal connection pool across all backend services.
 	// Increase this if you proxy to many unique backend services.
-	MaxIdleConns int `envconfig:"KEDA_HTTP_MAX_IDLE_CONNS" default:"100"`
+	MaxIdleConns int `envconfig:"KEDA_HTTP_MAX_IDLE_CONNS" default:"1000"`
 	// MaxIdleConnsPerHost is the max number of idle connections to keep per backend service.
 	// Increase this if you observe many new connection establishments under load.
-	MaxIdleConnsPerHost int `envconfig:"KEDA_HTTP_MAX_IDLE_CONNS_PER_HOST" default:"20"`
+	MaxIdleConnsPerHost int `envconfig:"KEDA_HTTP_MAX_IDLE_CONNS_PER_HOST" default:"200"`
 	// IdleConnTimeout is the timeout after which a connection in the interceptor's
 	// internal connection pool will be closed
 	IdleConnTimeout time.Duration `envconfig:"KEDA_HTTP_IDLE_CONN_TIMEOUT" default:"90s"`
