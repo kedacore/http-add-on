@@ -108,6 +108,15 @@ e2e-test-setup:
 e2e-test-local:
 	SKIP_SETUP=true go run -tags e2e ./tests/run-all.go
 
+stress-test:
+	go run -tags stress ./tests/stress-run-all.go
+
+stress-test-setup:
+	ONLY_SETUP=true go run -tags stress ./tests/stress-run-all.go
+
+stress-test-local:
+	SKIP_SETUP=true go run -tags stress ./tests/stress-run-all.go
+
 # Docker targets
 docker-build-operator:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE_OPERATOR_VERSIONED_TAG} -t ${IMAGE_OPERATOR_SHA_TAG} -f operator/Dockerfile --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
