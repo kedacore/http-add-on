@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.12.2](#v0122)
 - [v0.12.1](#v0121)
 - [v0.12.0](#v0120)
 - [v0.11.1](#v0111)
@@ -34,13 +35,10 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Improvements
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-- **Interceptor**: Increase default connection pool sizes for higher throughput ([#1469](https://github.com/kedacore/http-add-on/pull/1469))
 
 ### Fixes
 
-- **Interceptor**: Fix health probes failing when HTTPScaledObject has no hosts configured ([#1447](https://github.com/kedacore/http-add-on/issues/1447))
-- **Interceptor**: Rework dial retry to tolerate slow Service IP propagation and add `KEDA_HTTP_DIAL_RETRY_TIMEOUT` ([#1449](https://github.com/kedacore/http-add-on/issues/1449))
-- **Interceptor**: Set endpoint informer resync default to 1s to suppress warning ([#1455](https://github.com/kedacore/http-add-on/issues/1455))
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Deprecations
 
@@ -49,6 +47,18 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Other
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.12.2
+
+### Improvements
+
+- **Interceptor**: Increase default connection pool sizes for higher throughput ([#1469](https://github.com/kedacore/http-add-on/pull/1469))
+
+### Fixes
+
+- **Interceptor**: Fix health probes failing when HTTPScaledObject has no hosts configured ([#1447](https://github.com/kedacore/http-add-on/issues/1447))
+- **Interceptor**: Rework dial retry to tolerate slow Service IP propagation and add `KEDA_HTTP_DIAL_RETRY_TIMEOUT` ([#1449](https://github.com/kedacore/http-add-on/issues/1449))
+- **Interceptor**: Set endpoint informer resync default to 1s to suppress warning ([#1455](https://github.com/kedacore/http-add-on/issues/1455))
 
 ## v0.12.1
 
