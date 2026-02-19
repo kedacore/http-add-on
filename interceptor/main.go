@@ -91,7 +91,7 @@ func main() {
 	}
 
 	endpointsCache := k8s.NewInformerBackedEndpointsCache(ctrl.Log, cl, time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS))
-	waitFunc := newWorkloadReplicasForwardWaitFunc(ctrl.Log, endpointsCache)
+	waitFunc := newWorkloadReplicasForwardWaitFunc(endpointsCache.ReadyCache())
 
 	cacheOpts := cache.Options{
 		Scheme:     kedacache.NewScheme(),
