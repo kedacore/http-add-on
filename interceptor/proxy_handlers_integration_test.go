@@ -56,16 +56,16 @@ func TestIntegrationHappyPath(t *testing.T) {
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
 
-	h.endpCache.Set(discov1.EndpointSlice{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: serviceName,
-			Namespace:    target.GetNamespace(),
-			Labels: map[string]string{
-				discov1.LabelServiceName: serviceName,
+	h.readyCache.Update(target.GetNamespace()+"/"+serviceName, []*discov1.EndpointSlice{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      serviceName + "-slice",
+				Namespace: target.GetNamespace(),
+				Labels:    map[string]string{discov1.LabelServiceName: serviceName},
 			},
+			Endpoints: []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
 		},
 	})
-	r.NoError(h.endpCache.SetEndpoints(target.GetNamespace(), serviceName, 1))
 
 	// happy path
 	res, err := doRequest(
@@ -125,16 +125,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
 
-	// 0 replicas
-	h.endpCache.Set(discov1.EndpointSlice{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: serviceName,
-			Namespace:    target.GetNamespace(),
-			Labels: map[string]string{
-				discov1.LabelServiceName: serviceName,
-			},
-		},
-	})
+	// 0 replicas — don't update the ready cache, so WaitForReady will time out
 
 	start := time.Now()
 	res, err := doRequest(
@@ -177,23 +168,9 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
 
-	// set up a endpoint with zero replicas and create
-	// a watcher we can use later to fake-send a endpoint
-	// event
-	h.endpCache.Set(discov1.EndpointSlice{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: serviceName,
-			Namespace:    target.GetNamespace(),
-			Labels: map[string]string{
-				discov1.LabelServiceName: serviceName,
-			},
-		},
-	})
-	endpoints, _ := h.endpCache.Get(target.GetNamespace(), serviceName)
-	watcher := h.endpCache.SetWatcher(target.GetNamespace(), serviceName)
-
-	// make the request in one goroutine, and in the other, wait a bit
-	// and then add replicas to the endpoints cache
+	// Start with zero replicas — don't update the ready cache yet.
+	// Make the request in one goroutine, and in the other, wait a bit
+	// and then add replicas via the ready cache.
 
 	var response *http.Response
 	grp, _ := errgroup.WithContext(ctx)
@@ -216,17 +193,16 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 		time.Sleep(sleepDur)
 		t.Logf("Woke up, setting replicas to 10")
 
-		modifiedEndpoints := endpoints.DeepCopy()
-		modifiedEndpoints.Endpoints = []discov1.Endpoint{
+		h.readyCache.Update(target.GetNamespace()+"/"+serviceName, []*discov1.EndpointSlice{
 			{
-				Addresses: []string{
-					"1.2.3.4",
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceName + "-slice",
+					Namespace: target.GetNamespace(),
+					Labels:    map[string]string{discov1.LabelServiceName: serviceName},
 				},
+				Endpoints: []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
 			},
-		}
-		// send a watch event (instead of setting replicas) so that the watch
-		// func sees that it can forward the request now
-		watcher.Modify(modifiedEndpoints)
+		})
 		return nil
 	})
 	start := time.Now()
@@ -270,7 +246,7 @@ type harness struct {
 	originSrv    *httptest.Server
 	originURL    *url.URL
 	routingTable *routingtest.Table
-	endpCache    *k8s.FakeEndpointsCache
+	readyCache   *k8s.ReadyEndpointsCache
 	waitFunc     forwardWaitFunc
 }
 
@@ -283,11 +259,8 @@ func newHarness(
 	routingTable := routingtest.NewTable()
 
 	fakeClient := fake.NewClientBuilder().WithScheme(kedacache.NewScheme()).Build()
-	endpCache := k8s.NewFakeEndpointsCache()
-	waitFunc := newWorkloadReplicasForwardWaitFunc(
-		logr.Discard(),
-		endpCache,
-	)
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+	waitFunc := newWorkloadReplicasForwardWaitFunc(readyCache)
 
 	originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -328,7 +301,7 @@ func newHarness(
 		originSrv:    testOriginSrv,
 		originURL:    originSrvURL,
 		routingTable: routingTable,
-		endpCache:    endpCache,
+		readyCache:   readyCache,
 		waitFunc:     waitFunc,
 	}, nil
 }

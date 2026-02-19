@@ -22,6 +22,7 @@ type InformerBackedEndpointsCache struct {
 	lggr                   logr.Logger
 	endpointSlicesInformer infdiscov1.EndpointSliceInformer
 	bcaster                *watch.Broadcaster
+	readyCache             *ReadyEndpointsCache
 }
 
 func (i *InformerBackedEndpointsCache) MarshalJSON() ([]byte, error) {
@@ -73,6 +74,37 @@ func (i *InformerBackedEndpointsCache) Watch(
 	}), nil
 }
 
+// ReadyCache returns the embedded ReadyEndpointsCache, which provides
+// O(1) hot-path readiness checks and an efficient broadcast-based
+// cold-start wait mechanism.
+func (i *InformerBackedEndpointsCache) ReadyCache() *ReadyEndpointsCache {
+	return i.readyCache
+}
+
+// updateReadyCache recounts ready endpoints for the service that owns
+// the given EndpointSlice by listing all slices from the informer's store.
+func (i *InformerBackedEndpointsCache) updateReadyCache(slice *discov1.EndpointSlice) {
+	svcName, ok := slice.Labels[discov1.LabelServiceName]
+	if !ok || svcName == "" {
+		return
+	}
+	ns := slice.Namespace
+
+	req, err := labels.NewRequirement(discov1.LabelServiceName, selection.Equals, []string{svcName})
+	if err != nil {
+		return
+	}
+	sel := labels.NewSelector().Add(*req)
+	allSlices, err := i.endpointSlicesInformer.Lister().EndpointSlices(ns).List(sel)
+	if err != nil {
+		i.lggr.Error(err, "failed to list endpoint slices for ready cache update",
+			"namespace", ns, "service", svcName)
+		return
+	}
+
+	i.readyCache.Update(ns+"/"+svcName, allSlices)
+}
+
 func (i *InformerBackedEndpointsCache) addEvtHandler(obj interface{}) {
 	depl, ok := obj.(*discov1.EndpointSlice)
 	if !ok {
@@ -86,6 +118,7 @@ func (i *InformerBackedEndpointsCache) addEvtHandler(obj interface{}) {
 	if err := i.bcaster.Action(watch.Added, depl); err != nil {
 		i.lggr.Error(err, "informer expected service")
 	}
+	i.updateReadyCache(depl)
 }
 
 func (i *InformerBackedEndpointsCache) updateEvtHandler(_, newObj interface{}) {
@@ -101,6 +134,7 @@ func (i *InformerBackedEndpointsCache) updateEvtHandler(_, newObj interface{}) {
 	if err := i.bcaster.Action(watch.Modified, depl); err != nil {
 		i.lggr.Error(err, "informer expected service")
 	}
+	i.updateReadyCache(depl)
 }
 
 func (i *InformerBackedEndpointsCache) deleteEvtHandler(obj interface{}) {
@@ -116,6 +150,7 @@ func (i *InformerBackedEndpointsCache) deleteEvtHandler(obj interface{}) {
 	if err := i.bcaster.Action(watch.Deleted, depl); err != nil {
 		i.lggr.Error(err, "informer expected service")
 	}
+	i.updateReadyCache(depl)
 }
 
 func NewInformerBackedEndpointsCache(
@@ -132,6 +167,7 @@ func NewInformerBackedEndpointsCache(
 		lggr:                   lggr,
 		bcaster:                watch.NewBroadcaster(0, watch.WaitIfChannelFull),
 		endpointSlicesInformer: endpointSlicesInformer,
+		readyCache:             NewReadyEndpointsCache(lggr),
 	}
 	_, err := ret.endpointSlicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    ret.addEvtHandler,
