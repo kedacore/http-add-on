@@ -31,6 +31,8 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
+- **Interceptor**: Add new high-performance interceptor with lock-free routing, per-host atomic queue counters, raw TCP forwarding, connection pooling with DNS caching, TLS, OpenTelemetry tracing, request logging, pprof, and named port resolution ([#1467](https://github.com/kedacore/http-add-on/pull/1467))
+
 ### Improvements
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
