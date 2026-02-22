@@ -363,3 +363,7 @@ admin/Cargo.lock
 *.srl
 *.ext
 *.test
+
+# Test runner binaries
+stress-run-all
+run-all
