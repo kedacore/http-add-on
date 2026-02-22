@@ -21,12 +21,6 @@ type Serving struct {
 	// CacheSyncPeriod is the time interval for the controller-runtime cache to resync.
 	// TODO: consider removing this to use the default value, otherwise align the env var name
 	CacheSyncPeriod time.Duration `env:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" envDefault:"60m"`
-	// The interceptor has an internal process that periodically fetches the state
-	// of endpoints that is running the servers it forwards to.
-	//
-	// This is the interval (in milliseconds) representing how often to do a fetch
-	// TODO: this is actually the informer resync period, not a poll interval, default is too aggressive
-	EndpointsCachePollIntervalMS int `env:"KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS" envDefault:"1000"`
 	// ProxyTLSEnabled is a flag to specify whether the interceptor proxy should
 	// be running using a TLS enabled server
 	ProxyTLSEnabled bool `env:"KEDA_HTTP_PROXY_TLS_ENABLED" envDefault:"false"`
