@@ -57,11 +57,6 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	if err := config.Validate(servingCfg, timeoutCfg); err != nil {
-		setupLog.Error(err, "invalid configuration")
-		runtime.Goexit()
-	}
-
 	setupLog.Info(
 		"starting interceptor",
 		"timeoutConfig",
@@ -88,7 +83,7 @@ func main() {
 		runtime.Goexit()
 	}
 
-	endpointsCache := k8s.NewInformerBackedEndpointsCache(ctrl.Log, cl, time.Millisecond*time.Duration(servingCfg.EndpointsCachePollIntervalMS))
+	endpointsCache := k8s.NewInformerBackedEndpointsCache(ctrl.Log, cl, 60*time.Minute)
 	waitFunc := newWorkloadReplicasForwardWaitFunc(endpointsCache.ReadyCache())
 
 	cacheOpts := cache.Options{
