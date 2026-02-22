@@ -47,6 +47,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Other
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Remove unused `CurrentNamespace` field and `KEDA_HTTP_CURRENT_NAMESPACE` env var from interceptor config([#1484](https://github.com/kedacore/http-add-on/pull/1484))
 
 ## v0.12.2
 

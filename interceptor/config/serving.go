@@ -9,9 +9,6 @@ import (
 // Serving is configuration for how the interceptor serves the proxy
 // and admin server
 type Serving struct {
-	// CurrentNamespace is the namespace that the interceptor is
-	// currently running in
-	CurrentNamespace string `envconfig:"KEDA_HTTP_CURRENT_NAMESPACE" required:"true"`
 	// WatchNamespace is the namespace to watch for new HTTPScaledObjects.
 	// Leave this empty to watch HTTPScaledObjects in all namespaces.
 	WatchNamespace string `envconfig:"KEDA_HTTP_WATCH_NAMESPACE" default:""`

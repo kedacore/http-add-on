@@ -28,8 +28,6 @@ spec:
         - --zap-encoder=console
         - --zap-time-encoding=rfc3339
         env:
-        - name: KEDA_HTTP_CURRENT_NAMESPACE
-          value: "keda"
         - name: KEDA_HTTP_PROXY_PORT
           value: "8080"
         - name: KEDA_HTTP_ADMIN_PORT
