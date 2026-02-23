@@ -15,6 +15,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"google.golang.org/protobuf/types/known/emptypb"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -200,15 +201,26 @@ func (e *impl) GetMetrics(ctx context.Context, metricRequest *externalscaler.Get
 		return nil, err
 	}
 
-	httpso := &httpv1alpha1.HTTPScaledObject{}
-	if err := e.reader.Get(ctx, types.NamespacedName{Namespace: sor.Namespace, Name: httpScaledObjectName}, httpso); err != nil {
-		lggr.Error(err, "unable to get HTTPScaledObject", "name", httpScaledObjectName, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
-		return nil, err
-	}
-
 	// generated the metric name for HTTPScaledObject
 	namespacedName := k8s.NamespacedNameFromNameAndNamespace(httpScaledObjectName, sor.Namespace)
 	metricName := MetricName(namespacedName)
+
+	httpso := &httpv1alpha1.HTTPScaledObject{}
+	if err := e.reader.Get(ctx, types.NamespacedName{Namespace: sor.Namespace, Name: httpScaledObjectName}, httpso); err != nil {
+		if apierrors.IsNotFound(err) {
+			lggr.V(1).Info("HTTPScaledObject not yet available in cache, returning 0", "httpScaledObjectName", httpScaledObjectName, "namespace", sor.Namespace)
+			return &externalscaler.GetMetricsResponse{
+				MetricValues: []*externalscaler.MetricValue{
+					{
+						MetricName:  metricName,
+						MetricValue: 0,
+					},
+				},
+			}, nil
+		}
+		lggr.Error(err, "unable to get HTTPScaledObject", "name", httpScaledObjectName, "namespace", sor.Namespace, "httpScaledObjectName", httpScaledObjectName)
+		return nil, err
+	}
 
 	key := namespacedName.String()
 	count := e.pinger.counts()[key]

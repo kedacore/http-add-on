@@ -39,6 +39,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: Fix `roundToNDigits` using `math.Round` instead of `math.Floor` to correctly round small negative floating-point errors to zero ([#1483](https://github.com/kedacore/http-add-on/pull/1483))
+- **Scaler**: Handle HTTPScaledObject not found gracefully in `GetMetrics` to avoid error storms during rapid deployments ([#1487](https://github.com/kedacore/http-add-on/issues/1487))
 
 ### Deprecations
 
