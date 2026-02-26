@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package interceptor_tls_test
 
@@ -179,7 +178,7 @@ func sendRequest(t *testing.T) {
 	stdout, _, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, fmt.Sprintf("curl -k -H 'Host: %s' https://keda-add-ons-http-interceptor-proxy.keda:8443/echo?msg=tls_test", host))
 	require.NoErrorf(t, err, "could not run command on test client pod - %s", err)
 
-	assert.Equal(t, "tls_test", stdout, fmt.Sprintf("incorrect response body from test request: expected %s, got %s", "tls_test", stdout))
+	assert.Equal(t, "tls_test", stdout, "incorrect response body from test request: expected %s, got %s", "tls_test", stdout)
 }
 
 func getTemplateData() (templateData, []Template) {

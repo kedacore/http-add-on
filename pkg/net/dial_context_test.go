@@ -18,7 +18,7 @@ func getUnreachableAddr(t *testing.T) string {
 		t.Fatalf("failed to listen: %v", err)
 	}
 	addr := listener.Addr().String()
-	listener.Close()
+	_ = listener.Close()
 	return addr
 }
 
@@ -46,7 +46,7 @@ func TestDialContextWithRetry_SucceedsImmediately(t *testing.T) {
 	if conn == nil {
 		t.Fatal("expected non-nil connection")
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	// Should connect well before the retry interval fires.
 	if elapsed >= 50*time.Millisecond {
@@ -68,11 +68,11 @@ func TestDialContextWithRetry_RetriesUntilReachable(t *testing.T) {
 		close(ready)
 		conn, err := ln.Accept()
 		if err != nil {
-			ln.Close()
+			_ = ln.Close()
 			return
 		}
-		conn.Close()
-		ln.Close()
+		_ = conn.Close()
+		_ = ln.Close()
 	}()
 
 	dialer := NewNetDialer(50*time.Millisecond, 1*time.Second)
@@ -82,7 +82,7 @@ func TestDialContextWithRetry_RetriesUntilReachable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected success after target becomes reachable: %v", err)
 	}
-	conn.Close()
+	_ = conn.Close()
 	<-ready
 }
 

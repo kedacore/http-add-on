@@ -14,9 +14,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-var (
-	errNotSyncedTable = errors.New("table has not synced")
-)
+var errNotSyncedTable = errors.New("table has not synced")
 
 type Table interface {
 	util.HealthChecker

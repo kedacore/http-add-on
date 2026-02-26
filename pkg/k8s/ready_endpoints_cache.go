@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -98,20 +99,14 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey strin
 // non-terminating endpoint and stores the result. Short-circuits on
 // the first ready endpoint found. If no slices remain for the service,
 // the key is removed to avoid unbounded map growth.
-func (c *ReadyEndpointsCache) Update(serviceKey string, slices []*discov1.EndpointSlice) {
-	if len(slices) == 0 {
+func (c *ReadyEndpointsCache) Update(serviceKey string, endpointSlices []*discov1.EndpointSlice) {
+	if len(endpointSlices) == 0 {
 		c.ready.Delete(serviceKey)
 		c.broadcast()
 		return
 	}
 
-	hasReady := false
-	for _, slice := range slices {
-		if hasAnyReadyEndpoint(slice) {
-			hasReady = true
-			break
-		}
-	}
+	hasReady := slices.ContainsFunc(endpointSlices, hasAnyReadyEndpoint)
 
 	v, _ := c.ready.LoadOrStore(serviceKey, &atomic.Bool{})
 	if old := v.(*atomic.Bool).Swap(hasReady); old != hasReady {

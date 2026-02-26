@@ -6,13 +6,11 @@ import (
 	"net/http"
 )
 
-var (
-	ignoredErrs = []error{
-		nil,
-		context.Canceled,
-		http.ErrServerClosed,
-	}
-)
+var ignoredErrs = []error{
+	nil,
+	context.Canceled,
+	http.ErrServerClosed,
+}
 
 func IsIgnoredErr(err error) bool {
 	for _, ignoredErr := range ignoredErrs {

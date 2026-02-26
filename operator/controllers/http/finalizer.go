@@ -44,7 +44,8 @@ func finalizeScaledObject(
 	ctx context.Context,
 	logger logr.Logger,
 	client client.Client,
-	httpso *httpv1alpha1.HTTPScaledObject) error {
+	httpso *httpv1alpha1.HTTPScaledObject,
+) error {
 	if slices.Contains(httpso.GetFinalizers(), httpScaledObjectFinalizer) {
 		httpso.SetFinalizers(slices.DeleteFunc(httpso.GetFinalizers(), func(s string) bool {
 			return s == httpScaledObjectFinalizer

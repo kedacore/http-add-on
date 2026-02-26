@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package ingress_in_keda_namespace_test
 

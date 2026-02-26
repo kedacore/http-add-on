@@ -36,6 +36,8 @@ func (sh *Static) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Error(sh.err, statusText, "routingKey", routingKey, "namespacedName", namespacedName, "stream", stream)
 
 	w.WriteHeader(sh.statusCode)
+
+	//nolint:gosec // G705: statusText is from http.StatusText(), not user input
 	if _, err := w.Write([]byte(statusText)); err != nil {
 		logger.Error(err, "write failed")
 	}

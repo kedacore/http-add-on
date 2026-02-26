@@ -35,5 +35,5 @@ func TestAggregate(t *testing.T) {
 	}
 	agg := counts.Aggregate()
 	r.Equal(expectedConcurrency, agg.Concurrency)
-	r.Equal(expectedRPS, agg.RPS)
+	r.InDelta(expectedRPS, agg.RPS, 0)
 }

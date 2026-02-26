@@ -26,7 +26,7 @@ type TLSOptions struct {
 func BuildTLSConfig(opts TLSOptions, logger logr.Logger) (*tls.Config, error) {
 	servingTLS := &tls.Config{
 		RootCAs:            defaultCertPool(logger),
-		InsecureSkipVerify: opts.InsecureSkipVerify,
+		InsecureSkipVerify: opts.InsecureSkipVerify, //nolint:gosec // G402: user-configurable
 	}
 	var defaultCert *tls.Certificate
 
@@ -107,7 +107,7 @@ func loadCertStorePaths(certStorePaths string, certs map[string]tls.Certificate,
 		if _, err := addCert(certs, certPath, keyPath, logger); err != nil {
 			return fmt.Errorf("error adding certificate %s: %w", certPath, err)
 		}
-		rawCert, err := os.ReadFile(certPath)
+		rawCert, err := os.ReadFile(certPath) //nolint:gosec // G304: path from configured cert directory
 		if err != nil {
 			return fmt.Errorf("error reading certificate: %w", err)
 		}

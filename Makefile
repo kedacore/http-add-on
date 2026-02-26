@@ -135,6 +135,9 @@ verify-manifests: ## Verify manifests are up to date.
 # Linting & static checks                        #
 ##################################################
 
+fmt:
+	golangci-lint fmt
+
 lint:
 	golangci-lint run
 

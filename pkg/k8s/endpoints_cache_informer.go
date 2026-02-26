@@ -155,7 +155,7 @@ func (i *InformerBackedEndpointsCache) deleteEvtHandler(obj any) {
 
 // endpointSliceFromDeleteObj unwraps EndpointSlice delete events from either
 // a direct object or a DeletedFinalStateUnknown tombstone.
-func endpointSliceFromDeleteObj(obj interface{}) (*discov1.EndpointSlice, error) {
+func endpointSliceFromDeleteObj(obj any) (*discov1.EndpointSlice, error) {
 	switch t := obj.(type) {
 	case *discov1.EndpointSlice:
 		return t, nil

@@ -14,5 +14,5 @@ func TestTracingConfig(t *testing.T) {
 
 	// check defaults are set correctly
 	assert.Equal(t, "console", tracingCfg.Exporter)
-	assert.Equal(t, true, tracingCfg.Enabled)
+	assert.True(t, tracingCfg.Enabled)
 }

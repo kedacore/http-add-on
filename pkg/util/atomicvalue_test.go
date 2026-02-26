@@ -1,7 +1,7 @@
 package util
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"sync/atomic"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -9,9 +9,7 @@ import (
 )
 
 var _ = Describe("AtomicValue", func() {
-	var (
-		i int
-	)
+	var i int
 
 	BeforeEach(func() {
 		i = rand.Int()

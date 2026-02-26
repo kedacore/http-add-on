@@ -2,7 +2,7 @@ package queue
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 	"time"
 

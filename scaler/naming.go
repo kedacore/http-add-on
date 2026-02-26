@@ -7,9 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var (
-	unsafeChars = regexp.MustCompile(`[^-.0-9A-Za-z]`)
-)
+var unsafeChars = regexp.MustCompile(`[^-.0-9A-Za-z]`)
 
 func escapeRune(r string) string {
 	return fmt.Sprintf("_%04X", r)

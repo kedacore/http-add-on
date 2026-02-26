@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package operator_metrics_test
 
@@ -9,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
 )
@@ -121,13 +121,12 @@ func testMetricsContent(t *testing.T) {
 	// Get the ServiceAccount token to authenticate
 	cmd := fmt.Sprintf("curl -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" --max-time 10 %s", kedaOperatorMetricsURL)
 	out, errOut, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
-
 	if err != nil {
 		t.Logf("Metrics content test - Output: %s, Error output: %s, Error: %v", out, errOut, err)
 	}
 
 	// Verify that metrics are returned in Prometheus format
-	assert.NoError(t, err, "should be able to access metrics from client pod with RBAC permissions. Output: %s, Error: %s", out, errOut)
+	require.NoError(t, err, "should be able to access metrics from client pod with RBAC permissions. Output: %s, Error: %s", out, errOut)
 	assert.True(t, strings.Contains(out, "# HELP") || strings.Contains(out, "# TYPE"),
 		"metrics should contain Prometheus format. Output: %s", out)
 }

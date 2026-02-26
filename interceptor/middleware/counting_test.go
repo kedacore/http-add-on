@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,7 +51,7 @@ func TestCountMiddleware(t *testing.T) {
 		http.HandlerFunc(func(wr http.ResponseWriter, req *http.Request) {
 			wr.WriteHeader(200)
 			_, err := wr.Write([]byte("OK"))
-			r.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 
@@ -79,7 +80,7 @@ func TestCountMiddleware(t *testing.T) {
 		func(t *testing.T, hostAndCount queue.HostAndCount) {
 			t.Helper()
 			r := require.New(t)
-			r.Equal(float64(1), math.Abs(float64(hostAndCount.Count)))
+			r.InDelta(float64(1), math.Abs(float64(hostAndCount.Count)), 0)
 			r.Equal(namespacedName, hostAndCount.Host)
 		},
 	)

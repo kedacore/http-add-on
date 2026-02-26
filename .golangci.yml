@@ -1,104 +1,107 @@
 version: "2"
 run:
-  concurrency: 4
   build-tags:
     - e2e
 linters:
   default: none
   enable:
-    - bodyclose
-    - unconvert
-    - ineffassign
-    - staticcheck
-    - copyloopvar
-    #- depguard #https://github.com/kedacore/keda/issues/4980
-    - dogsled
-    - dupl
-    - errcheck
-    #- funlen
-    - goconst
-    - gocritic
-    - gocyclo
-    - goprintffuncname
-    - govet
-    - ineffassign
-    - misspell
-    - nolintlint
-    - revive
-    - staticcheck
-    - unconvert
-    - unparam
-    - unused
-    - whitespace
-  settings:
-    funlen:
-      lines: 80
-      statements: 40
+    - bodyclose # checks HTTP response body is closed
+    - copyloopvar # detects loop variable copies (Go 1.22+)
+    - dogsled # finds too many blank identifiers (x, _, _, _ := f())
+    - dupl # detects duplicate code fragments
+    - errcheck # checks for unchecked errors
+    - errorlint # checks for proper error wrapping and comparison
+    - goconst # finds repeated strings replaceable by constants
+    - gocritic # catches common pitfalls: nil checks, type assertions, slicing
+    - gocyclo # checks cyclomatic complexity
+    - goprintffuncname # checks printf-like funcs end with 'f'
+    - gosec # inspects source code for security problems
+    - govet # catches format-string mismatches, struct tag errors, lock copies
+    - ineffassign # detects unused assignments
+    - misspell # finds common spelling mistakes
+    - modernize # suggests modern Go idioms and stdlib usage
+    - nolintlint # enforces well-formed nolint directives
+    - revive # enforces naming, imports, error returns, and style rules
+    - staticcheck # finds bugs, deprecated APIs, and unnecessary code
+    - testifylint # correctness checks for testify usage
+    - unconvert # removes unnecessary type conversions
+    - unparam # reports unused function parameters
+    - unused # checks for unused code
+    - whitespace # checks for unnecessary newlines
   exclusions:
-    generated: lax
+    generated: lax # exclude generated files
     presets:
+      # suppress "exported X should have comment" — not all exports are documented
       - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
     rules:
+      # test files: relax duplicate detection and unused params
       - linters:
           - dupl
-          - revive
           - unparam
         path: _test\.go
-      - path: pkg/http/
-        linters:
+      - linters:
           - revive
-        text: "var-naming: avoid package names that conflict with Go standard library"
+        path: _test\.go
+        text: unused-parameter
+      # test files: unchecked Close/Remove in deferred cleanup
+      - linters:
+          - errcheck
+        path: _test\.go|tests/
+        text: "Close|Remove"
+      # var-naming: packages that intentionally shadow stdlib names
       - linters:
           - revive
         text: "var-naming: avoid package names that conflict with Go standard library"
-        path: pkg/net/
-      - linters:
-          - revive
-        text: "var-naming: avoid package names that conflict with Go standard library"
-        path: operator/controllers/http
-      - linters:
-          - revive
-        text: "var-naming: avoid package names that conflict with Go standard library"
-        path: interceptor/metrics/
-      - linters:
-          - revive
-        text: "var-naming: avoid package names that conflict with Go standard library"
-        path: pkg/build/
-      # Exclude for utils packages with meaningful package names
+        path: interceptor/metrics/|operator/controllers/http/|pkg/build/|pkg/http/|pkg/net/
+      # var-naming: util packages with meaningful names
       - linters:
           - revive
         text: "var-naming: avoid meaningless package names"
-        path: operator/controllers/util/predicate.go
+        path: pkg/util/|operator/controllers/util/|tests/utils/
+      # revive: dot imports are standard for ginkgo/gomega
       - linters:
           - revive
-        text: "var-naming: avoid meaningless package names"
-        path: pkg/util/
-    paths:
-      - vendor
-      - third_party$
-      - builtin$
-      - examples$
+        text: "dot-imports"
+        path: _test\.go
+      # gosec: relaxed TLS settings in tests
+      - linters:
+          - gosec
+        text: "G402"
+        path: _test\.go
+      # gosec: ignore impossible integer overflow on port/replica conversions
+      - linters:
+          - gosec
+        text: "G109|G115"
+        path: _test\.go|tests/|pkg/k8s/fake_
+      # gosec: weak RNG is fine for test data
+      - linters:
+          - gosec
+        text: "G404"
+        path: _test\.go|tests/
+      # gosec: test helpers invoke subprocesses with known inputs
+      - linters:
+          - gosec
+        text: "G204|G702"
+        path: tests/
+      # gosec: test HTTP requests target local test servers, not user-controlled URLs
+      - linters:
+          - gosec
+        text: "G704"
+        path: _test\.go
 formatters:
   enable:
-    - gci
-    - gofmt
-    - goimports
+    - gci # import grouping and ordering
+    - gofumpt # stricter superset of gofmt
+    - goimports # adds/removes imports, formats code
   settings:
     gci:
       sections:
         - standard
         - default
-        - prefix(github.com/kedacore/http-add-on)
+        - localmodule
   exclusions:
-    generated: lax
+    generated: lax # exclude generated files
     paths:
-      - third_party$
-      - builtin$
-      - examples$
-      # Exclude gci check for //+kubebuilder:scaffold:imports comments. Waiting to
-      # resolve https://github.com/kedacore/keda/issues/4379
+      # gci would strip kubebuilder scaffold markers from import blocks
       - operator/controllers/http/suite_test.go
       - operator/main.go

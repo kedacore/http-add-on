@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package main
 
@@ -7,14 +6,13 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/sync/semaphore"
 	"k8s.io/client-go/kubernetes"
@@ -88,7 +86,7 @@ func executeTest(ctx context.Context, file string, timeout string, tries int) Te
 		cmd := exec.CommandContext(ctx, "go", "test", "-v", "-tags", "e2e", "-timeout", timeout, file)
 		stdout, err := cmd.CombinedOutput()
 		logFile := fmt.Sprintf("%s.%d.log", file, i)
-		fileError := os.WriteFile(logFile, stdout, 0644)
+		fileError := os.WriteFile(logFile, stdout, 0o600)
 		if fileError != nil {
 			fmt.Printf("Execution of %s, try '%d' has failed writing the logs : %s\n", file, i, fileError)
 		}
@@ -129,13 +127,11 @@ func getTestFiles() []string {
 			}
 			return nil
 		})
-
 	if err != nil {
 		return []string{}
 	}
 
 	// We randomize the executions
-	rand.New(rand.NewSource(time.Now().UnixNano()))
 	rand.Shuffle(len(testFiles), func(i, j int) {
 		testFiles[i], testFiles[j] = testFiles[j], testFiles[i]
 	})

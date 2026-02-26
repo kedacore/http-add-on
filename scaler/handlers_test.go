@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -283,7 +284,7 @@ func TestStreamIsActive(t *testing.T) {
 				hdl,
 			)
 			go func() {
-				r.NoError(grpcServer.Serve(lis))
+				assert.NoError(t, grpcServer.Serve(lis))
 			}()
 
 			bufDialFunc := func(context.Context, string) (net.Conn, error) {

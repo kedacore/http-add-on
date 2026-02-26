@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package internal_service_port_name_test
 

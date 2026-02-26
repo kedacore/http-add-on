@@ -62,7 +62,7 @@ func TestGetEndpoints(t *testing.T) {
 			addrLookup[key] = &addr
 		}
 	}
-	r.Equal(len(addrLookup), len(urls))
+	r.Len(urls, len(addrLookup))
 	for _, url := range urls {
 		_, ok := addrLookup[url.String()]
 		r.True(ok, "address %s was returned but not expected", url)
@@ -115,7 +115,7 @@ func TestEndpointsFuncForControllerClient(t *testing.T) {
 	fn := EndpointsFuncForControllerClient(cl)
 	ret, err := fn(ctx, ns, svcName)
 	r.NoError(err)
-	r.Equal(len(endpoints.Items[0].Endpoints), len(ret.ReadyAddresses))
+	r.Len(ret.ReadyAddresses, len(endpoints.Items[0].Endpoints))
 	// we don't need to introspect the return value, because we
 	// do so in depth in the above TestGetEndpoints test
 }

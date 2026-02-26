@@ -206,7 +206,7 @@ func writeCert(t *testing.T, dir, name, dnsName string) {
 
 func writeFile(t *testing.T, path string, data []byte) {
 	t.Helper()
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatalf("writing %s: %v", path, err)
 	}
 }

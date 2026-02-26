@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package ingress_in_app_namespace_test
 

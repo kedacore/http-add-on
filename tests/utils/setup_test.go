@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package utils
 
@@ -301,11 +300,11 @@ func TestSetupOpentelemetryComponents(t *testing.T) {
 	otlpServiceTempFileName := "otlpServicePatch.yml"
 	defer os.Remove(otlpTempFileName)
 	defer os.Remove(otlpServiceTempFileName)
-	err := os.WriteFile(otlpTempFileName, []byte(OtlpConfig), 0755)
-	assert.NoErrorf(t, err, "cannot create otlp config file - %s", err)
+	err := os.WriteFile(otlpTempFileName, []byte(OtlpConfig), 0o600)
+	require.NoErrorf(t, err, "cannot create otlp config file - %s", err)
 
-	err = os.WriteFile(otlpServiceTempFileName, []byte(OtlpServicePatch), 0755)
-	assert.NoErrorf(t, err, "cannot create otlp service patch file - %s", err)
+	err = os.WriteFile(otlpServiceTempFileName, []byte(OtlpServicePatch), 0o600)
+	require.NoErrorf(t, err, "cannot create otlp service patch file - %s", err)
 
 	_, err = ExecuteCommand("helm version")
 	require.NoErrorf(t, err, "helm is not installed - %s", err)
@@ -332,8 +331,8 @@ func TestDeployJaeger(t *testing.T) {
 
 	jaegerTemplateFileName := "jaeger.yml"
 	defer os.Remove(jaegerTemplateFileName)
-	err := os.WriteFile(jaegerTemplateFileName, []byte(jaegerTemplate), 0755)
-	assert.NoErrorf(t, err, "cannot create jaeger config file - %s", err)
+	err := os.WriteFile(jaegerTemplateFileName, []byte(jaegerTemplate), 0o600)
+	require.NoErrorf(t, err, "cannot create jaeger config file - %s", err)
 
 	_, err = ExecuteCommand(fmt.Sprintf("kubectl apply -f %s -n %s", jaegerTemplateFileName, "jaeger"))
 	require.NoErrorf(t, err, "cannot deploy jaeger - %s", err)

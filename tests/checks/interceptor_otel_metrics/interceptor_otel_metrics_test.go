@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package interceptor_otel_metrics_test
 
@@ -13,6 +12,7 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
@@ -197,13 +197,13 @@ func sendLoad(t *testing.T, kc *kubernetes.Clientset, data templateData) {
 
 func fetchAndParsePrometheusMetrics(t *testing.T, cmd string) map[string]*prommodel.MetricFamily {
 	out, _, err := ExecCommandOnSpecificPod(t, clientName, testNamespace, cmd)
-	assert.NoErrorf(t, err, "cannot execute command - %s", err)
+	require.NoErrorf(t, err, "cannot execute command - %s", err)
 
 	parser := expfmt.NewTextParser(model.UTF8Validation)
 	// Ensure EOL
 	reader := strings.NewReader(strings.ReplaceAll(out, "\r\n", "\n"))
 	families, err := parser.TextToMetricFamilies(reader)
-	assert.NoErrorf(t, err, "cannot parse metrics - %s", err)
+	require.NoErrorf(t, err, "cannot parse metrics - %s", err)
 
 	return families
 }

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -36,7 +37,6 @@ func init() {
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
 	cert, err := tls.LoadX509KeyPair("../certs/tls.crt", "../certs/tls.key")
-
 	if err != nil {
 		log.Fatalf("Error getting tests certs - make sure to run make test to generate them %v", err)
 	}
@@ -54,7 +54,7 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(200)
 			_, err := w.Write([]byte("test response"))
-			r.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
@@ -106,7 +106,7 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(200)
 			_, err := w.Write([]byte("test response"))
-			r.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
@@ -162,7 +162,7 @@ func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(200)
 			_, err := w.Write([]byte("test response"))
-			r.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 	srv, failoverURL, err := kedanet.StartTestServer(failoverHdl)
@@ -377,7 +377,7 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	// to a timeout from a waitFunc or earlier in the pipeline,
 	// for example, if we cannot reach the Kubernetes control
 	// plane.
-	r.Equal("", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start to be empty")
+	r.Empty(res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start to be empty")
 
 	// waitFunc should have been called, even though it timed out
 	waitFuncCalled := false
@@ -451,7 +451,7 @@ func TestTimesOutOnWaitFuncTLS(t *testing.T) {
 	// to a timeout from a waitFunc or earlier in the pipeline,
 	// for example, if we cannot reach the Kubernetes control
 	// plane.
-	r.Equal("", res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start to be empty")
+	r.Empty(res.Header().Get("X-KEDA-HTTP-Cold-Start"), "expected X-KEDA-HTTP-Cold-Start to be empty")
 
 	// waitFunc should have been called, even though it timed out
 	waitFuncCalled := false
@@ -612,7 +612,7 @@ func TestWaitHeaderTimeout(t *testing.T) {
 			<-originHdlCh
 			w.WriteHeader(200)
 			_, err := w.Write([]byte("test response"))
-			r.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)
@@ -671,7 +671,7 @@ func TestWaitHeaderTimeoutTLS(t *testing.T) {
 			<-originHdlCh
 			w.WriteHeader(200)
 			_, err := w.Write([]byte("test response"))
-			r.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(originHdl)

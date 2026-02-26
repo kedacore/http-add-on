@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -50,7 +49,7 @@ func TestServeContext(t *testing.T) {
 	elapsed := time.Since(start)
 
 	r.Error(err)
-	r.True(errors.Is(err, http.ErrServerClosed), "error is not a http.ErrServerClosed (%w)", err)
+	r.ErrorIs(err, http.ErrServerClosed, "error is not a http.ErrServerClosed (%w)", err)
 	r.Greater(elapsed, cancelDur)
 	r.Less(elapsed, cancelDur*4)
 }
@@ -84,7 +83,7 @@ func TestServeContextWithTLS(t *testing.T) {
 	elapsed := time.Since(start)
 
 	r.Error(err)
-	r.True(errors.Is(err, http.ErrServerClosed), "error is not a http.ErrServerClosed (%w)", err)
+	r.ErrorIs(err, http.ErrServerClosed, "error is not a http.ErrServerClosed (%w)", err)
 	r.Greater(elapsed, cancelDur)
 	r.Less(elapsed, cancelDur*4)
 }

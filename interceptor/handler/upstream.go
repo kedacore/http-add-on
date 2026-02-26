@@ -91,5 +91,6 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	//nolint:gosec // G704: reverse proxy forwards requests by design
 	proxy.ServeHTTP(w, r)
 }
