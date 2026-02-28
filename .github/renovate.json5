@@ -1,40 +1,51 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    // See https://docs.renovatebot.com/presets-config/#configbest-practices
-    "config:best-practices",
-    "schedule:weekly",
-    ":gitSignOff",
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:best-practices',
+    'schedule:weekly',
+    ':gitSignOff',
   ],
-  "commitBodyTable": true,
-  "kubernetes": {
-    "fileMatch": ["(config|examples)/.+\\.ya?ml$"],
+  commitBodyTable: true,
+  kubernetes: {
+    managerFilePatterns: [
+      '/(config|examples)/.+\\.ya?ml$/',
+    ],
   },
-  "labels": ["dependencies"],
-  // Experimental: OSV-based vulnerability alerts for direct dependencies
-  "osvVulnerabilityAlerts": true,
-  "packageRules": [
+  labels: [
+    'dependencies',
+  ],
+  osvVulnerabilityAlerts: true,
+  packageRules: [
     {
-      "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions",
+      matchManagers: [
+        'github-actions',
+      ],
+      groupName: 'GitHub Actions',
     },
     {
-      // Group minor/patch together; major updates get individual PRs
-      "matchManagers": ["gomod"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "Go Dependencies (non-major)",
+      matchManagers: [
+        'gomod',
+      ],
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+      ],
+      groupName: 'Go Dependencies (non-major)',
     },
     {
-      "matchManagers": ["pre-commit"],
-      "groupName": "Pre-commit Hooks",
+      matchManagers: [
+        'pre-commit',
+      ],
+      groupName: 'Pre-commit Hooks',
     },
   ],
-  // Experimental: pre-commit manager is in beta and disabled by default
-  "pre-commit": {
-    "enabled": true,
+  'pre-commit': {
+    enabled: true,
   },
-  "vulnerabilityAlerts": {
-    "enabled": true,
-    "addLabels": ["security"],
+  vulnerabilityAlerts: {
+    enabled: true,
+    addLabels: [
+      'security',
+    ],
   },
 }
