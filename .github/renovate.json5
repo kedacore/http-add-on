@@ -19,8 +19,21 @@
       matchManagers: ["github-actions"],
       groupName: "GitHub Actions",
     },
+    // keda's go.mod conflicts with several direct dependencies -> isolate
     {
-      // Group minor/patch together; major updates get individual PRs
+      matchManagers: ["gomod"],
+      matchPackageNames: ["github.com/kedacore/keda/v2"],
+      groupName: "keda",
+    },
+    // Group tightly coupled k8s packages updates for controlled K8s version support
+    {
+      matchManagers: ["gomod"],
+      matchPackageNames: ["k8s.io/**", "sigs.k8s.io/controller-runtime"],
+      // Patch updates are safe to be merged regularly in the catch-all group
+      matchUpdateTypes: ["minor", "major"],
+      groupName: "Kubernetes Dependencies",
+    },
+    {
       matchManagers: ["gomod"],
       matchUpdateTypes: ["minor", "patch"],
       groupName: "Go Dependencies (non-major)",
