@@ -19,6 +19,11 @@
       matchManagers: ["github-actions"],
       groupName: "GitHub Actions",
     },
+    {
+      matchManagers: ["gomod"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "Go Dependencies (non-major)",
+    },
     // keda's go.mod conflicts with several direct dependencies -> isolate
     {
       matchManagers: ["gomod"],
@@ -32,11 +37,6 @@
       // Patch updates are safe to be merged regularly in the catch-all group
       matchUpdateTypes: ["minor", "major"],
       groupName: "Kubernetes Dependencies",
-    },
-    {
-      matchManagers: ["gomod"],
-      matchUpdateTypes: ["minor", "patch"],
-      groupName: "Go Dependencies (non-major)",
     },
     {
       matchManagers: ["pre-commit"],
