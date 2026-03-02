@@ -33,7 +33,6 @@ import (
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
-	// +kubebuilder:scaffold:imports
 )
 
 var (
@@ -143,7 +142,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "InterceptorRoute")
 		os.Exit(1)
 	}
-	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
