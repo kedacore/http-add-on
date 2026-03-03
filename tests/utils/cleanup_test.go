@@ -41,6 +41,10 @@ func TestRemoveKEDANamespace(t *testing.T) {
 	DeleteNamespace(t, KEDANamespace)
 }
 
+func TestRemoveJaeger(t *testing.T) {
+	DeleteNamespace(t, "jaeger")
+}
+
 func TestRemoveOpentelemetryComponents(t *testing.T) {
 	OpentelemetryNamespace := "open-telemetry-system"
 	_, err := ExecuteCommand(fmt.Sprintf("helm uninstall opentelemetry-collector --namespace %s", OpentelemetryNamespace))
