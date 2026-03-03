@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package interceptor_otel_tracing_test
 
@@ -205,7 +204,7 @@ func TestTraceGeneration(t *testing.T) {
 	t.Logf("found %d trace(s) from Jaeger", len(traces))
 
 	traceStatus := findSpanStatusCode(traces)
-	assert.EqualValues(t, "200", traceStatus)
+	assert.Equal(t, "200", traceStatus)
 
 	// cleanup
 	DeleteKubernetesResources(t, testNamespace, data, templates)

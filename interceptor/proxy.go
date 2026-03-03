@@ -52,7 +52,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		forwardingTLSCfg = &tls.Config{
 			RootCAs:            cfg.TLSConfig.RootCAs,
 			Certificates:       cfg.TLSConfig.Certificates,
-			InsecureSkipVerify: cfg.TLSConfig.InsecureSkipVerify,
+			InsecureSkipVerify: cfg.TLSConfig.InsecureSkipVerify, //nolint:gosec // G402: user-configurable
 		}
 	}
 	transport := &http.Transport{

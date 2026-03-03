@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/go-logr/logr"
@@ -55,7 +56,7 @@ func (cm *Counting) count(ctx context.Context, signaler util.Signaler) {
 		return
 	}
 
-	if err := signaler.Wait(ctx); err != nil && err != context.Canceled {
+	if err := signaler.Wait(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		logger.Error(err, "failed to wait signal")
 	}
 

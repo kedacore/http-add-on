@@ -2,6 +2,7 @@ package routing
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -130,7 +131,7 @@ func TestTableHealthCheck(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when not synced")
 	}
-	if err != errNotSyncedTable {
+	if !errors.Is(err, errNotSyncedTable) {
 		t.Errorf("expected errNotSyncedTable, got: %v", err)
 	}
 
@@ -230,7 +231,7 @@ func TestTableRefreshMemory_CancelsOnContextDone(t *testing.T) {
 
 	select {
 	case err := <-done:
-		if err != context.Canceled {
+		if !errors.Is(err, context.Canceled) {
 			t.Errorf("expected context.Canceled, got: %v", err)
 		}
 	case <-time.After(5 * time.Second):

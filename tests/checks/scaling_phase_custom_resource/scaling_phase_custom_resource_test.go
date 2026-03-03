@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package scaling_phase_test
 
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
 )
@@ -201,16 +201,17 @@ func getTemplateData() (templateData, []Template) {
 }
 
 func waitForArgoRolloutReplicaCount(t *testing.T, name, namespace string,
-	target, iterations, intervalSeconds int) bool {
-	for i := 0; i < iterations; i++ {
+	target, iterations, intervalSeconds int,
+) bool {
+	for range iterations {
 		kctlGetCmd := fmt.Sprintf(`kubectl get rollouts.argoproj.io/%s -n %s -o jsonpath="{.spec.replicas}"`, name, namespace)
 		output, err := ExecuteCommand(kctlGetCmd)
 
-		assert.NoErrorf(t, err, "cannot get rollout info - %s", err)
+		require.NoErrorf(t, err, "cannot get rollout info - %s", err)
 
 		unqoutedOutput := strings.ReplaceAll(string(output), "\"", "")
 		replicas, err := strconv.ParseInt(unqoutedOutput, 10, 64)
-		assert.NoErrorf(t, err, "cannot convert rollout count to int - %s", err)
+		require.NoErrorf(t, err, "cannot convert rollout count to int - %s", err)
 
 		t.Logf("Waiting for rollout replicas to hit target. Deployment - %s, Current  - %d, Target - %d",
 			name, replicas, target)

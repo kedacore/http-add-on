@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec // G108: pprof intentionally exposed, gated by --profiling-addr
 	"os"
 	"runtime"
 	"time"
@@ -36,9 +36,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-var (
-	setupLog = ctrl.Log.WithName("setup")
-)
+var setupLog = ctrl.Log.WithName("setup")
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
@@ -220,7 +218,6 @@ func main() {
 				CertStorePaths:     servingCfg.TLSCertStorePaths,
 				InsecureSkipVerify: servingCfg.TLSSkipVerify,
 			}, setupLog)
-
 			if err != nil {
 				setupLog.Error(err, "failed to configure TLS")
 				return fmt.Errorf("failed to configure TLS: %w", err)
@@ -253,7 +250,11 @@ func main() {
 	if len(profilingAddr) > 0 {
 		eg.Go(func() error {
 			setupLog.Info("enabling pprof for profiling", "address", profilingAddr)
-			return http.ListenAndServe(profilingAddr, nil)
+			srv := &http.Server{
+				Addr:              profilingAddr,
+				ReadHeaderTimeout: time.Minute, // mitigate Slowloris attacks
+			}
+			return srv.ListenAndServe()
 		})
 	}
 

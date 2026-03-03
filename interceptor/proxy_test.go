@@ -193,7 +193,7 @@ func TestProxyHandler_QueueCounting(t *testing.T) {
 	go func() {
 		defer close(done)
 		resp := h.doRequest(t, http.MethodGet, "/", testHost)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	// Wait for queue increment (blocking send from Increase)

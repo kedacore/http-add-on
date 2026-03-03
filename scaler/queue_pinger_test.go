@@ -84,7 +84,7 @@ func TestCounts(t *testing.T) {
 	retCounts := pinger.counts()
 	expectedCounts, err := q.Current()
 	r.NoError(err)
-	r.Equal(len(expectedCounts.Counts), len(retCounts))
+	r.Len(retCounts, len(expectedCounts.Counts))
 	for host, count := range expectedCounts.Counts {
 		retCount, ok := retCounts[host]
 		r.True(ok, "returned count not found for host %s", host)
@@ -92,7 +92,7 @@ func TestCounts(t *testing.T) {
 		// note that the returned value should be:
 		// (queue_count * num_endpoints)
 		r.Equal(count.Concurrency*3, retCount.Concurrency)
-		r.Equal(count.RPS*3, retCount.RPS)
+		r.InDelta(count.RPS*3, retCount.RPS, 0)
 	}
 }
 

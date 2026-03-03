@@ -18,7 +18,7 @@ func TestCurrent(t *testing.T) {
 	current, err := memory.Current()
 	r.NoError(err)
 	r.Equal(current.Counts[host].Concurrency, memory.concurrentMap[host])
-	r.Equal(current.Counts[host].RPS, memory.rpsMap[host].WindowAverage(now))
+	r.InDelta(current.Counts[host].RPS, memory.rpsMap[host].WindowAverage(now), 0)
 
 	err = memory.Increase(host, 1)
 	r.NoError(err)

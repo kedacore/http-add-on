@@ -67,7 +67,7 @@ func GetCounts(
 	if err != nil {
 		return nil, fmt.Errorf("requesting the queue counts from %s: %w", interceptorURL.String(), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	counts := NewCounts()
 	if err := json.NewDecoder(resp.Body).Decode(counts); err != nil {
 		return nil, fmt.Errorf("decoding response from the interceptor at %s: %w", interceptorURL.String(), err)

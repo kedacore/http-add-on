@@ -4,9 +4,7 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/config"
 )
 
-var (
-	collectors []Collector
-)
+var collectors []Collector
 
 const meterName = "keda-interceptor-proxy"
 

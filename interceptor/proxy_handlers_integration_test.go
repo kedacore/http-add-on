@@ -75,7 +75,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 	)
 	r.NoError(err)
 	r.Equal(200, res.StatusCode)
-	res.Body.Close()
+	_ = res.Body.Close()
 }
 
 // deployment scaled to 1 but host not in routing table
@@ -96,10 +96,10 @@ func TestIntegrationNoRoutingTableEntry(t *testing.T) {
 		h.proxyURL.String(),
 		"not-in-the-table",
 	)
-	res.Body.Close()
+	_ = res.Body.Close()
 	r.NoError(err)
 	r.Equal(404, res.StatusCode)
-	res.Body.Close()
+	_ = res.Body.Close()
 }
 
 // host in the routing table but deployment has no replicas
@@ -135,7 +135,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	)
 	r.NoError(err)
 	r.Equal(502, res.StatusCode)
-	res.Body.Close()
+	_ = res.Body.Close()
 	elapsed := time.Since(start)
 	// we should have slept more than the active endpoints wait timeout
 	r.GreaterOrEqual(elapsed, activeEndpointsTimeout)
@@ -184,7 +184,7 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 			return err
 		}
 		response = resp
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil
 	})
 	const sleepDur = activeEndpointsTimeout / 4

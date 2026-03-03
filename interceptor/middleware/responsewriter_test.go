@@ -26,9 +26,7 @@ var _ = Describe("responseWriter", func() {
 
 	Context("New", func() {
 		It("returns new object with expected field values set", func() {
-			var (
-				w = httptest.NewRecorder()
-			)
+			w := httptest.NewRecorder()
 
 			rw := newResponseWriter(w)
 			Expect(rw).NotTo(BeNil())
@@ -70,9 +68,7 @@ var _ = Describe("responseWriter", func() {
 
 	Context("Header", func() {
 		It("returns downstream method call", func() {
-			var (
-				w = httptest.NewRecorder()
-			)
+			w := httptest.NewRecorder()
 
 			rw := &responseWriter{
 				downstreamResponseWriter: w,
@@ -94,9 +90,7 @@ var _ = Describe("responseWriter", func() {
 				initialBW = 60
 			)
 
-			var (
-				w = httptest.NewRecorder()
-			)
+			w := httptest.NewRecorder()
 
 			rw := &responseWriter{
 				bytesWritten:             initialBW,
@@ -119,9 +113,7 @@ var _ = Describe("responseWriter", func() {
 				sc = http.StatusTeapot
 			)
 
-			var (
-				w = httptest.NewRecorder()
-			)
+			w := httptest.NewRecorder()
 
 			rw := &responseWriter{
 				statusCode:               http.StatusOK,
@@ -167,9 +159,7 @@ var _ = Describe("responseWriter", func() {
 		})
 
 		It("returns error when downstream ResponseWriter does not implement http.Hijacker", func() {
-			var (
-				w = httptest.NewRecorder()
-			)
+			w := httptest.NewRecorder()
 
 			rw := &responseWriter{
 				downstreamResponseWriter: w,
@@ -231,9 +221,7 @@ var _ = Describe("responseWriter", func() {
 		})
 
 		It("returns error when downstream ResponseWriter does not support full duplex", func() {
-			var (
-				w = httptest.NewRecorder()
-			)
+			w := httptest.NewRecorder()
 
 			rw := &responseWriter{
 				downstreamResponseWriter: w,

@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package interceptor_scaledobject_test
 
@@ -22,7 +21,7 @@ func TestCheck(t *testing.T) {
 	predicate := `-o jsonpath="{.status.conditions[?(@.type=="Ready")].status}"`
 	expectedResult := "True"
 	result := "False"
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		result = KubectlGetResult(t, scaledObject, interceptorScaledObjectName, kedaNamespace, predicate)
 		if result == expectedResult {
 			break

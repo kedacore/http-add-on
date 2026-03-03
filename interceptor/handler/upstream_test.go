@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -60,10 +61,10 @@ func TestB3MultiPropagation(t *testing.T) {
 	receivedRequest := microservice.IncomingRequests()[0]
 	receivedHeaders := receivedRequest.Header
 
-	r.Equal(receivedHeaders.Get("X-B3-Parentspanid"), parentSpanID)
-	r.Equal(receivedHeaders.Get("X-B3-Traceid"), traceID)
-	r.Equal(receivedHeaders.Get("X-B3-Spanid"), spanID)
-	r.Equal(receivedHeaders.Get("X-B3-Sampled"), sampled)
+	r.Equal(parentSpanID, receivedHeaders.Get("X-B3-Parentspanid"))
+	r.Equal(traceID, receivedHeaders.Get("X-B3-Traceid"))
+	r.Equal(spanID, receivedHeaders.Get("X-B3-Spanid"))
+	r.Equal(sampled, receivedHeaders.Get("X-B3-Sampled"))
 
 	r.NotContains(receivedHeaders, "Traceparent")
 	r.NotContains(receivedHeaders, "B3")
@@ -77,7 +78,7 @@ func TestB3MultiPropagation(t *testing.T) {
 	}
 	sc := exportedSpans[0].SpanContext
 	r.Equal(w3cPadding+traceID, sc.TraceID().String())
-	r.NotEqual(sc.SpanID().String(), spanID)
+	r.NotEqual(spanID, sc.SpanID().String())
 }
 
 func TestW3CAndB3MultiPropagation(t *testing.T) {
@@ -109,11 +110,11 @@ func TestW3CAndB3MultiPropagation(t *testing.T) {
 	receivedRequest := microservice.IncomingRequests()[0]
 	receivedHeaders := receivedRequest.Header
 
-	r.Equal(receivedHeaders.Get("X-B3-Parentspanid"), parentSpanID)
-	r.Equal(receivedHeaders.Get("X-B3-Traceid"), traceID)
-	r.Equal(receivedHeaders.Get("X-B3-Spanid"), spanID)
-	r.Equal(receivedHeaders.Get("X-B3-Sampled"), sampled)
-	r.Equal(receivedHeaders.Get("Traceparent"), w3cPadding+traceID)
+	r.Equal(parentSpanID, receivedHeaders.Get("X-B3-Parentspanid"))
+	r.Equal(traceID, receivedHeaders.Get("X-B3-Traceid"))
+	r.Equal(spanID, receivedHeaders.Get("X-B3-Spanid"))
+	r.Equal(sampled, receivedHeaders.Get("X-B3-Sampled"))
+	r.Equal(w3cPadding+traceID, receivedHeaders.Get("Traceparent"))
 
 	r.NotContains(receivedHeaders, "B3")
 	r.NotContains(receivedHeaders, "b3")
@@ -126,7 +127,7 @@ func TestW3CAndB3MultiPropagation(t *testing.T) {
 	}
 	sc := exportedSpans[0].SpanContext
 	r.Equal(w3cPadding+traceID, sc.TraceID().String())
-	r.NotEqual(sc.SpanID().String(), spanID)
+	r.NotEqual(spanID, sc.SpanID().String())
 }
 
 func TestW3CPropagation(t *testing.T) {
@@ -172,8 +173,8 @@ func TestW3CPropagation(t *testing.T) {
 	}
 	sc := exportedSpans[0].SpanContext
 	r.Equal(fullW3CLengthTraceID, sc.TraceID().String())
-	r.Equal(true, sc.IsSampled())
-	r.NotEqual(sc.SpanID().String(), spanID)
+	r.True(sc.IsSampled())
+	r.NotEqual(spanID, sc.SpanID().String())
 }
 
 func TestPropagationWhenNoHeaders(t *testing.T) {
@@ -244,7 +245,7 @@ func TestForwarderSuccess(t *testing.T) {
 			close(reqRecvCh)
 			w.WriteHeader(respCode)
 			_, err := w.Write([]byte(respBody))
-			r.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 	testServer := httptest.NewServer(originHdl)
@@ -268,7 +269,7 @@ func TestForwarderSuccess(t *testing.T) {
 		100*time.Millisecond,
 	)
 	forwardedRequests := originHdl.IncomingRequests()
-	r.Equal(1, len(forwardedRequests), "number of requests forwarded")
+	r.Len(forwardedRequests, 1, "number of requests forwarded")
 	forwardedRequest := forwardedRequests[0]
 	r.Equal(path, forwardedRequest.URL.Path)
 	r.Equal(
@@ -307,7 +308,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	uh.ServeHTTP(res, req)
 
 	forwardedRequests := hdl.IncomingRequests()
-	r.Equal(0, len(forwardedRequests))
+	r.Empty(forwardedRequests)
 	r.Equal(502, res.Code)
 	r.Contains(res.Body.String(), http.StatusText(http.StatusBadGateway))
 	// the proxy has bailed out, so tell the origin to stop
@@ -326,7 +327,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 			<-originWaitCh
 			w.WriteHeader(originRespCode)
 			_, err := w.Write([]byte(originRespBodyStr))
-			r.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 	srv, originURL, err := kedanet.StartTestServer(hdl)
@@ -407,7 +408,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 				w.Header().Set("Location", "abc123.com")
 				w.WriteHeader(301)
 				_, err := w.Write([]byte("Hello from srv"))
-				r.NoError(err)
+				assert.NoError(t, err)
 			}),
 		),
 	)
@@ -601,7 +602,7 @@ func setupOTelSDKForTesting() (*tracetest.InMemoryExporter, *trace.TracerProvide
 }
 
 func startMicroservice(t *testing.T) (*kedanet.TestHTTPHandlerWrapper, *url.URL, func()) {
-	assert := require.New(t)
+	r := require.New(t)
 	requestReceiveChannel := make(chan struct{})
 
 	const respCode = 200
@@ -611,13 +612,13 @@ func startMicroservice(t *testing.T) (*kedanet.TestHTTPHandlerWrapper, *url.URL,
 			close(requestReceiveChannel)
 			w.WriteHeader(respCode)
 			_, err := w.Write([]byte(respBody))
-			assert.NoError(err)
+			assert.NoError(t, err)
 		}),
 	)
 	server := httptest.NewServer(microservice)
 
 	url, err := url.Parse(server.URL)
-	assert.NoError(err)
+	r.NoError(err)
 
 	return microservice, url, func() {
 		server.Close()

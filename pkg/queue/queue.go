@@ -41,8 +41,10 @@ type Counter interface {
 }
 
 // Memory implements Counter and CountReader
-var _ Counter = (*Memory)(nil)
-var _ CountReader = (*Memory)(nil)
+var (
+	_ Counter     = (*Memory)(nil)
+	_ CountReader = (*Memory)(nil)
+)
 
 // Memory is a Counter implementation that
 // holds the HTTP queue in memory only. Always use

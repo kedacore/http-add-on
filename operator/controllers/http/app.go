@@ -13,9 +13,7 @@ import (
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 )
 
-var (
-	SkipScaledObjectCreationAnnotation = "httpscaledobject.keda.sh/skip-scaledobject-creation"
-)
+var SkipScaledObjectCreationAnnotation = "httpscaledobject.keda.sh/skip-scaledobject-creation"
 
 func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	ctx context.Context,

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
@@ -25,13 +26,13 @@ func TestRequestCounter(t *testing.T) {
 	got := metricdata.ResourceMetrics{}
 	err := testReader.Collect(context.Background(), &got)
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	scopeMetrics := got.ScopeMetrics[0]
-	assert.NotEqual(t, len(scopeMetrics.Metrics), 0)
+	assert.NotEmpty(t, scopeMetrics.Metrics)
 
 	metricInfo := retrieveMetric(scopeMetrics.Metrics, "interceptor_request_count")
 	data := metricInfo.Data.(metricdata.Sum[int64]).DataPoints[0]
-	assert.Equal(t, data.Value, int64(1))
+	assert.Equal(t, int64(1), data.Value)
 }
 
 func TestPendingRequestCounter(t *testing.T) {
@@ -39,13 +40,13 @@ func TestPendingRequestCounter(t *testing.T) {
 	got := metricdata.ResourceMetrics{}
 	err := testReader.Collect(context.Background(), &got)
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	scopeMetrics := got.ScopeMetrics[0]
-	assert.NotEqual(t, len(scopeMetrics.Metrics), 0)
+	assert.NotEmpty(t, scopeMetrics.Metrics)
 
 	metricInfo := retrieveMetric(scopeMetrics.Metrics, "interceptor_pending_request_count")
 	data := metricInfo.Data.(metricdata.Sum[int64]).DataPoints[0]
-	assert.Equal(t, data.Value, int64(5))
+	assert.Equal(t, int64(5), data.Value)
 }
 
 func retrieveMetric(metrics []metricdata.Metrics, metricname string) *metricdata.Metrics {

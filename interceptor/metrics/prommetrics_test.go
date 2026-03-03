@@ -27,7 +27,7 @@ func TestPromRequestCountMetric(t *testing.T) {
 	testPrometheus.RecordRequestCount("post", "/test", 500, "test-host")
 	testPrometheus.RecordRequestCount("post", "/test", 200, "test-host")
 	err := testutil.CollectAndCompare(testRegistry, expectedOutputReader)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestPromPendingRequestCountMetric(t *testing.T) {
@@ -45,5 +45,5 @@ func TestPromPendingRequestCountMetric(t *testing.T) {
 	expectedOutputReader := strings.NewReader(expectedOutput)
 	testPrometheus.RecordPendingRequestCount("test-host", 10)
 	err := testutil.CollectAndCompare(testRegistry, expectedOutputReader)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }

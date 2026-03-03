@@ -13,8 +13,10 @@ import (
 // catchAllHostKey is the internal routing key for catch-all host matching.
 const catchAllHostKey = "*"
 
-type Key []byte
-type Keys []Key
+type (
+	Key  []byte
+	Keys []Key
+)
 
 var _ fmt.Stringer = (*Key)(nil)
 
