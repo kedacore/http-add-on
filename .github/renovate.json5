@@ -48,6 +48,7 @@
       groupName: "Pre-commit Hooks",
     },
   ],
+  postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   // Experimental: pre-commit manager is in beta and disabled by default
   "pre-commit": {
     enabled: true,
