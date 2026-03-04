@@ -1,8 +1,8 @@
 package queue
 
 import (
-	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -46,101 +46,109 @@ var (
 	_ CountReader = (*Memory)(nil)
 )
 
+// hostEntry holds per-host state: an atomic concurrency counter
+// and an atomically-swappable RPS ring-buffer. This eliminates the global
+// lock that previously serialized all Increase/Decrease calls.
+// RequestsBuckets has its own internal mutex, so no outer lock is needed.
+type hostEntry struct {
+	concurrency atomic.Int64
+	buckets     atomic.Pointer[RequestsBuckets]
+}
+
 // Memory is a Counter implementation that
 // holds the HTTP queue in memory only. Always use
 // NewMemory to create one of these.
+//
+// Hot-path guarantees:
+//   - Increase / Decrease: one sync.Map load + one atomic op (no global lock).
+//   - RPS recording uses the RequestsBuckets internal lock only.
 type Memory struct {
-	concurrentMap map[string]int
-	rpsMap        map[string]*RequestsBuckets
-	mut           *sync.RWMutex
+	entries sync.Map // string -> *hostEntry
 }
 
 // NewMemoryQueue creates a new empty in-memory queue
 func NewMemory() *Memory {
-	lock := new(sync.RWMutex)
-	return &Memory{
-		concurrentMap: make(map[string]int),
-		rpsMap:        make(map[string]*RequestsBuckets),
-		mut:           lock,
-	}
+	return &Memory{}
 }
 
-// Increase changes the size of the queue adding delta
+// Increase atomically increments the concurrency counter for host
+// and records an RPS data-point.
 func (r *Memory) Increase(host string, delta int) error {
-	r.mut.Lock()
-	defer r.mut.Unlock()
-	r.concurrentMap[host] += delta
-	r.rpsMap[host].Record(time.Now(), delta)
+	if v, ok := r.entries.Load(host); ok {
+		entry := v.(*hostEntry)
+		entry.concurrency.Add(int64(delta))
+
+		if b := entry.buckets.Load(); b != nil {
+			b.Record(time.Now(), delta)
+		}
+	}
 	return nil
 }
 
-// Decrease changes the size of the queue reducing delta
+// Decrease atomically decrements the concurrency counter for host,
+// clamped to zero.
 func (r *Memory) Decrease(host string, delta int) error {
-	r.mut.Lock()
-	defer r.mut.Unlock()
+	if v, ok := r.entries.Load(host); ok {
+		entry := v.(*hostEntry)
+		for {
+			cur := entry.concurrency.Load()
+			if cur <= 0 {
+				return nil
+			}
+			newVal := max(0, cur-int64(delta))
 
-	current, exists := r.concurrentMap[host]
-	if !exists {
-		// Key doesn't exist; nothing to do
-		return nil
+			if entry.concurrency.CompareAndSwap(cur, newVal) {
+				return nil
+			}
+		}
 	}
-
-	// Decrement and clamp concurrency to zero
-	newVal := max(current-delta, 0)
-	r.concurrentMap[host] = newVal
-
 	return nil
 }
 
 func (r *Memory) EnsureKey(host string, window, granularity time.Duration) {
-	r.mut.Lock()
-	defer r.mut.Unlock()
-	_, ok := r.concurrentMap[host]
-	if !ok {
-		r.concurrentMap[host] = 0
+	if _, ok := r.entries.Load(host); ok {
+		return
 	}
-	_, ok = r.rpsMap[host]
-	if !ok {
-		r.rpsMap[host] = NewRequestsBuckets(window, granularity)
-	}
+	entry := &hostEntry{}
+	entry.buckets.Store(NewRequestsBuckets(window, granularity))
+	r.entries.LoadOrStore(host, entry)
 }
 
 func (r *Memory) UpdateBuckets(host string, window, granularity time.Duration) {
 	r.EnsureKey(host, window, granularity)
-	r.mut.Lock()
-	defer r.mut.Unlock()
-	buckets, ok := r.rpsMap[host]
-	if ok &&
-		(buckets.window != window ||
-			buckets.granularity != granularity) {
-		r.rpsMap[host] = NewRequestsBuckets(window, granularity)
+	if v, ok := r.entries.Load(host); ok {
+		entry := v.(*hostEntry)
+		if b := entry.buckets.Load(); b != nil &&
+			(b.window != window || b.granularity != granularity) {
+			entry.buckets.Store(NewRequestsBuckets(window, granularity))
+		}
 	}
 }
 
 func (r *Memory) RemoveKey(host string) bool {
-	r.mut.Lock()
-	defer r.mut.Unlock()
-	_, concurrentOk := r.concurrentMap[host]
-	delete(r.concurrentMap, host)
-	_, rpsOk := r.rpsMap[host]
-	delete(r.rpsMap, host)
-	return concurrentOk && rpsOk
+	_, existed := r.entries.LoadAndDelete(host)
+	return existed
 }
 
 // Current returns the current size of the queue.
 func (r *Memory) Current() (*Counts, error) {
-	r.mut.RLock()
-	defer r.mut.RUnlock()
+	now := time.Now()
 	cts := NewCounts()
-	for key, concurrency := range r.concurrentMap {
-		rpsItem, ok := r.rpsMap[key]
-		if !ok {
-			return nil, fmt.Errorf("rps map doesn't contain the key '%s'", key)
+	r.entries.Range(func(k, v any) bool {
+		key := k.(string)
+		entry := v.(*hostEntry)
+		concurrency := entry.concurrency.Load()
+
+		rps := 0.0
+		if b := entry.buckets.Load(); b != nil {
+			rps = b.WindowAverage(now)
 		}
+
 		cts.Counts[key] = Count{
-			Concurrency: concurrency,
-			RPS:         rpsItem.WindowAverage(time.Now()),
+			Concurrency: int(concurrency),
+			RPS:         rps,
 		}
-	}
+		return true
+	})
 	return cts, nil
 }
