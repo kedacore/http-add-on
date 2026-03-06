@@ -39,7 +39,7 @@ RUN apt-get update \
     && go install github.com/cweill/gotests/...@latest \
     && go install golang.org/x/tools/cmd/goimports@latest \
     && go install golang.org/x/lint/golint@latest \
-    && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest \
+    && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.1 \
     && go install github.com/mgechev/revive@latest \
     && go install honnef.co/go/tools/cmd/staticcheck@latest \
     && go install golang.org/x/tools/gopls@v0.18.1 \
