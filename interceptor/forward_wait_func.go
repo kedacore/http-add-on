@@ -8,7 +8,7 @@ import (
 
 // forwardWaitFunc is a function that waits for a condition
 // before proceeding to serve the request.
-type forwardWaitFunc func(context.Context, string, string) (bool, error)
+type forwardWaitFunc func(ctx context.Context, namespace string, serviceName string) (bool, error)
 
 func newWorkloadReplicasForwardWaitFunc(
 	readyCache *k8s.ReadyEndpointsCache,

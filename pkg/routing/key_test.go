@@ -1,232 +1,148 @@
 package routing
 
 import (
-	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
 
-var _ = Describe("Key", func() {
-	Context("New", func() {
-		const (
-			host0 = "kubernetes.io"
-			path0 = "abc/def"
-			path1 = "abc/def/"
-			path2 = "abc/def//"
-			path3 = "/abc/def"
-			path4 = "/abc/def/"
-			path5 = "/abc/def//"
-			path6 = "//abc/def"
-			path7 = "//abc/def/"
-			path8 = "//abc/def//"
-			norm0 = "/"
-			norm1 = "kubernetes.io/"
-			norm2 = "/abc/def/"
-			norm3 = "kubernetes.io/abc/def/"
-		)
+func TestNewKey(t *testing.T) {
+	tests := map[string]struct {
+		hostname string
+		path     string
+		want     string
+	}{
+		"empty":              {"", "", "/"},
+		"host only":          {"example.com", "", "example.com/"},
+		"path only":          {"", "/api/v1", "/api/v1/"},
+		"host and path":      {"example.com", "/api/v1", "example.com/api/v1/"},
+		"strips leading /":   {"", "///api", "/api/"},
+		"strips trailing /":  {"", "api///", "/api/"},
+		"strips both /":      {"", "///api///", "/api/"},
+		"normalizes slashes": {"k8s.io", "//abc/def//", "k8s.io/abc/def/"},
+	}
 
-		It("returns expected key for blank host and blank path", func() {
-			key := NewKey("", "")
-			Expect(key).To(Equal(Key(norm0)))
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := NewKey(tt.hostname, tt.path)
+			if got.String() != tt.want {
+				t.Errorf("NewKey(%q, %q) = %q, want %q", tt.hostname, tt.path, got, tt.want)
+			}
 		})
+	}
+}
 
-		It("returns expected key for hostname", func() {
-			key := NewKey(host0, "")
-			Expect(key).To(Equal(Key(norm1)))
-		})
-
-		It("returns expected key for path with no leading slashes and no trailing slashes", func() {
-			key := NewKey("", path0)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for path with no leading slashes and single trailing slash", func() {
-			key := NewKey("", path1)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for path with no leading slashes and multiple trailing slashes", func() {
-			key := NewKey("", path2)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for path with single leading slashes and no trailing slashes", func() {
-			key := NewKey("", path3)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for path with single leading slash and single trailing slash", func() {
-			key := NewKey("", path4)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for path with single leading slash and multiple trailing slashes", func() {
-			key := NewKey("", path5)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for path with multiple leading slashes and no trailing slashes", func() {
-			key := NewKey("", path6)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for path with multiple leading slash and single trailing slash", func() {
-			key := NewKey("", path7)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for path with multiple leading slash and multiple trailing slashes", func() {
-			key := NewKey("", path8)
-			Expect(key).To(Equal(Key(norm2)))
-		})
-
-		It("returns expected key for non-blank hostname and non-blank path", func() {
-			key := NewKey(host0, path8)
-			Expect(key).To(Equal(Key(norm3)))
-		})
-
-		It("returns nil for nil HTTPSO", func() {
-			key := NewKeysFromHTTPSO(nil)
-			Expect(key).To(BeNil())
-		})
+func TestNewKeyFromURL(t *testing.T) {
+	t.Run("nil returns nil", func(t *testing.T) {
+		if got := NewKeyFromURL(nil); got != nil {
+			t.Errorf("got %q, want nil", got)
+		}
 	})
 
-	Context("NewFromURL", func() {
-		It("returns expected key for URL", func() {
-			const (
-				host = "kubernetes.io"
-				path = "abc/def"
-				norm = "kubernetes.io/abc/def/"
-			)
+	t.Run("strips port and query", func(t *testing.T) {
+		r, _ := http.NewRequest("GET", "https://k8s.io:443/api/v1?foo=bar#frag", nil)
+		got := NewKeyFromURL(r.URL)
+		if want := "k8s.io/api/v1/"; got.String() != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+}
 
-			url, err := url.Parse(fmt.Sprintf("https://%s:443/%s?123=456#789", host, path))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(url).NotTo(BeNil())
-
-			key := NewKeyFromURL(url)
-			Expect(key).To(Equal(Key(norm)))
-		})
-
-		It("returns nil for nil URL", func() {
-			key := NewKeyFromURL(nil)
-			Expect(key).To(BeNil())
-		})
+func TestNewKeyFromRequest(t *testing.T) {
+	t.Run("nil returns nil", func(t *testing.T) {
+		if got := NewKeyFromRequest(nil); got != nil {
+			t.Errorf("got %q, want nil", got)
+		}
 	})
 
-	Context("NewFromRequest", func() {
-		It("returns expected key for Request", func() {
-			const (
-				host = "kubernetes.io"
-				path = "abc/def"
-				norm = "kubernetes.io/abc/def/"
-			)
-
-			r, err := http.NewRequest("GET", fmt.Sprintf("https://%s:443/%s?123=456#789", host, path), nil)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(r).NotTo(BeNil())
-
-			key := NewKeyFromRequest(r)
-			Expect(key).To(Equal(Key(norm)))
-		})
-
-		It("returns nil for nil Request", func() {
-			key := NewKeyFromRequest(nil)
-			Expect(key).To(BeNil())
-		})
+	t.Run("uses Host header over URL host", func(t *testing.T) {
+		r, _ := http.NewRequest("GET", "http://url-host/path", nil)
+		r.Host = "header-host"
+		got := NewKeyFromRequest(r)
+		if want := "header-host/path/"; got.String() != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
 	})
+}
 
-	Context("String", func() {
-		const (
-			host = "kubernetes.io"
-			path = "abc/def"
-			norm = "kubernetes.io/abc/def/"
-		)
+func TestNewKeysFromRoutingRule(t *testing.T) {
+	tests := map[string]struct {
+		rule httpv1beta1.RoutingRule
+		want []string
+	}{
+		"single host and path": {
+			rule: httpv1beta1.RoutingRule{
+				Hosts: []string{"example.com"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api"}},
+			},
+			want: []string{"example.com/api/"},
+		},
+		"cartesian product": {
+			rule: httpv1beta1.RoutingRule{
+				Hosts: []string{"a.com", "b.com"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/x"}, {Value: "/y"}},
+			},
+			want: []string{"a.com/x/", "a.com/y/", "b.com/x/", "b.com/y/"},
+		},
+		"nil hosts defaults to catch-all": {
+			rule: httpv1beta1.RoutingRule{
+				Paths: []httpv1beta1.PathMatch{{Value: "/api"}},
+			},
+			want: []string{"*/api/"},
+		},
+		"nil paths defaults to root": {
+			rule: httpv1beta1.RoutingRule{
+				Hosts: []string{"example.com"},
+			},
+			want: []string{"example.com/"},
+		},
+		"empty rule defaults to catch-all root": {
+			rule: httpv1beta1.RoutingRule{},
+			want: []string{"*/"},
+		},
+		"star host becomes catch-all": {
+			rule: httpv1beta1.RoutingRule{
+				Hosts: []string{"*"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api"}},
+			},
+			want: []string{"*/api/"},
+		},
+		"empty string host becomes catch-all": {
+			rule: httpv1beta1.RoutingRule{
+				Hosts: []string{""},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api"}},
+			},
+			want: []string{"*/api/"},
+		},
+		"host with port strips port": {
+			rule: httpv1beta1.RoutingRule{
+				Hosts: []string{"example.com:8080"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api"}},
+			},
+			want: []string{"example.com/api/"},
+		},
+	}
 
-		It("returns expected string for key", func() {
-			key := NewKey(host, path)
-			Expect(key).NotTo(BeNil())
-			Expect(key.String()).To(Equal(norm))
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			keys := newKeysFromRoutingRule(tt.rule)
+
+			got := make([]string, len(keys))
+			for i, k := range keys {
+				got[i] = k.String()
+			}
+
+			slices.Sort(got)
+			slices.Sort(tt.want)
+
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
 		})
-
-		It("returns expected string for key with printf", func() {
-			key := NewKey(host, path)
-			Expect(key).NotTo(BeNil())
-
-			str := fmt.Sprintf("%v", key)
-			Expect(str).To(Equal(norm))
-		})
-	})
-})
-
-var _ = Describe("Keys", func() {
-	Context("New", func() {
-		It("returns expected key for HTTPSO", func() {
-			const (
-				host = "kubernetes.io"
-				path = "abc/def"
-				norm = "kubernetes.io/abc/def/"
-			)
-
-			keys := NewKeysFromHTTPSO(&httpv1alpha1.HTTPScaledObject{
-				Spec: httpv1alpha1.HTTPScaledObjectSpec{
-					Hosts: []string{
-						host,
-					},
-					PathPrefixes: []string{
-						path,
-					},
-				},
-			})
-			Expect(keys).To(ConsistOf(Keys{
-				Key(norm),
-			}))
-		})
-
-		It("returns expected keys for HTTPSO", func() {
-			const (
-				host0  = "keda.sh"
-				host1  = "kubernetes.io"
-				path0  = "abc/def"
-				path1  = "123/456"
-				norm00 = "kubernetes.io/abc/def/"
-				norm01 = "kubernetes.io/123/456/"
-				norm10 = "keda.sh/abc/def/"
-				norm11 = "keda.sh/123/456/"
-			)
-
-			keys := NewKeysFromHTTPSO(&httpv1alpha1.HTTPScaledObject{
-				Spec: httpv1alpha1.HTTPScaledObjectSpec{
-					Hosts: []string{
-						host0,
-						host1,
-					},
-					PathPrefixes: []string{
-						path0,
-						path1,
-					},
-				},
-			})
-			Expect(keys).To(ConsistOf(Keys{
-				Key(norm00),
-				Key(norm01),
-				Key(norm10),
-				Key(norm11),
-			}))
-		})
-
-		It("returns nil for nil HTTPSO", func() {
-			key := NewKeysFromHTTPSO(nil)
-			Expect(key).To(BeNil())
-		})
-	})
-})
+	}
+}
 
 func TestStripPort(t *testing.T) {
 	tests := map[string]struct {
@@ -244,7 +160,7 @@ func TestStripPort(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := stripPort(tt.host)
 			if got != tt.want {
-				t.Errorf("got = %q, want = %q", got, tt.want)
+				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -264,7 +180,7 @@ func TestWildcardHostnames(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := wildcardHostnames(tt.hostname)
 			if !slices.Equal(got, tt.want) {
-				t.Errorf("got = %v, want = %v", got, tt.want)
+				t.Errorf("got %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -153,10 +153,7 @@ spec:
 `
 )
 
-// TODO(v1): update templates to use InterceptorRoute once timeouts are supported
 func TestCheck(t *testing.T) {
-	t.Skip("InterceptorRoute timeouts not yet implemented")
-
 	// setup
 	t.Log("--- setting up ---")
 	// Create kubernetes resources

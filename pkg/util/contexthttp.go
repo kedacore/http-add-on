@@ -5,8 +5,6 @@ import (
 	"net/url"
 
 	"github.com/go-logr/logr"
-
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 )
 
 func RequestWithLoggerWithName(r *http.Request, name string) *http.Request {
@@ -23,23 +21,16 @@ func RequestWithLogger(r *http.Request, logger logr.Logger) *http.Request {
 	return r.WithContext(ctx)
 }
 
-func RequestWithHTTPSO(r *http.Request, httpso *httpv1alpha1.HTTPScaledObject) *http.Request {
+func RequestWithUpstreamURL(r *http.Request, url *url.URL) *http.Request {
 	ctx := r.Context()
-	ctx = ContextWithHTTPSO(ctx, httpso)
+	ctx = ContextWithUpstreamURL(ctx, url)
 
 	return r.WithContext(ctx)
 }
 
-func RequestWithStream(r *http.Request, stream *url.URL) *http.Request {
+func RequestWithFallbackURL(r *http.Request, url *url.URL) *http.Request {
 	ctx := r.Context()
-	ctx = ContextWithStream(ctx, stream)
-
-	return r.WithContext(ctx)
-}
-
-func RequestWithFailoverStream(r *http.Request, stream *url.URL) *http.Request {
-	ctx := r.Context()
-	ctx = ContextWithFailoverStream(ctx, stream)
+	ctx = ContextWithFallbackURL(ctx, url)
 
 	return r.WithContext(ctx)
 }

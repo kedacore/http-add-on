@@ -30,7 +30,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Add `InterceptorRoute` CRD to separate routing/interceptor config from scaling config; `HTTPScaledObject` remains supported but will be deprecated in a future release ([#1501](https://github.com/kedacore/http-add-on/issues/1501))
 
 ### Improvements
 

@@ -19,10 +19,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -82,13 +81,13 @@ func TestImmediatelySuccessfulProxy(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, targetFromURL(
+	req = requestWithIR(req, targetFromURL(
 		originURL,
 		originPort,
 		"testdepl",
 		"testservice",
 	))
-	req = util.RequestWithStream(req, originURL)
+	req = util.RequestWithUpstreamURL(req, originURL)
 	req.Host = host
 
 	hdl.ServeHTTP(res, req)
@@ -134,13 +133,13 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, targetFromURL(
+	req = requestWithIR(req, targetFromURL(
 		originURL,
 		originPort,
 		"testdepl",
 		"testsvc",
 	))
-	req = util.RequestWithStream(req, originURL)
+	req = util.RequestWithUpstreamURL(req, originURL)
 	req.Host = host
 
 	hdl.ServeHTTP(res, req)
@@ -150,25 +149,25 @@ func TestImmediatelySuccessfulProxyTLS(t *testing.T) {
 	r.Equal("test response", res.Body.String())
 }
 
-// the proxy should successfully forward a request to the failover when the server is not reachable
-func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
+// the proxy should successfully forward a request to the fallback when the server is not reachable
+func TestImmediatelySuccessfulFallbackProxy(t *testing.T) {
 	host := fmt.Sprintf("%s.testing", t.Name())
 	r := require.New(t)
 
 	initialStream, err := url.Parse("http://0.0.0.0:0")
 	r.NoError(err)
 
-	failoverHdl := kedanet.NewTestHTTPHandlerWrapper(
+	fallbackHdl := kedanet.NewTestHTTPHandlerWrapper(
 		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(200)
 			_, err := w.Write([]byte("test response"))
 			assert.NoError(t, err)
 		}),
 	)
-	srv, failoverURL, err := kedanet.StartTestServer(failoverHdl)
+	srv, fallbackURL, err := kedanet.StartTestServer(fallbackHdl)
 	r.NoError(err)
 	defer srv.Close()
-	failoverPort, err := strconv.Atoi(failoverURL.Port())
+	fallbackPort, err := strconv.Atoi(fallbackURL.Port())
 	r.NoError(err)
 
 	timeouts := defaultTimeouts()
@@ -190,28 +189,24 @@ func TestImmediatelySuccessfulFailoverProxy(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req,
-		&httpv1alpha1.HTTPScaledObject{
+	req = requestWithIR(req,
+		&httpv1beta1.InterceptorRoute{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "test-namespace",
 			},
-			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-				ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-					Name:    "testdepl",
+			Spec: httpv1beta1.InterceptorRouteSpec{
+				Target: httpv1beta1.TargetRef{
 					Service: "testsvc",
 					Port:    int32(456),
 				},
-				ColdStartTimeoutFailoverRef: &httpv1alpha1.ColdStartTimeoutFailoverRef{
-					Service:        "testsvc",
-					Port:           int32(failoverPort),
-					TimeoutSeconds: 30,
+				ColdStart: &httpv1beta1.ColdStartSpec{
+					Fallback: &httpv1beta1.TargetRef{Service: "testsvc", Port: int32(fallbackPort)},
 				},
-				TargetPendingRequests: ptr.To[int32](123),
 			},
 		},
 	)
-	req = util.RequestWithStream(req, initialStream)
-	req = util.RequestWithFailoverStream(req, failoverURL)
+	req = util.RequestWithUpstreamURL(req, initialStream)
+	req = util.RequestWithFallbackURL(req, fallbackURL)
 	req.Host = host
 
 	hdl.ServeHTTP(res, req)
@@ -247,19 +242,15 @@ func TestWaitFailedConnection(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+	req = requestWithIR(req, &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "testns",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Service: "nosuchdepl",
-				Port:    8081,
-			},
-			TargetPendingRequests: ptr.To[int32](1234),
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{Service: "nosuchdepl", Port: 8081},
 		},
 	})
-	req = util.RequestWithStream(req, stream)
+	req = util.RequestWithUpstreamURL(req, stream)
 	req.Host = host
 
 	hdl.ServeHTTP(res, req)
@@ -293,20 +284,15 @@ func TestWaitFailedConnectionTLS(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+	req = requestWithIR(req, &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "testns",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Name:    "nosuchdepl",
-				Service: "nosuchdepl",
-				Port:    8081,
-			},
-			TargetPendingRequests: ptr.To[int32](1234),
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{Service: "nosuchdepl", Port: 8081},
 		},
 	})
-	req = util.RequestWithStream(req, stream)
+	req = util.RequestWithUpstreamURL(req, stream)
 	req.Host = host
 
 	hdl.ServeHTTP(res, req)
@@ -345,19 +331,15 @@ func TestTimesOutOnWaitFunc(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+	req = requestWithIR(req, &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "testns",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Service: "nosuchsvc",
-				Port:    9091,
-			},
-			TargetPendingRequests: ptr.To[int32](1234),
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{Service: "nosuchsvc", Port: 9091},
 		},
 	})
-	req = util.RequestWithStream(req, stream)
+	req = util.RequestWithUpstreamURL(req, stream)
 	req.Host = noSuchHost
 
 	start := time.Now()
@@ -418,20 +400,15 @@ func TestTimesOutOnWaitFuncTLS(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+	req = requestWithIR(req, &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "testns",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Name:    "nosuchdepl",
-				Service: "nosuchsvc",
-				Port:    9091,
-			},
-			TargetPendingRequests: ptr.To[int32](1234),
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{Service: "nosuchsvc", Port: 9091},
 		},
 	})
-	req = util.RequestWithStream(req, stream)
+	req = util.RequestWithUpstreamURL(req, stream)
 	req.Host = noSuchHost
 
 	start := time.Now()
@@ -500,13 +477,13 @@ func TestWaitsForWaitFunc(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, targetFromURL(
+	req = requestWithIR(req, targetFromURL(
 		testSrvURL,
 		originPort,
 		"nosuchdepl",
 		"noservice",
 	))
-	req = util.RequestWithStream(req, testSrvURL)
+	req = util.RequestWithUpstreamURL(req, testSrvURL)
 	req.Host = noSuchHost
 
 	// make the wait function finish after a short duration
@@ -567,13 +544,13 @@ func TestWaitsForWaitFuncTLS(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, targetFromURL(
+	req = requestWithIR(req, targetFromURL(
 		testSrvURL,
 		originPort,
 		"nosuchdepl",
 		"nosuchsvc",
 	))
-	req = util.RequestWithStream(req, testSrvURL)
+	req = util.RequestWithUpstreamURL(req, testSrvURL)
 	req.Host = noSuchHost
 
 	// make the wait function finish after a short duration
@@ -638,19 +615,15 @@ func TestWaitHeaderTimeout(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+	req = requestWithIR(req, &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "testns",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Service: "testsvc",
-				Port:    9094,
-			},
-			TargetPendingRequests: ptr.To[int32](1234),
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{Service: "testsvc", Port: 9094},
 		},
 	})
-	req = util.RequestWithStream(req, originURL)
+	req = util.RequestWithUpstreamURL(req, originURL)
 	req.Host = originURL.Host
 
 	hdl.ServeHTTP(res, req)
@@ -697,20 +670,15 @@ func TestWaitHeaderTimeoutTLS(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithHTTPSO(req, &httpv1alpha1.HTTPScaledObject{
+	req = requestWithIR(req, &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "testns",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Name:    "nosuchdepl",
-				Service: "testsvc",
-				Port:    9094,
-			},
-			TargetPendingRequests: ptr.To[int32](1234),
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{Service: "testsvc", Port: 9094},
 		},
 	})
-	req = util.RequestWithStream(req, originURL)
+	req = util.RequestWithUpstreamURL(req, originURL)
 	req.Host = originURL.Host
 
 	hdl.ServeHTTP(res, req)
@@ -762,20 +730,23 @@ func targetFromURL(
 	port int,
 	workload string,
 	service string,
-) *httpv1alpha1.HTTPScaledObject {
-	return &httpv1alpha1.HTTPScaledObject{
+) *httpv1beta1.InterceptorRoute {
+	return &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "test-namespace",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Name:    workload,
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{
 				Service: service,
 				Port:    int32(port),
 			},
-			TargetPendingRequests: ptr.To[int32](123),
 		},
 	}
+}
+
+func requestWithIR(r *http.Request, ir *httpv1beta1.InterceptorRoute) *http.Request {
+	ctx := util.ContextWithInterceptorRoute(r.Context(), ir)
+	return r.WithContext(ctx)
 }
 
 func defaultTimeouts() config.Timeouts {

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"time"
 
@@ -20,12 +21,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
 const (
 	keyInterceptorTargetPendingRequests = "interceptorTargetPendingRequests"
 )
+
+var errNoMetricValues = errors.New("no metric values in response")
 
 type scalerHandler struct {
 	lggr           logr.Logger
@@ -60,17 +64,16 @@ func (e *scalerHandler) IsActive(ctx context.Context, sor *externalscaler.Scaled
 	}
 
 	metricValues := gmr.GetMetricValues()
-	if err := errors.New("len(metricValues) != 1"); len(metricValues) != 1 {
-		lggr.Error(err, "invalid GetMetricsResponse", "scaledObjectRef", sor.String(), "getMetricsResponse", gmr.String())
-		return nil, err
+	if len(metricValues) == 0 {
+		lggr.Error(errNoMetricValues, "invalid GetMetricsResponse", "scaledObjectRef", sor.String())
+		return nil, errNoMetricValues
 	}
-	metricValue := metricValues[0].GetMetricValue()
 
-	active := metricValue > 0
-	res := &externalscaler.IsActiveResponse{
-		Result: active,
-	}
-	return res, nil
+	active := slices.ContainsFunc(metricValues, func(v *externalscaler.MetricValue) bool {
+		return v.MetricValueFloat > 0 || v.MetricValue > 0
+	})
+
+	return &externalscaler.IsActiveResponse{Result: active}, nil
 }
 
 func (e *scalerHandler) StreamIsActive(scaledObject *externalscaler.ScaledObjectRef, server externalscaler.ExternalScaler_StreamIsActiveServer) error {
@@ -104,12 +107,41 @@ func (e *scalerHandler) GetMetricSpec(ctx context.Context, sor *externalscaler.S
 	lggr := e.lggr.WithName("GetMetricSpec")
 
 	scalerMetadata := sor.GetScalerMetadata()
+
+	if irName, ok := scalerMetadata[k8s.InterceptorRouteKey]; ok {
+		nn := types.NamespacedName{Namespace: sor.Namespace, Name: irName}
+		var ir httpv1beta1.InterceptorRoute
+		if err := e.reader.Get(ctx, nn, &ir); err != nil {
+			lggr.Error(err, "failed to get InterceptorRoute", "namespace", sor.Namespace, "scaledObjectName", sor.Name, "interceptorRouteName", irName)
+			return nil, err
+		}
+
+		var metricSpecs []*externalscaler.MetricSpec
+		if m := ir.Spec.ScalingMetric.Concurrency; m != nil {
+			metricSpecs = append(metricSpecs, &externalscaler.MetricSpec{
+				MetricName:      ConcurrencyMetricName(irName),
+				TargetSizeFloat: float64(m.TargetValue),
+			})
+		}
+		if m := ir.Spec.ScalingMetric.RequestRate; m != nil {
+			metricSpecs = append(metricSpecs, &externalscaler.MetricSpec{
+				MetricName:      RateMetricName(irName),
+				TargetSizeFloat: float64(m.TargetValue),
+			})
+		}
+
+		return &externalscaler.GetMetricSpecResponse{
+			MetricSpecs: metricSpecs,
+		}, nil
+	}
+
+	// TODO(v1): remove the following when deprecating HTTPScaledObject
 	httpScaledObjectName, ok := scalerMetadata[k8s.HTTPScaledObjectKey]
 	if !ok {
 		if scalerMetadata != nil {
 			if interceptorTargetPendingRequests, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
 				// generated the metric name for the ScaledObject targeting the interceptor
-				metricName := MetricName(k8s.NamespacedNameFromScaledObjectRef(sor))
+				metricName := MetricNameHTTPSO(k8s.NamespacedNameFromScaledObjectRef(sor))
 				return e.interceptorMetricSpec(metricName, interceptorTargetPendingRequests)
 			}
 		}
@@ -125,7 +157,7 @@ func (e *scalerHandler) GetMetricSpec(ctx context.Context, sor *externalscaler.S
 	}
 
 	// generated the metric name for HTTPScaledObject
-	metricName := MetricName(k8s.NamespacedNameFromNameAndNamespace(httpScaledObjectName, sor.Namespace))
+	metricName := MetricNameHTTPSO(k8s.NamespacedNameFromNameAndNamespace(httpScaledObjectName, sor.Namespace))
 
 	targetValue := int64(ptr.Deref(httpso.Spec.TargetPendingRequests, 100))
 
@@ -174,12 +206,43 @@ func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externals
 	sor := metricRequest.ScaledObjectRef
 
 	scalerMetadata := sor.GetScalerMetadata()
+
+	if irName, ok := scalerMetadata[k8s.InterceptorRouteKey]; ok {
+		nn := types.NamespacedName{Namespace: sor.Namespace, Name: irName}
+		var ir httpv1beta1.InterceptorRoute
+		if err := e.reader.Get(ctx, nn, &ir); err != nil {
+			lggr.Error(err, "failed to get InterceptorRoute", "namespace", sor.Namespace, "scaledObjectName", sor.Name, "interceptorRouteName", irName)
+			return nil, err
+		}
+
+		count := e.pinger.counts()[k8s.ResourceKeyFromNamespacedName(nn)]
+
+		var metricValues []*externalscaler.MetricValue
+		if ir.Spec.ScalingMetric.Concurrency != nil {
+			metricValues = append(metricValues, &externalscaler.MetricValue{
+				MetricName:       ConcurrencyMetricName(irName),
+				MetricValueFloat: float64(count.Concurrency),
+			})
+		}
+		if ir.Spec.ScalingMetric.RequestRate != nil {
+			metricValues = append(metricValues, &externalscaler.MetricValue{
+				MetricName:       RateMetricName(irName),
+				MetricValueFloat: count.RPS,
+			})
+		}
+
+		return &externalscaler.GetMetricsResponse{
+			MetricValues: metricValues,
+		}, nil
+	}
+
+	// TODO(v1): remove the following when deprecating HTTPScaledObject
 	httpScaledObjectName, ok := scalerMetadata[k8s.HTTPScaledObjectKey]
 	if !ok {
 		if scalerMetadata != nil {
 			if _, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
 				// generated the metric name for the ScaledObject targeting the interceptor
-				metricName := MetricName(k8s.NamespacedNameFromScaledObjectRef(sor))
+				metricName := MetricNameHTTPSO(k8s.NamespacedNameFromScaledObjectRef(sor))
 				return e.interceptorMetrics(metricName)
 			}
 		}
@@ -196,7 +259,7 @@ func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externals
 
 	// generated the metric name for HTTPScaledObject
 	namespacedName := k8s.NamespacedNameFromNameAndNamespace(httpScaledObjectName, sor.Namespace)
-	metricName := MetricName(namespacedName)
+	metricName := MetricNameHTTPSO(namespacedName)
 
 	key := namespacedName.String()
 	count := e.pinger.counts()[key]

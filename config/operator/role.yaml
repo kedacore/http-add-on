@@ -8,6 +8,7 @@ rules:
   - http.keda.sh
   resources:
   - httpscaledobjects
+  - interceptorroutes
   verbs:
   - create
   - delete
@@ -20,12 +21,14 @@ rules:
   - http.keda.sh
   resources:
   - httpscaledobjects/finalizers
+  - interceptorroutes/finalizers
   verbs:
   - update
 - apiGroups:
   - http.keda.sh
   resources:
   - httpscaledobjects/status
+  - interceptorroutes/status
   verbs:
   - get
   - patch

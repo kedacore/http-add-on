@@ -21,7 +21,8 @@ var (
 	deploymentName       = fmt.Sprintf("%s-deployment", testName)
 	serviceName          = fmt.Sprintf("%s-service", testName)
 	ingressName          = fmt.Sprintf("%s-ingress", testName)
-	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
+	interceptorRouteName = fmt.Sprintf("%s-ir", testName)
+	scaledObjectName     = fmt.Sprintf("%s-so", testName)
 	ingressHost          = fmt.Sprintf("http://%s-controller.%s", IngressReleaseName, IngressNamespace)
 	host                 = testName
 	minReplicaCount      = 0
@@ -35,7 +36,8 @@ type templateData struct {
 	IngressName          string
 	KEDANamespace        string
 	IngressHost          string
-	HTTPScaledObjectName string
+	InterceptorRouteName string
+	ScaledObjectName     string
 	Host                 string
 	MinReplicas          int
 	MaxReplicas          int
@@ -147,24 +149,43 @@ spec:
   backoffLimit: 5
 `
 
-	httpScaledObjectTemplate = `
-kind: HTTPScaledObject
-apiVersion: http.keda.sh/v1alpha1
+	interceptorRouteTemplate = `
+kind: InterceptorRoute
+apiVersion: http.keda.sh/v1beta1
 metadata:
-  name: {{.HTTPScaledObjectName}}
+  name: {{.InterceptorRouteName}}
   namespace: {{.TestNamespace}}
 spec:
-  hosts:
-  - {{.Host}}
-  targetPendingRequests: 100
-  scaledownPeriod: 10
-  scaleTargetRef:
-    name: {{.DeploymentName}}
+  target:
     service: {{.ServiceName}}
     port: 8080
-  replicas:
-    min: {{ .MinReplicas }}
-    max: {{ .MaxReplicas }}
+  scalingMetric:
+    concurrency:
+      targetValue: 100
+  rules:
+  - hosts:
+    - {{.Host}}
+`
+
+	scaledObjectTemplate = `
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{.ScaledObjectName}}
+  namespace: {{.TestNamespace}}
+spec:
+  cooldownPeriod: 10
+  maxReplicaCount: {{ .MaxReplicas }}
+  minReplicaCount: {{ .MinReplicas }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{.DeploymentName}}
+  triggers:
+  - type: external-push
+    metadata:
+      interceptorRoute: {{.InterceptorRouteName}}
+      scalerAddress: keda-add-ons-http-external-scaler.keda:9090
 `
 )
 
@@ -212,7 +233,8 @@ func getTemplateData() (templateData, []Template) {
 			ServiceName:          serviceName,
 			IngressName:          ingressName,
 			KEDANamespace:        KEDANamespace,
-			HTTPScaledObjectName: httpScaledObjectName,
+			InterceptorRouteName: interceptorRouteName,
+			ScaledObjectName:     scaledObjectName,
 			IngressHost:          ingressHost,
 			Host:                 host,
 			MinReplicas:          minReplicaCount,
@@ -222,6 +244,7 @@ func getTemplateData() (templateData, []Template) {
 			{Name: "serviceTemplate", Config: serviceTemplate},
 			{Name: "externalServiceTemplate", Config: externalServiceTemplate},
 			{Name: "ingressTemplate", Config: ingressTemplate},
-			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
+			{Name: "interceptorRouteTemplate", Config: interceptorRouteTemplate},
+			{Name: "scaledObjectTemplate", Config: scaledObjectTemplate},
 		}
 }
