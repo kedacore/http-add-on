@@ -29,7 +29,8 @@ var (
 	testNamespace        = fmt.Sprintf("%s-ns", testName)
 	deploymentName       = fmt.Sprintf("%s-deployment", testName)
 	serviceName          = fmt.Sprintf("%s-service", testName)
-	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
+	interceptorRouteName = fmt.Sprintf("%s-ir", testName)
+	scaledObjectName     = fmt.Sprintf("%s-so", testName)
 	host                 = testName
 	minReplicaCount      = 0
 	maxReplicaCount      = 1
@@ -63,7 +64,8 @@ type templateData struct {
 	TestNamespace        string
 	DeploymentName       string
 	ServiceName          string
-	HTTPScaledObjectName string
+	InterceptorRouteName string
+	ScaledObjectName     string
 	Host                 string
 	MinReplicas          int
 	MaxReplicas          int
@@ -141,24 +143,43 @@ spec:
   backoffLimit: 5
 `
 
-	httpScaledObjectTemplate = `
-kind: HTTPScaledObject
-apiVersion: http.keda.sh/v1alpha1
+	interceptorRouteTemplate = `
+kind: InterceptorRoute
+apiVersion: http.keda.sh/v1beta1
 metadata:
-  name: {{.HTTPScaledObjectName}}
+  name: {{.InterceptorRouteName}}
   namespace: {{.TestNamespace}}
 spec:
-  hosts:
-  - {{.Host}}
-  targetPendingRequests: 100
-  scaledownPeriod: 10
-  scaleTargetRef:
-    name: {{.DeploymentName}}
+  target:
     service: {{.ServiceName}}
     port: 8080
-  replicas:
-    min: {{ .MinReplicas }}
-    max: {{ .MaxReplicas }}
+  scalingMetric:
+    concurrency:
+      targetValue: 100
+  rules:
+  - hosts:
+    - {{.Host}}
+`
+
+	scaledObjectTemplate = `
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{.ScaledObjectName}}
+  namespace: {{.TestNamespace}}
+spec:
+  cooldownPeriod: 10
+  maxReplicaCount: {{ .MaxReplicas }}
+  minReplicaCount: {{ .MinReplicas }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{.DeploymentName}}
+  triggers:
+  - type: external-push
+    metadata:
+      interceptorRoute: {{.InterceptorRouteName}}
+      scalerAddress: keda-add-ons-http-external-scaler.keda:9090
 `
 )
 
@@ -278,13 +299,15 @@ func getTemplateData() (templateData, []Template) {
 			TestNamespace:        testNamespace,
 			DeploymentName:       deploymentName,
 			ServiceName:          serviceName,
-			HTTPScaledObjectName: httpScaledObjectName,
+			InterceptorRouteName: interceptorRouteName,
+			ScaledObjectName:     scaledObjectName,
 			Host:                 host,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
 			{Name: "deploymentTemplate", Config: deploymentTemplate},
 			{Name: "serviceNameTemplate", Config: serviceTemplate},
-			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
+			{Name: "interceptorRouteTemplate", Config: interceptorRouteTemplate},
+			{Name: "scaledObjectTemplate", Config: scaledObjectTemplate},
 		}
 }

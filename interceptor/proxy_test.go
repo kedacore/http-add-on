@@ -18,15 +18,15 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
 
 const (
-	testHost      = "test.example.com"
-	testHTTPSOKey = "test-namespace/test-httpso"
+	testHost  = "test.example.com"
+	testIRKey = "test-namespace/test-httpso"
 )
 
 func TestProxyHandler_SuccessfulRequest(t *testing.T) {
@@ -199,8 +199,8 @@ func TestProxyHandler_QueueCounting(t *testing.T) {
 	// Wait for queue increment (blocking send from Increase)
 	select {
 	case event := <-h.Queue.ResizedCh:
-		if event.Host != testHTTPSOKey {
-			t.Errorf("expected host %s, got %s", testHTTPSOKey, event.Host)
+		if event.Host != testIRKey {
+			t.Errorf("expected host %s, got %s", testIRKey, event.Host)
 		}
 		if event.Count != 1 {
 			t.Errorf("expected +1, got %d", event.Count)
@@ -234,7 +234,7 @@ func TestProxyHandler_QueueCounting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get queue counts: %v", err)
 	}
-	concurrency := counts.Counts[testHTTPSOKey].Concurrency
+	concurrency := counts.Counts[testIRKey].Concurrency
 	if concurrency != 0 {
 		t.Errorf("expected final concurrency to be 0, got %d", concurrency)
 	}
@@ -336,20 +336,19 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 
 	// Create routing table
 	routingTable := routingtest.NewTable()
-	httpso := &httpv1alpha1.HTTPScaledObject{
+	ir := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-httpso",
 			Namespace: "test-namespace",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Name:    "test-deployment",
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{
 				Service: "test-service",
 				Port:    80,
 			},
 		},
 	}
-	routingTable.Memory[testHost] = httpso
+	routingTable.Memory[testHost] = ir
 
 	// Build handler using production function
 	var tlsCfg *tls.Config

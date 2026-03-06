@@ -1,6 +1,6 @@
 //go:build e2e
 
-package ingress_in_keda_namespace_test
+package internal_service_test
 
 import (
 	"fmt"
@@ -13,17 +13,14 @@ import (
 )
 
 const (
-	testName = "ingress-in-keda-namespace-test"
+	testName = "internal-service-httpso-test"
 )
 
 var (
 	testNamespace        = fmt.Sprintf("%s-ns", testName)
 	deploymentName       = fmt.Sprintf("%s-deployment", testName)
 	serviceName          = fmt.Sprintf("%s-service", testName)
-	ingressName          = fmt.Sprintf("%s-ingress", testName)
-	interceptorRouteName = fmt.Sprintf("%s-ir", testName)
-	scaledObjectName     = fmt.Sprintf("%s-so", testName)
-	ingressHost          = fmt.Sprintf("http://%s-controller.%s", IngressReleaseName, IngressNamespace)
+	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
 	host                 = testName
 	minReplicaCount      = 0
 	maxReplicaCount      = 1
@@ -33,40 +30,13 @@ type templateData struct {
 	TestNamespace        string
 	DeploymentName       string
 	ServiceName          string
-	IngressName          string
-	KEDANamespace        string
-	IngressHost          string
-	InterceptorRouteName string
-	ScaledObjectName     string
+	HTTPScaledObjectName string
 	Host                 string
 	MinReplicas          int
 	MaxReplicas          int
 }
 
 const (
-	ingressTemplate = `
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{.IngressName}}
-  namespace: {{.KEDANamespace}}
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    kubernetes.io/ingress.class: nginx
-spec:
-  rules:
-  - host: {{.Host}}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: keda-add-ons-http-interceptor-proxy
-            port:
-              number: 8080
-`
-
 	serviceTemplate = `
 apiVersion: v1
 kind: Service
@@ -131,49 +101,30 @@ spec:
       - name: curl-client
         image: curlimages/curl
         imagePullPolicy: Always
-        command: ["curl", "-H", "Host: {{.Host}}", "{{.IngressHost}}"]
+        command: ["curl", "-H", "Host: {{.Host}}", "keda-add-ons-http-interceptor-proxy.keda:8080"]
       restartPolicy: Never
   activeDeadlineSeconds: 600
   backoffLimit: 5
 `
 
-	interceptorRouteTemplate = `
-kind: InterceptorRoute
-apiVersion: http.keda.sh/v1beta1
+	httpScaledObjectTemplate = `
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
 metadata:
-  name: {{.InterceptorRouteName}}
+  name: {{.HTTPScaledObjectName}}
   namespace: {{.TestNamespace}}
 spec:
-  target:
+  hosts:
+  - {{.Host}}
+  targetPendingRequests: 100
+  scaledownPeriod: 10
+  scaleTargetRef:
+    name: {{.DeploymentName}}
     service: {{.ServiceName}}
     port: 8080
-  scalingMetric:
-    concurrency:
-      targetValue: 100
-  rules:
-  - hosts:
-    - {{.Host}}
-`
-
-	scaledObjectTemplate = `
-apiVersion: keda.sh/v1alpha1
-kind: ScaledObject
-metadata:
-  name: {{.ScaledObjectName}}
-  namespace: {{.TestNamespace}}
-spec:
-  cooldownPeriod: 10
-  maxReplicaCount: {{ .MaxReplicas }}
-  minReplicaCount: {{ .MinReplicas }}
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: {{.DeploymentName}}
-  triggers:
-  - type: external-push
-    metadata:
-      interceptorRoute: {{.InterceptorRouteName}}
-      scalerAddress: keda-add-ons-http-external-scaler.keda:9090
+  replicas:
+    min: {{ .MinReplicas }}
+    max: {{ .MaxReplicas }}
 `
 )
 
@@ -187,8 +138,6 @@ func TestCheck(t *testing.T) {
 
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 6, 10),
 		"replica count should be %d after 1 minutes", minReplicaCount)
-	assert.True(t, WaitForIngressReady(t, kc, ingressName, KEDANamespace, 12, 10),
-		"ingress should be ready after 2 minutes")
 
 	testScaleOut(t, kc, data)
 	testScaleIn(t, kc, data)
@@ -219,19 +168,13 @@ func getTemplateData() (templateData, []Template) {
 			TestNamespace:        testNamespace,
 			DeploymentName:       deploymentName,
 			ServiceName:          serviceName,
-			IngressName:          ingressName,
-			KEDANamespace:        KEDANamespace,
-			InterceptorRouteName: interceptorRouteName,
-			ScaledObjectName:     scaledObjectName,
-			IngressHost:          ingressHost,
+			HTTPScaledObjectName: httpScaledObjectName,
 			Host:                 host,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
 			{Name: "deploymentTemplate", Config: deploymentTemplate},
-			{Name: "serviceTemplate", Config: serviceTemplate},
-			{Name: "ingressTemplate", Config: ingressTemplate},
-			{Name: "interceptorRouteTemplate", Config: interceptorRouteTemplate},
-			{Name: "scaledObjectTemplate", Config: scaledObjectTemplate},
+			{Name: "serviceNameTemplate", Config: serviceTemplate},
+			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
 		}
 }

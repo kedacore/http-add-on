@@ -14,6 +14,7 @@ const (
 
 	ScalerAddressKey    = "scalerAddress"
 	HTTPScaledObjectKey = "httpScaledObject"
+	InterceptorRouteKey = "interceptorRoute"
 )
 
 // NewScaledObject creates a new ScaledObject in memory

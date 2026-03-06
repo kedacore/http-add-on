@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
 
 func TestNewScheme(t *testing.T) {
@@ -26,6 +27,10 @@ func TestNewScheme(t *testing.T) {
 		"httpv1alpha1": {
 			kind: "HTTPScaledObject",
 			obj:  &httpv1alpha1.HTTPScaledObject{},
+		},
+		"httpv1beta1": {
+			kind: "InterceptorRoute",
+			obj:  &httpv1beta1.InterceptorRoute{},
 		},
 	}
 

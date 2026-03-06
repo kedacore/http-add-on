@@ -26,9 +26,9 @@ var _ http.Handler = (*Counting)(nil)
 func (cm *Counting) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = util.RequestWithLoggerWithName(r, "CountingMiddleware")
 	ctx := r.Context()
-	httpso := util.HTTPSOFromContext(ctx)
+	ir := util.InterceptorRouteFromContext(ctx)
 
-	key := k8s.NamespacedNameFromObject(httpso).String()
+	key := k8s.ResourceKey(ir.Namespace, ir.Name)
 
 	if err := cm.queueCounter.Increase(key, 1); err != nil {
 		util.LoggerFromContext(ctx).Error(err, "error incrementing queue counter", "key", key)

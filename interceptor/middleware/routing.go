@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kedacore/http-add-on/interceptor/handler"
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -35,15 +35,15 @@ func NewRouting(routingTable routing.Table, upstreamHandler http.Handler, reader
 var _ http.Handler = (*Routing)(nil)
 
 func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	httpso := rm.routingTable.Route(r)
-	if httpso == nil {
+	ir := rm.routingTable.Route(r)
+	if ir == nil {
 		sh := handler.NewStatic(http.StatusNotFound, nil)
 		sh.ServeHTTP(w, r)
 
 		return
 	}
 
-	stream, err := rm.streamFromHTTPSO(r.Context(), httpso, httpso.Spec.ScaleTargetRef)
+	url, err := rm.resolveUpstreamURL(r.Context(), ir.Spec.Target, ir.Namespace)
 	if err != nil {
 		sh := handler.NewStatic(http.StatusInternalServerError, err)
 		sh.ServeHTTP(w, r)
@@ -55,53 +55,47 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := util.LoggerFromContext(ctx)
 	ctx = util.ContextWithLogger(ctx, logger.WithName("RoutingMiddleware"))
-	ctx = util.ContextWithHTTPSO(ctx, httpso)
-	ctx = util.ContextWithStream(ctx, stream)
+	ctx = util.ContextWithInterceptorRoute(ctx, ir)
+	ctx = util.ContextWithUpstreamURL(ctx, url)
 
-	if httpso.Spec.ColdStartTimeoutFailoverRef != nil {
-		failoverStream, err := rm.streamFromHTTPSO(ctx, httpso, httpso.Spec.ColdStartTimeoutFailoverRef)
+	if ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Fallback != nil {
+		fallbackURL, err := rm.resolveUpstreamURL(ctx, *ir.Spec.ColdStart.Fallback, ir.Namespace)
 		if err != nil {
 			sh := handler.NewStatic(http.StatusInternalServerError, err)
 			sh.ServeHTTP(w, r)
 			return
 		}
-		ctx = util.ContextWithFailoverStream(ctx, failoverStream)
+		ctx = util.ContextWithFallbackURL(ctx, fallbackURL)
 	}
 
 	r = r.WithContext(ctx)
 	rm.upstreamHandler.ServeHTTP(w, r)
 }
 
-func (rm *Routing) getPort(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject, reference httpv1alpha1.Ref) (int32, error) {
-	var (
-		port        = reference.GetPort()
-		portName    = reference.GetPortName()
-		serviceName = reference.GetServiceName()
-	)
-
-	if port != 0 {
-		return port, nil
+func (rm *Routing) resolvePort(ctx context.Context, target httpv1beta.TargetRef, namespace string) (int32, error) {
+	if target.Port != 0 {
+		return target.Port, nil
 	}
-	if portName == "" {
+	if target.PortName == "" {
 		return 0, fmt.Errorf(`must specify either "port" or "portName"`)
 	}
 
 	var svc corev1.Service
-	err := rm.reader.Get(ctx, types.NamespacedName{Namespace: httpso.Namespace, Name: serviceName}, &svc)
+	err := rm.reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: target.Service}, &svc)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get Service: %w", err)
 	}
 
 	for _, port := range svc.Spec.Ports {
-		if port.Name == portName {
+		if target.PortName == port.Name {
 			return port.Port, nil
 		}
 	}
-	return 0, fmt.Errorf("portName %q not found in Service", portName)
+	return 0, fmt.Errorf("port name %q not found in Service", target.PortName)
 }
 
-func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject, reference httpv1alpha1.Ref) (*url.URL, error) {
-	port, err := rm.getPort(ctx, httpso, reference)
+func (rm *Routing) resolveUpstreamURL(ctx context.Context, target httpv1beta.TargetRef, namespace string) (*url.URL, error) {
+	port, err := rm.resolvePort(ctx, target, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port: %w", err)
 	}
@@ -113,6 +107,6 @@ func (rm *Routing) streamFromHTTPSO(ctx context.Context, httpso *httpv1alpha1.HT
 
 	return &url.URL{
 		Scheme: scheme,
-		Host:   fmt.Sprintf("%s.%s:%d", reference.GetServiceName(), httpso.GetNamespace(), port),
+		Host:   fmt.Sprintf("%s.%s:%d", target.Service, namespace, port),
 	}, nil
 }

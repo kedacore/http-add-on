@@ -17,7 +17,20 @@ func escapeString(s string) string {
 	return unsafeChars.ReplaceAllStringFunc(s, escapeRune)
 }
 
-func MetricName(namespacedName *types.NamespacedName) string {
+func MetricNameHTTPSO(namespacedName *types.NamespacedName) string {
+	// TODO(v1): remove this func and the ones above with the removal of HTTPSO
 	mn := fmt.Sprintf("http-%v", namespacedName)
 	return escapeString(mn)
+}
+
+func ConcurrencyMetricName(nn types.NamespacedName) string {
+	return metricName(nn, "concurrency")
+}
+
+func RateMetricName(nn types.NamespacedName) string {
+	return metricName(nn, "rate")
+}
+
+func metricName(nn types.NamespacedName, metricType string) string {
+	return fmt.Sprintf("http_%s_%s_%s", nn.Namespace, nn.Name, metricType)
 }
