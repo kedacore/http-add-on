@@ -97,6 +97,7 @@ func TestWaitForReady_ContextCancelled(t *testing.T) {
 	const key = "testns/testsvc"
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		cancel()
