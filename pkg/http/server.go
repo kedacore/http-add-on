@@ -17,7 +17,7 @@ func ServeContext(ctx context.Context, addr string, hdl http.Handler, tlsConfig 
 		ReadHeaderTimeout: time.Minute, // mitigate Slowloris attacks
 	}
 
-	go func() {
+	go func() { //nolint:gosec // G118: ctx is already cancelled here; shutdown needs a fresh context
 		<-ctx.Done()
 
 		if err := srv.Shutdown(context.Background()); err != nil {

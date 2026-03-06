@@ -16,6 +16,7 @@ func TestServeContext(t *testing.T) {
 	ctx, done := context.WithCancel(
 		context.Background(),
 	)
+	defer done()
 	hdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rc := http.NewResponseController(w)
 		if err := rc.EnableFullDuplex(); err != nil {
@@ -59,6 +60,7 @@ func TestServeContextWithTLS(t *testing.T) {
 	ctx, done := context.WithCancel(
 		context.Background(),
 	)
+	defer done()
 	hdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("foo", "bar")
 		_, err := w.Write([]byte("hello world"))
