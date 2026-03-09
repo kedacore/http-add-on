@@ -40,6 +40,19 @@ type Serving struct {
 	TLSSkipVerify bool `env:"KEDA_HTTP_PROXY_TLS_SKIP_VERIFY" envDefault:"false"`
 	// TLSPort is the port that the server should serve on if TLS is enabled
 	TLSPort int `env:"KEDA_HTTP_PROXY_TLS_PORT" envDefault:"8443"`
+	// TLSMinVersion is the minimum TLS version to accept ("1.2" or "1.3").
+	// If empty, the Go default is used (currently TLS 1.2).
+	TLSMinVersion string `env:"KEDA_HTTP_PROXY_TLS_MIN_VERSION" envDefault:""`
+	// TLSMaxVersion is the maximum TLS version to accept ("1.2" or "1.3").
+	// Defaults to the highest version supported by crypto/tls if empty.
+	TLSMaxVersion string `env:"KEDA_HTTP_PROXY_TLS_MAX_VERSION" envDefault:""`
+	// TLSCipherSuites is a comma-separated list of TLS cipher suite names
+	// (e.g. "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384").
+	// If empty, the default Go cipher suites are used.
+	TLSCipherSuites string `env:"KEDA_HTTP_PROXY_TLS_CIPHER_SUITES" envDefault:""`
+	// TLSCurvePreferences is a comma-separated list of elliptic curve names
+	// (e.g. "X25519,CurveP256"). If empty, the default Go curve preferences are used.
+	TLSCurvePreferences string `env:"KEDA_HTTP_PROXY_TLS_CURVE_PREFERENCES" envDefault:""`
 	// ProfilingAddr if not empty, pprof will be available on this address, assuming host:port here
 	ProfilingAddr string `env:"PROFILING_BIND_ADDRESS" envDefault:""`
 	// EnableColdStartHeader enables/disables the X-KEDA-HTTP-Cold-Start response header

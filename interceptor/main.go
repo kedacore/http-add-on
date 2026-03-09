@@ -217,6 +217,10 @@ func main() {
 				KeyPath:            servingCfg.TLSKeyPath,
 				CertStorePaths:     servingCfg.TLSCertStorePaths,
 				InsecureSkipVerify: servingCfg.TLSSkipVerify,
+				MinTLSVersion:      servingCfg.TLSMinVersion,
+				MaxTLSVersion:      servingCfg.TLSMaxVersion,
+				CipherSuites:       servingCfg.TLSCipherSuites,
+				CurvePreferences:   servingCfg.TLSCurvePreferences,
 			}, setupLog)
 			if err != nil {
 				setupLog.Error(err, "failed to configure TLS")
