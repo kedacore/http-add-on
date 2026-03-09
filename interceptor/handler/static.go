@@ -37,7 +37,6 @@ func (sh *Static) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(sh.statusCode)
 
-	//nolint:gosec // G705: statusText is from http.StatusText(), not user input
 	if _, err := w.Write([]byte(statusText)); err != nil {
 		logger.Error(err, "write failed")
 	}
