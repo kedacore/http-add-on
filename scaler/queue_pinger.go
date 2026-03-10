@@ -161,7 +161,6 @@ func fetchCounts(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpo
 		// a "private" goroutine, which we'll
 		// then forward on to countsCh
 		ch := make(chan *queue.Counts)
-		wg.Add(1)
 		fetchGrp.Go(func() error {
 			counts, err := queue.GetCounts(http.DefaultClient, u)
 			if err != nil {
@@ -173,11 +172,10 @@ func fetchCounts(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpo
 		})
 		// forward the "private" goroutine
 		// on to countsCh separately
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			res := <-ch
 			countsCh <- res
-		}()
+		})
 	}
 
 	// close countsCh after all goroutines are done sending
