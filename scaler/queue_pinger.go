@@ -71,31 +71,21 @@ func newQueuePinger(lggr logr.Logger, getEndpointsFn k8s.GetEndpointsFunc, ns, s
 
 // start starts the queuePinger
 func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker, endpCache k8s.EndpointsCache) error {
-	endpoWatchIface, err := endpCache.Watch(q.interceptorNS, q.interceptorServiceName)
-	if err != nil {
-		return err
-	}
-	endpEvtChan := endpoWatchIface.ResultChan()
-	defer endpoWatchIface.Stop()
-
+	endpChanged := endpCache.Subscribe(q.interceptorNS, q.interceptorServiceName)
 	lggr := q.lggr.WithName("scaler.queuePinger.start")
 	defer ticker.Stop()
 	for {
 		select {
-		// handle cancellations/timeout
 		case <-ctx.Done():
 			lggr.Error(ctx.Err(), "context marked done. stopping queuePinger loop")
 			q.status = PingerERROR
 			return fmt.Errorf("context marked done. stopping queuePinger loop: %w", ctx.Err())
-		// do our regularly scheduled work
 		case <-ticker.C:
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts")
 			}
-		// handle changes to the interceptor fleet
-		// Endpoints
-		case <-endpEvtChan:
+		case <-endpChanged:
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts after interceptor endpoints event")

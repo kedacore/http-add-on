@@ -5,73 +5,66 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
+	"sync"
 
 	"github.com/go-logr/logr"
 	discov1 "k8s.io/api/discovery/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/informers"
-	infdiscov1 "k8s.io/client-go/informers/discovery/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type InformerBackedEndpointsCache struct {
-	lggr                   logr.Logger
-	endpointSlicesInformer infdiscov1.EndpointSliceInformer
-	bcaster                *watch.Broadcaster
-	readyCache             *ReadyEndpointsCache
+	lggr       logr.Logger
+	ctrlCache  ctrlcache.Cache
+	readyCache *ReadyEndpointsCache
+
+	mu          sync.Mutex
+	subscribers map[string]chan struct{}
 }
 
 func (i *InformerBackedEndpointsCache) MarshalJSON() ([]byte, error) {
-	lst := i.endpointSlicesInformer.Lister()
-	depls, err := lst.List(labels.Everything())
-	if err != nil {
+	list := &discov1.EndpointSliceList{}
+	if err := i.ctrlCache.List(context.Background(), list); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&depls)
-}
-
-func (i *InformerBackedEndpointsCache) Start(ctx context.Context) {
-	i.endpointSlicesInformer.Informer().Run(ctx.Done())
+	items := make([]*discov1.EndpointSlice, len(list.Items))
+	for idx := range list.Items {
+		items[idx] = &list.Items[idx]
+	}
+	return json.Marshal(&items)
 }
 
 func (i *InformerBackedEndpointsCache) Get(
 	ns,
 	name string,
 ) (discov1.EndpointSlice, error) {
-	req, err := labels.NewRequirement(discov1.LabelServiceName, selection.Equals, []string{name})
-	if err != nil {
+	list := &discov1.EndpointSliceList{}
+	if err := i.ctrlCache.List(context.Background(), list,
+		client.InNamespace(ns),
+		client.MatchingLabels{discov1.LabelServiceName: name},
+	); err != nil {
 		return discov1.EndpointSlice{}, err
 	}
-	ls := labels.NewSelector().Add(*req)
-	depl, err := i.endpointSlicesInformer.Lister().EndpointSlices(ns).List(ls)
-	if err != nil {
-		return discov1.EndpointSlice{}, err
-	}
-	if len(depl) == 0 {
+	if len(list.Items) == 0 {
 		return discov1.EndpointSlice{}, errors.New("no matching endpoints found")
 	}
-	return *depl[0], nil
+	return list.Items[0], nil
 }
 
-func (i *InformerBackedEndpointsCache) Watch(
-	ns,
-	name string,
-) (watch.Interface, error) {
-	watched, err := i.bcaster.Watch()
-	if err != nil {
-		return nil, err
+// Subscribe returns a buffered channel that receives a signal whenever
+// an EndpointSlice owned by the given service changes. Multiple calls
+// with the same namespace/serviceName return the same channel.
+func (i *InformerBackedEndpointsCache) Subscribe(ns, serviceName string) <-chan struct{} {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	key := ns + "/" + serviceName
+	if ch, ok := i.subscribers[key]; ok {
+		return ch
 	}
-	return watch.Filter(watched, func(e watch.Event) (watch.Event, bool) {
-		depl := e.Object.(*discov1.EndpointSlice)
-		if depl.Namespace == ns && depl.GetLabels()[discov1.LabelServiceName] == name {
-			return e, true
-		}
-		return e, false
-	}), nil
+	ch := make(chan struct{}, 1)
+	i.subscribers[key] = ch
+	return ch
 }
 
 // ReadyCache returns the embedded ReadyEndpointsCache, which provides
@@ -79,6 +72,25 @@ func (i *InformerBackedEndpointsCache) Watch(
 // cold-start wait mechanism.
 func (i *InformerBackedEndpointsCache) ReadyCache() *ReadyEndpointsCache {
 	return i.readyCache
+}
+
+// notifySubscribers sends a non-blocking signal to the subscriber
+// channel for the service that owns the given EndpointSlice, if any.
+func (i *InformerBackedEndpointsCache) notifySubscribers(slice *discov1.EndpointSlice) {
+	svcName := slice.Labels[discov1.LabelServiceName]
+	if svcName == "" {
+		return
+	}
+	key := slice.Namespace + "/" + svcName
+	i.mu.Lock()
+	ch, ok := i.subscribers[key]
+	i.mu.Unlock()
+	if ok {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
 }
 
 // updateReadyCache updates the ready cache for the service that owns
@@ -90,18 +102,20 @@ func (i *InformerBackedEndpointsCache) updateReadyCache(slice *discov1.EndpointS
 	}
 	ns := slice.Namespace
 
-	req, err := labels.NewRequirement(discov1.LabelServiceName, selection.Equals, []string{svcName})
-	if err != nil {
-		return
-	}
-	sel := labels.NewSelector().Add(*req)
-	allSlices, err := i.endpointSlicesInformer.Lister().EndpointSlices(ns).List(sel)
-	if err != nil {
+	list := &discov1.EndpointSliceList{}
+	if err := i.ctrlCache.List(context.Background(), list,
+		client.InNamespace(ns),
+		client.MatchingLabels{discov1.LabelServiceName: svcName},
+	); err != nil {
 		i.lggr.Error(err, "failed to list endpoint slices for ready cache update",
 			"namespace", ns, "service", svcName)
 		return
 	}
 
+	allSlices := make([]*discov1.EndpointSlice, len(list.Items))
+	for idx := range list.Items {
+		allSlices[idx] = &list.Items[idx]
+	}
 	i.readyCache.Update(ns+"/"+svcName, allSlices)
 }
 
@@ -109,15 +123,13 @@ func (i *InformerBackedEndpointsCache) addEvtHandler(obj any) {
 	depl, ok := obj.(*discov1.EndpointSlice)
 	if !ok {
 		i.lggr.Error(
-			fmt.Errorf("informer expected service, got %v", obj),
+			fmt.Errorf("informer expected EndpointSlice, got %v", obj),
 			"not forwarding event",
 		)
 		return
 	}
 
-	if err := i.bcaster.Action(watch.Added, depl); err != nil {
-		i.lggr.Error(err, "informer expected service")
-	}
+	i.notifySubscribers(depl)
 	i.updateReadyCache(depl)
 }
 
@@ -125,15 +137,13 @@ func (i *InformerBackedEndpointsCache) updateEvtHandler(_, newObj any) {
 	depl, ok := newObj.(*discov1.EndpointSlice)
 	if !ok {
 		i.lggr.Error(
-			fmt.Errorf("informer expected service, got %v", newObj),
+			fmt.Errorf("informer expected EndpointSlice, got %v", newObj),
 			"not forwarding event",
 		)
 		return
 	}
 
-	if err := i.bcaster.Action(watch.Modified, depl); err != nil {
-		i.lggr.Error(err, "informer expected service")
-	}
+	i.notifySubscribers(depl)
 	i.updateReadyCache(depl)
 }
 
@@ -147,9 +157,7 @@ func (i *InformerBackedEndpointsCache) deleteEvtHandler(obj any) {
 		return
 	}
 
-	if err := i.bcaster.Action(watch.Deleted, depl); err != nil {
-		i.lggr.Error(err, "informer expected service")
-	}
+	i.notifySubscribers(depl)
 	i.updateReadyCache(depl)
 }
 
@@ -170,32 +178,32 @@ func endpointSliceFromDeleteObj(obj any) (*discov1.EndpointSlice, error) {
 	}
 }
 
-// TODO: migrate from client-go SharedInformerFactory to controller-runtime
-// cache, which is already used for HTTPScaledObject watching. This would
-// eliminate the separate informer lifecycle and kubernetes.Interface dependency.
 func NewInformerBackedEndpointsCache(
 	lggr logr.Logger,
-	cl kubernetes.Interface,
-	defaultResync time.Duration,
-) *InformerBackedEndpointsCache {
-	factory := informers.NewSharedInformerFactory(
-		cl,
-		defaultResync,
-	)
-	endpointSlicesInformer := factory.Discovery().V1().EndpointSlices()
-	ret := &InformerBackedEndpointsCache{
-		lggr:                   lggr,
-		bcaster:                watch.NewBroadcaster(0, watch.WaitIfChannelFull),
-		endpointSlicesInformer: endpointSlicesInformer,
-		readyCache:             NewReadyEndpointsCache(lggr),
+	ctrlCache ctrlcache.Cache,
+) (*InformerBackedEndpointsCache, error) {
+	informer, err := ctrlCache.GetInformer(context.Background(), &discov1.EndpointSlice{})
+	if err != nil {
+		lggr.Error(err, "error getting EndpointSlice informer from controller-runtime cache")
+		return nil, err
 	}
-	_, err := ret.endpointSlicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+
+	ret := &InformerBackedEndpointsCache{
+		lggr:        lggr,
+		ctrlCache:   ctrlCache,
+		readyCache:  NewReadyEndpointsCache(lggr),
+		subscribers: make(map[string]chan struct{}),
+	}
+
+	_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    ret.addEvtHandler,
 		UpdateFunc: ret.updateEvtHandler,
 		DeleteFunc: ret.deleteEvtHandler,
 	})
 	if err != nil {
-		lggr.Error(err, "error creating backend informer")
+		lggr.Error(err, "error adding event handler to EndpointSlice informer")
+		return nil, err
 	}
-	return ret
+
+	return ret, nil
 }

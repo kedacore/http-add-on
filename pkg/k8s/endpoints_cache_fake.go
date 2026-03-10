@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	discov1 "k8s.io/api/discovery/v1"
-	"k8s.io/apimachinery/pkg/watch"
 )
 
 // FakeEndpointsCache is a fake implementation of
@@ -15,29 +14,20 @@ import (
 // or API interaction
 type FakeEndpointsCache struct {
 	json.Marshaler
-	mut      *sync.RWMutex
-	current  map[string]discov1.EndpointSlice
-	watchers map[string]*watch.RaceFreeFakeWatcher
+	mut         *sync.RWMutex
+	current     map[string]discov1.EndpointSlice
+	mu          sync.Mutex
+	subscribers map[string]chan struct{}
 }
 
 var _ EndpointsCache = &FakeEndpointsCache{}
 
 func NewFakeEndpointsCache() *FakeEndpointsCache {
 	return &FakeEndpointsCache{
-		mut:      &sync.RWMutex{},
-		current:  make(map[string]discov1.EndpointSlice),
-		watchers: make(map[string]*watch.RaceFreeFakeWatcher),
+		mut:         &sync.RWMutex{},
+		current:     make(map[string]discov1.EndpointSlice),
+		subscribers: make(map[string]chan struct{}),
 	}
-}
-
-// GetWatcher gets the watcher for the given namespace and name, or
-// nil if there wasn't one registered.
-//
-// Watchers are registered by the .Watch() method
-func (f *FakeEndpointsCache) GetWatcher(ns, name string) *watch.RaceFreeFakeWatcher {
-	f.mut.RLock()
-	defer f.mut.RUnlock()
-	return f.watchers[key(ns, name)]
 }
 
 func (f *FakeEndpointsCache) MarshalJSON() ([]byte, error) {
@@ -64,35 +54,40 @@ func (f *FakeEndpointsCache) Get(ns string, name string) (discov1.EndpointSlice,
 	return discov1.EndpointSlice{}, fmt.Errorf("no endpoints %s found", name)
 }
 
+// Subscribe returns a buffered channel that receives a signal when
+// the given service's endpoints change.
+func (f *FakeEndpointsCache) Subscribe(ns, serviceName string) <-chan struct{} {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	k := key(ns, serviceName)
+	if ch, ok := f.subscribers[k]; ok {
+		return ch
+	}
+	ch := make(chan struct{}, 1)
+	f.subscribers[k] = ch
+	return ch
+}
+
+// Notify sends a non-blocking signal to the subscriber for the given
+// service, if any.
+func (f *FakeEndpointsCache) Notify(ns, serviceName string) {
+	f.mu.Lock()
+	ch, ok := f.subscribers[key(ns, serviceName)]
+	f.mu.Unlock()
+	if ok {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
+}
+
 // Set adds a endpoints to the current in-memory cache without
 // sending an event to any of the watchers
 func (f *FakeEndpointsCache) Set(endp discov1.EndpointSlice) {
 	f.mut.Lock()
 	defer f.mut.Unlock()
 	f.current[key(endp.Namespace, endp.GenerateName)] = endp
-}
-
-func (f *FakeEndpointsCache) Watch(ns, name string) (watch.Interface, error) {
-	f.mut.RLock()
-	defer f.mut.RUnlock()
-	watcher, ok := f.watchers[key(ns, name)]
-	if !ok {
-		watcher = watch.NewRaceFreeFake()
-		f.watchers[key(ns, name)] = watcher
-	}
-	return watcher, nil
-}
-
-// SetWatcher creates a new race-free fake watcher and sets it into
-// the internal watchers map. After this call, a call to Watch() with
-// the same namespace and name values will return a valid
-// watcher
-func (f *FakeEndpointsCache) SetWatcher(ns, name string) *watch.RaceFreeFakeWatcher {
-	f.mut.Lock()
-	defer f.mut.Unlock()
-	watcher := watch.NewRaceFreeFake()
-	f.watchers[key(ns, name)] = watcher
-	return watcher
 }
 
 func (f *FakeEndpointsCache) SetEndpoints(ns, name string, num int) error {
