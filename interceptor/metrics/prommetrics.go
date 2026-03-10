@@ -9,7 +9,6 @@ import (
 	api "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 
 	"github.com/kedacore/http-add-on/pkg/build"
 )
@@ -32,10 +31,9 @@ func NewPrometheusMetrics(options ...prometheus.Option) *PrometheusMetrics {
 		log.Fatalf("could not create Prometheus exporter: %v", err)
 	}
 
-	res := resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceName("interceptor-proxy"),
-		semconv.ServiceVersion(build.Version()),
+	res := resource.NewSchemaless(
+		attribute.String("service.name", "interceptor-proxy"),
+		attribute.String("service.version", build.Version()),
 	)
 
 	provider := metric.NewMeterProvider(
