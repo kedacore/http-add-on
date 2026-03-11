@@ -35,11 +35,11 @@ The interceptor keeps track of the number of pending HTTP requests - HTTP reques
 
 #### The Horizontal Pod Autoscaler
 
-The HTTP Add-on works with the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details) (HPA) -- via KEDA itself -- to execute scale-up and scale-down operations (except for scaling between zero and non-zero replicas). The add-on furnishes KEDA with two metrics - the current number of pending requests for a host, and the desired number (called `targetPendingRequests` in the [HTTPScaledObject](./ref/v0.12.0/http_scaled_object.md)). KEDA then sends these metrics to the HPA, which uses them as the `currentMetricValue` and `desiredMetricValue`, respectively, in the [HPA Algorithm](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details).
+The HTTP Add-on works with the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details) (HPA) -- via KEDA itself -- to execute scale-up and scale-down operations (except for scaling between zero and non-zero replicas). You configure the scaling target in the [HTTPScaledObject](./ref/vX.X.X/http_scaled_object.md) via `spec.scalingMetric`, using either `requestRate` (target value, granularity, and time window) or `concurrency` (target value). The add-on furnishes KEDA with the current metric and the desired value from that config. KEDA then sends these to the HPA, which uses them as `currentMetricValue` and `desiredMetricValue` in the [HPA Algorithm](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details).
 
-The net effect is that the add-on scales up when your app grows to more pending requests than the `targetPendingRequests` value, and scales down when it has fewer than that value.
+The net effect is that the add-on scales up when the metric (e.g. request rate over the window or concurrent requests) exceeds the `targetValue` in `spec.scalingMetric`, and scales down when it is below that value.
 
->The aforementioned HPA algorithm is pasted here for convenience: `desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]`. The value of `targetPendingRequests` will be passed in where `desiredMetricValue` is expected, and the point-in-time metric for number of pending requests will be passed in where `currentMetricValue` is expected.
+>The aforementioned HPA algorithm is pasted here for convenience: `desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]`. The `targetValue` from your `scalingMetric` (e.g. `requestRate.targetValue` or `concurrency.targetValue`) is used as `desiredMetricValue`; the current metric reported by the scaler is used as `currentMetricValue`.
 
 ## Architecture Overview
 
