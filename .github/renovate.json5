@@ -17,7 +17,7 @@
   osvVulnerabilityAlerts: true,
   packageRules: [
     {
-      matchManagers: ["github-actions", "regex"],
+      matchManagers: ["github-actions", "custom.regex"],
       matchFileNames: [".github/workflows/**"],
       groupName: "GitHub Actions",
     },
