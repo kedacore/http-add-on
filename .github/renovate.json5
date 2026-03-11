@@ -49,6 +49,10 @@
       matchManagers: ["pre-commit"],
       groupName: "Pre-commit Hooks",
     },
+    {
+      matchFileNames: [".devcontainer/**"],
+      pinDigests: false,
+    },
   ],
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   // Experimental: pre-commit manager is in beta and disabled by default
