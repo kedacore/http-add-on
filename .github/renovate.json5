@@ -3,6 +3,7 @@
   extends: [
     // See https://docs.renovatebot.com/presets-config/#configbest-practices
     "config:best-practices",
+    "customManagers:githubActionsVersions",
     "schedule:weekly",
     ":gitSignOff",
     ":prHourlyLimitNone",
