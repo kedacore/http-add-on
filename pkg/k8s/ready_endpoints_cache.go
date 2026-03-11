@@ -9,6 +9,9 @@ import (
 
 	"github.com/go-logr/logr"
 	discov1 "k8s.io/api/discovery/v1"
+	"k8s.io/client-go/tools/cache"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ReadyEndpointsCache maintains a derived map of service -> ready (bool)
@@ -137,4 +140,118 @@ func hasAnyReadyEndpoint(slice *discov1.EndpointSlice) bool {
 		}
 	}
 	return false
+}
+
+// updateReadyCache updates the ready cache for the service that owns
+// the given EndpointSlice.
+func updateReadyCache(lggr logr.Logger, ctrlCache ctrlcache.Cache, readyCache *ReadyEndpointsCache, slice *discov1.EndpointSlice) {
+	svcName, ok := slice.Labels[discov1.LabelServiceName]
+	if !ok || svcName == "" {
+		return
+	}
+	ns := slice.Namespace
+
+	list := &discov1.EndpointSliceList{}
+	if err := ctrlCache.List(context.Background(), list,
+		client.InNamespace(ns),
+		client.MatchingLabels{discov1.LabelServiceName: svcName},
+	); err != nil {
+		lggr.Error(err, "failed to list endpoint slices for ready cache update",
+			"namespace", ns, "service", svcName)
+		return
+	}
+
+	allSlices := make([]*discov1.EndpointSlice, len(list.Items))
+	for idx := range list.Items {
+		allSlices[idx] = &list.Items[idx]
+	}
+	readyCache.Update(ns+"/"+svcName, allSlices)
+}
+
+func addEvtHandler(lggr logr.Logger, ctrlCache ctrlcache.Cache, readyCache *ReadyEndpointsCache, obj any) {
+	eps, ok := obj.(*discov1.EndpointSlice)
+	if !ok {
+		lggr.Error(
+			fmt.Errorf("informer expected EndpointSlice, got %v", obj),
+			"skipping event",
+		)
+		return
+	}
+
+	updateReadyCache(lggr, ctrlCache, readyCache, eps)
+}
+
+func updateEvtHandler(lggr logr.Logger, ctrlCache ctrlcache.Cache, readyCache *ReadyEndpointsCache, _, newObj any) {
+	eps, ok := newObj.(*discov1.EndpointSlice)
+	if !ok {
+		lggr.Error(
+			fmt.Errorf("informer expected EndpointSlice, got %v", newObj),
+			"skipping event",
+		)
+		return
+	}
+
+	updateReadyCache(lggr, ctrlCache, readyCache, eps)
+}
+
+func deleteEvtHandler(lggr logr.Logger, ctrlCache ctrlcache.Cache, readyCache *ReadyEndpointsCache, obj any) {
+	eps, err := endpointSliceFromDeleteObj(obj)
+	if err != nil {
+		lggr.Error(
+			err,
+			"skipping event",
+		)
+		return
+	}
+
+	updateReadyCache(lggr, ctrlCache, readyCache, eps)
+}
+
+// endpointSliceFromDeleteObj unwraps EndpointSlice delete events from either
+// a direct object or a DeletedFinalStateUnknown tombstone.
+func endpointSliceFromDeleteObj(obj any) (*discov1.EndpointSlice, error) {
+	switch t := obj.(type) {
+	case *discov1.EndpointSlice:
+		return t, nil
+	case cache.DeletedFinalStateUnknown:
+		eps, ok := t.Obj.(*discov1.EndpointSlice)
+		if !ok {
+			return nil, fmt.Errorf("informer expected EndpointSlice in tombstone, got %T", t.Obj)
+		}
+		return eps, nil
+	default:
+		return nil, fmt.Errorf("informer expected EndpointSlice, got %T", obj)
+	}
+}
+
+func NewReadyEndpointsCacheWithInformer(
+	ctx context.Context,
+	lggr logr.Logger,
+	ctrlCache ctrlcache.Cache,
+) (*ReadyEndpointsCache, error) {
+	informer, err := ctrlCache.GetInformer(ctx, &discov1.EndpointSlice{})
+	if err != nil {
+		lggr.Error(err, "error getting EndpointSlice informer from controller-runtime cache")
+		return nil, err
+	}
+
+	readyCache := NewReadyEndpointsCache(lggr)
+
+	_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			addEvtHandler(lggr, ctrlCache, readyCache, obj)
+		},
+		UpdateFunc: func(oldObj, newObj any) {
+			updateEvtHandler(lggr, ctrlCache, readyCache, oldObj, newObj)
+		},
+		DeleteFunc: func(obj any) {
+			deleteEvtHandler(lggr, ctrlCache, readyCache, obj)
+		},
+	})
+	if err != nil {
+		lggr.Error(err, "error adding event handler to EndpointSlice informer")
+		return nil, err
+	}
+
+	return readyCache, nil
 }

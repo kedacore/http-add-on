@@ -70,8 +70,7 @@ func newQueuePinger(lggr logr.Logger, getEndpointsFn k8s.GetEndpointsFunc, ns, s
 }
 
 // start starts the queuePinger
-func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker, endpCache k8s.EndpointsCache) error {
-	endpChanged := endpCache.Subscribe(q.interceptorNS, q.interceptorServiceName)
+func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker) error {
 	lggr := q.lggr.WithName("scaler.queuePinger.start")
 	defer ticker.Stop()
 	for {
@@ -84,11 +83,6 @@ func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker, endpCache 
 			err := q.fetchAndSaveCounts(ctx)
 			if err != nil {
 				lggr.Error(err, "getting request counts")
-			}
-		case <-endpChanged:
-			err := q.fetchAndSaveCounts(ctx)
-			if err != nil {
-				lggr.Error(err, "getting request counts after interceptor endpoints event")
 			}
 		}
 	}

@@ -76,6 +76,9 @@ func main() {
 
 	cfg := ctrl.GetConfigOrDie()
 
+	ctx := ctrl.SetupSignalHandler()
+	ctx = util.ContextWithLogger(ctx, ctrl.Log)
+
 	cacheOpts := cache.Options{
 		Scheme:     kedacache.NewScheme(),
 		SyncPeriod: &servingCfg.CacheSyncPeriod,
@@ -92,13 +95,13 @@ func main() {
 		runtime.Goexit()
 	}
 
-	endpointsCache, err := k8s.NewInformerBackedEndpointsCache(ctrl.Log, ctrlCache)
+	readyCache, err := k8s.NewReadyEndpointsCacheWithInformer(ctx, ctrl.Log, ctrlCache)
 	if err != nil {
 		setupLog.Error(err, "creating endpoints cache")
 		runtime.Goexit()
 	}
 
-	waitFunc := newWorkloadReplicasForwardWaitFunc(endpointsCache.ReadyCache())
+	waitFunc := newWorkloadReplicasForwardWaitFunc(readyCache)
 
 	queues := queue.NewMemory()
 
@@ -122,9 +125,6 @@ func main() {
 	}
 
 	setupLog.Info("Interceptor starting")
-
-	ctx := ctrl.SetupSignalHandler()
-	ctx = util.ContextWithLogger(ctx, ctrl.Log)
 
 	eg, ctx := errgroup.WithContext(ctx)
 

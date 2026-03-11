@@ -67,12 +67,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	endpointsCache, err := k8s.NewInformerBackedEndpointsCache(ctrl.Log, ctrlCache)
-	if err != nil {
-		setupLog.Error(err, "creating endpoints cache")
-		os.Exit(1)
-	}
-
 	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForControllerClient(ctrlCache), namespace, svcName, deplName, targetPortStr)
 
 	ctx := ctrl.SetupSignalHandler()
@@ -86,17 +80,6 @@ func main() {
 		return ctrlCache.Start(ctx)
 	})
 
-	eg.Go(func() error {
-		setupLog.Info("starting the queue pinger")
-
-		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration), endpointsCache); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "queue pinger failed")
-			return err
-		}
-
-		return nil
-	})
-
 	if len(profilingAddr) > 0 {
 		eg.Go(func() error {
 			setupLog.Info("enabling pprof for profiling", "address", profilingAddr)
@@ -108,11 +91,22 @@ func main() {
 		})
 	}
 
-	// Wait for cache to sync before starting the GRPC server
+	// Wait for cache to sync before starting components that depend on it
 	if !ctrlCache.WaitForCacheSync(ctx) {
 		setupLog.Error(nil, "cache failed to sync")
 		os.Exit(1)
 	}
+
+	eg.Go(func() error {
+		setupLog.Info("starting the queue pinger")
+
+		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration)); !util.IsIgnoredErr(err) {
+			setupLog.Error(err, "queue pinger failed")
+			return err
+		}
+
+		return nil
+	})
 
 	eg.Go(func() error {
 		setupLog.Info("starting the grpc server")
