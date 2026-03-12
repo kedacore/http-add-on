@@ -4,6 +4,7 @@
     // See https://docs.renovatebot.com/presets-config/#configbest-practices
     "config:best-practices",
     "customManagers:githubActionsVersions",
+    "customManagers:makefileVersions",
     "schedule:weekly",
     ":gitSignOff",
     ":prHourlyLimitNone",
@@ -17,8 +18,7 @@
   osvVulnerabilityAlerts: true,
   packageRules: [
     {
-      matchManagers: ["github-actions", "custom.regex"],
-      matchFileNames: [".github/workflows/**"],
+      matchManagers: ["github-actions"],
       groupName: "GitHub Actions",
     },
     {
@@ -32,6 +32,19 @@
       matchPackageNames: ["github.com/kedacore/keda/v2"],
       groupName: "keda",
     },
+    // Split minor and patch updates for k8s packages so patch fixes
+    // can be merged independently of k8s minor version bumps
+    {
+      matchManagers: ["gomod"],
+      matchPackageNames: [
+        "k8s.io/**",
+        "sigs.k8s.io/controller-runtime",
+        "sigs.k8s.io/controller-tools",
+        "sigs.k8s.io/gateway-api",
+        "github.com/cert-manager/cert-manager",
+      ],
+      separateMinorPatch: true,
+    },
     // Group tightly coupled k8s packages updates for controlled K8s version support
     {
       matchManagers: ["gomod"],
@@ -40,10 +53,16 @@
         "sigs.k8s.io/controller-runtime",
         "sigs.k8s.io/controller-tools",
         "sigs.k8s.io/gateway-api", // independently versioned but depends on k8s.io/*
+        "github.com/cert-manager/cert-manager", // depends on specific k8s.io/* minor versions
       ],
       // Patch updates are safe to be merged regularly in the catch-all group
       matchUpdateTypes: ["minor", "major"],
       groupName: "Kubernetes Dependencies",
+    },
+    {
+      matchManagers: ["custom.regex"],
+      matchFileNames: ["Makefile", ".github/workflows/e2e-tests.yaml"],
+      groupName: "E2E Dependencies",
     },
     {
       matchManagers: ["pre-commit"],
@@ -52,6 +71,15 @@
     {
       matchFileNames: [".devcontainer/**"],
       pinDigests: false,
+    },
+  ],
+  customManagers: [
+    {
+      customType: "regex",
+      managerFilePatterns: ["**/*.go"],
+      matchStrings: [
+        '// renovate: datasource=(?<datasource>.+?)\\s+\\S+\\s*=\\s*"(?<depName>.+?):(?<currentValue>.+?)"',
+      ],
     },
   ],
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],

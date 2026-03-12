@@ -27,6 +27,15 @@ IMAGE_SCALER_SHA_TAG       ?= $(IMAGE_SCALER):$(GIT_COMMIT_SHORT)
 
 KO_RELEASE_PLATFORMS ?= linux/amd64,linux/arm64
 
+# renovate: datasource=helm depName=cert-manager registryUrl=https://charts.jetstack.io
+CERT_MANAGER_VERSION ?= v1.20.0
+# renovate: datasource=helm depName=jaeger registryUrl=https://jaegertracing.github.io/helm-charts
+JAEGER_VERSION ?= 4.6.0
+# renovate: datasource=helm depName=keda registryUrl=https://kedacore.github.io/charts
+KEDA_VERSION ?= 2.19.0
+# renovate: datasource=helm depName=opentelemetry-collector registryUrl=https://open-telemetry.github.io/opentelemetry-helm-charts
+OTEL_COLLECTOR_VERSION ?= 0.147.0
+
 COSIGN_FLAGS ?= -y -a GIT_HASH=$(GIT_COMMIT) -a GIT_VERSION=$(VERSION) -a BUILD_DATE=$(DATE)
 
 ## Tool Binaries
@@ -105,14 +114,58 @@ clean-test-certs:
 test: test-certs
 	go test ./...
 
-e2e-test:
+e2e-test-legacy:
 	go run -tags e2e ./tests/run-all.go
 
-e2e-test-setup:
+e2e-test-legacy-setup:
 	ONLY_SETUP=true go run -tags e2e ./tests/run-all.go
 
-e2e-test-local:
+e2e-test-legacy-local:
 	SKIP_SETUP=true go run -tags e2e ./tests/run-all.go
+
+E2E_PACKAGE = $(if $(PROFILE),./test/e2e/$(PROFILE)/...,./test/e2e/...)
+e2e-test: ## Run e2e tests (PROFILE=tls, RUN=TestColdStart, E2E_ARGS="--labels=area=scaling --dry-run")
+# -p 1 is needed to run only one profile (=addon configuration) in parallel
+# -parallel 4 limits concurrent tests to avoid overwhelming the kubelet port-forward
+	go test -tags e2e $(E2E_PACKAGE) -p 1 -count=1 -timeout 15m -v -parallel 4 $(if $(RUN),-run '$(RUN)') $(if $(E2E_ARGS),-args $(E2E_ARGS))
+
+e2e-test-default: PROFILE = default
+e2e-test-default: e2e-test
+
+e2e-test-ci: ## Run all e2e tests (CI mode with retries)
+# -p 1 is needed to run only one profile (=addon configuration) in parallel
+# -parallel 4 limits concurrent tests to avoid overwhelming the kubelet port-forward
+	gotestsum --rerun-fails=2 --format=github-actions --packages="./test/e2e/..." -- -tags e2e -p 1 -count=1 -timeout 30m -v -parallel 4
+
+e2e-deps: e2e-deps-cert-manager e2e-deps-jaeger e2e-deps-keda e2e-deps-otel-collector ## Install all e2e dependencies
+
+e2e-deps-cert-manager:
+	helm repo add jetstack https://charts.jetstack.io --force-update
+	helm upgrade --install cert-manager jetstack/cert-manager \
+		--namespace cert-manager --create-namespace \
+		-f test/fixtures/cert-manager-values.yaml \
+		--version $(CERT_MANAGER_VERSION) --wait
+
+e2e-deps-jaeger:
+	helm repo add jaegertracing https://jaegertracing.github.io/helm-charts --force-update
+	helm upgrade --install jaeger jaegertracing/jaeger \
+		--namespace jaeger --create-namespace \
+		--version $(JAEGER_VERSION) --wait
+
+e2e-deps-keda:
+	helm repo add kedacore https://kedacore.github.io/charts --force-update
+	helm upgrade --install keda kedacore/keda \
+		--namespace keda --create-namespace \
+		--version $(KEDA_VERSION) --wait
+
+e2e-deps-otel-collector:
+	helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts --force-update
+	helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
+		--namespace open-telemetry-system --create-namespace \
+		-f test/fixtures/otel-values.yaml \
+		--version $(OTEL_COLLECTOR_VERSION) --wait
+
+e2e-setup: e2e-deps deploy ## Full e2e setup: install deps + deploy http-add-on
 
 ##################################################
 # Code generation & manifests                    #

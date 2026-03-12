@@ -34,10 +34,11 @@ linters:
       # suppress "exported X should have comment" — not all exports are documented
       - comments
     rules:
-      # test files: relax duplicate detection and unused params
+      # test files: relax duplicate detection, unused params, and repeated strings
       - linters:
           - dupl
           - unparam
+          - goconst
         path: _test\.go
       - linters:
           - revive

@@ -39,6 +39,8 @@ spec:
               containerPort: 9090
             - name: proxy
               containerPort: 8080
+            - name: proxy-tls
+              containerPort: 8443
             - name: metrics
               containerPort: 2223
           livenessProbe:

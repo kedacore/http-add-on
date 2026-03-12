@@ -18,7 +18,7 @@ go test -v -tags e2e ./utils/cleanup_test.go      # Skip if you want to keep tes
 ### Specific test
 
 ```bash
-go test -v -tags e2e ./checks/internal_service/internal_service_test.go # Assumes that setup has been run before
+go test -v -tags e2e ./checks/internal_service_httpso/internal_service_test.go # Assumes that setup has been run before
 ```
 
 > **Note**
@@ -57,7 +57,7 @@ in parallel, but tests within a file can be run in parallel or in series. More a
 ## Adding tests
 
 - Tests are written using `Go`'s default [`testing`](https://pkg.go.dev/testing) framework, and [`testify`](https://pkg.go.dev/github.com/stretchr/testify).
-- Each e2e test should be in its own package, **ex -** `checks/internal_service/internal_service_test.go`, etc
+- Each e2e test should be in its own package, **ex -** `checks/internal_service_httpso/internal_service_test.go`, etc
 - Each test file is expected to do its own setup and clean for resources.
 
 #### ⚠⚠ Important: ⚠⚠
@@ -78,7 +78,7 @@ in parallel, but tests within a file can be run in parallel or in series. More a
 
 #### Notes
 
-- You can see [`internal_service_test.go`](checks/internal_service/internal_service_test.go) for a full example.
+- You can see [`internal_service_test.go`](checks/internal_service_httpso/internal_service_test.go) for a full example.
 - All tests must have the `// +build e2e` build tag.
 - Refer [`helper.go`](helper/helper.go) for various helper methods available to use in your tests.
 - Prefer using helper methods or `k8s` libraries in `Go` over manually executing `shell` commands. Only if the task
