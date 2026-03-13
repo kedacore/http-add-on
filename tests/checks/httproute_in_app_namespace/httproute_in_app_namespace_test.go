@@ -24,7 +24,8 @@ var (
 	deploymentName       = fmt.Sprintf("%s-deployment", testName)
 	serviceName          = fmt.Sprintf("%s-service", testName)
 	httprouteName        = fmt.Sprintf("%s-httproute", testName)
-	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
+	interceptorRouteName = fmt.Sprintf("%s-ir", testName)
+	scaledObjectName     = fmt.Sprintf("%s-so", testName)
 	referenceGrantName   = fmt.Sprintf("%s-rg", testName)
 	gatewayHostPattern   = "http://%v.envoy-gateway-system.svc.cluster.local"
 	host                 = testName
@@ -40,7 +41,8 @@ type templateData struct {
 	ReferenceGrantName   string
 	KEDANamespace        string
 	GatewayHost          string
-	HTTPScaledObjectName string
+	InterceptorRouteName string
+	ScaledObjectName     string
 	Host                 string
 	MinReplicas          int
 	MaxReplicas          int
@@ -157,24 +159,43 @@ spec:
   backoffLimit: 5
 `
 
-	httpScaledObjectTemplate = `
-kind: HTTPScaledObject
-apiVersion: http.keda.sh/v1alpha1
+	interceptorRouteTemplate = `
+kind: InterceptorRoute
+apiVersion: http.keda.sh/v1beta1
 metadata:
-  name: {{.HTTPScaledObjectName}}
+  name: {{.InterceptorRouteName}}
   namespace: {{.TestNamespace}}
 spec:
-  hosts:
-  - {{.Host}}
-  targetPendingRequests: 100
-  scaledownPeriod: 10
-  scaleTargetRef:
-    name: {{.DeploymentName}}
+  target:
     service: {{.ServiceName}}
     port: 8080
-  replicas:
-    min: {{ .MinReplicas }}
-    max: {{ .MaxReplicas }}
+  scalingMetric:
+    concurrency:
+      targetValue: 100
+  rules:
+  - hosts:
+    - {{.Host}}
+`
+
+	scaledObjectTemplate = `
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{.ScaledObjectName}}
+  namespace: {{.TestNamespace}}
+spec:
+  cooldownPeriod: 10
+  maxReplicaCount: {{ .MaxReplicas }}
+  minReplicaCount: {{ .MinReplicas }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{.DeploymentName}}
+  triggers:
+  - type: external-push
+    metadata:
+      interceptorRoute: {{.InterceptorRouteName}}
+      scalerAddress: keda-add-ons-http-external-scaler.keda:9090
 `
 )
 
@@ -239,7 +260,8 @@ func getTemplateData(t *testing.T) (templateData, []Template) {
 			HTTPRouteName:        httprouteName,
 			ReferenceGrantName:   referenceGrantName,
 			KEDANamespace:        KEDANamespace,
-			HTTPScaledObjectName: httpScaledObjectName,
+			InterceptorRouteName: interceptorRouteName,
+			ScaledObjectName:     scaledObjectName,
 			GatewayHost:          gatewayHost,
 			Host:                 host,
 			MinReplicas:          minReplicaCount,
@@ -248,7 +270,8 @@ func getTemplateData(t *testing.T) (templateData, []Template) {
 			{Name: "deploymentTemplate", Config: deploymentTemplate},
 			{Name: "serviceTemplate", Config: serviceTemplate},
 			{Name: "httprouteTemplate", Config: httprouteTemplate},
-			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
+			{Name: "interceptorRouteTemplate", Config: interceptorRouteTemplate},
+			{Name: "scaledObjectTemplate", Config: scaledObjectTemplate},
 			{Name: "referenceGrantTemplate", Config: referenceGrantTemplate},
 		}
 }

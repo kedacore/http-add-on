@@ -55,8 +55,8 @@ ko builds Go binaries and packages them into container images without requiring 
 
 Set the `KO_DOCKER_REPO` environment variable for your target:
 
-- **KinD:** `export KO_DOCKER_REPO=kind.local`
-- **Local registry:** `export KO_DOCKER_REPO=localhost:5001`
+- **Local registry:** `export KO_DOCKER_REPO=localhost:<port>`
+- **KinD:** `export KO_DOCKER_REPO=kind.local` (only works with Docker, not Podman)
 
 After making code changes, deploy a single component:
 

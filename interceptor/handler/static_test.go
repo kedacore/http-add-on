@@ -35,7 +35,7 @@ var _ = Describe("ServeHTTP", func() {
 		sh.ServeHTTP(w, r)
 
 		Expect(w.Code).To(Equal(sc))
-		Expect(w.Body.String()).To(Equal(st))
+		Expect(w.Body.String()).To(Equal(st + "\n"))
 	})
 
 	It("logs the failed request", func() {

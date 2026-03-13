@@ -13,6 +13,7 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -45,34 +46,32 @@ func newForwardingHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var uh *handler.Upstream
 		ctx := r.Context()
-		httpso := util.HTTPSOFromContext(ctx)
-		hasFailover := httpso.Spec.ColdStartTimeoutFailoverRef != nil
+		ir := util.InterceptorRouteFromContext(ctx)
+		hasFallback := ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Fallback != nil
 
 		conditionWaitTimeout := fwdCfg.waitTimeout
 		responseHeaderTimeout := fwdCfg.respHeaderTimeout
 
-		if httpso.Spec.Timeouts != nil {
-			if httpso.Spec.Timeouts.ConditionWait.Duration > 0 {
-				conditionWaitTimeout = httpso.Spec.Timeouts.ConditionWait.Duration
-			}
-
-			if httpso.Spec.Timeouts.ResponseHeader.Duration > 0 {
-				responseHeaderTimeout = httpso.Spec.Timeouts.ResponseHeader.Duration
+		// TODO(v1): replace temporary annotation-based timeout overrides with proper config when we know which timeouts we want to keep
+		if v, ok := ir.Annotations[k8s.AnnotationConditionWaitTimeout]; ok {
+			if d, err := time.ParseDuration(v); err == nil && d > 0 {
+				conditionWaitTimeout = d
 			}
 		}
-
-		if hasFailover && httpso.Spec.ColdStartTimeoutFailoverRef.TimeoutSeconds > 0 {
-			conditionWaitTimeout = time.Duration(httpso.Spec.ColdStartTimeoutFailoverRef.TimeoutSeconds) * time.Second
+		if v, ok := ir.Annotations[k8s.AnnotationResponseHeaderTimeout]; ok {
+			if d, err := time.ParseDuration(v); err == nil && d > 0 {
+				responseHeaderTimeout = d
+			}
 		}
 
 		waitFuncCtx, done := context.WithTimeout(ctx, conditionWaitTimeout)
 		defer done()
 		isColdStart, err := waitFunc(
 			waitFuncCtx,
-			httpso.GetNamespace(),
-			httpso.Spec.ScaleTargetRef.Service,
+			ir.Namespace,
+			ir.Spec.Target.Service,
 		)
-		if err != nil && !hasFailover {
+		if err != nil && !hasFallback {
 			lggr.Error(err, "wait function failed, not forwarding request")
 			w.WriteHeader(http.StatusBadGateway)
 			if _, err := fmt.Fprintf(w, "error on backend (%s)", err); err != nil {
@@ -83,8 +82,6 @@ func newForwardingHandler(
 		if fwdCfg.enableColdStartHeader {
 			w.Header().Add("X-KEDA-HTTP-Cold-Start", strconv.FormatBool(isColdStart))
 		}
-		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Name", httpso.Spec.ScaleTargetRef.Name)
-		r.Header.Add("X-KEDA-HTTP-Cold-Start-Ref-Namespace", httpso.Namespace)
 
 		// Get transport from pool based on timeout configuration
 		transport := transportPool.Get(responseHeaderTimeout)
@@ -94,11 +91,11 @@ func newForwardingHandler(
 			lggr.Error(err, "Could not enable full duplex on responsewriter, continuing")
 		}
 
-		shouldFailover := hasFailover && err != nil
+		shouldFallback := hasFallback && err != nil
 		if tracingCfg.Enabled {
-			uh = handler.NewUpstream(otelhttp.NewTransport(transport), tracingCfg, shouldFailover)
+			uh = handler.NewUpstream(otelhttp.NewTransport(transport), tracingCfg, shouldFallback)
 		} else {
-			uh = handler.NewUpstream(transport, config.Tracing{}, shouldFailover)
+			uh = handler.NewUpstream(transport, config.Tracing{}, shouldFallback)
 		}
 		uh.ServeHTTP(w, r)
 	})

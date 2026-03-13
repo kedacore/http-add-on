@@ -7,38 +7,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
 
 func TestRemember(t *testing.T) {
 	t.Run("stores and routes single object", func(t *testing.T) {
-		httpso := &httpv1alpha1.HTTPScaledObject{
+		ir := &httpv1beta1.InterceptorRoute{
 			ObjectMeta: metav1.ObjectMeta{Name: "test"},
-			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+			Spec: httpv1beta1.InterceptorRouteSpec{
+				Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"example.com"}}},
+			},
 		}
-
-		tm := NewTableMemory().Remember(httpso)
-
-		route := tm.Route("example.com", "", nil)
-		if route == nil {
-			t.Fatal("no route matched")
-		}
-		if route.Name != "test" {
-			t.Errorf("name=%q, want=%q", route.Name, "test")
-		}
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{ir}, "example.com", "", ir)
 	})
 
 	t.Run("retains other objects", func(t *testing.T) {
-		httpso1 := &httpv1alpha1.HTTPScaledObject{
+		ir1 := &httpv1beta1.InterceptorRoute{
 			ObjectMeta: metav1.ObjectMeta{Name: "first"},
-			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"first.com"}},
+			Spec: httpv1beta1.InterceptorRouteSpec{
+				Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"first.com"}}},
+			},
 		}
-		httpso2 := &httpv1alpha1.HTTPScaledObject{
+		ir2 := &httpv1beta1.InterceptorRoute{
 			ObjectMeta: metav1.ObjectMeta{Name: "second"},
-			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"second.com"}},
+			Spec: httpv1beta1.InterceptorRouteSpec{
+				Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"second.com"}}},
+			},
 		}
 
-		tm := NewTableMemory().Remember(httpso1).Remember(httpso2)
+		tm := NewTableMemory().Remember(ir1).Remember(ir2)
 
 		route1 := tm.Route("first.com", "", nil)
 		if route1 == nil || route1.Name != "first" {
@@ -59,15 +56,17 @@ func TestRemember(t *testing.T) {
 	})
 
 	t.Run("deep copies input", func(t *testing.T) {
-		httpso := &httpv1alpha1.HTTPScaledObject{
+		ir := &httpv1beta1.InterceptorRoute{
 			ObjectMeta: metav1.ObjectMeta{Name: "test"},
-			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+			Spec: httpv1beta1.InterceptorRouteSpec{
+				Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"example.com"}}},
+			},
 		}
 
-		tm := NewTableMemory().Remember(httpso)
+		tm := NewTableMemory().Remember(ir)
 
 		// Modify original after storing
-		httpso.Spec.Hosts[0] = "modified.com"
+		ir.Spec.Rules[0].Hosts[0] = "modified.com"
 
 		// Should still route to original host, not modified one
 		if tm.Route("example.com", "", nil) == nil {
@@ -77,80 +76,28 @@ func TestRemember(t *testing.T) {
 			t.Error("expected no route for modified host")
 		}
 	})
-
-	t.Run("replaces object with same host", func(t *testing.T) {
-		httpso1 := &httpv1alpha1.HTTPScaledObject{
-			ObjectMeta: metav1.ObjectMeta{Name: "v1"},
-			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
-		}
-		httpso2 := &httpv1alpha1.HTTPScaledObject{
-			ObjectMeta: metav1.ObjectMeta{Name: "v2"},
-			Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
-		}
-
-		tm := NewTableMemory().Remember(httpso1).Remember(httpso2)
-
-		route := tm.Route("example.com", "", nil)
-		if route == nil {
-			t.Fatal("no route matched")
-		}
-		if route.Name != "v2" {
-			t.Errorf("name=%q, want=%q", route.Name, "v2")
-		}
-	})
-
-	t.Run("oldest wins with headers", func(t *testing.T) {
-		now := time.Now()
-		older := &httpv1alpha1.HTTPScaledObject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "older-with-headers",
-				CreationTimestamp: metav1.NewTime(now.Add(-time.Hour)),
-			},
-			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-				Hosts:   []string{"example.com"},
-				Headers: []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("value")}},
-			},
-		}
-		newer := &httpv1alpha1.HTTPScaledObject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "newer-with-headers",
-				CreationTimestamp: metav1.NewTime(now),
-			},
-			Spec: httpv1alpha1.HTTPScaledObjectSpec{
-				Hosts:   []string{"example.com"},
-				Headers: []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("value")}},
-			},
-		}
-
-		tm := NewTableMemory().Remember(newer).Remember(older)
-
-		route := tm.Route("example.com", "", map[string][]string{"X-Custom-Header": {"value"}})
-		if route == nil {
-			t.Fatal("no route matched")
-		}
-		if route.Name != "older-with-headers" {
-			t.Errorf("name=%q, want=%q", route.Name, "older-with-headers")
-		}
-	})
 }
 
 func TestRememberOldestWins(t *testing.T) {
 	now := time.Now()
 
-	// Two objects with same host, different creation times
-	older := &httpv1alpha1.HTTPScaledObject{
+	older := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              "older",
 			CreationTimestamp: metav1.NewTime(now.Add(-time.Hour)),
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"example.com"}}},
+		},
 	}
-	newer := &httpv1alpha1.HTTPScaledObject{
+	newer := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              "newer",
 			CreationTimestamp: metav1.NewTime(now),
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"example.com"}}},
+		},
 	}
 
 	t.Run("older object wins when added first", func(t *testing.T) {
@@ -176,78 +123,129 @@ func TestRememberOldestWins(t *testing.T) {
 			t.Errorf("name=%q, want=%q", route.Name, "older")
 		}
 	})
+
+	t.Run("older object wins with headers", func(t *testing.T) {
+		olderWithHeaders := &httpv1beta1.InterceptorRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "older-with-headers",
+				CreationTimestamp: metav1.NewTime(now.Add(-time.Hour)),
+			},
+			Spec: httpv1beta1.InterceptorRouteSpec{
+				Rules: []httpv1beta1.RoutingRule{{
+					Hosts:   []string{"example.com"},
+					Headers: []httpv1beta1.HeaderMatch{{Name: "X-Custom-Header", Value: ptr.To("value")}},
+				}},
+			},
+		}
+		newerWithHeaders := &httpv1beta1.InterceptorRoute{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "newer-with-headers",
+				CreationTimestamp: metav1.NewTime(now),
+			},
+			Spec: httpv1beta1.InterceptorRouteSpec{
+				Rules: []httpv1beta1.RoutingRule{{
+					Hosts:   []string{"example.com"},
+					Headers: []httpv1beta1.HeaderMatch{{Name: "X-Custom-Header", Value: ptr.To("value")}},
+				}},
+			},
+		}
+
+		tm := NewTableMemory().Remember(newerWithHeaders).Remember(olderWithHeaders)
+
+		route := tm.Route("example.com", "", map[string][]string{"X-Custom-Header": {"value"}})
+		if route == nil {
+			t.Fatal("no route matched")
+		}
+		if route.Name != "older-with-headers" {
+			t.Errorf("name=%q, want=%q", route.Name, "older-with-headers")
+		}
+	})
 }
 
 func TestRouteWithHeaders(t *testing.T) {
-	fooHSO := &httpv1alpha1.HTTPScaledObject{
+	fooIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "foo"},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Hosts:        []string{"example.com"},
-			PathPrefixes: []string{"/api/"},
-			Headers:      []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("foo")}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts:   []string{"example.com"},
+				Paths:   []httpv1beta1.PathMatch{{Value: "/api/"}},
+				Headers: []httpv1beta1.HeaderMatch{{Name: "X-Custom-Header", Value: ptr.To("foo")}},
+			}},
 		},
 	}
-	differentPathHSO := &httpv1alpha1.HTTPScaledObject{
+	differentPathIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "different-path"},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Hosts:        []string{"example.com"},
-			PathPrefixes: []string{"/other/"},
-			Headers:      []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("foo")}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts:   []string{"example.com"},
+				Paths:   []httpv1beta1.PathMatch{{Value: "/other/"}},
+				Headers: []httpv1beta1.HeaderMatch{{Name: "X-Custom-Header", Value: ptr.To("foo")}},
+			}},
 		},
 	}
-	barHSO := &httpv1alpha1.HTTPScaledObject{
+	barIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "bar"},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Hosts:        []string{"example.com"},
-			PathPrefixes: []string{"/api/"},
-			Headers:      []httpv1alpha1.Header{{Name: "X-Custom-Header", Value: ptr.To("bar")}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts:   []string{"example.com"},
+				Paths:   []httpv1beta1.PathMatch{{Value: "/api/"}},
+				Headers: []httpv1beta1.HeaderMatch{{Name: "X-Custom-Header", Value: ptr.To("bar")}},
+			}},
 		},
 	}
-	bazHSO := &httpv1alpha1.HTTPScaledObject{
+	bazIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "baz"},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			PathPrefixes: []string{"/api/"},
-			Hosts:        []string{"example.com"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts: []string{"example.com"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api/"}},
+			}},
 		},
 	}
-	headerKeyHSO := &httpv1alpha1.HTTPScaledObject{
+	headerKeyIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "header-key-only"},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Hosts:        []string{"example.com"},
-			PathPrefixes: []string{"/api/"},
-			Headers:      []httpv1alpha1.Header{{Name: "X-Custom-Header"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts:   []string{"example.com"},
+				Paths:   []httpv1beta1.PathMatch{{Value: "/api/"}},
+				Headers: []httpv1beta1.HeaderMatch{{Name: "X-Custom-Header"}},
+			}},
 		},
 	}
-	manyHeadersHSO := &httpv1alpha1.HTTPScaledObject{
+	manyHeadersIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "many-headers"},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Hosts:        []string{"example.com"},
-			PathPrefixes: []string{"/api/"},
-			Headers: []httpv1alpha1.Header{
-				{Name: "X-Custom-Header", Value: ptr.To("foo")},
-				{Name: "X-Another-Header", Value: ptr.To("baz")},
-			},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts: []string{"example.com"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api/"}},
+				Headers: []httpv1beta1.HeaderMatch{
+					{Name: "X-Custom-Header", Value: ptr.To("foo")},
+					{Name: "X-Another-Header", Value: ptr.To("baz")},
+				},
+			}},
 		},
 	}
-	manyHeadersButKeyOnlyHSO := &httpv1alpha1.HTTPScaledObject{
+	manyHeadersButKeyOnlyIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "many-headers-but-key-only"},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Hosts:        []string{"example.com"},
-			PathPrefixes: []string{"/api/"},
-			Headers: []httpv1alpha1.Header{
-				{Name: "X-Custom-Header"},
-				{Name: "X-Another-Header", Value: ptr.To("baz")},
-			},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts: []string{"example.com"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api/"}},
+				Headers: []httpv1beta1.HeaderMatch{
+					{Name: "X-Custom-Header"},
+					{Name: "X-Another-Header", Value: ptr.To("baz")},
+				},
+			}},
 		},
 	}
 
-	tm := NewTableMemory().Remember(fooHSO)
-	tm = tm.Remember(differentPathHSO)
-	tm = tm.Remember(barHSO)
-	tm = tm.Remember(bazHSO)
-	tm = tm.Remember(headerKeyHSO)
-	tm = tm.Remember(manyHeadersHSO)
-	tm = tm.Remember(manyHeadersButKeyOnlyHSO)
+	tm := NewTableMemory().Remember(fooIR)
+	tm = tm.Remember(differentPathIR)
+	tm = tm.Remember(barIR)
+	tm = tm.Remember(bazIR)
+	tm = tm.Remember(headerKeyIR)
+	tm = tm.Remember(manyHeadersIR)
+	tm = tm.Remember(manyHeadersButKeyOnlyIR)
 
 	tests := []struct {
 		name    string
@@ -324,13 +322,9 @@ func TestRouteWithHeaders(t *testing.T) {
 }
 
 func TestHeadersMatch(t *testing.T) {
-	httpso := &httpv1alpha1.HTTPScaledObject{
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Headers: []httpv1alpha1.Header{
-				{Name: "X-Required-Header", Value: ptr.To("expected")},
-				{Name: "X-Key-Only-Header"},
-			},
-		},
+	matchers := []httpv1beta1.HeaderMatch{
+		{Name: "X-Required-Header", Value: ptr.To("expected")},
+		{Name: "X-Key-Only-Header"},
 	}
 
 	tests := []struct {
@@ -377,34 +371,26 @@ func TestHeadersMatch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := headersMatch(httpso, tt.headers)
+			result := headersMatch(matchers, tt.headers)
 			if result != tt.want {
 				t.Errorf("headersMatch()=%v, want=%v", result, tt.want)
 			}
 		})
 	}
-}
 
-func TestHeadersMatchForEmptyHeaderValues(t *testing.T) {
-	httpso := &httpv1alpha1.HTTPScaledObject{
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Headers: []httpv1alpha1.Header{
-				{Name: "X-Empty-Value-Header", Value: ptr.To("")},
-			},
-		},
+	emptyValueMatchers := []httpv1beta1.HeaderMatch{
+		{Name: "X-Empty-Value-Header", Value: ptr.To("")},
 	}
 
 	t.Run("matches empty string header value", func(t *testing.T) {
-		headers := map[string][]string{"X-Empty-Value-Header": {""}}
-		result := headersMatch(httpso, headers)
+		result := headersMatch(emptyValueMatchers, map[string][]string{"X-Empty-Value-Header": {""}})
 		if !result {
 			t.Error("expected headers to match")
 		}
 	})
 
 	t.Run("does not match non-empty string for empty value header", func(t *testing.T) {
-		headers := map[string][]string{"X-Empty-Value-Header": {"non-empty"}}
-		result := headersMatch(httpso, headers)
+		result := headersMatch(emptyValueMatchers, map[string][]string{"X-Empty-Value-Header": {"non-empty"}})
 		if result {
 			t.Error("expected headers not to match")
 		}
@@ -412,56 +398,68 @@ func TestHeadersMatchForEmptyHeaderValues(t *testing.T) {
 }
 
 func TestRoute(t *testing.T) {
-	exampleHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	exampleIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"example.com"}}},
+		},
 	}
-	apiHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	apiIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "api"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}, PathPrefixes: []string{"/api/"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts: []string{"example.com"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api/"}},
+			}},
+		},
 	}
-	rootHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	rootIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "root"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"example.com"}, PathPrefixes: []string{"/"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts: []string{"example.com"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/"}},
+			}},
+		},
 	}
 
 	tests := []struct {
 		name   string
-		stored []*httpv1alpha1.HTTPScaledObject
+		stored []*httpv1beta1.InterceptorRoute
 		host   string
 		path   string
 		want   string // expected Name, or "" for nil
 	}{
 		{
 			name:   "no matching host returns nil",
-			stored: []*httpv1alpha1.HTTPScaledObject{exampleHTTPSO},
+			stored: []*httpv1beta1.InterceptorRoute{exampleIR},
 			host:   "other.com",
 			want:   "",
 		},
 		{
 			name:   "exact host match",
-			stored: []*httpv1alpha1.HTTPScaledObject{exampleHTTPSO},
+			stored: []*httpv1beta1.InterceptorRoute{exampleIR},
 			host:   "example.com",
 			path:   "/any/path",
 			want:   "test",
 		},
 		{
 			name:   "path prefix match",
-			stored: []*httpv1alpha1.HTTPScaledObject{apiHTTPSO},
+			stored: []*httpv1beta1.InterceptorRoute{apiIR},
 			host:   "example.com",
 			path:   "/api/v1/users",
 			want:   "api",
 		},
 		{
 			name:   "path prefix no match",
-			stored: []*httpv1alpha1.HTTPScaledObject{apiHTTPSO},
+			stored: []*httpv1beta1.InterceptorRoute{apiIR},
 			host:   "example.com",
 			path:   "/other/path",
 			want:   "",
 		},
 		{
 			name:   "longest path prefix wins",
-			stored: []*httpv1alpha1.HTTPScaledObject{rootHTTPSO, apiHTTPSO},
+			stored: []*httpv1beta1.InterceptorRoute{rootIR, apiIR},
 			host:   "example.com",
 			path:   "/api/v1",
 			want:   "api",
@@ -471,8 +469,8 @@ func TestRoute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tm := NewTableMemory()
-			for _, httpso := range tt.stored {
-				tm = tm.Remember(httpso)
+			for _, ir := range tt.stored {
+				tm = tm.Remember(ir)
 			}
 
 			route := tm.Route(tt.host, tt.path, nil)
@@ -492,143 +490,322 @@ func TestRoute(t *testing.T) {
 }
 
 func TestRouteWildcardMultiLevel(t *testing.T) {
-	wildcardHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	wildcardIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-example"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*.example.com"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"*.example.com"}}},
+		},
 	}
 
 	t.Run("matches single-level subdomain", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO},
-			"bar.example.com", "", wildcardHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR},
+			"bar.example.com", "", wildcardIR)
 	})
 
 	t.Run("matches nested subdomain", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO},
-			"foo.bar.example.com", "", wildcardHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR},
+			"foo.bar.example.com", "", wildcardIR)
 	})
 
 	t.Run("matches deeply nested subdomain", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO},
-			"a.b.c.example.com", "", wildcardHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR},
+			"a.b.c.example.com", "", wildcardIR)
 	})
 
 	t.Run("rejects different domain", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO},
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR},
 			"foo.other.com", "", nil)
 	})
 }
 
 func TestRouteWildcardPrecedence(t *testing.T) {
-	wildcardHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	wildcardIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-example"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*.example.com"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"*.example.com"}}},
+		},
 	}
-	moreSpecificWildcardHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	moreSpecificWildcardIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-bar-example"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*.bar.example.com"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"*.bar.example.com"}}},
+		},
 	}
-	exactHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	exactIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "exact-foo"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"foo.example.com"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"foo.example.com"}}},
+		},
 	}
-	catchAllHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	catchAllIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "catch-all"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"*"}}},
+		},
 	}
 
 	t.Run("exact wins over wildcard", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO, exactHTTPSO},
-			"foo.example.com", "", exactHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR, exactIR},
+			"foo.example.com", "", exactIR)
 	})
 
 	t.Run("exact wins regardless of storage order", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{exactHTTPSO, wildcardHTTPSO},
-			"foo.example.com", "", exactHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{exactIR, wildcardIR},
+			"foo.example.com", "", exactIR)
 	})
 
 	t.Run("more specific wildcard wins", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO, moreSpecificWildcardHTTPSO},
-			"foo.bar.example.com", "", moreSpecificWildcardHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR, moreSpecificWildcardIR},
+			"foo.bar.example.com", "", moreSpecificWildcardIR)
 	})
 
 	t.Run("falls back to less specific wildcard", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardHTTPSO, moreSpecificWildcardHTTPSO},
-			"foo.baz.example.com", "", wildcardHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR, moreSpecificWildcardIR},
+			"foo.baz.example.com", "", wildcardIR)
 	})
 
 	t.Run("wildcard wins over catch-all", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{catchAllHTTPSO, wildcardHTTPSO},
-			"bar.example.com", "", wildcardHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{catchAllIR, wildcardIR},
+			"bar.example.com", "", wildcardIR)
 	})
 
 	t.Run("falls back to catch-all when no wildcard matches", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{catchAllHTTPSO, wildcardHTTPSO},
-			"bar.other.com", "", catchAllHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{catchAllIR, wildcardIR},
+			"bar.other.com", "", catchAllIR)
 	})
 }
 
 func TestRouteCatchAll(t *testing.T) {
-	catchAllHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	catchAllIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "catch-all"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{"*"}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"*"}}},
+		},
 	}
-	emptyHostHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	emptyHostIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "empty-host"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: []string{""}},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{""}}},
+		},
 	}
-	nilHostHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	nilHostIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "nil-host"},
-		Spec:       httpv1alpha1.HTTPScaledObjectSpec{Hosts: nil},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{}},
+		},
 	}
 
 	t.Run("star matches single-label host", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{catchAllHTTPSO},
-			"localhost", "", catchAllHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{catchAllIR},
+			"localhost", "", catchAllIR)
 	})
 
 	t.Run("star matches multi-label host", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{catchAllHTTPSO},
-			"foo.example.com", "", catchAllHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{catchAllIR},
+			"foo.example.com", "", catchAllIR)
 	})
 
 	t.Run("empty host matches any hostname", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{emptyHostHTTPSO},
-			"anything.example.com", "", emptyHostHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{emptyHostIR},
+			"anything.example.com", "", emptyHostIR)
 	})
 
 	t.Run("nil hosts matches any hostname", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{nilHostHTTPSO},
-			"example.com", "", nilHostHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{nilHostIR},
+			"example.com", "", nilHostIR)
 	})
 }
 
 func TestRouteWildcardWithPath(t *testing.T) {
-	wildcardWithPathHTTPSO := &httpv1alpha1.HTTPScaledObject{
+	wildcardWithPathIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-with-path"},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			Hosts:        []string{"*.example.com"},
-			PathPrefixes: []string{"/api/"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts: []string{"*.example.com"},
+				Paths: []httpv1beta1.PathMatch{{Value: "/api/"}},
+			}},
 		},
 	}
 
 	t.Run("matches with path prefix", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardWithPathHTTPSO},
-			"bar.example.com", "/api/v1/users", wildcardWithPathHTTPSO)
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardWithPathIR},
+			"bar.example.com", "/api/v1/users", wildcardWithPathIR)
 	})
 
 	t.Run("rejects wrong path", func(t *testing.T) {
-		runRouteTest(t, []*httpv1alpha1.HTTPScaledObject{wildcardWithPathHTTPSO},
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardWithPathIR},
 			"bar.example.com", "/other/", nil)
 	})
 }
 
+func TestRouteMultipleRules(t *testing.T) {
+	multiRuleIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "multi-rule"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{
+				{Hosts: []string{"alpha.example.com"}, Paths: []httpv1beta1.PathMatch{{Value: "/api/"}}},
+				{Hosts: []string{"beta.example.com"}},
+			},
+		},
+	}
+
+	tm := NewTableMemory().Remember(multiRuleIR)
+
+	tests := map[string]struct {
+		host      string
+		path      string
+		wantMatch bool
+	}{
+		"matches first rule by host and path": {
+			host:      "alpha.example.com",
+			path:      "/api/v1/resource",
+			wantMatch: true,
+		},
+		"first rule rejects wrong path": {
+			host:      "alpha.example.com",
+			path:      "/other/",
+			wantMatch: false,
+		},
+		"matches second rule by host (any path)": {
+			host:      "beta.example.com",
+			path:      "/anything",
+			wantMatch: true,
+		},
+		"no match for unknown host": {
+			host:      "gamma.example.com",
+			path:      "/api/v1/resource",
+			wantMatch: false,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			route := tm.Route(tt.host, tt.path, nil)
+			gotMatch := route != nil
+			if gotMatch != tt.wantMatch {
+				t.Errorf("got %v, want %v", gotMatch, tt.wantMatch)
+			}
+		})
+	}
+}
+
+func TestRouteMultipleRulesWithHeaders(t *testing.T) {
+	ir := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "multi-rule-headers"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{
+				{
+					Hosts:   []string{"example.com"},
+					Paths:   []httpv1beta1.PathMatch{{Value: "/api/"}},
+					Headers: []httpv1beta1.HeaderMatch{{Name: "X-Version", Value: ptr.To("v1")}},
+				},
+				{
+					Hosts:   []string{"example.com"},
+					Paths:   []httpv1beta1.PathMatch{{Value: "/web/"}},
+					Headers: []httpv1beta1.HeaderMatch{{Name: "X-Mode", Value: ptr.To("debug")}},
+				},
+			},
+		},
+	}
+
+	tm := NewTableMemory().Remember(ir)
+
+	tests := map[string]struct {
+		path      string
+		headers   map[string][]string
+		wantMatch bool
+	}{
+		"matches first rule with correct path and header": {
+			path:      "/api/v1/resource",
+			headers:   map[string][]string{"X-Version": {"v1"}},
+			wantMatch: true,
+		},
+		"first rule rejects wrong header": {
+			path:      "/api/v1/resource",
+			headers:   map[string][]string{"X-Version": {"v2"}},
+			wantMatch: false,
+		},
+		"matches second rule with correct path and header": {
+			path:      "/web/dashboard",
+			headers:   map[string][]string{"X-Mode": {"debug"}},
+			wantMatch: true,
+		},
+		"second rule rejects wrong header": {
+			path:      "/web/dashboard",
+			headers:   map[string][]string{"X-Mode": {"prod"}},
+			wantMatch: false,
+		},
+		"no match for path from rule 1 with header from rule 2": {
+			path:      "/api/v1/resource",
+			headers:   map[string][]string{"X-Mode": {"debug"}},
+			wantMatch: false,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			route := tm.Route("example.com", tt.path, tt.headers)
+			gotMatch := route != nil
+			if gotMatch != tt.wantMatch {
+				t.Errorf("got %v, want %v", gotMatch, tt.wantMatch)
+			}
+		})
+	}
+}
+
+func TestRouteMultipleRulesWithWildcards(t *testing.T) {
+	ir := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "multi-rule-wildcard"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{
+				{Hosts: []string{"exact.example.com"}},
+				{Hosts: []string{"*.wildcard.com"}},
+			},
+		},
+	}
+
+	tm := NewTableMemory().Remember(ir)
+
+	tests := map[string]struct {
+		host      string
+		wantMatch bool
+	}{
+		"matches exact host from first rule": {
+			host:      "exact.example.com",
+			wantMatch: true,
+		},
+		"matches wildcard from second rule": {
+			host:      "foo.wildcard.com",
+			wantMatch: true,
+		},
+		"matches nested wildcard from second rule": {
+			host:      "bar.foo.wildcard.com",
+			wantMatch: true,
+		},
+		"no match for unrelated host": {
+			host:      "other.example.com",
+			wantMatch: false,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			route := tm.Route(tt.host, "", nil)
+			gotMatch := route != nil
+			if gotMatch != tt.wantMatch {
+				t.Errorf("got %v, want %v", gotMatch, tt.wantMatch)
+			}
+		})
+	}
+}
+
 // runRouteTest is a helper that creates a TableMemory, stores the given
-// HTTPScaledObjects, and verifies that Route returns the expected result.
-func runRouteTest(t *testing.T, stored []*httpv1alpha1.HTTPScaledObject, reqHost, reqPath string, want *httpv1alpha1.HTTPScaledObject) {
+// InterceptorRoutes, and verifies that Route returns the expected result.
+func runRouteTest(t *testing.T, stored []*httpv1beta1.InterceptorRoute, reqHost, reqPath string, want *httpv1beta1.InterceptorRoute) {
 	t.Helper()
 	tm := NewTableMemory()
-	for _, httpso := range stored {
-		tm = tm.Remember(httpso)
+	for _, ir := range stored {
+		tm = tm.Remember(ir)
 	}
 
 	route := tm.Route(reqHost, reqPath, nil)

@@ -9,9 +9,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -23,20 +22,18 @@ func TestCountMiddleware(t *testing.T) {
 	uri, err := url.Parse("https://testingkeda.com")
 	r.NoError(err)
 
-	httpso := &httpv1alpha1.HTTPScaledObject{
+	ir := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "test-namespace",
 		},
-		Spec: httpv1alpha1.HTTPScaledObjectSpec{
-			ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
-				Name:    "testdepl",
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{
 				Service: "testservice",
 				Port:    8080,
 			},
-			TargetPendingRequests: ptr.To[int32](123),
 		},
 	}
-	namespacedName := k8s.NamespacedNameFromObject(httpso).String()
+	namespacedName := k8s.NamespacedNameFromObject(ir).String()
 
 	queueCounter := queue.NewFakeCounterBuffered()
 
@@ -57,7 +54,7 @@ func TestCountMiddleware(t *testing.T) {
 	r.NoError(err)
 	reqCtx := req.Context()
 	reqCtx = util.ContextWithLogger(reqCtx, logr.Discard())
-	reqCtx = util.ContextWithHTTPSO(reqCtx, httpso)
+	reqCtx = util.ContextWithInterceptorRoute(reqCtx, ir)
 	req = req.WithContext(reqCtx)
 	req.Host = uri.Host
 

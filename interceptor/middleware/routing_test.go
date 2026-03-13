@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/cache"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
@@ -48,27 +48,21 @@ var _ = Describe("RoutingMiddleware", func() {
 			w                 *httptest.ResponseRecorder
 			r                 *http.Request
 
-			httpso = httpv1alpha1.HTTPScaledObject{
-				Spec: httpv1alpha1.HTTPScaledObjectSpec{
-					Hosts: []string{
-						host,
-					},
-					ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+			ir = httpv1beta1.InterceptorRoute{
+				Spec: httpv1beta1.InterceptorRouteSpec{
+					Target: httpv1beta1.TargetRef{
 						Port: 80,
 					},
 				},
 			}
 
-			httpsoWithPortName = httpv1alpha1.HTTPScaledObject{
+			irWithPortName = httpv1beta1.InterceptorRoute{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "keda",
 					Namespace: "default",
 				},
-				Spec: httpv1alpha1.HTTPScaledObjectSpec{
-					Hosts: []string{
-						"keda2.sh",
-					},
-					ScaleTargetRef: httpv1alpha1.ScaleTargetRef{
+				Spec: httpv1beta1.InterceptorRouteSpec{
+					Target: httpv1beta1.TargetRef{
 						Service:  "keda-svc",
 						PortName: "http",
 					},
@@ -119,7 +113,7 @@ var _ = Describe("RoutingMiddleware", func() {
 					uh = true
 				}))
 
-				routingTable.Memory[host] = &httpso
+				routingTable.Memory[host] = &ir
 
 				routingMiddleware.ServeHTTP(w, r)
 				Expect(uh).To(BeTrue())
@@ -148,7 +142,7 @@ var _ = Describe("RoutingMiddleware", func() {
 					uh = true
 				}))
 
-				routingTable.Memory["keda2.sh"] = &httpsoWithPortName
+				routingTable.Memory["keda2.sh"] = &irWithPortName
 
 				r.Host = "keda2.sh"
 				routingMiddleware.ServeHTTP(w, r)
@@ -175,13 +169,13 @@ var _ = Describe("RoutingMiddleware", func() {
 					uh = true
 				}))
 
-				routingTable.Memory["keda2.sh"] = &httpsoWithPortName
+				routingTable.Memory["keda2.sh"] = &irWithPortName
 
 				r.Host = "keda2.sh"
 				routingMiddleware.ServeHTTP(w, r)
 				Expect(uh).To(BeFalse())
 				Expect(w.Code).To(Equal(http.StatusInternalServerError))
-				Expect(w.Body.String()).To(Equal("Internal Server Error"))
+				Expect(w.Body.String()).To(Equal("Internal Server Error\n"))
 			})
 		})
 
@@ -201,7 +195,7 @@ var _ = Describe("RoutingMiddleware", func() {
 
 				Expect(uh).To(BeFalse())
 				Expect(w.Code).To(Equal(sc))
-				Expect(w.Body.String()).To(Equal(st))
+				Expect(w.Body.String()).To(Equal(st + "\n"))
 			})
 		})
 	})

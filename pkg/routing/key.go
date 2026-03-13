@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
 
 // catchAllHostKey is the internal routing key for catch-all host matching.
@@ -67,34 +67,29 @@ func NewKeyFromRequest(req *http.Request) Key {
 	return NewKeyFromURL(&keyURL)
 }
 
-// NewKeysFromHTTPSO creates routing keys from an HTTPScaledObject.
-func NewKeysFromHTTPSO(httpso *httpv1alpha1.HTTPScaledObject) Keys {
-	if httpso == nil {
-		return nil
+// newKeysFromRoutingRule creates routing keys from a RoutingRule.
+// Nil hosts default to catch-all, nil paths default to root.
+func newKeysFromRoutingRule(rule httpv1beta1.RoutingRule) Keys {
+	hosts := rule.Hosts
+	if len(hosts) == 0 {
+		hosts = []string{catchAllHostKey}
 	}
-	spec := httpso.Spec
 
-	hosts := spec.Hosts
-	if hosts == nil {
-		hosts = []string{""}
+	paths := rule.Paths
+	if len(paths) == 0 {
+		paths = []httpv1beta1.PathMatch{{}}
 	}
-	hostsSize := len(hosts)
 
-	pathPrefixes := spec.PathPrefixes
-	if pathPrefixes == nil {
-		pathPrefixes = []string{""}
-	}
-	pathPrefixesSize := len(pathPrefixes)
+	keys := make([]Key, 0, len(hosts)*len(paths))
 
-	keysSize := hostsSize * pathPrefixesSize
-	keys := make([]Key, 0, keysSize)
-	for _, host := range hosts {
-		hostname := stripPort(host)
+	for _, hostname := range hosts {
+		hostname = stripPort(hostname)
 		if isCatchAllHostname(hostname) {
 			hostname = catchAllHostKey
 		}
-		for _, pathPrefix := range pathPrefixes {
-			key := NewKey(hostname, pathPrefix)
+
+		for _, path := range paths {
+			key := NewKey(hostname, path.Value)
 			keys = append(keys, key)
 		}
 	}
