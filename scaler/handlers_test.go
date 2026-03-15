@@ -640,7 +640,7 @@ func TestGetMetrics(t *testing.T) {
 		}
 
 		go func() {
-			_ = pinger.start(ctx, ticker, k8s.NewFakeEndpointsCache())
+			_ = pinger.start(ctx, ticker)
 		}()
 		// sleep for a bit to ensure the pinger has time to do its first tick
 		time.Sleep(10 * queuePingerTickDur)

@@ -15,7 +15,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/client-go/kubernetes"
 	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -77,14 +76,8 @@ func main() {
 
 	cfg := ctrl.GetConfigOrDie()
 
-	cl, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		setupLog.Error(err, "creating new Kubernetes ClientSet")
-		runtime.Goexit()
-	}
-
-	endpointsCache := k8s.NewInformerBackedEndpointsCache(ctrl.Log, cl, 60*time.Minute)
-	waitFunc := newWorkloadReplicasForwardWaitFunc(endpointsCache.ReadyCache())
+	ctx := ctrl.SetupSignalHandler()
+	ctx = util.ContextWithLogger(ctx, ctrl.Log)
 
 	cacheOpts := cache.Options{
 		Scheme:     kedacache.NewScheme(),
@@ -101,6 +94,14 @@ func main() {
 		setupLog.Error(err, "creating cache")
 		runtime.Goexit()
 	}
+
+	readyCache, err := k8s.NewReadyEndpointsCacheWithInformer(ctx, ctrl.Log, ctrlCache)
+	if err != nil {
+		setupLog.Error(err, "creating endpoints cache")
+		runtime.Goexit()
+	}
+
+	waitFunc := newWorkloadReplicasForwardWaitFunc(readyCache)
 
 	queues := queue.NewMemory()
 
@@ -124,9 +125,6 @@ func main() {
 	}
 
 	setupLog.Info("Interceptor starting")
-
-	ctx := ctrl.SetupSignalHandler()
-	ctx = util.ContextWithLogger(ctx, ctrl.Log)
 
 	eg, ctx := errgroup.WithContext(ctx)
 
@@ -154,14 +152,6 @@ func main() {
 		setupLog.Error(nil, "cache failed to sync")
 		runtime.Goexit()
 	}
-
-	// start the endpoints cache updater
-	eg.Go(func() error {
-		setupLog.Info("starting the endpoints cache")
-
-		endpointsCache.Start(ctx)
-		return nil
-	})
 
 	// Start the update loop that refreshes the routing table
 	// when HTTPScaledObjects are added, updated, or removed

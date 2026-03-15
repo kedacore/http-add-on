@@ -22,7 +22,6 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,19 +57,6 @@ func main() {
 		setupLog.Error(err, "Kubernetes client config not found")
 		os.Exit(1)
 	}
-	k8sCl, err := kubernetes.NewForConfig(k8sCfg)
-	if err != nil {
-		setupLog.Error(err, "creating new Kubernetes ClientSet")
-		os.Exit(1)
-	}
-	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForK8sClientset(k8sCl), namespace, svcName, deplName, targetPortStr)
-
-	// create the endpoints informer
-	endpInformer := k8s.NewInformerBackedEndpointsCache(
-		ctrl.Log,
-		k8sCl,
-		cfg.DeploymentCacheRsyncPeriod,
-	)
 
 	ctrlCache, err := cache.New(k8sCfg, cache.Options{
 		Scheme:     kedacache.NewScheme(),
@@ -81,34 +67,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForControllerClient(ctrlCache), namespace, svcName, deplName, targetPortStr)
+
 	ctx := ctrl.SetupSignalHandler()
 	ctx = util.ContextWithLogger(ctx, setupLog)
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	// start the endpoints informer
-	eg.Go(func() error {
-		setupLog.Info("starting the endpoints informer")
-
-		endpInformer.Start(ctx)
-		return nil
-	})
-
 	// start the controller-runtime cache
 	eg.Go(func() error {
 		setupLog.Info("starting the controller-runtime cache")
 		return ctrlCache.Start(ctx)
-	})
-
-	eg.Go(func() error {
-		setupLog.Info("starting the queue pinger")
-
-		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration), endpInformer); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "queue pinger failed")
-			return err
-		}
-
-		return nil
 	})
 
 	if len(profilingAddr) > 0 {
@@ -122,11 +91,22 @@ func main() {
 		})
 	}
 
-	// Wait for cache to sync before starting the GRPC server
+	// Wait for cache to sync before starting components that depend on it
 	if !ctrlCache.WaitForCacheSync(ctx) {
 		setupLog.Error(nil, "cache failed to sync")
 		os.Exit(1)
 	}
+
+	eg.Go(func() error {
+		setupLog.Info("starting the queue pinger")
+
+		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration)); !util.IsIgnoredErr(err) {
+			setupLog.Error(err, "queue pinger failed")
+			return err
+		}
+
+		return nil
+	})
 
 	eg.Go(func() error {
 		setupLog.Info("starting the grpc server")
