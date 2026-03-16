@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # renovate: datasource=github-releases depName=golangci/golangci-lint
-      GOLANGCI_LINT_VERSION: "v2.11.2"
+      GOLANGCI_LINT_VERSION: "v2.11.3"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
