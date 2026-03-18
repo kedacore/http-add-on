@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -183,6 +184,100 @@ func TestBuildTLSConfig_NonExistentCertStorePath(t *testing.T) {
 	_, err := BuildTLSConfig(opts, logr.Discard())
 	if err == nil {
 		t.Error("expected error for non-existent cert store path")
+	}
+}
+
+func TestBuildTLSConfig_TLSOptions(t *testing.T) {
+	tests := map[string]struct {
+		opts             TLSOptions
+		wantErr          bool
+		wantMinVersion   uint16
+		wantMaxVersion   uint16
+		wantCipherSuites []uint16
+		wantCurves       []tls.CurveID
+	}{
+		"default min version": {
+			opts:           TLSOptions{},
+			wantMinVersion: 0,
+		},
+		"min version 1.3": {
+			opts:           TLSOptions{MinTLSVersion: "1.3"},
+			wantMinVersion: tls.VersionTLS13,
+		},
+		"min version 1.2": {
+			opts:           TLSOptions{MinTLSVersion: "1.2"},
+			wantMinVersion: tls.VersionTLS12,
+		},
+		"max version 1.2": {
+			opts:           TLSOptions{MaxTLSVersion: "1.2"},
+			wantMaxVersion: tls.VersionTLS12,
+		},
+		"invalid min version": {
+			opts:    TLSOptions{MinTLSVersion: "1.1"},
+			wantErr: true,
+		},
+		"invalid max version": {
+			opts:    TLSOptions{MaxTLSVersion: "1.0"},
+			wantErr: true,
+		},
+		"cipher suites": {
+			opts: TLSOptions{CipherSuites: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+			wantCipherSuites: []uint16{
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			},
+		},
+		"cipher suites whitespace only": {
+			opts:             TLSOptions{CipherSuites: " , "},
+			wantCipherSuites: nil,
+		},
+		"invalid cipher suite": {
+			opts:    TLSOptions{CipherSuites: "INVALID_SUITE"},
+			wantErr: true,
+		},
+		"curve preferences go names": {
+			opts:       TLSOptions{CurvePreferences: "X25519,CurveP256"},
+			wantCurves: []tls.CurveID{tls.X25519, tls.CurveP256},
+		},
+		"curve preferences standard names": {
+			opts:       TLSOptions{CurvePreferences: "P-256, P-384"},
+			wantCurves: []tls.CurveID{tls.CurveP256, tls.CurveP384},
+		},
+		"curve preferences whitespace only": {
+			opts:       TLSOptions{CurvePreferences: " , "},
+			wantCurves: nil,
+		},
+		"invalid curve preference": {
+			opts:    TLSOptions{CurvePreferences: "INVALID_CURVE"},
+			wantErr: true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			tlsCfg, err := BuildTLSConfig(tt.opts, logr.Discard())
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tlsCfg.MinVersion != tt.wantMinVersion {
+				t.Errorf("MinVersion = %d, want %d", tlsCfg.MinVersion, tt.wantMinVersion)
+			}
+			if tlsCfg.MaxVersion != tt.wantMaxVersion {
+				t.Errorf("MaxVersion = %d, want %d", tlsCfg.MaxVersion, tt.wantMaxVersion)
+			}
+			if !slices.Equal(tlsCfg.CipherSuites, tt.wantCipherSuites) {
+				t.Errorf("CipherSuites = %v, want %v", tlsCfg.CipherSuites, tt.wantCipherSuites)
+			}
+			if !slices.Equal(tlsCfg.CurvePreferences, tt.wantCurves) {
+				t.Errorf("CurvePreferences = %v, want %v", tlsCfg.CurvePreferences, tt.wantCurves)
+			}
+		})
 	}
 }
 

@@ -53,6 +53,10 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 			RootCAs:            cfg.TLSConfig.RootCAs,
 			Certificates:       cfg.TLSConfig.Certificates,
 			InsecureSkipVerify: cfg.TLSConfig.InsecureSkipVerify, //nolint:gosec // G402: user-configurable
+			MinVersion:         cfg.TLSConfig.MinVersion,
+			MaxVersion:         cfg.TLSConfig.MaxVersion,
+			CipherSuites:       cfg.TLSConfig.CipherSuites,
+			CurvePreferences:   cfg.TLSConfig.CurvePreferences,
 		}
 	}
 	transport := &http.Transport{

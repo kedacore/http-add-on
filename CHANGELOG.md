@@ -37,6 +37,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Docs**: Update design doc to use `scalingMetric`/`targetValue` instead of deprecated `targetPendingRequests` ([#1536](https://github.com/kedacore/http-add-on/pull/1536))
+- **Interceptor**: Add env-based TLS configuration for min/max version, cipher suites, and curve preferences ([#1530](https://github.com/kedacore/http-add-on/pull/1530))
 - **Interceptor**: Reduce interceptor latency and memory usage under high concurrency ([#1482](https://github.com/kedacore/http-add-on/pull/1482))
 - **Interceptor**: Speed up endpoint readiness checks with a fast lookup cache ([#1472](https://github.com/kedacore/http-add-on/pull/1472))
 
