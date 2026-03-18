@@ -27,6 +27,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Breaking Changes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Remove B3 (Zipkin) trace propagation, only W3C TraceContext and W3C Baggage are now supported ([#1519](https://github.com/kedacore/http-add-on/issues/1519))
 
 ### New
 
