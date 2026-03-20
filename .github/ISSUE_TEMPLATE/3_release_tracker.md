@@ -19,7 +19,6 @@ We aim to release this release in the week of <week range, example March 27-31>.
 
 ## Progress
 
-- [ ] Add the new version to the GitHub Bug report template
 - [ ] Create the KEDA HTTP Add-on release
 - [ ] Prepare & ship the Helm chart
 - [ ] Publish on Artifact Hub ([repo](https://github.com/kedacore/external-scalers))
