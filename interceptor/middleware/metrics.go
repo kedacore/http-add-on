@@ -17,21 +17,16 @@ func NewMetrics(upstreamHandler http.Handler) *Metrics {
 }
 
 func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w = newResponseWriter(w)
+	rw := newInstrumentedResponseWriter(w)
 
-	defer m.metrics(w, r)
+	defer m.metrics(rw, r)
 
-	m.upstreamHandler.ServeHTTP(w, r)
+	m.upstreamHandler.ServeHTTP(rw, r)
 }
 
-func (m *Metrics) metrics(w http.ResponseWriter, r *http.Request) {
-	mrw := w.(*responseWriter)
-	if mrw == nil {
-		mrw = newResponseWriter(w)
-	}
-
+func (m *Metrics) metrics(rw *instrumentedResponseWriter, r *http.Request) {
 	// exclude readiness & liveness probes from the emitted metrics
 	if r.URL.Path != "/livez" && r.URL.Path != "/readyz" {
-		metrics.RecordRequestCount(r.Method, r.URL.Path, mrw.statusCode, r.Host)
+		metrics.RecordRequestCount(r.Method, r.URL.Path, rw.statusCode, r.Host)
 	}
 }

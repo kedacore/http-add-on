@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	CombinedLogFormat     = `%s %s %s [%s] "%s %s %s" %d %d "%s" "%s"`
-	CombinedLogTimeFormat = "02/Jan/2006:15:04:05 -0700"
-	CombinedLogBlankValue = "-"
+	combinedLogFormat     = `%s - - [%s] "%s %s %s" %d %d "%s" "%s"`
+	combinedLogTimeFormat = "02/Jan/2006:15:04:05 -0700"
 )
 
 type Logging struct {
@@ -32,39 +31,32 @@ var _ http.Handler = (*Logging)(nil)
 
 func (lm *Logging) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = util.RequestWithLogger(r, lm.logger.WithName("LoggingMiddleware"))
-	w = newResponseWriter(w)
+	rw := newInstrumentedResponseWriter(w)
 
 	startTime := time.Now()
-	defer lm.logAsync(w, r, startTime)
+	defer lm.logAsync(rw, r, startTime)
 
-	lm.upstreamHandler.ServeHTTP(w, r)
+	lm.upstreamHandler.ServeHTTP(rw, r)
 }
 
-func (lm *Logging) logAsync(w http.ResponseWriter, r *http.Request, startTime time.Time) {
-	go lm.log(w, r, startTime)
+func (lm *Logging) logAsync(rw *instrumentedResponseWriter, r *http.Request, startTime time.Time) {
+	go lm.log(rw, r, startTime)
 }
 
-func (lm *Logging) log(w http.ResponseWriter, r *http.Request, startTime time.Time) {
+func (lm *Logging) log(rw *instrumentedResponseWriter, r *http.Request, startTime time.Time) {
 	ctx := r.Context()
 	logger := util.LoggerFromContext(ctx)
 
-	lrw := w.(*responseWriter)
-	if lrw == nil {
-		lrw = newResponseWriter(w)
-	}
-
-	timestamp := startTime.Format(CombinedLogTimeFormat)
+	timestamp := startTime.Format(combinedLogTimeFormat)
 	log := fmt.Sprintf(
-		CombinedLogFormat,
+		combinedLogFormat,
 		r.RemoteAddr,
-		CombinedLogBlankValue,
-		CombinedLogBlankValue,
 		timestamp,
 		r.Method,
 		r.URL.Path,
 		r.Proto,
-		lrw.StatusCode(),
-		lrw.BytesWritten(),
+		rw.statusCode,
+		rw.bytesWritten,
 		r.Referer(),
 		r.UserAgent(),
 	)
