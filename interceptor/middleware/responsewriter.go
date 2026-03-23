@@ -1,71 +1,38 @@
 package middleware
 
 import (
-	"bufio"
-	"errors"
-	"net"
 	"net/http"
 )
 
-type responseWriter struct {
-	downstreamResponseWriter http.ResponseWriter
-	bytesWritten             int
-	statusCode               int
+// instrumentedResponseWriter wraps http.ResponseWriter to capture the status code and bytes written
+// for logging and metrics.
+// It implements Unwrap() so that we don't have to reimplement optional interfaces like Flusher, Hijacker, ...
+type instrumentedResponseWriter struct {
+	http.ResponseWriter
+	bytesWritten int
+	statusCode   int
 }
 
-func newResponseWriter(downstreamResponseWriter http.ResponseWriter) *responseWriter {
-	return &responseWriter{
-		downstreamResponseWriter: downstreamResponseWriter,
+func newInstrumentedResponseWriter(w http.ResponseWriter) *instrumentedResponseWriter {
+	return &instrumentedResponseWriter{
+		ResponseWriter: w,
 	}
 }
 
-func (rw *responseWriter) BytesWritten() int {
-	return rw.bytesWritten
+var _ interface{ Unwrap() http.ResponseWriter } = (*instrumentedResponseWriter)(nil)
+
+func (rw *instrumentedResponseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
 }
 
-func (rw *responseWriter) StatusCode() int {
-	return rw.statusCode
-}
-
-var (
-	_ http.ResponseWriter = (*responseWriter)(nil)
-	_ http.Hijacker       = (*responseWriter)(nil)
-)
-
-func (rw *responseWriter) Header() http.Header {
-	return rw.downstreamResponseWriter.Header()
-}
-
-func (rw *responseWriter) Write(bytes []byte) (int, error) {
-	n, err := rw.downstreamResponseWriter.Write(bytes)
-	if f, ok := rw.downstreamResponseWriter.(http.Flusher); ok {
-		f.Flush()
-	}
-
+func (rw *instrumentedResponseWriter) Write(bytes []byte) (int, error) {
+	n, err := rw.ResponseWriter.Write(bytes)
 	rw.bytesWritten += n
 
 	return n, err
 }
 
-func (rw *responseWriter) WriteHeader(statusCode int) {
-	rw.downstreamResponseWriter.WriteHeader(statusCode)
-
+func (rw *instrumentedResponseWriter) WriteHeader(statusCode int) {
+	rw.ResponseWriter.WriteHeader(statusCode)
 	rw.statusCode = statusCode
-}
-
-func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if hj, ok := rw.downstreamResponseWriter.(http.Hijacker); ok {
-		return hj.Hijack()
-	}
-
-	return nil, nil, errors.New("http.Hijacker not implemented")
-}
-
-// https://pkg.go.dev/net/http#ResponseController.EnableFullDuplex
-func (rw *responseWriter) EnableFullDuplex() error {
-	if hj, ok := rw.downstreamResponseWriter.(interface{ EnableFullDuplex() error }); ok {
-		return hj.EnableFullDuplex()
-	}
-
-	return errors.New("EnableFullDuplex() not implemented")
 }
