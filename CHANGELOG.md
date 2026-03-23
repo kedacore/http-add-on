@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.13.0](#v0130)
 - [v0.12.2](#v0122)
 - [v0.12.1](#v0121)
 - [v0.12.0](#v0120)
@@ -27,7 +28,6 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Breaking Changes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-- **Interceptor**: Remove B3 (Zipkin) trace propagation, only W3C TraceContext and W3C Baggage are now supported ([#1519](https://github.com/kedacore/http-add-on/issues/1519))
 
 ### New
 
@@ -36,6 +36,27 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Improvements
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Fixes
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.13.0
+
+### Breaking Changes
+
+- **Interceptor**: Remove B3 (Zipkin) trace propagation, only W3C TraceContext and W3C Baggage are now supported ([#1519](https://github.com/kedacore/http-add-on/issues/1519))
+
+### Improvements
+
 - **Docs**: Update design doc to use `scalingMetric`/`targetValue` instead of deprecated `targetPendingRequests` ([#1536](https://github.com/kedacore/http-add-on/pull/1536))
 - **Interceptor**: Add env-based TLS configuration for min/max version, cipher suites, and curve preferences ([#1530](https://github.com/kedacore/http-add-on/pull/1530))
 - **Interceptor**: Reduce interceptor latency and memory usage under high concurrency ([#1482](https://github.com/kedacore/http-add-on/pull/1482))
@@ -47,14 +68,9 @@ This changelog keeps track of work items that have been completed and are ready 
 - **Interceptor**: Remove configurable `KEDA_HTTP_ENDPOINTS_CACHE_POLLING_INTERVAL_MS` and hardcode EndpointSlice informer resync to 60m ([#1485](https://github.com/kedacore/http-add-on/pull/1485))
 - **Scaler**: Remove unused `KEDA_HTTP_SCALER_DEPLOYMENT_INFORMER_RSYNC_PERIOD` env var ([#1533](https://github.com/kedacore/http-add-on/pull/1533))
 
-### Deprecations
-
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-
 ### Other
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-- **Interceptor**: Remove unused `CurrentNamespace` field and `KEDA_HTTP_CURRENT_NAMESPACE` env var from interceptor config([#1484](https://github.com/kedacore/http-add-on/pull/1484))
+- **Interceptor**: Remove unused `CurrentNamespace` field and `KEDA_HTTP_CURRENT_NAMESPACE` env var from interceptor config ([#1484](https://github.com/kedacore/http-add-on/pull/1484))
 
 ## v0.12.2
 

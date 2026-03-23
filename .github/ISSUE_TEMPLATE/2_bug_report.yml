@@ -45,7 +45,7 @@ body:
     attributes:
       label: HTTP Add-on Version
       description: What version of the KEDA HTTP Add-on are you running?
-      placeholder: "e.g., 0.12.2 — check your Helm release, image tag, or deployment manifests"
+      placeholder: "e.g., 0.13.0 — check your Helm release, image tag, or deployment manifests"
     validations:
       required: false
   - type: input
