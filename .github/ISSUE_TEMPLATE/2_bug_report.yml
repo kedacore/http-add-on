@@ -1,6 +1,6 @@
 name: Report a bug 🐛
 description: Create a report to help us improve
-labels: "bug"
+labels: "needs-triage,bug"
 body:
   - type: textarea
     attributes:
@@ -41,31 +41,18 @@ body:
         ```
     validations:
       required: false
-  - type: dropdown
+  - type: input
     attributes:
       label: HTTP Add-on Version
       description: What version of the KEDA HTTP Add-on are you running?
-      options:
-        - "0.12.2"
-        - "0.12.1"
-        - "0.12.0"
-        - "0.11.1"
-        - "0.11.0"
-        - "0.10.0"
-        - "Other"
+      placeholder: "e.g., 0.12.2 — check your Helm release, image tag, or deployment manifests"
     validations:
       required: false
-  - type: dropdown
+  - type: input
     attributes:
       label: Kubernetes Version
-      description: What version of Kubernetes that are you running?
-      options:
-        - "1.35"
-        - "1.34"
-        - "1.33"
-        - "1.32"
-        - "< 1.32"
-        - "Other"
+      description: What version of Kubernetes are you running?
+      placeholder: "e.g., 1.35 — run 'kubectl version' to check"
     validations:
       required: false
   - type: dropdown
