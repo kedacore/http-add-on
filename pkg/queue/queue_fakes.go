@@ -45,7 +45,7 @@ func (f *FakeCounter) Increase(host string, i int) error {
 	f.mapMut.Lock()
 	count := f.RetMap[host]
 	count.Concurrency += i
-	count.RPS += float64(i)
+	count.RequestCount += int64(i)
 	f.RetMap[host] = count
 	f.mapMut.Unlock()
 	select {
@@ -76,16 +76,12 @@ func (f *FakeCounter) Decrease(host string, i int) error {
 	return nil
 }
 
-func (f *FakeCounter) EnsureKey(host string, _, _ time.Duration) {
+func (f *FakeCounter) EnsureKey(host string) {
 	f.mapMut.Lock()
 	defer f.mapMut.Unlock()
-	f.RetMap[host] = Count{
-		Concurrency: 0,
+	if _, ok := f.RetMap[host]; !ok {
+		f.RetMap[host] = Count{}
 	}
-}
-
-func (f *FakeCounter) UpdateBuckets(host string, window, granularity time.Duration) {
-	f.EnsureKey(host, window, granularity)
 }
 
 func (f *FakeCounter) RemoveKey(host string) bool {
@@ -108,17 +104,19 @@ func (f *FakeCounter) Current() (*Counts, error) {
 var _ CountReader = &FakeCountReader{}
 
 type FakeCountReader struct {
-	concurrency int
-	rps         float64
-	err         error
+	concurrency  int
+	requestCount int64
+	rps          float64
+	err          error
 }
 
 func (f *FakeCountReader) Current() (*Counts, error) {
 	ret := NewCounts()
 	ret.Counts = map[string]Count{
 		"sample.com": {
-			Concurrency: f.concurrency,
-			RPS:         f.rps,
+			Concurrency:  f.concurrency,
+			RequestCount: f.requestCount,
+			RPS:          f.rps,
 		},
 	}
 	return ret, f.err

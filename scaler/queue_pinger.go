@@ -5,7 +5,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -22,24 +24,21 @@ const (
 	PingerUNKNOWN PingerStatus = 0
 	PingerACTIVE  PingerStatus = 1
 	PingerERROR   PingerStatus = 2
+
+	defaultWindow      = time.Minute
+	defaultGranularity = time.Second
 )
 
 // queuePinger has functionality to ping all interceptors
 // behind a given `Service`, fetch their pending queue counts,
 // and aggregate all of those counts together.
 //
-// It's capable of doing that work in parallel when possible
-// as well.
+// It computes request rate (RPS) from monotonic counters
+// reported by interceptor pods, using a windowed ring buffer.
 //
 // Sample usage:
 //
-//	pinger, err := newQueuePinger(ctx, lggr, getEndpointsFn, ns, svcName, adminPort)
-//	if err != nil {
-//		panic(err)
-//	}
-//	// make sure to start the background pinger loop.
-//	// you can shut this loop down by using a cancellable
-//	// context
+//	pinger := newQueuePinger(lggr, getEndpointsFn, ns, svcName, deplName, adminPort)
 //	go pinger.start(ctx, ticker)
 type queuePinger struct {
 	getEndpointsFn         k8s.GetEndpointsFunc
@@ -47,26 +46,33 @@ type queuePinger struct {
 	interceptorSvcName     string
 	interceptorServiceName string
 	adminPort              string
-	pingMut                *sync.RWMutex
+	pingMut                sync.RWMutex
 	lastPingTime           time.Time
 	allCounts              map[string]queue.Count
 	lggr                   logr.Logger
 	status                 PingerStatus
+
+	// prevPodCounts tracks the previous RequestCount per pod per key
+	// so we can compute deltas between consecutive polls.
+	prevPodCounts map[string]map[string]int64
+
+	// rateBuckets holds per-key windowed ring buffers that accumulate
+	// request deltas for rate computation.
+	rateBuckets map[string]*queue.RequestsBuckets
 }
 
 func newQueuePinger(lggr logr.Logger, getEndpointsFn k8s.GetEndpointsFunc, ns, svcName, deplName, adminPort string) *queuePinger {
-	pingMut := new(sync.RWMutex)
-	pinger := &queuePinger{
+	return &queuePinger{
 		getEndpointsFn:         getEndpointsFn,
 		interceptorNS:          ns,
 		interceptorSvcName:     svcName,
 		interceptorServiceName: deplName,
 		adminPort:              adminPort,
-		pingMut:                pingMut,
 		lggr:                   lggr,
 		allCounts:              map[string]queue.Count{},
+		prevPodCounts:          map[string]map[string]int64{},
+		rateBuckets:            map[string]*queue.RequestsBuckets{},
 	}
-	return pinger
 }
 
 // start starts the queuePinger
@@ -89,40 +95,136 @@ func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker) error {
 }
 
 func (q *queuePinger) counts() map[string]queue.Count {
-	// FIXME: the locking doesn't do anything, the internal map is still returned and could see concurrent access
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
-	return q.allCounts
+	return maps.Clone(q.allCounts)
 }
 
-// fetchAndSaveCounts calls fetchCounts, and then
-// saves them to internal state in q
+func (q *queuePinger) count(key string) queue.Count {
+	q.pingMut.RLock()
+	defer q.pingMut.RUnlock()
+	return q.allCounts[key]
+}
+
+// UpdateBucketConfig sets the window and granularity for a key's rate
+// ring buffer. If the config changes, the existing bucket is replaced.
+func (q *queuePinger) UpdateBucketConfig(key string, window, granularity time.Duration) {
+	q.pingMut.Lock()
+	defer q.pingMut.Unlock()
+	q.updateBucketConfigLocked(key, window, granularity)
+}
+
+func (q *queuePinger) updateBucketConfigLocked(key string, window, granularity time.Duration) {
+	if window <= 0 {
+		window = defaultWindow
+	}
+	if granularity <= 0 {
+		granularity = defaultGranularity
+	}
+	if b, ok := q.rateBuckets[key]; ok &&
+		b.Window() == window && b.Granularity() == granularity {
+		return
+	}
+	q.rateBuckets[key] = queue.NewRequestsBuckets(window, granularity)
+}
+
+// ensureBucketLocked creates a default bucket for key if none exists.
+// Must be called with pingMut held.
+func (q *queuePinger) ensureBucketLocked(key string) *queue.RequestsBuckets {
+	if b, ok := q.rateBuckets[key]; ok {
+		return b
+	}
+	q.updateBucketConfigLocked(key, defaultWindow, defaultGranularity)
+	return q.rateBuckets[key]
+}
+
+// fetchAndSaveCounts fetches raw counts from all interceptor pods,
+// computes per-key request deltas, records them in the windowed
+// ring buffers, and updates the aggregated allCounts map.
 func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	q.pingMut.Lock()
 	defer q.pingMut.Unlock()
-	counts, err := fetchCounts(ctx, q.lggr, q.getEndpointsFn, q.interceptorNS, q.interceptorSvcName, q.adminPort)
+
+	perPod, err := fetchCountsPerPod(ctx, q.lggr, q.getEndpointsFn, q.interceptorNS, q.interceptorSvcName, q.adminPort)
 	if err != nil {
 		q.lggr.Error(err, "getting request counts")
 		q.status = PingerERROR
 		return err
 	}
 	q.status = PingerACTIVE
-	q.allCounts = counts
-	q.lastPingTime = time.Now()
 
+	now := time.Now()
+
+	// Per-key aggregated concurrency and request-count delta.
+	type keyAgg struct {
+		concurrency int
+		delta       int64
+	}
+	agg := make(map[string]keyAgg)
+
+	for podKey, counts := range perPod {
+		prev := q.prevPodCounts[podKey]
+		newPrev := make(map[string]int64, len(counts.Counts))
+
+		for key, c := range counts.Counts {
+			newPrev[key] = c.RequestCount
+
+			ha := agg[key]
+			ha.concurrency += c.Concurrency
+
+			if prev != nil {
+				if old, ok := prev[key]; ok {
+					delta := c.RequestCount - old
+					if delta < 0 {
+						// Counter reset (pod restarted); treat entire
+						// current value as the delta.
+						delta = c.RequestCount
+					}
+					ha.delta += delta
+				}
+				// New key on an existing pod: skip delta for this
+				// tick to avoid a spike.
+			}
+			// New pod (prev == nil): skip delta for this tick.
+
+			agg[key] = ha
+		}
+		q.prevPodCounts[podKey] = newPrev
+	}
+
+	// Prune pods that are no longer reporting.
+	for podKey := range q.prevPodCounts {
+		if _, ok := perPod[podKey]; !ok {
+			delete(q.prevPodCounts, podKey)
+		}
+	}
+
+	// Record deltas into ring buffers and compute rates.
+	newCounts := make(map[string]queue.Count, len(agg))
+	for key, ha := range agg {
+		b := q.ensureBucketLocked(key)
+		b.Record(now, int(ha.delta))
+		newCounts[key] = queue.Count{
+			Concurrency: ha.concurrency,
+			RPS:         b.WindowAverage(now),
+		}
+	}
+
+	// Remove buckets for keys that disappeared.
+	for key := range q.rateBuckets {
+		if _, ok := agg[key]; !ok {
+			delete(q.rateBuckets, key)
+		}
+	}
+
+	q.allCounts = newCounts
+	q.lastPingTime = now
 	return nil
 }
 
-// fetchCounts fetches all counts from every endpoint returned
-// by endpointsFn for the given service named svcName on the
-// port adminPort, in namespace ns.
-//
-// Requests to fetch endpoints are made concurrently and
-// aggregated when all requests return successfully.
-//
-// Upon any failure, a non-nil error is returned and the
-// other two return values are nil and 0, respectively.
-func fetchCounts(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpointsFunc, ns, svcName, adminPort string) (map[string]queue.Count, error) {
+// fetchCountsPerPod fetches counts from every interceptor pod endpoint
+// and returns the raw per-pod results keyed by pod URL string.
+func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpointsFunc, ns, svcName, adminPort string) (map[string]*queue.Counts, error) {
 	lggr = lggr.WithName("queuePinger.requestCounts")
 
 	endpointURLs, err := k8s.EndpointsForService(ctx, ns, svcName, adminPort, endpointsFn)
@@ -134,64 +236,40 @@ func fetchCounts(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpo
 		return nil, fmt.Errorf("there isn't any valid interceptor endpoint")
 	}
 
-	countsCh := make(chan *queue.Counts)
-	var wg sync.WaitGroup
+	type podResult struct {
+		key    string
+		counts *queue.Counts
+	}
+
+	resultCh := make(chan podResult, len(endpointURLs))
 	fetchGrp, _ := errgroup.WithContext(ctx)
+
 	for _, endpoint := range endpointURLs {
-		// capture the endpoint in a loop-local
-		// variable so that the goroutine can
-		// use it
 		u := endpoint
-		// have the errgroup goroutine send to
-		// a "private" goroutine, which we'll
-		// then forward on to countsCh
-		ch := make(chan *queue.Counts)
 		fetchGrp.Go(func() error {
 			counts, err := queue.GetCounts(http.DefaultClient, u)
 			if err != nil {
 				lggr.Error(err, "getting queue counts from interceptor", "interceptorAddress", u.String())
 				return err
 			}
-			ch <- counts
+			resultCh <- podResult{key: podKey(u), counts: counts}
 			return nil
 		})
-		// forward the "private" goroutine
-		// on to countsCh separately
-		wg.Go(func() {
-			res := <-ch
-			countsCh <- res
-		})
 	}
-
-	// close countsCh after all goroutines are done sending
-	// to their "private" channels, so that we can range
-	// over countsCh normally below
-	go func() {
-		wg.Wait()
-		close(countsCh)
-	}()
 
 	if err := fetchGrp.Wait(); err != nil {
 		lggr.Error(err, "fetching all counts failed")
 		return nil, err
 	}
+	close(resultCh)
 
-	totalCounts := make(map[string]queue.Count)
-	// range through the result of each endpoint
-	for count := range countsCh {
-		// each endpoint returns a map of counts, one count
-		// per host. add up the counts for each host
-		for host, val := range count.Counts {
-			var responseCount queue.Count
-			var ok bool
-			if responseCount, ok = totalCounts[host]; !ok {
-				responseCount = queue.Count{}
-			}
-			responseCount.Concurrency += val.Concurrency
-			responseCount.RPS += val.RPS
-			totalCounts[host] = responseCount
-		}
+	perPod := make(map[string]*queue.Counts, len(endpointURLs))
+	for r := range resultCh {
+		perPod[r.key] = r.counts
 	}
+	return perPod, nil
+}
 
-	return totalCounts, nil
+func podKey(u url.URL) string {
+	return u.Host
 }

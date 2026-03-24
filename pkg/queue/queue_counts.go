@@ -5,21 +5,23 @@ import (
 	"fmt"
 )
 
-// Count is a snapshot of the HTTP pending request (Concurrency)
-// count and RPS
-
+// Count is a snapshot of the HTTP pending request (Concurrency),
+// the raw monotonic request counter (RequestCount), and the
+// computed request rate (RPS). The interceptor populates
+// Concurrency and RequestCount; the scaler computes RPS.
 type Count struct {
-	Concurrency int
+	Concurrency  int
+	RequestCount int64
 	// TODO(v1): the naming "RPS" is incorrect, it is rather "Rate" or "RequestRate"
 	RPS float64
 }
 
-// Count is a snapshot of the HTTP pending request (Concurrency)
-// count and RPS for each host.
+// Counts is a snapshot of the HTTP pending request counts
+// for each host.
 // This is a json.Marshaler, json.Unmarshaler, and fmt.Stringer
 // implementation.
 //
-// Use NewQueueCounts to create a new one of these.
+// Use NewCounts to create a new one of these.
 type Counts struct {
 	json.Marshaler
 	json.Unmarshaler
@@ -27,7 +29,7 @@ type Counts struct {
 	Counts map[string]Count
 }
 
-// NewQueueCounts creates a new empty QueueCounts struct
+// NewCounts creates a new empty Counts struct
 func NewCounts() *Counts {
 	return &Counts{
 		Counts: map[string]Count{},
@@ -39,6 +41,7 @@ func (q *Counts) Aggregate() Count {
 	res := Count{}
 	for _, count := range q.Counts {
 		res.Concurrency += count.Concurrency
+		res.RequestCount += count.RequestCount
 		res.RPS += count.RPS
 	}
 	return res

@@ -215,7 +215,13 @@ func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externals
 			return nil, err
 		}
 
-		count := e.pinger.counts()[k8s.ResourceKeyFromNamespacedName(nn)]
+		key := k8s.ResourceKeyFromNamespacedName(nn)
+
+		if rr := ir.Spec.ScalingMetric.RequestRate; rr != nil {
+			e.pinger.UpdateBucketConfig(key, rr.Window.Duration, rr.Granularity.Duration)
+		}
+
+		count := e.pinger.count(key)
 
 		var metricValues []*externalscaler.MetricValue
 		if ir.Spec.ScalingMetric.Concurrency != nil {
@@ -262,7 +268,12 @@ func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externals
 	metricName := MetricNameHTTPSO(namespacedName)
 
 	key := namespacedName.String()
-	count := e.pinger.counts()[key]
+
+	if httpso.Spec.ScalingMetric != nil && httpso.Spec.ScalingMetric.Rate != nil {
+		e.pinger.UpdateBucketConfig(key, httpso.Spec.ScalingMetric.Rate.Window.Duration, httpso.Spec.ScalingMetric.Rate.Granularity.Duration)
+	}
+
+	count := e.pinger.count(key)
 
 	var metricValue int
 	if httpso.Spec.ScalingMetric != nil && httpso.Spec.ScalingMetric.Rate != nil {
