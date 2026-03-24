@@ -89,6 +89,7 @@ func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker) error {
 }
 
 func (q *queuePinger) counts() map[string]queue.Count {
+	// FIXME: the locking doesn't do anything, the internal map is still returned and could see concurrent access
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return q.allCounts

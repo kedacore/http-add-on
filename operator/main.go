@@ -21,9 +21,7 @@ import (
 	"os"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -32,23 +30,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
+	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	// +kubebuilder:scaffold:imports
 )
 
 var (
-	scheme   = runtime.NewScheme()
+	scheme   = kedacache.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(httpv1alpha1.AddToScheme(scheme))
+	// TODO(v1): remove when removing HTTPSO
 	utilruntime.Must(kedav1alpha1.AddToScheme(scheme))
-	// +kubebuilder:scaffold:scheme
 }
 
 // +kubebuilder:rbac:groups="",namespace=keda,resources=events,verbs=create;patch
@@ -139,6 +134,13 @@ func main() {
 		BaseConfig:           baseConfig,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
+		os.Exit(1)
+	}
+	if err = (&httpcontrollers.InterceptorRouteReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "InterceptorRoute")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

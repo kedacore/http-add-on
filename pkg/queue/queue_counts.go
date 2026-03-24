@@ -10,7 +10,8 @@ import (
 
 type Count struct {
 	Concurrency int
-	RPS         float64
+	// TODO(v1): the naming "RPS" is incorrect, it is rather "Rate" or "RequestRate"
+	RPS float64
 }
 
 // Count is a snapshot of the HTTP pending request (Concurrency)

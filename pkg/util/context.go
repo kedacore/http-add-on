@@ -6,16 +6,16 @@ import (
 
 	"github.com/go-logr/logr"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
 
 type contextKey int
 
 const (
 	ckLogger contextKey = iota
-	ckHTTPSO
-	ckStream
-	ckFailoverStream
+	ckUpstreamURL
+	ckFallbackURL
+	ckIR
 )
 
 func ContextWithLogger(ctx context.Context, logger logr.Logger) context.Context {
@@ -27,29 +27,29 @@ func LoggerFromContext(ctx context.Context) logr.Logger {
 	return cv
 }
 
-func ContextWithHTTPSO(ctx context.Context, httpso *httpv1alpha1.HTTPScaledObject) context.Context {
-	return context.WithValue(ctx, ckHTTPSO, httpso)
+func ContextWithInterceptorRoute(ctx context.Context, ir *httpv1beta1.InterceptorRoute) context.Context {
+	return context.WithValue(ctx, ckIR, ir)
 }
 
-func HTTPSOFromContext(ctx context.Context) *httpv1alpha1.HTTPScaledObject {
-	cv, _ := ctx.Value(ckHTTPSO).(*httpv1alpha1.HTTPScaledObject)
+func InterceptorRouteFromContext(ctx context.Context) *httpv1beta1.InterceptorRoute {
+	cv, _ := ctx.Value(ckIR).(*httpv1beta1.InterceptorRoute)
 	return cv
 }
 
-func ContextWithStream(ctx context.Context, url *url.URL) context.Context {
-	return context.WithValue(ctx, ckStream, url)
+func ContextWithUpstreamURL(ctx context.Context, url *url.URL) context.Context {
+	return context.WithValue(ctx, ckUpstreamURL, url)
 }
 
-func StreamFromContext(ctx context.Context) *url.URL {
-	cv, _ := ctx.Value(ckStream).(*url.URL)
+func UpstreamURLFromContext(ctx context.Context) *url.URL {
+	cv, _ := ctx.Value(ckUpstreamURL).(*url.URL)
 	return cv
 }
 
-func ContextWithFailoverStream(ctx context.Context, url *url.URL) context.Context {
-	return context.WithValue(ctx, ckFailoverStream, url)
+func ContextWithFallbackURL(ctx context.Context, url *url.URL) context.Context {
+	return context.WithValue(ctx, ckFallbackURL, url)
 }
 
-func FailoverStreamFromContext(ctx context.Context) *url.URL {
-	cv, _ := ctx.Value(ckFailoverStream).(*url.URL)
+func FallbackURLFromContext(ctx context.Context) *url.URL {
+	cv, _ := ctx.Value(ckFallbackURL).(*url.URL)
 	return cv
 }

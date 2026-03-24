@@ -26,6 +26,7 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/metrics"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	"github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/build"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
@@ -38,6 +39,7 @@ import (
 var setupLog = ctrl.Log.WithName("setup")
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
+// +kubebuilder:rbac:groups=http.keda.sh,resources=interceptorroutes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 
@@ -66,8 +68,6 @@ func main() {
 		metricsCfg,
 	)
 
-	proxyPort := servingCfg.ProxyPort
-	adminPort := servingCfg.AdminPort
 	proxyTLSEnabled := servingCfg.ProxyTLSEnabled
 	profilingAddr := servingCfg.ProfilingAddr
 
@@ -104,24 +104,27 @@ func main() {
 	waitFunc := newWorkloadReplicasForwardWaitFunc(readyCache)
 
 	queues := queue.NewMemory()
-
 	routingTable := routing.NewTable(ctrlCache, queues)
 
-	// Setup informer to signal routing table on HTTPSO changes
-	informer, err := ctrlCache.GetInformer(context.Background(), &v1alpha1.HTTPScaledObject{})
-	if err != nil {
-		setupLog.Error(err, "getting HTTPScaledObject informer")
-		runtime.Goexit()
-	}
+	// Setup informers to signal routing table on IR and HTTPSO changes
+	routeSources := []client.Object{&v1beta1.InterceptorRoute{}, &v1alpha1.HTTPScaledObject{}}
 
-	_, err = informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
-		AddFunc:    func(_ any) { routingTable.Signal() },
-		UpdateFunc: func(_, _ any) { routingTable.Signal() },
-		DeleteFunc: func(_ any) { routingTable.Signal() },
-	})
-	if err != nil {
-		setupLog.Error(err, "adding event handlers")
-		runtime.Goexit()
+	for _, obj := range routeSources {
+		informer, err := ctrlCache.GetInformer(ctx, obj)
+		if err != nil {
+			setupLog.Error(err, "getting informer", "type", fmt.Sprintf("%T", obj))
+			runtime.Goexit()
+		}
+
+		_, err = informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+			AddFunc:    func(_ any) { routingTable.Signal() },
+			UpdateFunc: func(_, _ any) { routingTable.Signal() },
+			DeleteFunc: func(_ any) { routingTable.Signal() },
+		})
+		if err != nil {
+			setupLog.Error(err, "adding event handlers")
+			runtime.Goexit()
+		}
 	}
 
 	setupLog.Info("Interceptor starting")
@@ -153,8 +156,7 @@ func main() {
 		runtime.Goexit()
 	}
 
-	// Start the update loop that refreshes the routing table
-	// when HTTPScaledObjects are added, updated, or removed
+	// Start the update loop that refreshes the routing table on InterceptorRoute & HTTPSO changes
 	eg.Go(func() error {
 		setupLog.Info("starting the routing table")
 
@@ -169,9 +171,9 @@ func main() {
 	// start the administrative server. this is the server
 	// that serves the queue size API
 	eg.Go(func() error {
-		setupLog.Info("starting the admin server", "port", adminPort)
+		setupLog.Info("starting the admin server", "port", servingCfg.AdminPort)
 
-		if err := runAdminServer(ctx, ctrl.Log, adminPort, queues, routingTable); !util.IsIgnoredErr(err) {
+		if err := runAdminServer(ctx, ctrl.Log, servingCfg.AdminPort, queues, routingTable); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "admin server failed")
 			return err
 		}
@@ -226,9 +228,9 @@ func main() {
 
 	// start a proxy server without TLS.
 	eg.Go(func() error {
-		setupLog.Info("starting the proxy server with TLS disabled", "port", proxyPort)
+		setupLog.Info("starting the proxy server with TLS disabled", "port", servingCfg.ProxyPort)
 
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, ctrlCache, timeoutCfg, servingCfg, proxyPort, nil, tracingCfg); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, ctrlCache, timeoutCfg, servingCfg, servingCfg.ProxyPort, nil, tracingCfg); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}

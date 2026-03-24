@@ -17,20 +17,20 @@ import (
 var (
 	bufferPool = newBufferPool()
 
-	errNilStream = errors.New("context stream is nil")
+	errNilUpstreamURL = errors.New("upstream URL is nil")
 )
 
 type Upstream struct {
 	roundTripper   http.RoundTripper
 	tracingCfg     config.Tracing
-	shouldFailover bool
+	shouldFallback bool
 }
 
-func NewUpstream(roundTripper http.RoundTripper, tracingCfg config.Tracing, shouldFailover bool) *Upstream {
+func NewUpstream(roundTripper http.RoundTripper, tracingCfg config.Tracing, shouldFallback bool) *Upstream {
 	return &Upstream{
 		roundTripper:   roundTripper,
 		tracingCfg:     tracingCfg,
-		shouldFailover: shouldFailover,
+		shouldFallback: shouldFallback,
 	}
 }
 
@@ -55,13 +55,13 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		span.SetAttributes(serviceValAttr, coldStartValAttr)
 	}
 
-	stream := util.StreamFromContext(ctx)
-	if uh.shouldFailover {
-		stream = util.FailoverStreamFromContext(ctx)
+	url := util.UpstreamURLFromContext(ctx)
+	if uh.shouldFallback {
+		url = util.FallbackURLFromContext(ctx)
 	}
 
-	if stream == nil {
-		sh := NewStatic(http.StatusInternalServerError, errNilStream)
+	if url == nil {
+		sh := NewStatic(http.StatusInternalServerError, errNilUpstreamURL)
 		sh.ServeHTTP(w, r)
 
 		return
@@ -69,7 +69,7 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
-			pr.SetURL(stream)
+			pr.SetURL(url)
 			// Preserve original Host header (SetURL rewrites it by default).
 			pr.Out.Host = pr.In.Host
 

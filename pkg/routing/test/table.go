@@ -4,18 +4,18 @@ import (
 	"context"
 	"net/http"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 type Table struct {
-	Memory map[string]*httpv1alpha1.HTTPScaledObject
+	Memory map[string]*httpv1beta1.InterceptorRoute
 }
 
 func NewTable() *Table {
 	return &Table{
-		Memory: make(map[string]*httpv1alpha1.HTTPScaledObject),
+		Memory: make(map[string]*httpv1beta1.InterceptorRoute),
 	}
 }
 
@@ -28,7 +28,7 @@ func (t Table) Start(_ context.Context) error {
 	return nil
 }
 
-func (t Table) Route(req *http.Request) *httpv1alpha1.HTTPScaledObject {
+func (t Table) Route(req *http.Request) *httpv1beta1.InterceptorRoute {
 	return t.Memory[req.Host]
 }
 

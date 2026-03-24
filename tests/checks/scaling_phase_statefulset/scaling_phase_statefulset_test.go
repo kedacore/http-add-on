@@ -20,7 +20,8 @@ var (
 	testNamespace        = fmt.Sprintf("%s-ns", testName)
 	statefulSetName      = fmt.Sprintf("%s-statefulset", testName)
 	serviceName          = fmt.Sprintf("%s-service", testName)
-	httpScaledObjectName = fmt.Sprintf("%s-http-so", testName)
+	interceptorRouteName = fmt.Sprintf("%s-ir", testName)
+	scaledObjectName     = fmt.Sprintf("%s-so", testName)
 	host                 = testName
 	minReplicaCount      = 0
 	maxReplicaCount      = 4
@@ -30,7 +31,8 @@ type templateData struct {
 	TestNamespace        string
 	StatefulSetName      string
 	ServiceName          string
-	HTTPScaledObjectName string
+	InterceptorRouteName string
+	ScaledObjectName     string
 	Host                 string
 	MinReplicas          int
 	MaxReplicas          int
@@ -114,29 +116,45 @@ spec:
   activeDeadlineSeconds: 600
   backoffLimit: 5
 `
-	httpScaledObjectTemplate = `
-kind: HTTPScaledObject
-apiVersion: http.keda.sh/v1alpha1
+	interceptorRouteTemplate = `
+kind: InterceptorRoute
+apiVersion: http.keda.sh/v1beta1
 metadata:
-  name: {{.HTTPScaledObjectName}}
+  name: {{.InterceptorRouteName}}
   namespace: {{.TestNamespace}}
 spec:
-  hosts:
-  - {{.Host}}
+  target:
+    service: {{.ServiceName}}
+    port: 8080
   scalingMetric:
     requestRate:
       granularity: 1s
       targetValue: 2
       window: 1m
-  scaledownPeriod: 0
+  rules:
+  - hosts:
+    - {{.Host}}
+`
+
+	scaledObjectTemplate = `
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{.ScaledObjectName}}
+  namespace: {{.TestNamespace}}
+spec:
+  cooldownPeriod: 0
+  maxReplicaCount: {{ .MaxReplicas }}
+  minReplicaCount: {{ .MinReplicas }}
   scaleTargetRef:
-    name: {{.StatefulSetName}}
+    apiVersion: apps/v1
     kind: StatefulSet
-    service: {{.ServiceName}}
-    port: 8080
-  replicas:
-    min: {{ .MinReplicas }}
-    max: {{ .MaxReplicas }}
+    name: {{.StatefulSetName}}
+  triggers:
+  - type: external-push
+    metadata:
+      interceptorRoute: {{.InterceptorRouteName}}
+      scalerAddress: keda-add-ons-http-external-scaler.keda:9090
 `
 )
 
@@ -180,13 +198,15 @@ func getTemplateData() (templateData, []Template) {
 			TestNamespace:        testNamespace,
 			StatefulSetName:      statefulSetName,
 			ServiceName:          serviceName,
-			HTTPScaledObjectName: httpScaledObjectName,
+			InterceptorRouteName: interceptorRouteName,
+			ScaledObjectName:     scaledObjectName,
 			Host:                 host,
 			MinReplicas:          minReplicaCount,
 			MaxReplicas:          maxReplicaCount,
 		}, []Template{
 			{Name: "workloadTemplate", Config: workloadTemplate},
 			{Name: "serviceNameTemplate", Config: serviceTemplate},
-			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
+			{Name: "interceptorRouteTemplate", Config: interceptorRouteTemplate},
+			{Name: "scaledObjectTemplate", Config: scaledObjectTemplate},
 		}
 }

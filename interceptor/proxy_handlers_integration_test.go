@@ -56,11 +56,11 @@ func TestIntegrationHappyPath(t *testing.T) {
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
 
-	h.readyCache.Update(target.GetNamespace()+"/"+serviceName, []*discov1.EndpointSlice{
+	h.readyCache.Update(target.Namespace+"/"+serviceName, []*discov1.EndpointSlice{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      serviceName + "-slice",
-				Namespace: target.GetNamespace(),
+				Namespace: target.Namespace,
 				Labels:    map[string]string{discov1.LabelServiceName: serviceName},
 			},
 			Endpoints: []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
@@ -193,11 +193,11 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 		time.Sleep(sleepDur)
 		t.Logf("Woke up, setting replicas to 10")
 
-		h.readyCache.Update(target.GetNamespace()+"/"+serviceName, []*discov1.EndpointSlice{
+		h.readyCache.Update(target.Namespace+"/"+serviceName, []*discov1.EndpointSlice{
 			{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      serviceName + "-slice",
-					Namespace: target.GetNamespace(),
+					Namespace: target.Namespace,
 					Labels:    map[string]string{discov1.LabelServiceName: serviceName},
 				},
 				Endpoints: []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},

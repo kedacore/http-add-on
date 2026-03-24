@@ -155,7 +155,7 @@ func TestForwarderSuccess(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithStream(req, forwardURL)
+	req = util.RequestWithUpstreamURL(req, forwardURL)
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
@@ -201,7 +201,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	dialCtxFunc := retryDialContextFunc(timeouts)
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
-	req = util.RequestWithStream(req, originURL)
+	req = util.RequestWithUpstreamURL(req, originURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
 	uh := NewUpstream(rt, config.Tracing{}, false)
 	uh.ServeHTTP(res, req)
@@ -251,7 +251,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	const path = "/testfwd"
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
-	req = util.RequestWithStream(req, originURL)
+	req = util.RequestWithUpstreamURL(req, originURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
 	uh := NewUpstream(rt, config.Tracing{}, false)
 	uh.ServeHTTP(res, req)
@@ -271,7 +271,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	dialCtxFunc := retryDialContextFunc(timeouts)
 	res, req, err := reqAndRes("/test")
 	r.NoError(err)
-	req = util.RequestWithStream(req, noSuchURL)
+	req = util.RequestWithUpstreamURL(req, noSuchURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
 	uh := NewUpstream(rt, config.Tracing{}, false)
 
@@ -320,7 +320,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	dialCtxFunc := retryDialContextFunc(timeouts)
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
-	req = util.RequestWithStream(req, srvURL)
+	req = util.RequestWithUpstreamURL(req, srvURL)
 	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
 	uh := NewUpstream(rt, config.Tracing{}, false)
 	uh.ServeHTTP(res, req)
@@ -394,7 +394,7 @@ func TestUpstreamPreservesXForwardedHeaders(t *testing.T) {
 			if tt.forwardedPort != "" {
 				req.Header.Set("X-Forwarded-Port", tt.forwardedPort)
 			}
-			req = util.RequestWithStream(req, backendURL)
+			req = util.RequestWithUpstreamURL(req, backendURL)
 
 			upstream.ServeHTTP(httptest.NewRecorder(), req)
 
@@ -525,7 +525,7 @@ func startMicroservice(t *testing.T) (*kedanet.TestHTTPHandlerWrapper, *url.URL,
 }
 
 func createRequestAndResponse(method string, url *url.URL) (*http.Request, http.ResponseWriter) {
-	ctx := util.ContextWithStream(context.Background(), url)
+	ctx := util.ContextWithUpstreamURL(context.Background(), url)
 	request, _ := http.NewRequestWithContext(ctx, method, url.String(), nil)
 	recorder := httptest.NewRecorder()
 	return request, recorder
