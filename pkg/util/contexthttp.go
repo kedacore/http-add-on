@@ -27,10 +27,3 @@ func RequestWithUpstreamURL(r *http.Request, url *url.URL) *http.Request {
 
 	return r.WithContext(ctx)
 }
-
-func RequestWithFallbackURL(r *http.Request, url *url.URL) *http.Request {
-	ctx := r.Context()
-	ctx = ContextWithFallbackURL(ctx, url)
-
-	return r.WithContext(ctx)
-}

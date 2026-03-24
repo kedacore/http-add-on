@@ -4,13 +4,15 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httputil"
+	"time"
 
-	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -21,16 +23,16 @@ var (
 )
 
 type Upstream struct {
-	roundTripper   http.RoundTripper
-	tracingCfg     config.Tracing
-	shouldFallback bool
+	transportPool     *kedahttp.TransportPool
+	tracingCfg        config.Tracing
+	respHeaderTimeout time.Duration
 }
 
-func NewUpstream(roundTripper http.RoundTripper, tracingCfg config.Tracing, shouldFallback bool) *Upstream {
+func NewUpstream(baseTransport *http.Transport, tracingCfg config.Tracing, respHeaderTimeout time.Duration) *Upstream {
 	return &Upstream{
-		roundTripper:   roundTripper,
-		tracingCfg:     tracingCfg,
-		shouldFallback: shouldFallback,
+		transportPool:     kedahttp.NewTransportPool(baseTransport),
+		tracingCfg:        tracingCfg,
+		respHeaderTimeout: respHeaderTimeout,
 	}
 }
 
@@ -41,30 +43,41 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if uh.tracingCfg.Enabled {
-		p := otel.GetTextMapPropagator()
-		ctx = p.Extract(ctx, propagation.HeaderCarrier(r.Header))
-
-		p.Inject(ctx, propagation.HeaderCarrier(w.Header()))
-
 		span := trace.SpanFromContext(ctx)
-		defer span.End()
-
-		serviceValAttr := attribute.String("service", "keda-http-interceptor-proxy-upstream")
-		coldStartValAttr := attribute.String("cold-start", w.Header().Get("X-KEDA-HTTP-Cold-Start"))
-
-		span.SetAttributes(serviceValAttr, coldStartValAttr)
+		span.SetAttributes(
+			attribute.String("service", "keda-http-interceptor-proxy-upstream"),
+			attribute.String("cold-start", w.Header().Get(kedahttp.HeaderColdStart)),
+		)
 	}
 
 	url := util.UpstreamURLFromContext(ctx)
-	if uh.shouldFallback {
-		url = util.FallbackURLFromContext(ctx)
-	}
 
 	if url == nil {
 		sh := NewStatic(http.StatusInternalServerError, errNilUpstreamURL)
 		sh.ServeHTTP(w, r)
 
 		return
+	}
+
+	respHeaderTimeout := uh.respHeaderTimeout
+	// TODO(v1): remove timeout compatibility fallback for HTTPSO before v1 release
+	if ir := util.InterceptorRouteFromContext(ctx); ir != nil {
+		if v, ok := ir.Annotations[k8s.AnnotationResponseHeaderTimeout]; ok {
+			if d, err := time.ParseDuration(v); err == nil && d > 0 {
+				respHeaderTimeout = d
+			}
+		}
+	}
+	transport := uh.transportPool.Get(respHeaderTimeout)
+
+	var rt http.RoundTripper = transport
+	if uh.tracingCfg.Enabled {
+		rt = otelhttp.NewTransport(transport)
+	}
+
+	rc := http.NewResponseController(w)
+	if err := rc.EnableFullDuplex(); err != nil {
+		util.LoggerFromContext(ctx).Error(err, "could not enable full duplex on response writer, continuing")
 	}
 
 	proxy := &httputil.ReverseProxy{
@@ -84,7 +97,7 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		},
 		BufferPool: bufferPool,
-		Transport:  uh.roundTripper,
+		Transport:  rt,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			sh := NewStatic(http.StatusBadGateway, err)
 			sh.ServeHTTP(w, r)

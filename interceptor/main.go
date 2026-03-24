@@ -101,8 +101,6 @@ func main() {
 		runtime.Goexit()
 	}
 
-	waitFunc := newWorkloadReplicasForwardWaitFunc(readyCache)
-
 	queues := queue.NewMemory()
 	routingTable := routing.NewTable(ctrlCache, queues)
 
@@ -218,7 +216,7 @@ func main() {
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, ctrlCache, timeoutCfg, servingCfg, proxyTLSPort, tlsCfg, tracingCfg); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, proxyTLSPort, tlsCfg, tracingCfg); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -230,7 +228,7 @@ func main() {
 	eg.Go(func() error {
 		setupLog.Info("starting the proxy server with TLS disabled", "port", servingCfg.ProxyPort)
 
-		if err := runProxyServer(ctx, ctrl.Log, queues, waitFunc, routingTable, ctrlCache, timeoutCfg, servingCfg, servingCfg.ProxyPort, nil, tracingCfg); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, servingCfg.ProxyPort, nil, tracingCfg); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -292,7 +290,7 @@ func runProxyServer(
 	ctx context.Context,
 	logger logr.Logger,
 	q queue.Counter,
-	waitFunc forwardWaitFunc,
+	readyCache *k8s.ReadyEndpointsCache,
 	routingTable routing.Table,
 	reader client.Reader,
 	timeouts config.Timeouts,
@@ -305,7 +303,7 @@ func runProxyServer(
 	rootHandler := BuildProxyHandler(&ProxyHandlerConfig{
 		Logger:       logger,
 		Queue:        q,
-		WaitFunc:     waitFunc,
+		ReadyCache:   readyCache,
 		RoutingTable: routingTable,
 		Reader:       reader,
 		Timeouts:     timeouts,

@@ -2,14 +2,11 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -22,10 +19,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
-	"github.com/kedacore/http-add-on/interceptor/middleware"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
+	"github.com/kedacore/http-add-on/pkg/queue"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
 
@@ -33,7 +31,6 @@ import (
 func TestIntegrationHappyPath(t *testing.T) {
 	const (
 		activeEndpointsTimeout = 200 * time.Millisecond
-		deploymentName         = "testdeployment"
 		serviceName            = "testservice"
 	)
 	r := require.New(t)
@@ -49,9 +46,7 @@ func TestIntegrationHappyPath(t *testing.T) {
 	r.NoError(err)
 
 	target := targetFromURL(
-		h.originURL,
 		originPort,
-		deploymentName,
 		serviceName,
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
@@ -108,7 +103,6 @@ func TestIntegrationNoReplicas(t *testing.T) {
 		activeEndpointsTimeout = 100 * time.Millisecond
 	)
 	host := hostForTest(t)
-	deploymentName := "testdeployment"
 	serviceName := "testservice"
 	r := require.New(t)
 	h, err := newHarness(t, activeEndpointsTimeout)
@@ -118,9 +112,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 	r.NoError(err)
 
 	target := targetFromURL(
-		h.originURL,
 		originPort,
-		deploymentName,
 		serviceName,
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
@@ -148,7 +140,6 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	const (
 		activeEndpointsTimeout = 2 * time.Second
 		responseTimeout        = 1 * time.Second
-		deploymentName         = "testdeployment"
 		serviceName            = "testservice"
 	)
 	ctx := context.Background()
@@ -161,9 +152,7 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 	r.NoError(err)
 
 	target := targetFromURL(
-		h.originURL,
 		originPort,
-		deploymentName,
 		serviceName,
 	)
 	h.routingTable.Memory[hostForTest(t)] = target
@@ -247,7 +236,6 @@ type harness struct {
 	originURL    *url.URL
 	routingTable *routingtest.Table
 	readyCache   *k8s.ReadyEndpointsCache
-	waitFunc     forwardWaitFunc
 }
 
 func newHarness(
@@ -260,7 +248,6 @@ func newHarness(
 
 	fakeClient := fake.NewClientBuilder().WithScheme(kedacache.NewScheme()).Build()
 	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
-	waitFunc := newWorkloadReplicasForwardWaitFunc(readyCache)
 
 	originHdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -274,18 +261,22 @@ func newHarness(
 		return nil, err
 	}
 
-	proxyHdl := middleware.NewRouting(routingTable, newForwardingHandler(
-		lggr,
-		testTransport(testDialerToOrigin(originSrvURL), &tls.Config{}),
-		waitFunc,
-		forwardingConfig{
-			waitTimeout:       activeEndpointsTimeout,
-			respHeaderTimeout: time.Second,
+	proxyHdl := BuildProxyHandler(&ProxyHandlerConfig{
+		Logger:       lggr,
+		Queue:        queue.NewMemory(),
+		ReadyCache:   readyCache,
+		RoutingTable: routingTable,
+		Reader:       fakeClient,
+		Timeouts: config.Timeouts{
+			WorkloadReplicas: activeEndpointsTimeout,
+			ResponseHeader:   time.Second,
+			Connect:          100 * time.Millisecond,
+			KeepAlive:        100 * time.Millisecond,
+			DialRetryTimeout: time.Second,
 		},
-		config.Tracing{}),
-		fakeClient,
-		false,
-	)
+		Serving:             config.Serving{},
+		dialAddressOverride: originSrvURL.Host,
+	})
 
 	proxySrv, proxySrvURL, err := kedanet.StartTestServer(proxyHdl)
 	if err != nil {
@@ -302,7 +293,6 @@ func newHarness(
 		originURL:    originSrvURL,
 		routingTable: routingTable,
 		readyCache:   readyCache,
-		waitFunc:     waitFunc,
 	}, nil
 }
 
@@ -324,32 +314,19 @@ func hostForTest(t *testing.T) string {
 	return fmt.Sprintf("%s.integrationtest.interceptor.kedahttp.dev", t.Name())
 }
 
-// testDialerToOrigin creates a DialContext function that routes all connections
-// to the test origin server, regardless of the requested hostname/port.
-// This allows tests to use proper Kubernetes-style service names and namespaces
-// without needing actual DNS resolution.
-func testDialerToOrigin(targetURL *url.URL) kedanet.DialContextFunc {
-	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		// Ignore the 'addr' parameter (e.g., "testservice.test-namespace:8080")
-		// and always connect to the test origin server instead
-		dialer := &net.Dialer{Timeout: 2 * time.Second}
-		return dialer.DialContext(ctx, network, targetURL.Host)
+func targetFromURL(
+	port int,
+	service string,
+) *httpv1beta1.InterceptorRoute {
+	return &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "test-namespace",
+		},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{
+				Service: service,
+				Port:    int32(port),
+			},
+		},
 	}
-}
-
-// similar to net.SplitHostPort (https://pkg.go.dev/net#SplitHostPort)
-// but returns the port as a string, not an int.
-//
-// useful because url.Host can contain the port, so ensure we only get the actual host
-func splitHostPort(hostPortStr string) (string, int, error) {
-	spl := strings.Split(hostPortStr, ":")
-	if len(spl) != 2 {
-		return "", 0, fmt.Errorf("invalid host:port: %s", hostPortStr)
-	}
-	host := spl[0]
-	port, err := strconv.Atoi(spl[1])
-	if err != nil {
-		return "", 0, fmt.Errorf("port was invalid: %w", err)
-	}
-	return host, port, nil
 }

@@ -16,14 +16,14 @@ const (
 )
 
 type Logging struct {
-	logger          logr.Logger
-	upstreamHandler http.Handler
+	logger logr.Logger
+	next   http.Handler
 }
 
-func NewLogging(logger logr.Logger, upstreamHandler http.Handler) *Logging {
+func NewLogging(next http.Handler, logger logr.Logger) *Logging {
 	return &Logging{
-		logger:          logger,
-		upstreamHandler: upstreamHandler,
+		logger: logger,
+		next:   next,
 	}
 }
 
@@ -36,7 +36,7 @@ func (lm *Logging) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	defer lm.logAsync(rw, r, startTime)
 
-	lm.upstreamHandler.ServeHTTP(rw, r)
+	lm.next.ServeHTTP(rw, r)
 }
 
 func (lm *Logging) logAsync(rw *instrumentedResponseWriter, r *http.Request, startTime time.Time) {
