@@ -11,7 +11,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/interceptor/handler"
 	"github.com/kedacore/http-add-on/interceptor/middleware"
+	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
@@ -21,7 +23,7 @@ import (
 type ProxyHandlerConfig struct {
 	Logger       logr.Logger
 	Queue        queue.Counter
-	WaitFunc     forwardWaitFunc
+	ReadyCache   *k8s.ReadyEndpointsCache
 	RoutingTable routing.Table
 	Reader       client.Reader
 	Timeouts     config.Timeouts
@@ -72,34 +74,33 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	}
 
 	// Build handler chain (innermost to outermost)
-	var handler http.Handler
+	var h http.Handler
 
-	handler = newForwardingHandler(
-		cfg.Logger,
-		transport,
-		cfg.WaitFunc,
-		newForwardingConfigFromTimeouts(cfg.Timeouts, cfg.Serving),
-		cfg.Tracing,
-	)
+	h = handler.NewUpstream(transport, cfg.Tracing, cfg.Timeouts.ResponseHeader)
 
-	handler = middleware.NewCountingMiddleware(cfg.Queue, handler)
+	h = middleware.NewEndpointResolver(h, cfg.ReadyCache, middleware.EndpointResolverConfig{
+		WaitTimeout:           cfg.Timeouts.WorkloadReplicas,
+		EnableColdStartHeader: cfg.Serving.EnableColdStartHeader,
+	})
 
-	handler = middleware.NewRouting(
+	h = middleware.NewCountingMiddleware(h, cfg.Queue)
+
+	h = middleware.NewRouting(
+		h,
 		cfg.RoutingTable,
-		handler,
 		cfg.Reader,
 		cfg.TLSConfig != nil,
 	)
 
 	if cfg.Tracing.Enabled {
-		handler = otelhttp.NewHandler(handler, "keda-http-interceptor")
+		h = otelhttp.NewHandler(h, "keda-http-interceptor")
 	}
 
 	if cfg.Serving.LogRequests {
-		handler = middleware.NewLogging(cfg.Logger, handler)
+		h = middleware.NewLogging(h, cfg.Logger)
 	}
 
-	handler = middleware.NewMetrics(handler)
+	h = middleware.NewMetrics(h)
 
-	return handler
+	return h
 }

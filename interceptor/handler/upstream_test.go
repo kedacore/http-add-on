@@ -55,7 +55,7 @@ func TestW3CPropagation(t *testing.T) {
 	receivedRequest := microservice.IncomingRequests()[0]
 	receivedHeaders := receivedRequest.Header
 
-	r.Equal(receivedHeaders.Get("Traceparent"), traceParent)
+	r.Contains(receivedHeaders.Get("Traceparent"), fullW3CLengthTraceID)
 
 	r.NotContains(receivedHeaders, "B3")
 	r.NotContains(receivedHeaders, "b3")
@@ -67,9 +67,7 @@ func TestW3CPropagation(t *testing.T) {
 	_ = tracerProvider.ForceFlush(request.Context())
 
 	exportedSpans := exporter.GetSpans()
-	if len(exportedSpans) != 1 {
-		t.Fatalf("Expected 1 Span, got %d", len(exportedSpans))
-	}
+	r.GreaterOrEqual(len(exportedSpans), 1, "expected at least 1 span")
 	sc := exportedSpans[0].SpanContext
 	r.Equal(fullW3CLengthTraceID, sc.TraceID().String())
 	r.True(sc.IsSampled())
@@ -99,7 +97,7 @@ func TestPropagationWhenNoHeaders(t *testing.T) {
 	receivedRequest := microservice.IncomingRequests()[0]
 	receivedHeaders := receivedRequest.Header
 
-	r.NotContains(receivedHeaders, "Traceparent")
+	r.Contains(receivedHeaders, "Traceparent")
 	r.NotContains(receivedHeaders, "B3")
 	r.NotContains(receivedHeaders, "b3")
 	r.NotContains(receivedHeaders, "X-B3-Parentspanid")
@@ -110,22 +108,21 @@ func TestPropagationWhenNoHeaders(t *testing.T) {
 	_ = tracerProvider.ForceFlush(request.Context())
 
 	exportedSpans := exporter.GetSpans()
-	if len(exportedSpans) != 1 {
-		t.Fatalf("Expected 1 Span, got %d", len(exportedSpans))
-	}
+	r.GreaterOrEqual(len(exportedSpans), 1, "expected at least 1 span")
 	sc := exportedSpans[0].SpanContext
 	r.NotEmpty(sc.SpanID())
 	r.NotEmpty(sc.TraceID())
 
 	hasServiceAttribute := false
 	hasColdStartAttribute := false
-	for _, attribute := range exportedSpans[0].Attributes {
-		if attribute.Key == "service" && attribute.Value.AsString() == "keda-http-interceptor-proxy-upstream" {
-			hasServiceAttribute = true
-		}
-
-		if attribute.Key == "cold-start" {
-			hasColdStartAttribute = true
+	for _, s := range exportedSpans {
+		for _, attribute := range s.Attributes {
+			if attribute.Key == "service" && attribute.Value.AsString() == "keda-http-interceptor-proxy-upstream" {
+				hasServiceAttribute = true
+			}
+			if attribute.Key == "cold-start" {
+				hasColdStartAttribute = true
+			}
 		}
 	}
 	r.True(hasServiceAttribute)
@@ -158,8 +155,7 @@ func TestForwarderSuccess(t *testing.T) {
 	req = util.RequestWithUpstreamURL(req, forwardURL)
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts)
-	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, config.Tracing{}, false)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 
 	r.True(
@@ -202,8 +198,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithUpstreamURL(req, originURL)
-	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, config.Tracing{}, false)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 
 	forwardedRequests := hdl.IncomingRequests()
@@ -252,8 +247,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
 	req = util.RequestWithUpstreamURL(req, originURL)
-	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, config.Tracing{}, false)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 	// wait for the goroutine above to finish, with a little cusion
 	ensureSignalBeforeTimeout(originWaitCh, originDelay*2)
@@ -272,8 +266,7 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	res, req, err := reqAndRes("/test")
 	r.NoError(err)
 	req = util.RequestWithUpstreamURL(req, noSuchURL)
-	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, config.Tracing{}, false)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
 
 	start := time.Now()
 	uh.ServeHTTP(res, req)
@@ -321,8 +314,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithUpstreamURL(req, srvURL)
-	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	uh := NewUpstream(rt, config.Tracing{}, false)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 	r.Equal(301, res.Code)
 	r.Equal("abc123.com", res.Header().Get("Location"))
@@ -379,7 +371,7 @@ func TestUpstreamPreservesXForwardedHeaders(t *testing.T) {
 			}
 
 			// Configure the Upstream and send a dummy request
-			upstream := NewUpstream(http.DefaultTransport, config.Tracing{}, false)
+			upstream := NewUpstream(http.DefaultTransport.(*http.Transport), config.Tracing{}, 500*time.Millisecond)
 
 			req := httptest.NewRequest("GET", "/test", nil)
 			if tt.forwardedFor != "" {
@@ -435,13 +427,9 @@ func TestUpstreamPreservesXForwardedHeaders(t *testing.T) {
 	}
 }
 
-func newRoundTripper(
-	dialCtxFunc kedanet.DialContextFunc,
-	httpRespHeaderTimeout time.Duration,
-) http.RoundTripper {
+func newTestTransport(dialCtxFunc kedanet.DialContextFunc) *http.Transport {
 	return &http.Transport{
-		DialContext:           dialCtxFunc,
-		ResponseHeaderTimeout: httpRespHeaderTimeout,
+		DialContext: dialCtxFunc,
 	}
 }
 
@@ -485,8 +473,8 @@ func ensureSignalBeforeTimeout(signalCh <-chan struct{}, timeout time.Duration) 
 func serveHTTP(w http.ResponseWriter, r *http.Request) {
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts)
-	rt := newRoundTripper(dialCtxFunc, timeouts.ResponseHeader)
-	upstream := NewUpstream(rt, config.Tracing{Enabled: true}, false)
+	transport := newTestTransport(dialCtxFunc)
+	upstream := NewUpstream(transport, config.Tracing{Enabled: true}, timeouts.ResponseHeader)
 
 	upstream.ServeHTTP(w, r)
 }

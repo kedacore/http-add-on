@@ -27,10 +27,10 @@ var _ = Describe("RoutingMiddleware", func() {
 			upstreamHandler.Handle("/upstream", emptyHandler)
 			fakeClient := fake.NewClientBuilder().WithScheme(cache.NewScheme()).Build()
 
-			rm := NewRouting(routingTable, upstreamHandler, fakeClient, false)
+			rm := NewRouting(upstreamHandler, routingTable, fakeClient, false)
 			Expect(rm).NotTo(BeNil())
 			Expect(rm.routingTable).To(Equal(routingTable))
-			Expect(rm.upstreamHandler).To(Equal(upstreamHandler))
+			Expect(rm.next).To(Equal(upstreamHandler))
 		})
 	})
 
@@ -88,7 +88,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			upstreamHandler = http.NewServeMux()
 			routingTable = routingtest.NewTable()
 			client = fake.NewClientBuilder().WithScheme(cache.NewScheme()).Build()
-			routingMiddleware = NewRouting(routingTable, upstreamHandler, client, false)
+			routingMiddleware = NewRouting(upstreamHandler, routingTable, client, false)
 
 			w = httptest.NewRecorder()
 
@@ -125,7 +125,7 @@ var _ = Describe("RoutingMiddleware", func() {
 		When("route is found with portName", func() {
 			It("routes to the upstream handler", func() {
 				clientWithSvc := fake.NewClientBuilder().WithScheme(cache.NewScheme()).WithObjects(svc).Build()
-				routingMiddleware = NewRouting(routingTable, upstreamHandler, clientWithSvc, false)
+				routingMiddleware = NewRouting(upstreamHandler, routingTable, clientWithSvc, false)
 
 				var (
 					sc = http.StatusTeapot

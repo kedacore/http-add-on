@@ -7,12 +7,14 @@ import (
 )
 
 type Metrics struct {
-	upstreamHandler http.Handler
+	next http.Handler
 }
 
-func NewMetrics(upstreamHandler http.Handler) *Metrics {
+var _ http.Handler = (*Metrics)(nil)
+
+func NewMetrics(next http.Handler) *Metrics {
 	return &Metrics{
-		upstreamHandler: upstreamHandler,
+		next: next,
 	}
 }
 
@@ -21,7 +23,7 @@ func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer m.metrics(rw, r)
 
-	m.upstreamHandler.ServeHTTP(rw, r)
+	m.next.ServeHTTP(rw, r)
 }
 
 func (m *Metrics) metrics(rw *instrumentedResponseWriter, r *http.Request) {

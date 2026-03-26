@@ -10,14 +10,14 @@ import (
 )
 
 type Counting struct {
-	queueCounter    queue.Counter
-	upstreamHandler http.Handler
+	next         http.Handler
+	queueCounter queue.Counter
 }
 
-func NewCountingMiddleware(queueCounter queue.Counter, upstreamHandler http.Handler) *Counting {
+func NewCountingMiddleware(next http.Handler, queueCounter queue.Counter) *Counting {
 	return &Counting{
-		queueCounter:    queueCounter,
-		upstreamHandler: upstreamHandler,
+		next:         next,
+		queueCounter: queueCounter,
 	}
 }
 
@@ -32,7 +32,7 @@ func (cm *Counting) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err := cm.queueCounter.Increase(key, 1); err != nil {
 		util.LoggerFromContext(ctx).Error(err, "error incrementing queue counter", "key", key)
-		cm.upstreamHandler.ServeHTTP(w, r)
+		cm.next.ServeHTTP(w, r)
 		return
 	}
 	metrics.RecordPendingRequestCount(key, 1)
@@ -44,5 +44,5 @@ func (cm *Counting) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		metrics.RecordPendingRequestCount(key, -1)
 	}()
 
-	cm.upstreamHandler.ServeHTTP(w, r)
+	cm.next.ServeHTTP(w, r)
 }

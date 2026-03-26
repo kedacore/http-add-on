@@ -39,7 +39,6 @@ func TestCountMiddleware(t *testing.T) {
 
 	var concurrencyDuringRequest int
 	middleware := NewCountingMiddleware(
-		queueCounter,
 		http.HandlerFunc(func(wr http.ResponseWriter, _ *http.Request) {
 			counts, err := queueCounter.Current()
 			if err == nil {
@@ -48,6 +47,7 @@ func TestCountMiddleware(t *testing.T) {
 			wr.WriteHeader(200)
 			_, _ = wr.Write([]byte("OK"))
 		}),
+		queueCounter,
 	)
 
 	req, err := http.NewRequest("GET", "/something", nil)

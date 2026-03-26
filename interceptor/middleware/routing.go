@@ -17,18 +17,18 @@ import (
 )
 
 type Routing struct {
-	routingTable    routing.Table
-	upstreamHandler http.Handler
-	reader          client.Reader
-	tlsEnabled      bool
+	routingTable routing.Table
+	next         http.Handler
+	reader       client.Reader
+	tlsEnabled   bool
 }
 
-func NewRouting(routingTable routing.Table, upstreamHandler http.Handler, reader client.Reader, tlsEnabled bool) *Routing {
+func NewRouting(next http.Handler, routingTable routing.Table, reader client.Reader, tlsEnabled bool) *Routing {
 	return &Routing{
-		routingTable:    routingTable,
-		upstreamHandler: upstreamHandler,
-		reader:          reader,
-		tlsEnabled:      tlsEnabled,
+		routingTable: routingTable,
+		next:         next,
+		reader:       reader,
+		tlsEnabled:   tlsEnabled,
 	}
 }
 
@@ -65,11 +65,12 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			sh.ServeHTTP(w, r)
 			return
 		}
+
 		ctx = util.ContextWithFallbackURL(ctx, fallbackURL)
 	}
 
 	r = r.WithContext(ctx)
-	rm.upstreamHandler.ServeHTTP(w, r)
+	rm.next.ServeHTTP(w, r)
 }
 
 func (rm *Routing) resolvePort(ctx context.Context, target httpv1beta.TargetRef, namespace string) (int32, error) {
