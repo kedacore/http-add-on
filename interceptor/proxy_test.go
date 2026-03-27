@@ -370,8 +370,10 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 		RoutingTable: routingTable,
 		Reader:       fake.NewClientBuilder().WithScheme(kedacache.NewScheme()).Build(),
 		Timeouts: config.Timeouts{
-			WorkloadReplicas: 5 * time.Second,
-			ResponseHeader:   5 * time.Second,
+			Connect:        500 * time.Millisecond,
+			Readiness:      5 * time.Second,
+			Request:        60 * time.Second,
+			ResponseHeader: 5 * time.Second,
 		},
 		Serving:             config.Serving{EnableColdStartHeader: cfg.enableColdStartHeader},
 		TLSConfig:           tlsCfg,

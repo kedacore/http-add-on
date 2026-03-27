@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"time"
@@ -12,7 +14,6 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -23,16 +24,16 @@ var (
 )
 
 type Upstream struct {
-	transportPool     *kedahttp.TransportPool
-	tracingCfg        config.Tracing
-	respHeaderTimeout time.Duration
+	transportPool         *kedahttp.TransportPool
+	tracingCfg            config.Tracing
+	responseHeaderTimeout time.Duration
 }
 
-func NewUpstream(baseTransport *http.Transport, tracingCfg config.Tracing, respHeaderTimeout time.Duration) *Upstream {
+func NewUpstream(baseTransport *http.Transport, tracingCfg config.Tracing, responseHeaderTimeout time.Duration) *Upstream {
 	return &Upstream{
-		transportPool:     kedahttp.NewTransportPool(baseTransport),
-		tracingCfg:        tracingCfg,
-		respHeaderTimeout: respHeaderTimeout,
+		transportPool:         kedahttp.NewTransportPool(baseTransport),
+		tracingCfg:            tracingCfg,
+		responseHeaderTimeout: responseHeaderTimeout,
 	}
 }
 
@@ -59,16 +60,15 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respHeaderTimeout := uh.respHeaderTimeout
-	// TODO(v1): remove timeout compatibility fallback for HTTPSO before v1 release
+	// Select transport with per-route or global response header timeout.
+	responseHeaderTimeout := uh.responseHeaderTimeout
 	if ir := util.InterceptorRouteFromContext(ctx); ir != nil {
-		if v, ok := ir.Annotations[k8s.AnnotationResponseHeaderTimeout]; ok {
-			if d, err := time.ParseDuration(v); err == nil && d > 0 {
-				respHeaderTimeout = d
-			}
+		if ir.Spec.Timeouts.ResponseHeader != nil {
+			responseHeaderTimeout = ir.Spec.Timeouts.ResponseHeader.Duration
 		}
 	}
-	transport := uh.transportPool.Get(respHeaderTimeout)
+
+	transport := uh.transportPool.Get(responseHeaderTimeout)
 
 	var rt http.RoundTripper = transport
 	if uh.tracingCfg.Enabled {
@@ -99,7 +99,15 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		BufferPool: bufferPool,
 		Transport:  rt,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			sh := NewStatic(http.StatusBadGateway, err)
+			code := http.StatusBadGateway
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				// Respond with 504 Gateway Timeout on timeouts to differentiate from general server errors
+				code = http.StatusGatewayTimeout
+			} else if errors.Is(err, context.DeadlineExceeded) {
+				code = http.StatusGatewayTimeout
+			}
+			sh := NewStatic(code, err)
 			sh.ServeHTTP(w, r)
 		},
 	}

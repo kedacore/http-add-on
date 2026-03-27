@@ -40,8 +40,7 @@ type ProxyHandlerConfig struct {
 
 // BuildProxyHandler constructs the proxy handler chain.
 func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
-	dialer := kedanet.NewNetDialer(cfg.Timeouts.Connect, cfg.Timeouts.KeepAlive)
-	dialFunc := kedanet.DialContextWithRetry(dialer, cfg.Timeouts.DialRetryTimeout)
+	dialFunc := kedanet.DialContextWithRetry(cfg.Timeouts.Connect)
 
 	// Wrap dialer to redirect if override is set (for testing)
 	if cfg.dialAddressOverride != "" {
@@ -63,17 +62,14 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 			CurvePreferences:   cfg.TLSConfig.CurvePreferences,
 		}
 	}
-	transport := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           dialFunc,
-		ForceAttemptHTTP2:     cfg.Timeouts.ForceHTTP2,
-		MaxIdleConns:          cfg.Timeouts.MaxIdleConns,
-		MaxIdleConnsPerHost:   cfg.Timeouts.MaxIdleConnsPerHost,
-		IdleConnTimeout:       cfg.Timeouts.IdleConnTimeout,
-		TLSHandshakeTimeout:   cfg.Timeouts.TLSHandshakeTimeout,
-		ExpectContinueTimeout: cfg.Timeouts.ExpectContinueTimeout,
-		TLSClientConfig:       forwardingTLSCfg,
-	}
+
+	// Clone DefaultTransport to inherit Go's defaults for IdleConnTimeout, ...
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = dialFunc
+	transport.ForceAttemptHTTP2 = cfg.Timeouts.ForceHTTP2
+	transport.MaxIdleConns = cfg.Timeouts.MaxIdleConns
+	transport.MaxIdleConnsPerHost = cfg.Timeouts.MaxIdleConnsPerHost
+	transport.TLSClientConfig = forwardingTLSCfg
 
 	// Build handler chain (innermost to outermost)
 	var h http.Handler
@@ -81,7 +77,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	h = handler.NewUpstream(transport, cfg.Tracing, cfg.Timeouts.ResponseHeader)
 
 	h = middleware.NewEndpointResolver(h, cfg.ReadyCache, middleware.EndpointResolverConfig{
-		WaitTimeout:           cfg.Timeouts.WorkloadReplicas,
+		ReadinessTimeout:      cfg.Timeouts.Readiness,
 		EnableColdStartHeader: cfg.Serving.EnableColdStartHeader,
 	})
 
@@ -92,6 +88,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		cfg.RoutingTable,
 		cfg.Reader,
 		cfg.TLSConfig != nil,
+		cfg.Timeouts.Request,
 	)
 
 	h = middleware.NewMetrics(h, cfg.Instruments)
