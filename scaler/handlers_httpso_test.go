@@ -605,11 +605,7 @@ func TestGetMetrics_HTTPSO(t *testing.T) {
 		}
 		// create the HTTP server to encode and serve
 		// the host map
-		fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(
-			"testSvc",
-			q,
-			1,
-		)
+		fakeSrv, fakeSrvURL, endpoints, err := startFakeQueueEndpointServer(q)
 		if err != nil {
 			return nil, nil, err
 		}

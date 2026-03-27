@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
-	discov1 "k8s.io/api/discovery/v1"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
@@ -44,14 +43,13 @@ func TestCounts(t *testing.T) {
 		r.NoError(q.Increase(host, n))
 	}
 
-	// Use numEndpoints=1 so there's exactly one pod URL.
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, 1)
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(q)
 	r.NoError(err)
 	defer srv.Close()
 	pinger := newQueuePinger(
 		logr.Discard(),
 		func(context.Context, string, string) (k8s.Endpoints, error) {
-			return extractAddresses(endpoints), nil
+			return endpoints, nil
 		},
 		ns,
 		svcName,
@@ -94,11 +92,11 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		q.EnsureKey(host)
 		r.NoError(q.Increase(host, n))
 	}
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, 1)
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(q)
 	r.NoError(err)
 	defer srv.Close()
 	endpointsFn := func(ctx context.Context, ns, svcName string) (k8s.Endpoints, error) {
-		return extractAddresses(endpoints), nil
+		return endpoints, nil
 	}
 
 	pinger := newQueuePinger(
@@ -138,11 +136,11 @@ func TestFetchCountsPerPod(t *testing.T) {
 		q.EnsureKey(host)
 		r.NoError(q.Increase(host, n))
 	}
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, 1)
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(q)
 	r.NoError(err)
 	defer srv.Close()
 	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
-		return extractAddresses(endpoints), nil
+		return endpoints, nil
 	}
 
 	perPod, err := fetchCountsPerPod(
@@ -279,13 +277,10 @@ func TestRateComputation(t *testing.T) {
 	defer srv.Close()
 	srvURL, _ := url.Parse(srv.URL)
 
-	endpoints, err := k8s.FakeEndpointsForURL(srvURL, ns, svcName, 1)
-	r.NoError(err)
-
 	pinger := newQueuePinger(
 		logr.Discard(),
 		func(context.Context, string, string) (k8s.Endpoints, error) {
-			return extractAddresses(endpoints), nil
+			return k8s.Endpoints{ReadyAddresses: []string{srvURL.Hostname()}}, nil
 		},
 		ns,
 		svcName,
@@ -331,13 +326,10 @@ func TestRateComputationCounterReset(t *testing.T) {
 	defer srv.Close()
 	srvURL, _ := url.Parse(srv.URL)
 
-	endpoints, err := k8s.FakeEndpointsForURL(srvURL, ns, svcName, 1)
-	r.NoError(err)
-
 	pinger := newQueuePinger(
 		logr.Discard(),
 		func(context.Context, string, string) (k8s.Endpoints, error) {
-			return extractAddresses(endpoints), nil
+			return k8s.Endpoints{ReadyAddresses: []string{srvURL.Hostname()}}, nil
 		},
 		ns,
 		svcName,
@@ -371,27 +363,21 @@ func TestUpdateBucketConfig(t *testing.T) {
 }
 
 // startFakeQueueEndpointServer starts a fake server that simulates
-// an interceptor with its /queue endpoint, then returns a
-// *v1.Endpoints object that contains the URL of the new fake
-// server. also returns the *httptest.Server that runs the
-// endpoint along with its URL. the caller is responsible for
-// calling testServer.Close() when done.
-func startFakeQueueEndpointServer(svcName string, q queue.CountReader, numEndpoints int) (*httptest.Server, *url.URL, *discov1.EndpointSliceList, error) {
+// an interceptor with its /queue endpoint. Returns the test server,
+// its URL, and a k8s.Endpoints pointing at it. The caller is
+// responsible for calling testServer.Close() when done.
+func startFakeQueueEndpointServer(q queue.CountReader) (*httptest.Server, *url.URL, k8s.Endpoints, error) {
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
 	srv, srvURL, err := kedanet.StartTestServer(hdl)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, k8s.Endpoints{}, err
 	}
-	endpoints, err := k8s.FakeEndpointsForURL(srvURL, "testns", svcName, numEndpoints)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return srv, srvURL, endpoints, nil
+	return srv, srvURL, k8s.Endpoints{ReadyAddresses: []string{srvURL.Hostname()}}, nil
 }
 
 type fakeQueuePingerOpts struct {
-	endpoints *discov1.EndpointSliceList
+	endpoints k8s.Endpoints
 	tickDur   time.Duration
 	port      string
 }
@@ -404,9 +390,8 @@ type optsFunc func(*fakeQueuePingerOpts)
 // call ticker.Stop() on the returned ticker.
 func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, *queuePinger, error) {
 	opts := &fakeQueuePingerOpts{
-		endpoints: &discov1.EndpointSliceList{},
-		tickDur:   time.Second,
-		port:      "8080",
+		tickDur: time.Second,
+		port:    "8080",
 	}
 	for _, optsFunc := range optsFuncs {
 		optsFunc(opts)
@@ -416,7 +401,7 @@ func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, 
 	pinger := newQueuePinger(
 		lggr,
 		func(context.Context, string, string) (k8s.Endpoints, error) {
-			return extractAddresses(opts.endpoints), nil
+			return opts.endpoints, nil
 		},
 		"testns",
 		"testsvc",
@@ -424,17 +409,6 @@ func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, 
 		opts.port,
 	)
 	return ticker, pinger, nil
-}
-
-// extractAddresses extracts all addresses from a list of EndpointSlice
-func extractAddresses(eps *discov1.EndpointSliceList) k8s.Endpoints {
-	ret := []string{}
-	for _, ep := range eps.Items {
-		for _, addr := range ep.Endpoints {
-			ret = append(ret, addr.Addresses...)
-		}
-	}
-	return k8s.Endpoints{ReadyAddresses: ret}
 }
 
 func withPatchedDefaultTransport(t *testing.T, dialMap map[string]string) {
