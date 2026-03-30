@@ -1,0 +1,35 @@
+# Chart has no default mode.
+mode: deployment
+# Prometheus exporter requires the contrib image (not available in core).
+image:
+  repository: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib"
+# Expose prometheus exporter for the otel-metrics e2e test to scrape.
+ports:
+  prom-exporter:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP
+# Merged with chart defaults (otlp receiver, processors, etc.).
+config:
+  exporters:
+    debug:
+      verbosity: basic
+    # Scraped by otel-metrics e2e test.
+    prometheus:
+      endpoint: 0.0.0.0:8889
+    # Queried by otel-tracing e2e test via Jaeger query API.
+    otlp/jaeger:
+      endpoint: jaeger.jaeger:4317
+      tls:
+        insecure: true
+  service:
+    pipelines:
+      traces:
+        exporters:
+          - debug
+          - otlp/jaeger
+      metrics:
+        exporters:
+          - debug
+          - prometheus

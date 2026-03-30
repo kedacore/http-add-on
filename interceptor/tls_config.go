@@ -96,6 +96,9 @@ func BuildTLSConfig(opts TLSOptions, logger logr.Logger) (*tls.Config, error) {
 	return servingTLS, nil
 }
 
+// TODO: loadCertStorePaths mixes serving certs with CA trust. A dedicated
+// CA trust mechanism that only appends to RootCAs without requiring a key is needed.
+
 // loadCertStorePaths loads certificates from comma-separated directory paths.
 func loadCertStorePaths(certStorePaths string, certs map[string]tls.Certificate, rootCAs *x509.CertPool, logger logr.Logger) error {
 	certFiles := make(map[string]string)

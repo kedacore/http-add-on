@@ -40,7 +40,7 @@ Install KEDA and the HTTP Add-on following the [install instructions](./install.
 
 - `make build`: Build all binaries locally
 - `make test`: Run linter and unit tests
-- `make e2e-test-local`: Run e2e tests (assumes cluster is already set up)
+- `make e2e-test`: Run all e2e tests against an existing cluster
 - `make generate`: Generate code (DeepCopy) and Kubernetes manifests
 - `make deploy`: Build and deploy all components to the cluster
 - `make deploy-interceptor`: Build and deploy the interceptor
@@ -76,6 +76,48 @@ ko will:
 2. Create a container image with layer caching
 3. Push to the configured registry
 4. Apply manifests with resolved image references
+
+## Running E2E Tests
+
+E2E tests live in `test/e2e/` and are organized by **profile**. Each profile groups tests that require a specific HTTP Add-on configuration.
+For example, the `default` profile covers standard routing and scaling behavior with the default configuration while the `tls` profile tests TLS termination and requires the interceptor to be deployed with TLS certificates enabled.
+
+### Cluster setup
+
+```bash
+# Create a KinD cluster
+kind create cluster
+
+# Install all e2e dependencies and deploy the HTTP Add-on
+make e2e-setup
+
+# Or install individual dependencies (see Makefile for all targets)
+make e2e-deps-otel-collector
+make e2e-deps-jaeger
+```
+
+### Running tests
+
+```bash
+# Run all e2e tests (all profiles)
+make e2e-test
+
+# Run a specific profile
+make e2e-test PROFILE=tls
+
+# Run a specific test by name
+make e2e-test PROFILE=default RUN=TestColdStart
+
+# Run tests matching specific labels
+make e2e-test E2E_ARGS="--labels=area=scaling"
+
+# List tests without executing them
+make e2e-test E2E_ARGS="--dry-run"
+```
+
+The `PROFILE` variable selects a test profile directory under `test/e2e/` (e.g. `PROFILE=tls` runs `./test/e2e/tls/...`).
+The `RUN` variable filters tests by name using Go's `-run` flag (supports regex, e.g. `RUN=TestColdStart` or `RUN="TestHost|TestPath"`).
+The `E2E_ARGS` variable passes flags to the [e2e-framework](https://github.com/kubernetes-sigs/e2e-framework) via `-args` (e.g. `--labels`, `--feature`, `--skip-labels`, `--dry-run`).
 
 ## Debugging
 

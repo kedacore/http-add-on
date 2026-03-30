@@ -16,3 +16,7 @@ spec:
       protocol: TCP
       port: 8080
       targetPort: proxy
+    - name: proxy-tls
+      protocol: TCP
+      port: 8443
+      targetPort: proxy-tls
