@@ -65,14 +65,7 @@ func (t *table) refreshMemory(ctx context.Context) error {
 
 			tm = tm.Remember(ir)
 
-			window := time.Minute
-			granularity := time.Second
-			if ir.Spec.ScalingMetric.RequestRate != nil {
-				window = ir.Spec.ScalingMetric.RequestRate.Window.Duration
-				granularity = ir.Spec.ScalingMetric.RequestRate.Granularity.Duration
-			}
-
-			t.queueCounter.UpdateBuckets(key, window, granularity)
+			t.queueCounter.EnsureKey(key)
 		}
 
 		// TODO(v1): remove the HTTPSO to IR conversion
@@ -169,14 +162,7 @@ func (t *table) refreshMemory(ctx context.Context) error {
 
 			tm = tm.Remember(ir)
 
-			// Ensure queue counter bucket exists
-			window := time.Minute
-			granularity := time.Second
-			if httpso.Spec.ScalingMetric != nil && httpso.Spec.ScalingMetric.Rate != nil {
-				window = httpso.Spec.ScalingMetric.Rate.Window.Duration
-				granularity = httpso.Spec.ScalingMetric.Rate.Granularity.Duration
-			}
-			t.queueCounter.UpdateBuckets(key, window, granularity)
+			t.queueCounter.EnsureKey(key)
 		}
 
 		for key := range t.previousKeys {

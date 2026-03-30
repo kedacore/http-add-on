@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
-	discov1 "k8s.io/api/discovery/v1"
 
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
@@ -20,49 +22,34 @@ import (
 
 func TestCounts(t *testing.T) {
 	r := require.New(t)
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 	const (
-		ns           = "testns"
-		svcName      = "testsvc"
-		deplName     = "testdepl"
-		tickDur      = 10 * time.Millisecond
-		numEndpoints = 3
+		ns       = "testns"
+		svcName  = "testsvc"
+		deplName = "testdepl"
+		tickDur  = 10 * time.Millisecond
 	)
 
-	// assemble an in-memory queue and start up a fake server that serves it.
-	// we'll configure the queue pinger to use that server below
-	counts := map[string]queue.Count{
-		"host1": {
-			Concurrency: 123,
-			RPS:         123,
-		},
-		"host2": {
-			Concurrency: 234,
-			RPS:         234,
-		},
-		"host3": {
-			Concurrency: 345,
-			RPS:         345,
-		},
-		"host4": {
-			Concurrency: 456,
-			RPS:         456,
-		},
-	}
-
 	q := queue.NewMemory()
-	for host, count := range counts {
-		q.EnsureKey(host, time.Minute, time.Second)
-		r.NoError(q.Increase(host, count.Concurrency))
+	hosts := map[string]int{
+		"host1": 123,
+		"host2": 234,
+		"host3": 345,
+		"host4": 456,
+	}
+	for host, n := range hosts {
+		q.EnsureKey(host)
+		r.NoError(q.Increase(host, n))
 	}
 
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, 3)
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(q)
 	r.NoError(err)
 	defer srv.Close()
 	pinger := newQueuePinger(
 		logr.Discard(),
 		func(context.Context, string, string) (k8s.Endpoints, error) {
-			return extractAddresses(endpoints), nil
+			return endpoints, nil
 		},
 		ns,
 		svcName,
@@ -74,24 +61,14 @@ func TestCounts(t *testing.T) {
 	go func() {
 		_ = pinger.start(ctx, ticker)
 	}()
-	// sleep to ensure we ticked and finished calling
-	// fetchAndSaveCounts
-	time.Sleep(tickDur * 2)
+	time.Sleep(tickDur * 3)
 
-	// now ensure that all the counts in the pinger
-	// are the same as in the queue, which has been updated
 	retCounts := pinger.counts()
-	expectedCounts, err := q.Current()
-	r.NoError(err)
-	r.Len(retCounts, len(expectedCounts.Counts))
-	for host, count := range expectedCounts.Counts {
+	r.Len(retCounts, len(hosts))
+	for host, n := range hosts {
 		retCount, ok := retCounts[host]
 		r.True(ok, "returned count not found for host %s", host)
-
-		// note that the returned value should be:
-		// (queue_count * num_endpoints)
-		r.Equal(count.Concurrency*3, retCount.Concurrency)
-		r.InDelta(count.RPS*3, retCount.RPS, 0)
+		r.Equal(n, retCount.Concurrency)
 	}
 }
 
@@ -99,41 +76,27 @@ func TestFetchAndSaveCounts(t *testing.T) {
 	r := require.New(t)
 	ctx := t.Context()
 	const (
-		ns           = "testns"
-		svcName      = "testsvc"
-		deplName     = "testdepl"
-		adminPort    = "8081"
-		numEndpoints = 3
+		ns       = "testns"
+		svcName  = "testsvc"
+		deplName = "testdepl"
 	)
-	counts := queue.NewCounts()
-	counts.Counts = map[string]queue.Count{
-		"host1": {
-			Concurrency: 123,
-			RPS:         123,
-		},
-		"host2": {
-			Concurrency: 234,
-			RPS:         234,
-		},
-		"host3": {
-			Concurrency: 345,
-			RPS:         345,
-		},
-		"host4": {
-			Concurrency: 456,
-			RPS:         456,
-		},
-	}
+
 	q := queue.NewMemory()
-	for host, count := range counts.Counts {
-		q.EnsureKey(host, time.Minute, time.Second)
-		r.NoError(q.Increase(host, count.Concurrency))
+	hosts := map[string]int{
+		"host1": 123,
+		"host2": 234,
+		"host3": 345,
+		"host4": 456,
 	}
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, numEndpoints)
+	for host, n := range hosts {
+		q.EnsureKey(host)
+		r.NoError(q.Increase(host, n))
+	}
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(q)
 	r.NoError(err)
 	defer srv.Close()
 	endpointsFn := func(ctx context.Context, ns, svcName string) (k8s.Endpoints, error) {
-		return extractAddresses(endpoints), nil
+		return endpoints, nil
 	}
 
 	pinger := newQueuePinger(
@@ -147,60 +110,40 @@ func TestFetchAndSaveCounts(t *testing.T) {
 
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
 
-	// since all endpoints serve the same counts,
-	// the hosts will be the same as the original counts,
-	// but the value is (individual count * # endpoints)
-	expectedCounts := counts.Counts
-	for host, val := range expectedCounts {
-		val.Concurrency *= 3
-		val.RPS *= 3
-		expectedCounts[host] = val
+	for host, n := range hosts {
+		count, ok := pinger.allCounts[host]
+		r.True(ok, "host %s missing", host)
+		r.Equal(n, count.Concurrency)
+		// First fetch: no previous data, so RPS should be 0.
+		r.InDelta(0.0, count.RPS, 0.001)
 	}
-	r.Equal(expectedCounts, pinger.allCounts)
 }
 
-func TestFetchCounts(t *testing.T) {
+func TestFetchCountsPerPod(t *testing.T) {
 	r := require.New(t)
 	ctx := t.Context()
 	const (
-		ns           = "testns"
-		svcName      = "testsvc"
-		adminPort    = "8081"
-		numEndpoints = 3
+		ns      = "testns"
+		svcName = "testsvc"
 	)
-	counts := queue.NewCounts()
-	counts.Counts = map[string]queue.Count{
-		"host1": {
-			Concurrency: 123,
-			RPS:         123,
-		},
-		"host2": {
-			Concurrency: 234,
-			RPS:         234,
-		},
-		"host3": {
-			Concurrency: 345,
-			RPS:         345,
-		},
-		"host4": {
-			Concurrency: 456,
-			RPS:         456,
-		},
-	}
-	q := queue.NewMemory()
-	for host, count := range counts.Counts {
-		q.EnsureKey(host, time.Minute, time.Second)
-		r.NoError(q.Increase(host, count.Concurrency))
-	}
-	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(svcName, q, numEndpoints)
-	r.NoError(err)
 
+	q := queue.NewMemory()
+	hosts := map[string]int{
+		"host1": 123,
+		"host2": 234,
+	}
+	for host, n := range hosts {
+		q.EnsureKey(host)
+		r.NoError(q.Increase(host, n))
+	}
+	srv, srvURL, endpoints, err := startFakeQueueEndpointServer(q)
+	r.NoError(err)
 	defer srv.Close()
 	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
-		return extractAddresses(endpoints), nil
+		return endpoints, nil
 	}
 
-	cts, err := fetchCounts(
+	perPod, err := fetchCountsPerPod(
 		ctx,
 		logr.Discard(),
 		endpointsFn,
@@ -209,44 +152,232 @@ func TestFetchCounts(t *testing.T) {
 		fmt.Sprintf("%v", srvURL.Port()),
 	)
 	r.NoError(err)
+	r.Len(perPod, 1)
 
-	// since all endpoints serve the same counts,
-	// the hosts will be the same as the original counts,
-	// but the value is (individual count * # endpoints)
-	expectedCounts := counts.Counts
-	for host, val := range expectedCounts {
-		val.Concurrency *= 3
-		val.RPS *= 3
-		expectedCounts[host] = val
+	for _, counts := range perPod {
+		for host, n := range hosts {
+			c, ok := counts.Counts[host]
+			r.True(ok, "host %s missing from pod result", host)
+			r.Equal(n, c.Concurrency)
+			r.Equal(int64(n), c.RequestCount)
+		}
 	}
-	r.Equal(expectedCounts, cts)
 }
 
-// startFakeQueuePinger starts a fake server that simulates
-// an interceptor with its /queue endpoint, then returns a
-// *v1.Endpoints object that contains the URL of the new fake
-// server. also returns the *httptest.Server that runs the
-// endpoint along with its URL. the caller is responsible for
-// calling testServer.Close() when done.
-//
-// returns nil for the first 3 return value and a non-nil error in
-// case of a failure.
-func startFakeQueueEndpointServer(svcName string, q queue.CountReader, numEndpoints int) (*httptest.Server, *url.URL, *discov1.EndpointSliceList, error) {
+func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const (
+		ns        = "testns"
+		svcName   = "testsvc"
+		deplName  = "testdepl"
+		adminPort = "8081"
+	)
+
+	var podAReq atomic.Int64
+	podAReq.Store(100)
+	var podBReq atomic.Int64
+	podBReq.Store(1000)
+
+	podA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]queue.Count{
+			"host1": {
+				Concurrency:  2,
+				RequestCount: podAReq.Load(),
+			},
+		})
+	}))
+	defer podA.Close()
+
+	podB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]queue.Count{
+			"host1": {
+				Concurrency:  3,
+				RequestCount: podBReq.Load(),
+			},
+		})
+	}))
+	defer podB.Close()
+
+	withPatchedDefaultTransport(t, map[string]string{
+		"pod-a:" + adminPort: podA.Listener.Addr().String(),
+		"pod-b:" + adminPort: podB.Listener.Addr().String(),
+	})
+
+	var readyAddrs atomic.Value
+	readyAddrs.Store([]string{"pod-a"})
+
+	pinger := newQueuePinger(
+		logr.Discard(),
+		func(context.Context, string, string) (k8s.Endpoints, error) {
+			addrs := readyAddrs.Load().([]string)
+			return k8s.Endpoints{
+				ReadyAddresses: append([]string(nil), addrs...),
+			}, nil
+		},
+		ns,
+		svcName,
+		deplName,
+		adminPort,
+	)
+
+	// Baseline with one pod.
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	count := pinger.count("host1")
+	r.Equal(2, count.Concurrency)
+	r.InDelta(0.0, count.RPS, 0.001)
+
+	// Add a new pod with a high existing counter:
+	// this should not spike rate immediately.
+	readyAddrs.Store([]string{"pod-a", "pod-b"})
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	count = pinger.count("host1")
+	r.Equal(5, count.Concurrency)
+	r.InDelta(0.0, count.RPS, 0.001)
+
+	// Next tick after both pods increase should produce non-zero rate.
+	podAReq.Store(130)  // +30
+	podBReq.Store(1060) // +60
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	count = pinger.count("host1")
+	r.Equal(5, count.Concurrency)
+	r.Greater(count.RPS, 0.0)
+
+	// Remove pod-b and ensure its previous counters are pruned.
+	readyAddrs.Store([]string{"pod-a"})
+	podAReq.Store(150) // +20
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	count = pinger.count("host1")
+	r.Equal(2, count.Concurrency)
+	r.NotContains(pinger.prevPodCounts, "pod-b:"+adminPort)
+}
+
+func TestRateComputation(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const (
+		ns       = "testns"
+		svcName  = "testsvc"
+		deplName = "testdepl"
+	)
+
+	// Use a dynamic server whose RequestCount increases between polls.
+	var reqCount atomic.Int64
+	reqCount.Store(100)
+
+	hdl := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		cur := reqCount.Load()
+		counts := map[string]queue.Count{
+			"host1": {Concurrency: 5, RequestCount: cur},
+		}
+		_ = json.NewEncoder(w).Encode(counts)
+	})
+
+	srv := httptest.NewServer(hdl)
+	defer srv.Close()
+	srvURL, _ := url.Parse(srv.URL)
+
+	pinger := newQueuePinger(
+		logr.Discard(),
+		func(context.Context, string, string) (k8s.Endpoints, error) {
+			return k8s.Endpoints{ReadyAddresses: []string{srvURL.Hostname()}}, nil
+		},
+		ns,
+		svcName,
+		deplName,
+		srvURL.Port(),
+	)
+
+	// First poll: establishes baseline (no delta, RPS=0)
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	r.Equal(5, pinger.allCounts["host1"].Concurrency)
+	r.InDelta(0.0, pinger.allCounts["host1"].RPS, 0.001)
+
+	// Simulate 50 new requests arriving.
+	reqCount.Store(150)
+
+	// Second poll: delta = 150 - 100 = 50
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	r.Equal(5, pinger.allCounts["host1"].Concurrency)
+	r.Greater(pinger.allCounts["host1"].RPS, 0.0)
+}
+
+func TestRateComputationCounterReset(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const (
+		ns       = "testns"
+		svcName  = "testsvc"
+		deplName = "testdepl"
+	)
+
+	var reqCount atomic.Int64
+	reqCount.Store(500)
+
+	hdl := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		cur := reqCount.Load()
+		counts := map[string]queue.Count{
+			"host1": {Concurrency: 1, RequestCount: cur},
+		}
+		_ = json.NewEncoder(w).Encode(counts)
+	})
+
+	srv := httptest.NewServer(hdl)
+	defer srv.Close()
+	srvURL, _ := url.Parse(srv.URL)
+
+	pinger := newQueuePinger(
+		logr.Discard(),
+		func(context.Context, string, string) (k8s.Endpoints, error) {
+			return k8s.Endpoints{ReadyAddresses: []string{srvURL.Hostname()}}, nil
+		},
+		ns,
+		svcName,
+		deplName,
+		srvURL.Port(),
+	)
+
+	// First poll: baseline
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+
+	// Simulate pod restart: counter resets to a small value.
+	reqCount.Store(10)
+
+	// Second poll: counter went down (500 → 10), treated as reset.
+	// delta = current value (10), not negative.
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	r.Greater(pinger.allCounts["host1"].RPS, 0.0)
+}
+
+func TestUpdateBucketConfig(t *testing.T) {
+	r := require.New(t)
+	_, pinger, err := newFakeQueuePinger(logr.Discard())
+	r.NoError(err)
+
+	pinger.UpdateBucketConfig("host1", 2*time.Minute, 2*time.Second)
+
+	b, ok := pinger.rateBuckets["host1"]
+	r.True(ok)
+	r.Equal(2*time.Minute, b.Window())
+	r.Equal(2*time.Second, b.Granularity())
+}
+
+// startFakeQueueEndpointServer starts a fake server that simulates
+// an interceptor with its /queue endpoint. Returns the test server,
+// its URL, and a k8s.Endpoints pointing at it. The caller is
+// responsible for calling testServer.Close() when done.
+func startFakeQueueEndpointServer(q queue.CountReader) (*httptest.Server, *url.URL, k8s.Endpoints, error) {
 	hdl := http.NewServeMux()
 	queue.AddCountsRoute(logr.Discard(), hdl, q)
 	srv, srvURL, err := kedanet.StartTestServer(hdl)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, k8s.Endpoints{}, err
 	}
-	endpoints, err := k8s.FakeEndpointsForURL(srvURL, "testns", svcName, numEndpoints)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return srv, srvURL, endpoints, nil
+	return srv, srvURL, k8s.Endpoints{ReadyAddresses: []string{srvURL.Hostname()}}, nil
 }
 
 type fakeQueuePingerOpts struct {
-	endpoints *discov1.EndpointSliceList
+	endpoints k8s.Endpoints
 	tickDur   time.Duration
 	port      string
 }
@@ -259,9 +390,8 @@ type optsFunc func(*fakeQueuePingerOpts)
 // call ticker.Stop() on the returned ticker.
 func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, *queuePinger, error) {
 	opts := &fakeQueuePingerOpts{
-		endpoints: &discov1.EndpointSliceList{},
-		tickDur:   time.Second,
-		port:      "8080",
+		tickDur: time.Second,
+		port:    "8080",
 	}
 	for _, optsFunc := range optsFuncs {
 		optsFunc(opts)
@@ -271,7 +401,7 @@ func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, 
 	pinger := newQueuePinger(
 		lggr,
 		func(context.Context, string, string) (k8s.Endpoints, error) {
-			return extractAddresses(opts.endpoints), nil
+			return opts.endpoints, nil
 		},
 		"testns",
 		"testsvc",
@@ -281,14 +411,23 @@ func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, 
 	return ticker, pinger, nil
 }
 
-// extractAddresses extracts all addresses from a list of EndpointSlice
-// doesn't perform deduplication because of the way the tests are designed, they "run" multiple fake queue endpoints on the same host:port
-func extractAddresses(eps *discov1.EndpointSliceList) k8s.Endpoints {
-	ret := []string{}
-	for _, ep := range eps.Items {
-		for _, addr := range ep.Endpoints {
-			ret = append(ret, addr.Addresses...)
-		}
+func withPatchedDefaultTransport(t *testing.T, dialMap map[string]string) {
+	t.Helper()
+
+	oldTransport := http.DefaultTransport
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if mappedAddr, ok := dialMap[addr]; ok {
+				addr = mappedAddr
+			}
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
+		},
 	}
-	return k8s.Endpoints{ReadyAddresses: ret}
+	http.DefaultTransport = transport
+
+	t.Cleanup(func() {
+		http.DefaultTransport = oldTransport
+		transport.CloseIdleConnections()
+	})
 }

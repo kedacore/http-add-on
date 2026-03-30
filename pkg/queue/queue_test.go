@@ -2,7 +2,6 @@ package queue
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -15,14 +14,14 @@ func TestCurrent(t *testing.T) {
 	r := require.New(t)
 	memory := NewMemory()
 	host := hostName
-	memory.EnsureKey(host, time.Minute, time.Second)
+	memory.EnsureKey(host)
 
 	err := memory.Increase(host, 1)
 	r.NoError(err)
 	current, err := memory.Current()
 	r.NoError(err)
 	r.Equal(1, current.Counts[host].Concurrency)
-	r.Greater(current.Counts[host].RPS, 0.0)
+	r.Equal(int64(1), current.Counts[host].RequestCount)
 
 	err = memory.Increase(host, 1)
 	r.NoError(err)
@@ -31,13 +30,14 @@ func TestCurrent(t *testing.T) {
 	current2, err := memory.Current()
 	r.NoError(err)
 	r.Equal(3, current2.Counts[host].Concurrency)
+	r.Equal(int64(3), current2.Counts[host].RequestCount)
 }
 
 func TestDecreaseClamp(t *testing.T) {
 	r := require.New(t)
 	memory := NewMemory()
 	host := hostName
-	memory.EnsureKey(host, time.Minute, time.Second)
+	memory.EnsureKey(host)
 
 	err := memory.Decrease(host, 1)
 	r.NoError(err)
@@ -50,7 +50,7 @@ func TestRemoveKey(t *testing.T) {
 	r := require.New(t)
 	memory := NewMemory()
 	host := hostName
-	memory.EnsureKey(host, time.Minute, time.Second)
+	memory.EnsureKey(host)
 
 	r.True(memory.RemoveKey(host))
 	r.False(memory.RemoveKey(host))
@@ -60,16 +60,19 @@ func TestRemoveKey(t *testing.T) {
 	r.Empty(current.Counts)
 }
 
-func TestUpdateBuckets(t *testing.T) {
+func TestRequestCountMonotonic(t *testing.T) {
 	r := require.New(t)
 	memory := NewMemory()
 	host := hostName
-	memory.EnsureKey(host, time.Minute, time.Second)
-	memory.UpdateBuckets(host, 2*time.Minute, 2*time.Second)
+	memory.EnsureKey(host)
 
-	err := memory.Increase(host, 1)
-	r.NoError(err)
+	r.NoError(memory.Increase(host, 1))
+	r.NoError(memory.Increase(host, 1))
+	r.NoError(memory.Decrease(host, 1))
+
 	current, err := memory.Current()
 	r.NoError(err)
 	r.Equal(1, current.Counts[host].Concurrency)
+	r.Equal(int64(2), current.Counts[host].RequestCount,
+		"RequestCount should keep growing even after Decrease")
 }
