@@ -16,6 +16,7 @@ type instrumentedResponseWriter struct {
 func newInstrumentedResponseWriter(w http.ResponseWriter) *instrumentedResponseWriter {
 	return &instrumentedResponseWriter{
 		ResponseWriter: w,
+		statusCode:     http.StatusOK, // default value if WriteHeader is not called
 	}
 }
 

@@ -27,7 +27,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Redesign interceptor metrics: `interceptor_request_count` → `interceptor_requests_total` (labels: `method`, `code`, `route_name`, `route_namespace`), `interceptor_pending_request_count` → `interceptor_pending_requests` (labels: `route_name`, `route_namespace`), added `interceptor_request_duration_seconds` histogram; `path` and `host` labels removed in favor of route identity via InterceptorRoute name/namespace to fix unbounded cardinality OOM issues; non-standard HTTP methods normalized to `_OTHER`; dashboards and alerting rules must be updated ([#1559](https://github.com/kedacore/http-add-on/issues/1559))
 
 ### New
 

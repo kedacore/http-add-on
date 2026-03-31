@@ -39,9 +39,11 @@ Install KEDA and the HTTP Add-on following the [install instructions](./install.
 ## Makefile Reference
 
 - `make build`: Build all binaries locally
-- `make test`: Run linter and unit tests
+- `make test`: Run unit tests
+- `make lint`: Run linter
+- `make lint-fix`: Run linter with auto-fix
 - `make e2e-test`: Run all e2e tests against an existing cluster
-- `make generate`: Generate code (DeepCopy) and Kubernetes manifests
+- `make generate`: Generate code (DeepCopy) and Kubernetes manifests (run after modifying CRD types or webhook configs)
 - `make deploy`: Build and deploy all components to the cluster
 - `make deploy-interceptor`: Build and deploy the interceptor
 - `make deploy-operator`: Build and deploy the operator
@@ -80,7 +82,7 @@ ko will:
 ## Running E2E Tests
 
 E2E tests live in `test/e2e/` and are organized by **profile**. Each profile groups tests that require a specific HTTP Add-on configuration.
-For example, the `default` profile covers standard routing and scaling behavior with the default configuration while the `tls` profile tests TLS termination and requires the interceptor to be deployed with TLS certificates enabled.
+For example, the `default` profile covers standard routing and scaling behavior with the default configuration, while the `tls` profile tests TLS termination and requires the interceptor to be deployed with TLS certificates enabled.
 
 ### Cluster setup
 
@@ -115,15 +117,6 @@ make e2e-test E2E_ARGS="--labels=area=scaling"
 make e2e-test E2E_ARGS="--dry-run"
 ```
 
-The `PROFILE` variable selects a test profile directory under `test/e2e/` (e.g. `PROFILE=tls` runs `./test/e2e/tls/...`).
+The `PROFILE` variable selects a test profile directory under `test/e2e/` (e.g. `PROFILE=tls` runs `./test/e2e/tls/...`). Each subdirectory in `test/e2e/` is a profile.
 The `RUN` variable filters tests by name using Go's `-run` flag (supports regex, e.g. `RUN=TestColdStart` or `RUN="TestHost|TestPath"`).
 The `E2E_ARGS` variable passes flags to the [e2e-framework](https://github.com/kubernetes-sigs/e2e-framework) via `-args` (e.g. `--labels`, `--feature`, `--skip-labels`, `--dry-run`).
-
-## Debugging
-
-To inspect the interceptor's pending request queue, port-forward the admin service and query the `/queue` endpoint:
-
-```bash
-kubectl port-forward -n keda svc/keda-add-ons-http-interceptor-admin 9090
-curl localhost:9090/queue
-```

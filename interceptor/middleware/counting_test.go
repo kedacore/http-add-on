@@ -3,72 +3,71 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/kedacore/http-add-on/interceptor/metrics"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-func TestCountMiddleware(t *testing.T) {
-	r := require.New(t)
-
-	uri, err := url.Parse("https://testingkeda.com")
-	r.NoError(err)
-
+func TestCounting_ConcurrencyTracking(t *testing.T) {
 	ir := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "test-namespace",
+			Name: "test-route",
 		},
 		Spec: httpv1beta1.InterceptorRouteSpec{
 			Target: httpv1beta1.TargetRef{
-				Service: "testservice",
+				Service: "test-svc",
 				Port:    8080,
 			},
 		},
 	}
-	namespacedName := k8s.NamespacedNameFromObject(ir).String()
-
-	queueCounter := queue.NewFakeCounterBuffered()
+	counter := queue.NewFakeCounterBuffered()
 
 	var concurrencyDuringRequest int
-	middleware := NewCountingMiddleware(
-		http.HandlerFunc(func(wr http.ResponseWriter, _ *http.Request) {
-			counts, err := queueCounter.Current()
-			if err == nil {
-				concurrencyDuringRequest = counts.Counts[namespacedName].Concurrency
-			}
-			wr.WriteHeader(200)
-			_, _ = wr.Write([]byte("OK"))
-		}),
-		queueCounter,
-	)
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		concurrencyDuringRequest = currentConcurrency(t, counter)
+		w.WriteHeader(http.StatusOK)
+	})
 
-	req, err := http.NewRequest("GET", "/something", nil)
-	r.NoError(err)
-	reqCtx := req.Context()
-	reqCtx = util.ContextWithLogger(reqCtx, logr.Discard())
-	reqCtx = util.ContextWithInterceptorRoute(reqCtx, ir)
-	req = req.WithContext(reqCtx)
-	req.Host = uri.Host
+	mw := NewCounting(next, counter, metrics.NewNoopInstruments())
 
-	respRecorder := httptest.NewRecorder()
-	middleware.ServeHTTP(respRecorder, req)
+	req := httptest.NewRequest("GET", "/test", nil)
+	ctx := util.ContextWithLogger(req.Context(), logr.Discard())
+	ctx = util.ContextWithInterceptorRoute(ctx, ir)
+	req = req.WithContext(ctx)
 
-	r.Equal(http.StatusOK, respRecorder.Code)
-	r.Equal("OK", respRecorder.Body.String())
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
 
-	// During the request, concurrency should have been 1
-	r.Equal(1, concurrencyDuringRequest)
+	if got, want := rec.Code, http.StatusOK; got != want {
+		t.Fatalf("status: got %d, want %d", got, want)
+	}
+	if got, want := concurrencyDuringRequest, 1; got != want {
+		t.Fatalf("concurrency during request: got %d, want %d", got, want)
+	}
+	if got, want := currentConcurrency(t, counter), 0; got != want {
+		t.Fatalf("concurrency after request: got %d, want %d", got, want)
+	}
+}
 
-	// After the request completes, concurrency should be back to 0
-	counts, err := queueCounter.Current()
-	r.NoError(err)
-	r.Equal(0, counts.Counts[namespacedName].Concurrency)
+func currentConcurrency(t *testing.T, counter *queue.FakeCounter) int {
+	t.Helper()
+
+	counts, err := counter.Current()
+	if err != nil {
+		t.Fatalf("counter.Current() error: %v", err)
+	}
+	if got, want := len(counts.Counts), 1; got != want {
+		t.Fatalf("expected %d counter entry, got %d", want, got)
+	}
+	for _, c := range counts.Counts {
+		return c.Concurrency
+	}
+
+	return 0
 }
