@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 		h.WithEnvVar("OTEL_EXPORTER_OTLP_METRICS_ENABLED", "true"),
 		h.WithEnvVar("OTEL_EXPORTER_OTLP_TRACES_ENABLED", "true"),
 		h.WithEnvVar("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "http/protobuf"),
-		h.WithEnvVar("OTEL_METRIC_EXPORT_INTERVAL", "1"),
+		h.WithEnvVar("OTEL_METRIC_EXPORT_INTERVAL", "5000"), // milliseconds
 	)
 
 	os.Exit(testenv.Run(m))

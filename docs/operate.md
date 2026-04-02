@@ -16,7 +16,8 @@ When configured, the interceptor proxy can export metrics to a OTEL HTTP collect
 
 The OTEL exporter can be enabled by setting the `OTEL_EXPORTER_OTLP_METRICS_ENABLED` environment variable to `true` on the interceptor deployment (`false` by default). When enabled the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable must also be configured so the exporter knows what collector to send the metrics to (e.g. http://opentelemetry-collector.open-telemetry-system:4318).
 
-If you need to provide any headers such as authentication details in order to utilise your OTEL collector you can add them into the `OTEL_EXPORTER_OTLP_HEADERS` environment variable. The frequency at which the metrics are exported can be configured by setting `OTEL_METRIC_EXPORT_INTERVAL` to the number of seconds you require between each export interval (`30` by default).
+If you need to provide any headers such as authentication details in order to utilise your OTEL collector you can add them into the `OTEL_EXPORTER_OTLP_HEADERS` environment variable.
+The frequency at which the metrics are exported can be configured via the [`OTEL_METRIC_EXPORT_INTERVAL`](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader) environment variable, which expects milliseconds and defaults to 60 seconds.
 
 # Configuring TLS for the KEDA HTTP Add-on interceptor proxy
 
