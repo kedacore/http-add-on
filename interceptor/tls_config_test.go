@@ -1,22 +1,16 @@
 package main
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
-	"math/big"
 	"net"
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/go-logr/logr"
+
+	"github.com/kedacore/http-add-on/pkg/testutil"
 )
 
 func TestBuildTLSConfig_CertificatePath(t *testing.T) {
@@ -101,7 +95,7 @@ func TestBuildTLSConfig_NoDefaultCert(t *testing.T) {
 
 func TestBuildTLSConfig_MissingKeyFile(t *testing.T) {
 	dir := t.TempDir()
-	certPEM, _ := generateCertAndKeyPEM(t, []string{"example.com"}, nil)
+	certPEM, _ := testutil.GenerateCertPEM(t, []string{"example.com"}, nil)
 	writeFile(t, filepath.Join(dir, "server.crt"), certPEM)
 
 	opts := TLSOptions{CertStorePaths: dir}
@@ -114,7 +108,7 @@ func TestBuildTLSConfig_MissingKeyFile(t *testing.T) {
 
 func TestBuildTLSConfig_PemFormat(t *testing.T) {
 	dir := t.TempDir()
-	certPEM, keyPEM := generateCertAndKeyPEM(t, []string{"pem.example.com"}, nil)
+	certPEM, keyPEM := testutil.GenerateCertPEM(t, []string{"pem.example.com"}, nil)
 	writeFile(t, filepath.Join(dir, "server.pem"), certPEM)
 	writeFile(t, filepath.Join(dir, "server-key.pem"), keyPEM)
 
@@ -130,7 +124,7 @@ func TestBuildTLSConfig_PemFormat(t *testing.T) {
 
 func TestBuildTLSConfig_IPAddressSAN(t *testing.T) {
 	dir := t.TempDir()
-	certPEM, keyPEM := generateCertAndKeyPEM(t, nil, []net.IP{net.ParseIP("192.168.1.100")})
+	certPEM, keyPEM := testutil.GenerateCertPEM(t, nil, []net.IP{net.ParseIP("192.168.1.100")})
 	writeFile(t, filepath.Join(dir, "ip.crt"), certPEM)
 	writeFile(t, filepath.Join(dir, "ip.key"), keyPEM)
 
@@ -156,7 +150,7 @@ func TestBuildTLSConfig_InvalidContent(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
-			certPEM, keyPEM := generateCertAndKeyPEM(t, []string{"example.com"}, nil)
+			certPEM, keyPEM := testutil.GenerateCertPEM(t, []string{"example.com"}, nil)
 
 			if tt.invalidCert {
 				certPEM = []byte("not a valid certificate")
@@ -294,7 +288,7 @@ func requireCertForHost(t *testing.T, cfg *tls.Config, host string) {
 
 func writeCert(t *testing.T, dir, name, dnsName string) {
 	t.Helper()
-	certPEM, keyPEM := generateCertAndKeyPEM(t, []string{dnsName}, nil)
+	certPEM, keyPEM := testutil.GenerateCertPEM(t, []string{dnsName}, nil)
 	writeFile(t, filepath.Join(dir, name+".crt"), certPEM)
 	writeFile(t, filepath.Join(dir, name+".key"), keyPEM)
 }
@@ -304,39 +298,4 @@ func writeFile(t *testing.T, path string, data []byte) {
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatalf("writing %s: %v", path, err)
 	}
-}
-
-func generateCertAndKeyPEM(t *testing.T, dnsNames []string, ipAddresses []net.IP) (certPEM, keyPEM []byte) {
-	t.Helper()
-
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("generating key: %v", err)
-	}
-
-	template := x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{Organization: []string{"Test"}},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		DNSNames:              dnsNames,
-		IPAddresses:           ipAddresses,
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
-	if err != nil {
-		t.Fatalf("creating certificate: %v", err)
-	}
-
-	keyDER, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		t.Fatalf("marshaling key: %v", err)
-	}
-
-	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
-	return
 }

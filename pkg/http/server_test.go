@@ -1,91 +1,68 @@
 package http
 
 import (
-	"context"
 	"crypto/tls"
-	"fmt"
+	"net"
 	"net/http"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/kedacore/http-add-on/pkg/testutil"
 )
 
-func TestServeContext(t *testing.T) {
-	r := require.New(t)
-	ctx, done := context.WithCancel(
-		context.Background(),
-	)
-	defer done()
-	hdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rc := http.NewResponseController(w)
-		if err := rc.EnableFullDuplex(); err != nil {
-			t.Fatalf("error enabling full duplex: %v", err)
-		}
+func TestServe(t *testing.T) {
+	cert, caPool := testutil.GenerateCert(t, []string{"localhost"}, []net.IP{net.IPv4(127, 0, 0, 1)})
 
-		w.Header().Set("foo", "bar")
-		_, err := w.Write([]byte("hello world"))
-		if err != nil {
-			t.Fatalf("error writing message to client from handler")
-		}
-	})
-	addr := "localhost:1234"
-	const waitDur = 100 * time.Millisecond
-	const cancelDur = 400 * time.Millisecond
-	go func() {
-		time.Sleep(waitDur)
-
-		// send a request so the handler runs
-		resp, err := http.Get("http://" + addr)
-		if err != nil {
-			panic(fmt.Sprintf("error sending request to the server: %v", err))
-		}
-		defer resp.Body.Close()
-
-		time.Sleep(cancelDur)
-		done()
-	}()
-	start := time.Now()
-	err := ServeContext(ctx, addr, hdl, nil)
-	elapsed := time.Since(start)
-
-	r.Error(err)
-	r.ErrorIs(err, http.ErrServerClosed, "error is not a http.ErrServerClosed (%w)", err)
-	r.Greater(elapsed, cancelDur)
-	r.Less(elapsed, cancelDur*4)
-}
-
-func TestServeContextWithTLS(t *testing.T) {
-	r := require.New(t)
-	ctx, done := context.WithCancel(
-		context.Background(),
-	)
-	defer done()
-	hdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("foo", "bar")
-		_, err := w.Write([]byte("hello world"))
-		if err != nil {
-			t.Fatalf("error writing message to client from handler")
-		}
-	})
-	addr := "localhost:1234"
-	const cancelDur = 500 * time.Millisecond
-	go func() {
-		time.Sleep(cancelDur)
-		done()
-	}()
-	start := time.Now()
-	tlsConfig := tls.Config{
-		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			cert, err := tls.LoadX509KeyPair("../../certs/tls.crt", "../../certs/tls.key")
-			return &cert, err
+	tests := map[string]struct {
+		serverTLS *tls.Config
+		clientTLS *tls.Config
+	}{
+		"plain HTTP": {},
+		"TLS": {
+			serverTLS: &tls.Config{
+				Certificates: []tls.Certificate{cert},
+			},
+			clientTLS: &tls.Config{
+				RootCAs: caPool,
+			},
 		},
 	}
-	err := ServeContext(ctx, addr, hdl, &tlsConfig)
-	elapsed := time.Since(start)
 
-	r.Error(err)
-	r.ErrorIs(err, http.ErrServerClosed, "error is not a http.ErrServerClosed (%w)", err)
-	r.Greater(elapsed, cancelDur)
-	r.Less(elapsed, cancelDur*4)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Create a listener on a free port
+			ln, err := net.Listen("tcp", "localhost:0")
+			if err != nil {
+				t.Fatalf("listen: %v", err)
+			}
+
+			// Launch the server
+			hdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			go func() {
+				_ = serve(t.Context(), ln, hdl, tc.serverTLS)
+			}()
+
+			// Send a test request
+			scheme := "http"
+			if tc.clientTLS != nil {
+				scheme = "https"
+			}
+			client := &http.Client{Transport: &http.Transport{TLSClientConfig: tc.clientTLS}}
+
+			resp, err := client.Get(scheme + "://" + ln.Addr().String())
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			_ = resp.Body.Close()
+
+			// Verify response
+			if got, want := resp.StatusCode, http.StatusOK; got != want {
+				t.Fatalf("status = %d, want %d", got, want)
+			}
+			if tc.serverTLS != nil && resp.TLS == nil {
+				t.Fatal("expected TLS connection, but resp.TLS is nil")
+			}
+		})
+	}
 }

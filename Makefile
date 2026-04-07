@@ -41,6 +41,7 @@ COSIGN_FLAGS ?= -y -a GIT_HASH=$(GIT_COMMIT) -a GIT_VERSION=$(VERSION) -a BUILD_
 ## Tool Binaries
 CONTROLLER_GEN ?= go tool controller-gen
 
+# TODO(v1): remove DOMAINS, ABC_DOMAINS, and the cert targets below when removing the legacy e2e tests.
 define DOMAINS
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
@@ -95,6 +96,7 @@ ko-build: ko-build-operator ko-build-interceptor ko-build-scaler
 # Testing                                        #
 ##################################################
 
+# TODO(v1): remove cert targets below when removing the legacy e2e tests.
 rootca-test-certs:
 	mkdir -p certs
 	openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout certs/RootCA.key -out certs/RootCA.pem -subj "/C=US/CN=Keda-Root-CA"
@@ -111,7 +113,8 @@ test-certs: rootca-test-certs
 clean-test-certs:
 	rm -rf certs
 
-test: test-certs
+.PHONY: test
+test:
 	go test ./...
 
 e2e-test-legacy:
