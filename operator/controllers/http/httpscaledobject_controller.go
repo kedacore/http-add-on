@@ -19,6 +19,8 @@ package http
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"time"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
@@ -89,7 +91,7 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// update status
 	httpso.Status.TargetWorkload = fmt.Sprintf("%s/%s/%s", httpso.Spec.ScaleTargetRef.APIVersion, httpso.Spec.ScaleTargetRef.Kind, httpso.Spec.ScaleTargetRef.Name)
-	httpso.Status.TargetService = fmt.Sprintf("%s:%d", httpso.Spec.ScaleTargetRef.Service, httpso.Spec.ScaleTargetRef.Port)
+	httpso.Status.TargetService = net.JoinHostPort(httpso.Spec.ScaleTargetRef.Service, strconv.Itoa(int(httpso.Spec.ScaleTargetRef.Port)))
 
 	// httpso is updated now
 	logger.Info(

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net"
 	"net/url"
 	"slices"
 
@@ -31,7 +32,7 @@ func EndpointsForService(ctx context.Context, ns, serviceName, servicePort strin
 	for _, addr := range endpoints.ReadyAddresses {
 		u := url.URL{
 			Scheme: "http",
-			Host:   fmt.Sprintf("%s:%s", addr, servicePort),
+			Host:   net.JoinHostPort(addr, servicePort),
 		}
 		ret = append(ret, u)
 	}

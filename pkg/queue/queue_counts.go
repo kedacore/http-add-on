@@ -48,7 +48,7 @@ func (q *Counts) Aggregate() Count {
 }
 
 // MarshalJSON implements json.Marshaler
-func (q *Counts) MarshalJSON() ([]byte, error) {
+func (q Counts) MarshalJSON() ([]byte, error) {
 	return json.Marshal(q.Counts)
 }
 
