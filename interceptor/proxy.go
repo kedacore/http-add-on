@@ -65,6 +65,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           dialFunc,
 		ForceAttemptHTTP2:     cfg.Timeouts.ForceHTTP2,
+		DisableKeepAlives:     cfg.Timeouts.DisableKeepAlives,
 		MaxIdleConns:          cfg.Timeouts.MaxIdleConns,
 		MaxIdleConnsPerHost:   cfg.Timeouts.MaxIdleConnsPerHost,
 		IdleConnTimeout:       cfg.Timeouts.IdleConnTimeout,

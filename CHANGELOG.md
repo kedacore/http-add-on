@@ -35,7 +35,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Add `KEDA_HTTP_DISABLE_KEEP_ALIVES` to disable keep-alive connections from interceptor to backend services ([#1571](https://github.com/kedacore/http-add-on/pull/1571))
 
 ### Fixes
 

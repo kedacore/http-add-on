@@ -181,6 +181,47 @@ func TestProxyHandler_BackendReceivesCorrectRequest(t *testing.T) {
 	}
 }
 
+func TestProxyHandler_DisableKeepAlives(t *testing.T) {
+	var backendRequestedClose bool
+	h := newProxyTestHarness(t, harnessConfig{
+		disableKeepAlives: true,
+		backendHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			backendRequestedClose = r.Close
+			w.WriteHeader(http.StatusOK)
+		}),
+	})
+
+	resp := h.doRequest(t, http.MethodGet, "/", testHost)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+	if !backendRequestedClose {
+		t.Error("expected backend request to set Connection: close when keep-alives are disabled")
+	}
+}
+
+func TestProxyHandler_DefaultKeepAlivesEnabled(t *testing.T) {
+	var backendRequestedClose bool
+	h := newProxyTestHarness(t, harnessConfig{
+		backendHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			backendRequestedClose = r.Close
+			w.WriteHeader(http.StatusOK)
+		}),
+	})
+
+	resp := h.doRequest(t, http.MethodGet, "/", testHost)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+	if backendRequestedClose {
+		t.Error("expected backend request to keep connections open when keep-alives are enabled")
+	}
+}
+
 func TestProxyHandler_UnknownHostReturnsError(t *testing.T) {
 	h := newProxyTestHarness(t, harnessConfig{})
 
@@ -283,6 +324,7 @@ type harnessConfig struct {
 	simulateColdStart     bool
 	tlsEnabled            bool
 	tracingEnabled        bool
+	disableKeepAlives     bool
 	useBlockingQueue      bool
 }
 
@@ -369,8 +411,9 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 		RoutingTable: routingTable,
 		Reader:       fake.NewClientBuilder().WithScheme(kedacache.NewScheme()).Build(),
 		Timeouts: config.Timeouts{
-			WorkloadReplicas: 5 * time.Second,
-			ResponseHeader:   5 * time.Second,
+			WorkloadReplicas:  5 * time.Second,
+			ResponseHeader:    5 * time.Second,
+			DisableKeepAlives: cfg.disableKeepAlives,
 		},
 		Serving:             config.Serving{EnableColdStartHeader: cfg.enableColdStartHeader},
 		TLSConfig:           tlsCfg,
