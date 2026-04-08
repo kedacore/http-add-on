@@ -356,10 +356,7 @@ admin/Cargo.lock
 /target
 .envrc
 
-# locally generated certs for testing TLS
-*.crt
-*.pem
-*.csr
-*.srl
-*.ext
+# TODO(v1): remove when removing the legacy e2e tests.
+/certs/
+
 *.test
