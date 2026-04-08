@@ -43,6 +43,12 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Populate route identity for metric labels.
+	if info := routeInfoFromContext(r.Context()); info != nil {
+		info.Name = ir.Name
+		info.Namespace = ir.Namespace
+	}
+
 	url, err := rm.resolveUpstreamURL(r.Context(), ir.Spec.Target, ir.Namespace)
 	if err != nil {
 		sh := handler.NewStatic(http.StatusInternalServerError, err)

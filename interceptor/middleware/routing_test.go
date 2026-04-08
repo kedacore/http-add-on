@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -200,3 +201,72 @@ var _ = Describe("RoutingMiddleware", func() {
 		})
 	})
 })
+
+func TestRouting_PopulatesRouteInfo(t *testing.T) {
+	tests := map[string]struct {
+		ir            *httpv1beta1.InterceptorRoute
+		wantName      string
+		wantNamespace string
+		wantStatus    int
+	}{
+		"matched route sets name and namespace": {
+			ir: &httpv1beta1.InterceptorRoute{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-route",
+					Namespace: "my-ns",
+				},
+				Spec: httpv1beta1.InterceptorRouteSpec{
+					Target: httpv1beta1.TargetRef{
+						Service: "test-svc",
+						Port:    8080,
+					},
+				},
+			},
+			wantName:      "my-route",
+			wantNamespace: "my-ns",
+			wantStatus:    http.StatusOK,
+		},
+		"unmatched route leaves route info empty": {
+			ir:            nil,
+			wantName:      "",
+			wantNamespace: "",
+			wantStatus:    http.StatusNotFound,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			table := routingtest.NewTable()
+			fakeClient := fake.NewClientBuilder().WithScheme(cache.NewScheme()).Build()
+
+			inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+
+			host := "test.example.com"
+			if tc.ir != nil {
+				table.Memory[host] = tc.ir
+			}
+
+			middleware := NewRouting(inner, table, fakeClient, false)
+
+			info := &routeInfo{}
+			req := httptest.NewRequest("GET", "/path", nil)
+			req.Host = host
+			req = req.WithContext(contextWithRouteInfo(req.Context(), info))
+
+			rec := httptest.NewRecorder()
+			middleware.ServeHTTP(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status: got %d, want %d", rec.Code, tc.wantStatus)
+			}
+			if info.Name != tc.wantName {
+				t.Fatalf("routeInfo.Name: got %q, want %q", info.Name, tc.wantName)
+			}
+			if info.Namespace != tc.wantNamespace {
+				t.Fatalf("routeInfo.Namespace: got %q, want %q", info.Namespace, tc.wantNamespace)
+			}
+		})
+	}
+}

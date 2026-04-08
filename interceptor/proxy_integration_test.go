@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/interceptor/metrics"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -275,6 +276,7 @@ func newHarness(
 			DialRetryTimeout: time.Second,
 		},
 		Serving:             config.Serving{},
+		Instruments:         metrics.NewNoopInstruments(),
 		dialAddressOverride: originSrvURL.Host,
 	})
 

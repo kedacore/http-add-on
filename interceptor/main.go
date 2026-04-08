@@ -71,8 +71,22 @@ func main() {
 	proxyTLSEnabled := servingCfg.ProxyTLSEnabled
 	profilingAddr := servingCfg.ProfilingAddr
 
-	// setup the configured metrics collectors
-	metrics.NewMetricsCollectors(metricsCfg)
+	provider, err := metrics.NewMeterProvider(metricsCfg)
+	if err != nil {
+		setupLog.Error(err, "failed to create meter provider")
+		runtime.Goexit()
+	}
+	defer func() {
+		if err := provider.Shutdown(context.Background()); err != nil {
+			setupLog.Error(err, "error shutting down meter provider")
+		}
+	}()
+
+	instruments, err := metrics.NewInstruments(provider)
+	if err != nil {
+		setupLog.Error(err, "failed to create metric instruments")
+		runtime.Goexit()
+	}
 
 	cfg := ctrl.GetConfigOrDie()
 
@@ -216,7 +230,7 @@ func main() {
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
 
-			if err := runProxyServer(ctx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, proxyTLSPort, tlsCfg, tracingCfg); !util.IsIgnoredErr(err) {
+			if err := runProxyServer(ctx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, proxyTLSPort, tlsCfg, tracingCfg, instruments); !util.IsIgnoredErr(err) {
 				setupLog.Error(err, "tls proxy server failed")
 				return err
 			}
@@ -228,7 +242,7 @@ func main() {
 	eg.Go(func() error {
 		setupLog.Info("starting the proxy server with TLS disabled", "port", servingCfg.ProxyPort)
 
-		if err := runProxyServer(ctx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, servingCfg.ProxyPort, nil, tracingCfg); !util.IsIgnoredErr(err) {
+		if err := runProxyServer(ctx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, servingCfg.ProxyPort, nil, tracingCfg, instruments); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "proxy server failed")
 			return err
 		}
@@ -298,6 +312,7 @@ func runProxyServer(
 	port int,
 	tlsCfg *tls.Config,
 	tracingConfig config.Tracing,
+	instruments *metrics.Instruments,
 ) error {
 	// Build handler chain using the shared builder
 	rootHandler := BuildProxyHandler(&ProxyHandlerConfig{
@@ -310,6 +325,7 @@ func runProxyServer(
 		Serving:      serving,
 		TLSConfig:    tlsCfg,
 		Tracing:      tracingConfig,
+		Instruments:  instruments,
 	})
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)

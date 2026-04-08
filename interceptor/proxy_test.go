@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/interceptor/metrics"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
@@ -375,6 +376,7 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 		Serving:             config.Serving{EnableColdStartHeader: cfg.enableColdStartHeader},
 		TLSConfig:           tlsCfg,
 		Tracing:             config.Tracing{Enabled: cfg.tracingEnabled},
+		Instruments:         metrics.NewNoopInstruments(),
 		dialAddressOverride: backend.Listener.Addr().String(),
 	})
 

@@ -1,8 +1,9 @@
 # Configuring metrics for the KEDA HTTP Add-on interceptor proxy
 
 ### Exportable metrics:
-* **Pending request count** - the number of pending requests for a given host.
-* **Total request count** - the total number of requests for a given host with method, path and response code attributes.
+* **`interceptor_pending_requests`** (gauge) - the number of requests currently in-flight for a given route, labeled by `route_name` and `route_namespace`.
+* **`interceptor_requests_total`** (counter) - the total number of requests for a given route, labeled by `method`, `code`, `route_name`, and `route_namespace`.
+* **`interceptor_request_duration_seconds`** (histogram) - request duration in seconds for a given route, labeled by `method`, `code`, `route_name`, and `route_namespace`.
 
 There are currently 2 supported methods for exposing metrics from the interceptor proxy service - via a Prometheus compatible metrics endpoint or by pushing metrics to a OTEL HTTP collector.
 
@@ -75,7 +76,56 @@ Optional variables
 
 The interceptor proxy can log incoming requests for debugging and monitoring purposes. Request logging can be enabled by setting the `KEDA_HTTP_LOG_REQUESTS` environment variable to `true` on the interceptor deployment (`false` by default).
 
-### Configuring Service Failover
+### Debugging
+
+To inspect the interceptor's pending request queue, port-forward the admin service and query the `/queue` endpoint:
+
+```bash
+kubectl port-forward -n keda svc/keda-add-ons-http-interceptor-admin 9090
+curl localhost:9090/queue
+```
+
+### Profiling
+
+All components support [pprof](https://pkg.go.dev/net/http/pprof) for diagnosing performance issues (memory leaks, CPU hotspots, goroutine leaks).
+Profiling is disabled by default.
+On the interceptor and scaler, set the `PROFILING_BIND_ADDRESS` environment variable to enable it (e.g. `0.0.0.0:6060`).
+On the operator, add `--profiling-bind-address=:6060` to the container args.
+
+After deploying, port-forward to the component (e.g. `kubectl port-forward -n keda deploy/keda-add-ons-http-interceptor 6060:6060`).
+
+#### Capturing profiles
+
+```bash
+# Grab a heap profile (memory allocations)
+curl -o heap.pb.gz http://localhost:6060/debug/pprof/heap
+
+# Grab a CPU profile (30-second sample)
+curl -o cpu.pb.gz "http://localhost:6060/debug/pprof/profile?seconds=30"
+
+# Grab a goroutine dump (to check for goroutine leaks)
+curl -o goroutines.txt "http://localhost:6060/debug/pprof/goroutine?debug=2"
+```
+
+#### Analyzing profiles
+
+```bash
+# View a profile interactively in the browser
+go tool pprof -http=:8080 heap.pb.gz
+
+# Compare two heap profiles (e.g. baseline vs after load) as a diff flame graph
+go tool pprof -http=:8080 -diff_base heap-baseline.pb.gz heap-after.pb.gz
+```
+
+#### Investigating memory issues
+
+To investigate potential memory leaks:
+
+1. Enable pprof on the component and port-forward to it.
+2. Capture a baseline heap profile shortly after the pod starts.
+3. Let the component run under load until memory has grown.
+4. Capture a second heap profile.
+5. Compare the two heap profiles as described in [Analyzing profiles](#analyzing-profiles) to identify where allocations grew.
 
 ## Configuring the KEDA HTTP Add-on Operator
 

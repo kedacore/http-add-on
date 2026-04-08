@@ -35,7 +35,7 @@ func TestPrometheusMetrics(t *testing.T) {
 
 			return ctx
 		}).
-		Assess("interceptor exposes request count metric", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		Assess("interceptor exposes request metrics", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
 
 			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
@@ -47,9 +47,17 @@ func TestPrometheusMetrics(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to get metrics: %v", err)
 			}
+			output := string(body)
 
-			if !strings.Contains(string(body), "interceptor_request_count_total") {
-				t.Fatalf("expected interceptor_request_count_total in metrics output, got:\n%s", string(body))
+			// Verify all interceptor metrics are present in the Prometheus output.
+			for _, metric := range []string{
+				"interceptor_pending_requests",
+				"interceptor_request_duration_seconds",
+				"interceptor_requests_total",
+			} {
+				if !strings.Contains(output, metric) {
+					t.Fatalf("expected %s in metrics output, got:\n%s", metric, output)
+				}
 			}
 
 			return ctx

@@ -12,6 +12,7 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/handler"
+	"github.com/kedacore/http-add-on/interceptor/metrics"
 	"github.com/kedacore/http-add-on/interceptor/middleware"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
@@ -30,6 +31,7 @@ type ProxyHandlerConfig struct {
 	Serving      config.Serving
 	TLSConfig    *tls.Config
 	Tracing      config.Tracing
+	Instruments  *metrics.Instruments
 
 	// dialAddressOverride redirects all dial attempts to this address (for testing).
 	// If empty, dials to the original target address.
@@ -83,7 +85,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		EnableColdStartHeader: cfg.Serving.EnableColdStartHeader,
 	})
 
-	h = middleware.NewCountingMiddleware(h, cfg.Queue)
+	h = middleware.NewCounting(h, cfg.Queue, cfg.Instruments)
 
 	h = middleware.NewRouting(
 		h,
@@ -92,15 +94,15 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		cfg.TLSConfig != nil,
 	)
 
-	if cfg.Tracing.Enabled {
-		h = otelhttp.NewHandler(h, "keda-http-interceptor")
-	}
+	h = middleware.NewMetrics(h, cfg.Instruments)
 
 	if cfg.Serving.LogRequests {
 		h = middleware.NewLogging(h, cfg.Logger)
 	}
 
-	h = middleware.NewMetrics(h)
+	if cfg.Tracing.Enabled {
+		h = otelhttp.NewHandler(h, "keda-http-interceptor")
+	}
 
 	return h
 }

@@ -12,12 +12,17 @@ import (
 type Counting struct {
 	next         http.Handler
 	queueCounter queue.Counter
+	instruments  *metrics.Instruments
 }
 
-func NewCountingMiddleware(next http.Handler, queueCounter queue.Counter) *Counting {
+func NewCounting(next http.Handler, queueCounter queue.Counter, instruments *metrics.Instruments) *Counting {
+	if instruments == nil {
+		panic("instruments must not be nil")
+	}
 	return &Counting{
 		next:         next,
 		queueCounter: queueCounter,
+		instruments:  instruments,
 	}
 }
 
@@ -35,13 +40,13 @@ func (cm *Counting) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cm.next.ServeHTTP(w, r)
 		return
 	}
-	metrics.RecordPendingRequestCount(key, 1)
+	cm.instruments.RecordPendingRequest(ir.Name, ir.Namespace, 1)
 
 	defer func() {
 		if err := cm.queueCounter.Decrease(key, 1); err != nil {
 			util.LoggerFromContext(ctx).Error(err, "error decrementing queue counter", "key", key)
 		}
-		metrics.RecordPendingRequestCount(key, -1)
+		cm.instruments.RecordPendingRequest(ir.Name, ir.Namespace, -1)
 	}()
 
 	cm.next.ServeHTTP(w, r)
