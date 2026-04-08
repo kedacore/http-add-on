@@ -41,13 +41,15 @@ func (ph *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ph *Probe) Start(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	for {
 		ph.check(ctx)
 
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Second):
+		case <-ticker.C:
 			continue
 		}
 	}
