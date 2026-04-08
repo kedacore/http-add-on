@@ -20,6 +20,8 @@ type Timeouts struct {
 	WorkloadReplicas time.Duration `env:"KEDA_CONDITION_WAIT_TIMEOUT" envDefault:"20s"`
 	// ForceHTTP2 toggles whether to try to force HTTP2 for all requests
 	ForceHTTP2 bool `env:"KEDA_HTTP_FORCE_HTTP2" envDefault:"false"`
+	// DisableKeepAlives disables HTTP keep-alives for requests from interceptor to backend services.
+	DisableKeepAlives bool `env:"KEDA_HTTP_DISABLE_KEEP_ALIVES" envDefault:"false"`
 	// MaxIdleConns is the max number of idle connections to keep in the
 	// interceptor's internal connection pool across all backend services.
 	// Increase this if you proxy to many unique backend services.
