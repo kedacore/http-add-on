@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
@@ -434,6 +435,82 @@ func TestTableSignalHTTPSO_TriggersRefresh(t *testing.T) {
 	}
 	if newResult.Name != "new-object" {
 		t.Errorf("expected name 'new-object', got %q", newResult.Name)
+	}
+}
+
+func TestTableHTTPSOTimeoutConversion(t *testing.T) {
+	tests := map[string]struct {
+		httpso         *httpv1alpha1.HTTPScaledObject
+		wantReadiness  *metav1.Duration
+		wantRespHeader *metav1.Duration
+	}{
+		"conditionWait and responseHeader": {
+			httpso: &httpv1alpha1.HTTPScaledObject{
+				ObjectMeta: metav1.ObjectMeta{Name: "timeouts", Namespace: "default"},
+				Spec: httpv1alpha1.HTTPScaledObjectSpec{
+					Hosts: []string{"timeouts.example.com"},
+					Timeouts: &httpv1alpha1.HTTPScaledObjectTimeoutsSpec{
+						ConditionWait:  metav1.Duration{Duration: 30 * time.Second},
+						ResponseHeader: metav1.Duration{Duration: 10 * time.Second},
+					},
+				},
+			},
+			wantReadiness:  &metav1.Duration{Duration: 30 * time.Second},
+			wantRespHeader: &metav1.Duration{Duration: 10 * time.Second},
+		},
+		"coldStartTimeoutFailoverRef overrides readiness": {
+			httpso: &httpv1alpha1.HTTPScaledObject{
+				ObjectMeta: metav1.ObjectMeta{Name: "coldstart", Namespace: "default"},
+				Spec: httpv1alpha1.HTTPScaledObjectSpec{
+					Hosts: []string{"coldstart.example.com"},
+					Timeouts: &httpv1alpha1.HTTPScaledObjectTimeoutsSpec{
+						ConditionWait: metav1.Duration{Duration: 30 * time.Second},
+					},
+					ColdStartTimeoutFailoverRef: &httpv1alpha1.ColdStartTimeoutFailoverRef{
+						Service:        "fallback-svc",
+						Port:           8080,
+						TimeoutSeconds: 45,
+					},
+				},
+			},
+			// ColdStartTimeoutFailoverRef.TimeoutSeconds takes precedence over ConditionWait
+			wantReadiness:  &metav1.Duration{Duration: 45 * time.Second},
+			wantRespHeader: nil,
+		},
+		"no timeouts set": {
+			httpso: &httpv1alpha1.HTTPScaledObject{
+				ObjectMeta: metav1.ObjectMeta{Name: "no-timeouts", Namespace: "default"},
+				Spec: httpv1alpha1.HTTPScaledObjectSpec{
+					Hosts: []string{"no-timeouts.example.com"},
+				},
+			},
+			wantReadiness:  nil,
+			wantRespHeader: nil,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cl := newTestClient(tc.httpso)
+			tbl := NewTable(cl, queue.NewMemory())
+
+			cancel := startTableAndWaitForSync(t, tbl)
+			defer cancel()
+
+			host := tc.httpso.Spec.Hosts[0]
+			req, _ := http.NewRequest("GET", "http://"+host+"/test", nil)
+			result := tbl.Route(req)
+			if result == nil {
+				t.Fatal("expected route to be found")
+			}
+
+			if got, want := result.Spec.Timeouts.Readiness, tc.wantReadiness; !reflect.DeepEqual(got, want) {
+				t.Errorf("readiness timeout: got %v, want %v", got, want)
+			}
+			if got, want := result.Spec.Timeouts.ResponseHeader, tc.wantRespHeader; !reflect.DeepEqual(got, want) {
+				t.Errorf("responseHeader timeout: got %v, want %v", got, want)
+			}
+		})
 	}
 }
 

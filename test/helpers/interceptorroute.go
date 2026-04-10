@@ -31,6 +31,10 @@ func (f *Framework) CreateInterceptorRoute(name string, app *TestApp, opts ...IR
 				Service: app.Name,
 				Port:    app.Port,
 			},
+			Timeouts: httpv1beta1.InterceptorRouteTimeouts{
+				// Default to a generous readiness timeout for e2e tests
+				Readiness: &metav1.Duration{Duration: 60 * time.Second},
+			},
 			ScalingMetric: httpv1beta1.ScalingMetricSpec{
 				Concurrency: &httpv1beta1.ConcurrencyTargetSpec{
 					TargetValue: 100,
@@ -96,6 +100,23 @@ func IRWithAnnotations(annotations map[string]string) IROption {
 			ir.Annotations = make(map[string]string)
 		}
 		maps.Copy(ir.Annotations, annotations)
+	}
+}
+
+// IRWithTimeouts merges the given timeout fields into the InterceptorRoute,
+// preserving any defaults (e.g. the readiness timeout set by CreateInterceptorRoute)
+// for fields that are not explicitly overridden.
+func IRWithTimeouts(timeouts httpv1beta1.InterceptorRouteTimeouts) IROption {
+	return func(ir *httpv1beta1.InterceptorRoute) {
+		if timeouts.Request != nil {
+			ir.Spec.Timeouts.Request = timeouts.Request
+		}
+		if timeouts.ResponseHeader != nil {
+			ir.Spec.Timeouts.ResponseHeader = timeouts.ResponseHeader
+		}
+		if timeouts.Readiness != nil {
+			ir.Spec.Timeouts.Readiness = timeouts.Readiness
+		}
 	}
 }
 

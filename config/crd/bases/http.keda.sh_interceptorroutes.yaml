@@ -208,6 +208,31 @@ spec:
                 x-kubernetes-validations:
                 - message: exactly one of 'port' or 'portName' must be set
                   rule: has(self.port) != has(self.portName)
+              timeouts:
+                description: Timeout configuration for request handling.
+                properties:
+                  readiness:
+                    description: |-
+                      Time to wait for the backend to become ready (e.g. scale-from-zero).
+                      Unset: uses the global KEDA_HTTP_READINESS_TIMEOUT (default: disabled).
+                      Set to "0s" to disable the dedicated readiness deadline so the full
+                      request budget is available for cold starts. When a fallback service
+                      is configured and this is "0s", a 30s default is applied.
+                    type: string
+                  request:
+                    description: |-
+                      Total time allowed for the entire request lifecycle.
+                      Unset: uses the global KEDA_HTTP_REQUEST_TIMEOUT (default: disabled).
+                      Set to "0s" to disable the request deadline.
+                    type: string
+                  responseHeader:
+                    description: |-
+                      Max time to wait for the response headers from the backend after the
+                      request has been fully sent. Does not include cold-start wait time.
+                      Unset: uses the global KEDA_HTTP_RESPONSE_HEADER_TIMEOUT (default: 300s).
+                      Set to "0s" to disable the response header deadline.
+                    type: string
+                type: object
             required:
             - scalingMetric
             - target

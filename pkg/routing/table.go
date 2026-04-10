@@ -116,16 +116,13 @@ func (t *table) refreshMemory(ctx context.Context) error {
 			}
 			ir.Spec.Rules = []httpv1beta1.RoutingRule{rr}
 
-			// Temporarily store the HTTPSO timeouts in an internal annotation of the IR to not expose them.
+			// Convert HTTPSO timeouts to InterceptorRoute timeouts spec.
 			if httpso.Spec.Timeouts != nil {
-				if ir.Annotations == nil {
-					ir.Annotations = make(map[string]string)
-				}
 				if httpso.Spec.Timeouts.ConditionWait.Duration > 0 {
-					ir.Annotations[k8s.AnnotationConditionWaitTimeout] = httpso.Spec.Timeouts.ConditionWait.Duration.String()
+					ir.Spec.Timeouts.Readiness = &metav1.Duration{Duration: httpso.Spec.Timeouts.ConditionWait.Duration}
 				}
 				if httpso.Spec.Timeouts.ResponseHeader.Duration > 0 {
-					ir.Annotations[k8s.AnnotationResponseHeaderTimeout] = httpso.Spec.Timeouts.ResponseHeader.Duration.String()
+					ir.Spec.Timeouts.ResponseHeader = &metav1.Duration{Duration: httpso.Spec.Timeouts.ResponseHeader.Duration}
 				}
 			}
 
@@ -138,10 +135,7 @@ func (t *table) refreshMemory(ctx context.Context) error {
 					},
 				}
 				if c.TimeoutSeconds > 0 {
-					if ir.Annotations == nil {
-						ir.Annotations = make(map[string]string)
-					}
-					ir.Annotations[k8s.AnnotationConditionWaitTimeout] = (time.Duration(c.TimeoutSeconds) * time.Second).String()
+					ir.Spec.Timeouts.Readiness = &metav1.Duration{Duration: time.Duration(c.TimeoutSeconds) * time.Second}
 				}
 			}
 

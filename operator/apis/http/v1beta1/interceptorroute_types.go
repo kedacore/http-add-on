@@ -126,10 +126,31 @@ type ColdStartSpec struct {
 	Fallback *TargetRef `json:"fallback,omitzero"`
 }
 
-// TimeoutsSpec configures per-route request handling timeouts for the interceptor.
-// These override the global interceptor timeout settings.
-// TODO(v1): define timeout fields
-type TimeoutsSpec struct{}
+// InterceptorRouteTimeouts configures per-route request handling timeouts.
+// When a field is unset, the global interceptor timeout configuration
+// (KEDA_HTTP_*_TIMEOUT env vars) is used.
+type InterceptorRouteTimeouts struct {
+	// Time to wait for the backend to become ready (e.g. scale-from-zero).
+	// Unset: uses the global KEDA_HTTP_READINESS_TIMEOUT (default: disabled).
+	// Set to "0s" to disable the dedicated readiness deadline so the full
+	// request budget is available for cold starts. When a fallback service
+	// is configured and this is "0s", a 30s default is applied.
+	// +optional
+	Readiness *metav1.Duration `json:"readiness,omitzero"`
+
+	// Total time allowed for the entire request lifecycle.
+	// Unset: uses the global KEDA_HTTP_REQUEST_TIMEOUT (default: disabled).
+	// Set to "0s" to disable the request deadline.
+	// +optional
+	Request *metav1.Duration `json:"request,omitzero"`
+
+	// Max time to wait for the response headers from the backend after the
+	// request has been fully sent. Does not include cold-start wait time.
+	// Unset: uses the global KEDA_HTTP_RESPONSE_HEADER_TIMEOUT (default: 300s).
+	// Set to "0s" to disable the response header deadline.
+	// +optional
+	ResponseHeader *metav1.Duration `json:"responseHeader,omitzero"`
+}
 
 // InterceptorRouteSpec defines the desired state of InterceptorRoute.
 type InterceptorRouteSpec struct {
@@ -138,6 +159,9 @@ type InterceptorRouteSpec struct {
 	// Cold start behavior when scaling from zero.
 	// +optional
 	ColdStart *ColdStartSpec `json:"coldStart,omitzero"`
+	// Timeout configuration for request handling.
+	// +optional
+	Timeouts InterceptorRouteTimeouts `json:"timeouts,omitzero"`
 	// Routing rules that define how requests are matched to this target.
 	// +optional
 	// +listType=atomic

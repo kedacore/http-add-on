@@ -33,8 +33,7 @@ func TestDialContextWithRetry_SucceedsImmediately(t *testing.T) {
 	}
 	defer srv.Close()
 
-	dialer := NewNetDialer(100*time.Millisecond, 1*time.Second)
-	dialRetry := DialContextWithRetry(dialer, 1*time.Second)
+	dialRetry := DialContextWithRetry(100 * time.Millisecond)
 
 	start := time.Now()
 	conn, err := dialRetry(t.Context(), "tcp", srvURL.Host)
@@ -75,8 +74,7 @@ func TestDialContextWithRetry_RetriesUntilReachable(t *testing.T) {
 		_ = ln.Close()
 	}()
 
-	dialer := NewNetDialer(50*time.Millisecond, 1*time.Second)
-	dialRetry := DialContextWithRetry(dialer, 2*time.Second)
+	dialRetry := DialContextWithRetry(50 * time.Millisecond)
 
 	conn, err := dialRetry(t.Context(), "tcp", addr)
 	if err != nil {
@@ -87,12 +85,14 @@ func TestDialContextWithRetry_RetriesUntilReachable(t *testing.T) {
 }
 
 func TestDialContextWithRetry_StopsAtTimeout(t *testing.T) {
-	dialer := NewNetDialer(1*time.Millisecond, 10*time.Millisecond)
+	// Retries are bounded by the parent context's deadline.
+	dialFunc := DialContextWithRetry(1 * time.Millisecond)
 	retryTimeout := 200 * time.Millisecond
-	dialRetry := DialContextWithRetry(dialer, retryTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), retryTimeout)
+	defer cancel()
 
 	start := time.Now()
-	_, err := dialRetry(t.Context(), "tcp", getUnreachableAddr(t))
+	_, err := dialFunc(ctx, "tcp", getUnreachableAddr(t))
 	elapsed := time.Since(start)
 
 	if err == nil {
@@ -112,8 +112,7 @@ func TestDialContextWithRetry_StopsAtTimeout(t *testing.T) {
 }
 
 func TestDialContextWithRetry_RespectsParentContext(t *testing.T) {
-	dialer := NewNetDialer(10*time.Millisecond, 1*time.Second)
-	dialRetry := DialContextWithRetry(dialer, 5*time.Second)
+	dialRetry := DialContextWithRetry(10 * time.Millisecond)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
@@ -125,18 +124,20 @@ func TestDialContextWithRetry_RespectsParentContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error on context cancellation")
 	}
-	// Should stop around the parent context timeout (100ms), not the retryTimeout (5s).
+	// Should stop around the parent context timeout (100ms).
 	if elapsed > 200*time.Millisecond {
 		t.Errorf("elapsed %v; should have stopped near parent context timeout", elapsed)
 	}
 }
 
 func TestDialContextWithRetry_WrapsError(t *testing.T) {
-	dialer := NewNetDialer(1*time.Millisecond, 10*time.Millisecond)
-	dialRetry := DialContextWithRetry(dialer, 100*time.Millisecond)
+	dialRetry := DialContextWithRetry(1 * time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
 
 	addr := getUnreachableAddr(t)
-	_, err := dialRetry(t.Context(), "tcp", addr)
+	_, err := dialRetry(ctx, "tcp", addr)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -144,5 +145,9 @@ func TestDialContextWithRetry_WrapsError(t *testing.T) {
 	var opErr *net.OpError
 	if !errors.As(err, &opErr) {
 		t.Errorf("expected wrapped *net.OpError, got %T: %v", err, err)
+	}
+	// The context error should be in the chain so callers can detect timeouts.
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("expected context.DeadlineExceeded in error chain, got: %v", err)
 	}
 }
