@@ -34,7 +34,7 @@ JAEGER_VERSION ?= 4.7.0
 # renovate: datasource=helm depName=keda registryUrl=https://kedacore.github.io/charts
 KEDA_VERSION ?= 2.19.0
 # renovate: datasource=helm depName=opentelemetry-collector registryUrl=https://open-telemetry.github.io/opentelemetry-helm-charts
-OTEL_COLLECTOR_VERSION ?= 0.147.1
+OTEL_COLLECTOR_VERSION ?= 0.150.0
 
 COSIGN_FLAGS ?= -y -a GIT_HASH=$(GIT_COMMIT) -a GIT_VERSION=$(VERSION) -a BUILD_DATE=$(DATE)
 
