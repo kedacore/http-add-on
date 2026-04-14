@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -17,6 +19,8 @@ import (
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 )
 
+const requestTimeout = 60 * time.Second
+
 var _ = Describe("RoutingMiddleware", func() {
 	Context("New", func() {
 		It("returns new object with expected fields", func() {
@@ -28,7 +32,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			upstreamHandler.Handle("/upstream", emptyHandler)
 			fakeClient := fake.NewClientBuilder().WithScheme(cache.NewScheme()).Build()
 
-			rm := NewRouting(upstreamHandler, routingTable, fakeClient, false)
+			rm := NewRouting(upstreamHandler, routingTable, fakeClient, false, requestTimeout)
 			Expect(rm).NotTo(BeNil())
 			Expect(rm.routingTable).To(Equal(routingTable))
 			Expect(rm.next).To(Equal(upstreamHandler))
@@ -89,7 +93,7 @@ var _ = Describe("RoutingMiddleware", func() {
 			upstreamHandler = http.NewServeMux()
 			routingTable = routingtest.NewTable()
 			client = fake.NewClientBuilder().WithScheme(cache.NewScheme()).Build()
-			routingMiddleware = NewRouting(upstreamHandler, routingTable, client, false)
+			routingMiddleware = NewRouting(upstreamHandler, routingTable, client, false, requestTimeout)
 
 			w = httptest.NewRecorder()
 
@@ -126,7 +130,7 @@ var _ = Describe("RoutingMiddleware", func() {
 		When("route is found with portName", func() {
 			It("routes to the upstream handler", func() {
 				clientWithSvc := fake.NewClientBuilder().WithScheme(cache.NewScheme()).WithObjects(svc).Build()
-				routingMiddleware = NewRouting(upstreamHandler, routingTable, clientWithSvc, false)
+				routingMiddleware = NewRouting(upstreamHandler, routingTable, clientWithSvc, false, requestTimeout)
 
 				var (
 					sc = http.StatusTeapot
@@ -177,6 +181,88 @@ var _ = Describe("RoutingMiddleware", func() {
 				Expect(uh).To(BeFalse())
 				Expect(w.Code).To(Equal(http.StatusInternalServerError))
 				Expect(w.Body.String()).To(Equal("Internal Server Error\n"))
+			})
+		})
+
+		When("route is found with timeouts", func() {
+			It("sets a context deadline from global timeout", func() {
+				var hasDeadline bool
+				upstreamHandler.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					_, hasDeadline = r.Context().Deadline()
+					w.WriteHeader(http.StatusOK)
+				}))
+
+				routingTable.Memory[host] = &ir
+				routingMiddleware.ServeHTTP(w, r)
+				Expect(hasDeadline).To(BeTrue())
+			})
+
+			It("uses per-route request timeout override instead of global", func() {
+				perRouteTimeout := 5 * time.Second
+				irWithTimeout := httpv1beta1.InterceptorRoute{
+					Spec: httpv1beta1.InterceptorRouteSpec{
+						Target: httpv1beta1.TargetRef{Port: 80},
+						Timeouts: httpv1beta1.InterceptorRouteTimeouts{
+							Request: &metav1.Duration{Duration: perRouteTimeout},
+						},
+					},
+				}
+
+				var capturedDeadline time.Time
+				upstreamHandler.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					capturedDeadline, _ = r.Context().Deadline()
+					w.WriteHeader(http.StatusOK)
+				}))
+
+				routingTable.Memory[host] = &irWithTimeout
+				before := time.Now()
+				routingMiddleware.ServeHTTP(w, r)
+
+				deadline := capturedDeadline.Sub(before)
+				tolerance := 500 * time.Millisecond
+				Expect(deadline).To(
+					BeNumerically("~", perRouteTimeout, tolerance),
+					fmt.Sprintf("deadline %v should be close to per-route timeout %v (±%v), not the global timeout %v", deadline, perRouteTimeout, tolerance, requestTimeout),
+				)
+			})
+		})
+
+		When("route is found with zero request timeout", func() {
+			It("does not set a context deadline", func() {
+				noTimeoutMiddleware := NewRouting(upstreamHandler, routingTable, client, false, 0)
+
+				var hasDeadline bool
+				upstreamHandler.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					_, hasDeadline = r.Context().Deadline()
+					w.WriteHeader(http.StatusOK)
+				}))
+
+				routingTable.Memory[host] = &ir
+				noTimeoutMiddleware.ServeHTTP(w, r)
+				Expect(hasDeadline).To(BeFalse())
+			})
+		})
+
+		When("per-route request timeout is explicitly zero with non-zero global", func() {
+			It("disables the context deadline", func() {
+				irWithZeroTimeout := httpv1beta1.InterceptorRoute{
+					Spec: httpv1beta1.InterceptorRouteSpec{
+						Target: httpv1beta1.TargetRef{Port: 80},
+						Timeouts: httpv1beta1.InterceptorRouteTimeouts{
+							Request: &metav1.Duration{Duration: 0},
+						},
+					},
+				}
+
+				var hasDeadline bool
+				upstreamHandler.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					_, hasDeadline = r.Context().Deadline()
+					w.WriteHeader(http.StatusOK)
+				}))
+
+				routingTable.Memory[host] = &irWithZeroTimeout
+				routingMiddleware.ServeHTTP(w, r)
+				Expect(hasDeadline).To(BeFalse())
 			})
 		})
 
@@ -248,7 +334,7 @@ func TestRouting_PopulatesRouteInfo(t *testing.T) {
 				table.Memory[host] = tc.ir
 			}
 
-			middleware := NewRouting(inner, table, fakeClient, false)
+			middleware := NewRouting(inner, table, fakeClient, false, 0)
 
 			info := &routeInfo{}
 			req := httptest.NewRequest("GET", "/path", nil)

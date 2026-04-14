@@ -127,7 +127,7 @@ func TestIntegrationNoReplicas(t *testing.T) {
 		host,
 	)
 	r.NoError(err)
-	r.Equal(502, res.StatusCode)
+	r.Equal(504, res.StatusCode)
 	_ = res.Body.Close()
 	elapsed := time.Since(start)
 	// we should have slept more than the active endpoints wait timeout
@@ -269,11 +269,10 @@ func newHarness(
 		RoutingTable: routingTable,
 		Reader:       fakeClient,
 		Timeouts: config.Timeouts{
-			WorkloadReplicas: activeEndpointsTimeout,
-			ResponseHeader:   time.Second,
-			Connect:          100 * time.Millisecond,
-			KeepAlive:        100 * time.Millisecond,
-			DialRetryTimeout: time.Second,
+			Connect:        100 * time.Millisecond,
+			Readiness:      activeEndpointsTimeout,
+			Request:        60 * time.Second,
+			ResponseHeader: time.Second,
 		},
 		Serving:             config.Serving{},
 		Instruments:         metrics.NewNoopInstruments(),

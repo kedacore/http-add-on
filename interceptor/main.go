@@ -45,7 +45,7 @@ var setupLog = ctrl.Log.WithName("setup")
 
 func main() {
 	defer os.Exit(1)
-	timeoutCfg := config.MustParseTimeouts()
+	timeoutCfg := config.MustParseTimeouts(setupLog)
 	servingCfg := config.MustParseServing()
 	metricsCfg := config.MustParseMetrics()
 	tracingCfg := config.MustParseTracing()

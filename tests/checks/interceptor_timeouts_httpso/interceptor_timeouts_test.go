@@ -110,7 +110,7 @@ spec:
   backoffLimit: 2
 `
 
-	httpScaledObjectWithoutTimeoutsTemplate = `
+	httpScaledObjectShortTimeoutTemplate = `
 kind: HTTPScaledObject
 apiVersion: http.keda.sh/v1alpha1
 metadata:
@@ -128,6 +128,8 @@ spec:
   replicas:
     min: {{ .MinReplicas }}
     max: {{ .MaxReplicas }}
+  timeouts:
+    responseHeader: "1s"
 `
 
 	httpScaledObjectWithTimeoutsTemplate = `
@@ -164,24 +166,24 @@ func TestCheck(t *testing.T) {
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, minReplicaCount, 6, 10),
 		"replica count should be %d after 1 minutes", minReplicaCount)
 
-	testDefaultTimeouts(t, kc, data)
+	testShortTimeouts(t, kc, data)
 	testCustomTimeouts(t, kc, data)
 
 	// cleanup
 	DeleteKubernetesResources(t, testNamespace, data, templates)
 }
 
-func testDefaultTimeouts(t *testing.T, kc *kubernetes.Clientset, data templateData) {
-	KubectlApplyWithTemplate(t, data, "httpScaledObjectTemplate", httpScaledObjectWithoutTimeoutsTemplate)
+func testShortTimeouts(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+	KubectlApplyWithTemplate(t, data, "httpScaledObjectTemplate", httpScaledObjectShortTimeoutTemplate)
 
-	testDefaultTimeoutPasses(t, kc, data)
-	testDefaultTimeoutFails(t, kc, data)
+	testShortTimeoutPasses(t, kc, data)
+	testShortTimeoutFails(t, kc, data)
 
-	KubectlDeleteWithTemplate(t, data, "httpScaledObjectTemplate", httpScaledObjectWithoutTimeoutsTemplate)
+	KubectlDeleteWithTemplate(t, data, "httpScaledObjectTemplate", httpScaledObjectShortTimeoutTemplate)
 }
 
-func testDefaultTimeoutPasses(t *testing.T, kc *kubernetes.Clientset, data templateData) {
-	t.Log("--- testing default timeout passes ---")
+func testShortTimeoutPasses(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+	t.Log("--- testing short timeout passes ---")
 
 	KubectlApplyWithTemplate(t, data, "loadJobTemplate", loadJobTemplate)
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 6, 10),
@@ -194,8 +196,8 @@ func testDefaultTimeoutPasses(t *testing.T, kc *kubernetes.Clientset, data templ
 		"replica count should be %d after 2 minutes", minReplicaCount)
 }
 
-func testDefaultTimeoutFails(t *testing.T, kc *kubernetes.Clientset, data templateData) {
-	t.Log("--- testing default timeout fails ---")
+func testShortTimeoutFails(t *testing.T, kc *kubernetes.Clientset, data templateData) {
+	t.Log("--- testing short timeout fails ---")
 
 	data.ResponseDelay = "2"
 

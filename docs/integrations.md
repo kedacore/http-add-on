@@ -40,20 +40,13 @@ spec:
 
 1. **Error: `context marked done while waiting for workload reach > 0 replicas`**
 
-   - This error indicates that the `KEDA_CONDITION_WAIT_TIMEOUT` value (default: 20 seconds) might be too low. The workload scaling process may not be complete within this timeframe.
-   - To increase the timeout:
-     - If using Helm, adjust the `interceptor.replicas.waitTimeout` parameter (see reference below).
-     - Reference: [https://github.com/kedacore/charts/blob/main/http-add-on/values.yaml#L139](https://github.com/kedacore/charts/blob/main/http-add-on/values.yaml#L139)
+   - This error indicates that the readiness timeout might be too low. By default the readiness timeout is disabled (bounded only by the `request` timeout); when a fallback service is configured and no readiness timeout is set, it defaults to 30s.
+   - Set the `readiness` timeout in the InterceptorRoute `timeouts` spec or `KEDA_HTTP_READINESS_TIMEOUT` to a value that gives the workload enough time to scale up.
 
-2. **502 Errors with POST Requests:**
+2. **502/504 Errors with POST Requests:**
 
-   - You might encounter 502 errors during POST requests when the request is routed through the interceptor service. This could be due to insufficient timeout settings.
-   - To adjust timeout parameters:
-     - If using Helm, modify the following parameters (see reference below):
-       - `KEDA_HTTP_CONNECT_TIMEOUT`
-       - `KEDA_RESPONSE_HEADER_TIMEOUT`
-       - `KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT`
-     - Reference: [https://github.com/kedacore/charts/blob/main/http-add-on/values.yaml#L152](https://github.com/kedacore/charts/blob/main/http-add-on/values.yaml#L152)
+   - You might encounter timeout errors during POST requests when the request is routed through the interceptor service. This could be due to insufficient timeout settings.
+   - Increase `KEDA_HTTP_RESPONSE_HEADER_TIMEOUT` or set the `responseHeader` timeout in the InterceptorRoute `timeouts` spec.
 
 3. **Immediate Scaling Down to Zero:**
    - If `minReplica` is set to 0 in the HTTPScaledObject, the application will immediately scale down to 0.

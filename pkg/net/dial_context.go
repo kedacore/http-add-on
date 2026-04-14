@@ -1,8 +1,8 @@
 package net
 
 import (
-	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -11,48 +11,49 @@ import (
 // DialContextFunc matches the signature of net.Dialer.DialContext.
 type DialContextFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
-// retryInterval is kept short to minimize latency when the target becomes
-// reachable. Not exposed as configuration — retryTimeout is the user-facing knob.
-const retryInterval = 50 * time.Millisecond
+const (
+	// retryInterval is kept short to minimize latency when the target becomes reachable.
+	retryInterval = 50 * time.Millisecond
 
-// DialContextWithRetry retries failed dials at a fixed interval until
-// retryTimeout expires or the parent context is cancelled.
-func DialContextWithRetry(coreDialer *net.Dialer, retryTimeout time.Duration) DialContextFunc {
-	// Default covers slow Service IP rule propagation to kube-proxy, Cilium, etc
-	retryTimeout = cmp.Or(retryTimeout, 15*time.Second)
+	// maxRetryDuration caps the total time spent retrying when the parent
+	// context has no deadline as safe-guard for unreachable backends.
+	maxRetryDuration = 1 * time.Minute
+)
+
+// DialContextWithRetry returns a DialContextFunc that retries failed dials at a
+// fixed interval until the parent context is cancelled or its deadline expires.
+// When the parent context has no deadline, retries are bounded by maxRetryDuration.
+func DialContextWithRetry(connectTimeout time.Duration) DialContextFunc {
+	dialer := net.Dialer{Timeout: connectTimeout}
 
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, retryTimeout)
-		defer cancel()
+		// Safety net: prevent infinite retries when no request deadline is set.
+		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, maxRetryDuration)
+			defer cancel()
+		}
 
-		// Track the last error to return it when the retry loop runs out of time
-		var lastError error
 		start := time.Now()
 
-		for {
-			conn, err := coreDialer.DialContext(ctx, network, addr)
-			if err == nil {
-				return conn, nil
-			}
-			lastError = err
+		conn, lastErr := dialer.DialContext(ctx, network, addr)
+		if lastErr == nil {
+			return conn, nil
+		}
 
-			t := time.NewTimer(retryInterval)
+		ticker := time.NewTicker(retryInterval)
+		defer ticker.Stop()
+
+		for {
 			select {
 			case <-ctx.Done():
-				t.Stop()
-				return nil, fmt.Errorf("retry dial %s after %.2fs: %w", addr, time.Since(start).Seconds(), lastError)
-			case <-t.C:
+				return nil, fmt.Errorf("retry dial %s after %.2fs: %w", addr, time.Since(start).Seconds(), errors.Join(ctx.Err(), lastErr))
+			case <-ticker.C:
+				conn, lastErr = dialer.DialContext(ctx, network, addr)
+				if lastErr == nil {
+					return conn, nil
+				}
 			}
 		}
-	}
-}
-
-// NewNetDialer creates a new net.Dialer with the given connection timeout and
-// keep alive duration.
-func NewNetDialer(connectTimeout, keepAlive time.Duration) *net.Dialer {
-	return &net.Dialer{
-		Timeout:   connectTimeout,
-		KeepAlive: keepAlive,
 	}
 }

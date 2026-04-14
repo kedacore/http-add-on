@@ -17,9 +17,11 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -192,8 +194,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	defer srv.Close()
 
 	timeouts := defaultTimeouts()
-	timeouts.Connect = 1 * time.Millisecond
-	timeouts.ResponseHeader = 1 * time.Millisecond
+	timeouts.ResponseHeader = 5 * time.Millisecond
 	dialCtxFunc := retryDialContextFunc(timeouts)
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
@@ -201,10 +202,8 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 
-	forwardedRequests := hdl.IncomingRequests()
-	r.Empty(forwardedRequests)
-	r.Equal(502, res.Code)
-	r.Contains(res.Body.String(), http.StatusText(http.StatusBadGateway))
+	r.Equal(http.StatusGatewayTimeout, res.Code)
+	r.Contains(res.Body.String(), http.StatusText(http.StatusGatewayTimeout))
 	// the proxy has bailed out, so tell the origin to stop
 	close(originWaitCh)
 }
@@ -231,10 +230,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	// have a much longer timeout than this to account for timing issues
 	const originDelay = 5 * time.Millisecond
 	timeouts := config.Timeouts{
-		Connect:   originDelay,
-		KeepAlive: 2 * time.Second,
-		// the handler is going to take 500 milliseconds to respond, so make the
-		// forwarder wait much longer than that
+		Connect:        originDelay,
 		ResponseHeader: originDelay * 4,
 	}
 
@@ -260,11 +256,16 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	noSuchURL, err := url.Parse("https://localhost:65533")
 	r.NoError(err)
 
+	const requestTimeout = 500 * time.Millisecond
 	timeouts := defaultTimeouts()
-	timeouts.DialRetryTimeout = 500 * time.Millisecond
 	dialCtxFunc := retryDialContextFunc(timeouts)
 	res, req, err := reqAndRes("/test")
 	r.NoError(err)
+
+	ctx, cancel := context.WithTimeout(req.Context(), requestTimeout)
+	defer cancel()
+	req = req.WithContext(ctx)
+
 	req = util.RequestWithUpstreamURL(req, noSuchURL)
 	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
 
@@ -275,18 +276,18 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 
 	r.GreaterOrEqualf(
 		elapsed,
-		timeouts.DialRetryTimeout,
+		requestTimeout,
 		"proxy returned after %s, expected not to return until %s",
 		elapsed,
-		timeouts.DialRetryTimeout,
+		requestTimeout,
 	)
 	r.Equal(
-		502,
+		http.StatusGatewayTimeout,
 		res.Code,
 		"unexpected code (response body was '%s')",
 		res.Body.String(),
 	)
-	r.Contains(res.Body.String(), http.StatusText(http.StatusBadGateway))
+	r.Contains(res.Body.String(), http.StatusText(http.StatusGatewayTimeout))
 }
 
 func TestForwardRequestRedirectAndHeaders(t *testing.T) {
@@ -427,6 +428,46 @@ func TestUpstreamPreservesXForwardedHeaders(t *testing.T) {
 	}
 }
 
+func TestUpstream_RouteSpecResponseHeaderOverride(t *testing.T) {
+	r := require.New(t)
+	originWaitCh := make(chan struct{})
+	hdl := kedanet.NewTestHTTPHandlerWrapper(
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			<-originWaitCh
+			w.WriteHeader(200)
+		}),
+	)
+	srv, originURL, err := kedanet.StartTestServer(hdl)
+	r.NoError(err)
+	defer srv.Close()
+
+	// Global timeout is generous, but per-route override is very tight
+	timeouts := defaultTimeouts()
+	timeouts.ResponseHeader = 5 * time.Second
+	dialCtxFunc := retryDialContextFunc(timeouts)
+
+	res, req, err := reqAndRes("/testfwd")
+	r.NoError(err)
+	req = util.RequestWithUpstreamURL(req, originURL)
+
+	// Set IR with tight per-route ResponseHeader override
+	ir := &httpv1beta1.InterceptorRoute{
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Timeouts: httpv1beta1.InterceptorRouteTimeouts{
+				ResponseHeader: &metav1.Duration{Duration: 1 * time.Millisecond},
+			},
+		},
+	}
+	ctx := util.ContextWithInterceptorRoute(req.Context(), ir)
+	req = req.WithContext(ctx)
+
+	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
+	uh.ServeHTTP(res, req)
+
+	r.Equal(http.StatusGatewayTimeout, res.Code)
+	close(originWaitCh)
+}
+
 func newTestTransport(dialCtxFunc kedanet.DialContextFunc) *http.Transport {
 	return &http.Transport{
 		DialContext: dialCtxFunc,
@@ -435,17 +476,15 @@ func newTestTransport(dialCtxFunc kedanet.DialContextFunc) *http.Transport {
 
 func defaultTimeouts() config.Timeouts {
 	return config.Timeouts{
-		Connect:          100 * time.Millisecond,
-		KeepAlive:        100 * time.Millisecond,
-		ResponseHeader:   500 * time.Millisecond,
-		WorkloadReplicas: 1 * time.Second,
-		DialRetryTimeout: 1 * time.Second,
+		Connect:        100 * time.Millisecond,
+		Readiness:      1 * time.Second,
+		Request:        10 * time.Second,
+		ResponseHeader: 500 * time.Millisecond,
 	}
 }
 
 func retryDialContextFunc(timeouts config.Timeouts) kedanet.DialContextFunc {
-	dialer := kedanet.NewNetDialer(timeouts.Connect, timeouts.KeepAlive)
-	return kedanet.DialContextWithRetry(dialer, timeouts.DialRetryTimeout)
+	return kedanet.DialContextWithRetry(timeouts.Connect)
 }
 
 func reqAndRes(path string) (*httptest.ResponseRecorder, *http.Request, error) {

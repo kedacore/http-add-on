@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -17,18 +18,20 @@ import (
 )
 
 type Routing struct {
-	routingTable routing.Table
-	next         http.Handler
-	reader       client.Reader
-	tlsEnabled   bool
+	routingTable   routing.Table
+	next           http.Handler
+	reader         client.Reader
+	tlsEnabled     bool
+	requestTimeout time.Duration
 }
 
-func NewRouting(next http.Handler, routingTable routing.Table, reader client.Reader, tlsEnabled bool) *Routing {
+func NewRouting(next http.Handler, routingTable routing.Table, reader client.Reader, tlsEnabled bool, requestTimeout time.Duration) *Routing {
 	return &Routing{
-		routingTable: routingTable,
-		next:         next,
-		reader:       reader,
-		tlsEnabled:   tlsEnabled,
+		routingTable:   routingTable,
+		next:           next,
+		reader:         reader,
+		tlsEnabled:     tlsEnabled,
+		requestTimeout: requestTimeout,
 	}
 }
 
@@ -73,6 +76,17 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ctx = util.ContextWithFallbackURL(ctx, fallbackURL)
+	}
+
+	// Apply per-route or global request deadline
+	requestTimeout := rm.requestTimeout
+	if ir.Spec.Timeouts.Request != nil {
+		requestTimeout = ir.Spec.Timeouts.Request.Duration
+	}
+	if requestTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, requestTimeout)
+		defer cancel()
 	}
 
 	r = r.WithContext(ctx)
