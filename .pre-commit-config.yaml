@@ -10,7 +10,7 @@ repos:
       - id: check-merge-conflict
       - id: mixed-line-ending
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
       - id: doctoc
         name: Add TOC for md files
