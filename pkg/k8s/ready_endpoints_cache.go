@@ -3,7 +3,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -14,14 +13,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ReadyEndpointsCache maintains a derived map of service -> ready (bool)
+// ServiceEndpoints holds the set of ready pod addresses and their port
+// mappings for a single Kubernetes Service. Instances are immutable after
+// creation; updates produce a new snapshot that is atomically swapped in.
+type ServiceEndpoints struct {
+	Addresses []string         // deduplicated ready pod IPs
+	Ports     map[string]int32 // portName -> containerPort ("" for unnamed)
+}
+
+// ReadyEndpointsCache maintains a derived map of service -> ServiceEndpoints
 // for O(1) hot-path lookups, plus a broadcast mechanism so the cold-start
 // wait function can block until a service becomes ready.
 type ReadyEndpointsCache struct {
 	lggr logr.Logger
 
-	// "namespace/service" -> *atomic.Bool
-	ready sync.Map
+	// "namespace/service" -> *atomic.Pointer[ServiceEndpoints]
+	endpoints sync.Map
 
 	// Broadcast mechanism: the channel is closed on any change,
 	// then replaced with a fresh one. Waiters select on the channel.
@@ -40,10 +47,20 @@ func NewReadyEndpointsCache(lggr logr.Logger) *ReadyEndpointsCache {
 // HasReadyEndpoints returns true if the service has at least one ready endpoint.
 // This is the fast hot-path check (one atomic load).
 func (c *ReadyEndpointsCache) HasReadyEndpoints(serviceKey string) bool {
-	if v, ok := c.ready.Load(serviceKey); ok {
-		return v.(*atomic.Bool).Load()
+	if v, ok := c.endpoints.Load(serviceKey); ok {
+		se := v.(*atomic.Pointer[ServiceEndpoints]).Load()
+		return se != nil && len(se.Addresses) > 0
 	}
 	return false
+}
+
+// GetEndpoints returns the current endpoint snapshot for the given service,
+// or nil if the service is unknown or has no endpoint slices.
+func (c *ReadyEndpointsCache) GetEndpoints(serviceKey string) *ServiceEndpoints {
+	if v, ok := c.endpoints.Load(serviceKey); ok {
+		return v.(*atomic.Pointer[ServiceEndpoints]).Load()
+	}
+	return nil
 }
 
 // WaitForReady waits until the service has at least one ready endpoint or
@@ -98,21 +115,28 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey strin
 	}
 }
 
-// Update checks whether the given service has at least one ready,
-// non-terminating endpoint and stores the result. Short-circuits on
-// the first ready endpoint found. If no slices remain for the service,
-// the key is removed to avoid unbounded map growth.
+// Update rebuilds the endpoint snapshot for the given service from the
+// supplied EndpointSlices. If no slices remain, the key is removed to
+// avoid unbounded map growth.
 func (c *ReadyEndpointsCache) Update(serviceKey string, endpointSlices []*discov1.EndpointSlice) {
 	if len(endpointSlices) == 0 {
-		c.ready.Delete(serviceKey)
+		c.endpoints.Delete(serviceKey)
 		c.broadcast()
 		return
 	}
 
-	hasReady := slices.ContainsFunc(endpointSlices, hasAnyReadyEndpoint)
+	se := buildServiceEndpoints(endpointSlices)
 
-	v, _ := c.ready.LoadOrStore(serviceKey, &atomic.Bool{})
-	if old := v.(*atomic.Bool).Swap(hasReady); old != hasReady {
+	p := &atomic.Pointer[ServiceEndpoints]{}
+	v, loaded := c.endpoints.LoadOrStore(serviceKey, p)
+	if loaded {
+		p = v.(*atomic.Pointer[ServiceEndpoints])
+	}
+
+	old := p.Swap(se)
+	oldReady := old != nil && len(old.Addresses) > 0
+	newReady := len(se.Addresses) > 0
+	if oldReady != newReady {
 		c.broadcast()
 	}
 }
@@ -125,6 +149,44 @@ func (c *ReadyEndpointsCache) broadcast() {
 	c.notifyCh = make(chan struct{})
 	c.mu.Unlock()
 	close(old)
+}
+
+// buildServiceEndpoints collects all ready endpoint addresses and port
+// mappings from the given EndpointSlices into an immutable snapshot.
+func buildServiceEndpoints(slices []*discov1.EndpointSlice) *ServiceEndpoints {
+	addrSet := make(map[string]struct{})
+	ports := make(map[string]int32)
+
+	for _, slice := range slices {
+		for _, p := range slice.Ports {
+			name := ""
+			if p.Name != nil {
+				name = *p.Name
+			}
+			if p.Port != nil {
+				ports[name] = *p.Port
+			}
+		}
+
+		for i := range slice.Endpoints {
+			ep := &slice.Endpoints[i]
+			if (ep.Conditions.Ready == nil || *ep.Conditions.Ready) && len(ep.Addresses) > 0 {
+				for _, addr := range ep.Addresses {
+					addrSet[addr] = struct{}{}
+				}
+			}
+		}
+	}
+
+	addresses := make([]string, 0, len(addrSet))
+	for addr := range addrSet {
+		addresses = append(addresses, addr)
+	}
+
+	return &ServiceEndpoints{
+		Addresses: addresses,
+		Ports:     ports,
+	}
 }
 
 // hasAnyReadyEndpoint returns true if the slice contains at least one

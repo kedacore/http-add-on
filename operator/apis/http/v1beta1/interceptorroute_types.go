@@ -118,6 +118,19 @@ type TargetRef struct {
 	PortName string `json:"portName,omitzero"`
 }
 
+// ProxyMode controls how the interceptor forwards traffic to the backend.
+// +kubebuilder:validation:Enum=Service;Endpoint
+type ProxyMode string
+
+const (
+	// ProxyModeService routes through the Kubernetes Service ClusterIP / DNS.
+	// This is the default and is compatible with service meshes (Istio, Linkerd, etc.).
+	ProxyModeService ProxyMode = "Service"
+	// ProxyModeEndpoint routes directly to a ready pod IP discovered from EndpointSlices,
+	// bypassing kube-proxy for lower latency.
+	ProxyModeEndpoint ProxyMode = "Endpoint"
+)
+
 // ColdStartSpec configures behavior while the target is not ready.
 // +kubebuilder:validation:XValidation:rule="has(self.fallback)",message="'fallback' must be set"
 type ColdStartSpec struct {
@@ -156,6 +169,12 @@ type InterceptorRouteTimeouts struct {
 type InterceptorRouteSpec struct {
 	// Backend service to route traffic to.
 	Target TargetRef `json:"target"`
+	// How traffic is forwarded to the backend.
+	// "Service" (default): route via Kubernetes Service DNS (service mesh compatible).
+	// "Endpoint": route directly to pod IPs from EndpointSlices.
+	// +optional
+	// +kubebuilder:default="Service"
+	ProxyMode ProxyMode `json:"proxyMode,omitzero"`
 	// Cold start behavior when scaling from zero.
 	// +optional
 	ColdStart *ColdStartSpec `json:"coldStart,omitzero"`

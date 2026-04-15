@@ -10,10 +10,14 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
+	pkgcache "github.com/kedacore/http-add-on/pkg/cache"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -400,6 +404,222 @@ func TestEndpointResolver_PerRouteZeroReadinessDisablesGlobal(t *testing.T) {
 	})
 }
 
+// --- Endpoint proxy mode tests ---
+
+func TestEndpointResolver_EndpointMode_ResolvesToPodIP(t *testing.T) {
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyEndpointWithPorts(readyCache)
+
+	var capturedUpstream *url.URL
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedUpstream = util.UpstreamURLFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := NewEndpointResolver(next, readyCache, EndpointResolverConfig{
+		ReadinessTimeout: 5 * time.Second,
+	})
+
+	ir := endpointIR()
+	ir.Spec.Target.PortName = "http"
+
+	rec := httptest.NewRecorder()
+	req := newRequest(t, ir)
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if capturedUpstream == nil {
+		t.Fatal("expected upstream URL to be set")
+	}
+	if capturedUpstream.Scheme != "http" {
+		t.Fatalf("scheme = %q, want %q", capturedUpstream.Scheme, "http")
+	}
+	// Should be a pod IP, not the Service DNS name
+	if capturedUpstream.Host != "10.0.0.1:8080" && capturedUpstream.Host != "10.0.0.2:8080" {
+		t.Fatalf("host = %q, want one of 10.0.0.1:8080 or 10.0.0.2:8080", capturedUpstream.Host)
+	}
+}
+
+func TestEndpointResolver_EndpointMode_TLS(t *testing.T) {
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyEndpointWithPorts(readyCache)
+
+	var capturedUpstream *url.URL
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedUpstream = util.UpstreamURLFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := NewEndpointResolver(next, readyCache, EndpointResolverConfig{
+		ReadinessTimeout: 5 * time.Second,
+		TLSEnabled:       true,
+	})
+
+	ir := endpointIR()
+	ir.Spec.Target.PortName = "http"
+
+	rec := httptest.NewRecorder()
+	req := newRequest(t, ir)
+	mw.ServeHTTP(rec, req)
+
+	if capturedUpstream == nil {
+		t.Fatal("expected upstream URL to be set")
+	}
+	if capturedUpstream.Scheme != "https" {
+		t.Fatalf("scheme = %q, want %q", capturedUpstream.Scheme, "https")
+	}
+}
+
+func TestEndpointResolver_EndpointMode_NumericPort(t *testing.T) {
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyEndpointWithPorts(readyCache)
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testService,
+			Namespace: testNamespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http",
+					Port:       80,
+					TargetPort: intstr.FromInt32(8080),
+				},
+			},
+		},
+	}
+	fakeReader := fake.NewClientBuilder().WithScheme(pkgcache.NewScheme()).WithObjects(svc).Build()
+
+	var capturedUpstream *url.URL
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedUpstream = util.UpstreamURLFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := NewEndpointResolver(next, readyCache, EndpointResolverConfig{
+		ReadinessTimeout: 5 * time.Second,
+		Reader:           fakeReader,
+	})
+
+	ir := endpointIR()
+	ir.Spec.Target.Port = 80
+	ir.Spec.Target.PortName = ""
+
+	rec := httptest.NewRecorder()
+	req := newRequest(t, ir)
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if capturedUpstream == nil {
+		t.Fatal("expected upstream URL to be set")
+	}
+	if capturedUpstream.Host != "10.0.0.1:8080" && capturedUpstream.Host != "10.0.0.2:8080" {
+		t.Fatalf("host = %q, want one of 10.0.0.1:8080 or 10.0.0.2:8080", capturedUpstream.Host)
+	}
+}
+
+func TestEndpointResolver_EndpointMode_PortNameNotFound(t *testing.T) {
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyEndpointWithPorts(readyCache)
+
+	var nextCalled bool
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	mw := NewEndpointResolver(next, readyCache, EndpointResolverConfig{
+		ReadinessTimeout: 5 * time.Second,
+	})
+
+	ir := endpointIR()
+	ir.Spec.Target.PortName = "nonexistent"
+
+	rec := httptest.NewRecorder()
+	req := newRequest(t, ir)
+	mw.ServeHTTP(rec, req)
+
+	if nextCalled {
+		t.Fatal("expected next not to be called when port name is missing")
+	}
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestEndpointResolver_ServiceMode_UpstreamUnchanged(t *testing.T) {
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyEndpointWithPorts(readyCache)
+
+	originalURL := &url.URL{Scheme: "http", Host: "testservice.test-namespace:80"}
+	var capturedUpstream *url.URL
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedUpstream = util.UpstreamURLFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := NewEndpointResolver(next, readyCache, EndpointResolverConfig{
+		ReadinessTimeout: 5 * time.Second,
+	})
+
+	ir := defaultIR()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	ctx := util.ContextWithLogger(req.Context(), logr.Discard())
+	ctx = util.ContextWithInterceptorRoute(ctx, ir)
+	ctx = util.ContextWithUpstreamURL(ctx, originalURL)
+	req = req.WithContext(ctx)
+
+	mw.ServeHTTP(rec, req)
+
+	if capturedUpstream == nil {
+		t.Fatal("expected upstream URL to be set")
+	}
+	if *capturedUpstream != *originalURL {
+		t.Fatalf("upstream = %v, want %v (Service mode should not override)", capturedUpstream, originalURL)
+	}
+}
+
+func TestEndpointResolver_EndpointMode_FallbackStillWorks(t *testing.T) {
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+	// Do not mark ready — simulates backend with no replicas.
+
+	fallbackURL := &url.URL{Host: "fallback"}
+
+	var capturedUpstream *url.URL
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedUpstream = util.UpstreamURLFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	ir := endpointIR()
+	ir.Spec.Target.PortName = "http"
+	ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
+		Fallback: &httpv1beta1.TargetRef{Service: "fallback"},
+	}
+
+	mw := NewEndpointResolver(next, readyCache, EndpointResolverConfig{
+		ReadinessTimeout: 25 * time.Millisecond,
+	})
+
+	rec := httptest.NewRecorder()
+	req := newRequest(t, ir)
+	ctx := util.ContextWithFallbackURL(req.Context(), fallbackURL)
+	req = req.WithContext(ctx)
+
+	mw.ServeHTTP(rec, req)
+
+	if capturedUpstream == nil || *capturedUpstream != *fallbackURL {
+		t.Fatalf("upstream = %v, want fallback %v", capturedUpstream, fallbackURL)
+	}
+}
+
+// --- helpers ---
+
 func newRequest(t *testing.T, ir *httpv1beta1.InterceptorRoute) *http.Request {
 	t.Helper()
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -419,8 +639,35 @@ func defaultIR() *httpv1beta1.InterceptorRoute {
 	}
 }
 
+func endpointIR() *httpv1beta1.InterceptorRoute {
+	return &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target:    httpv1beta1.TargetRef{Service: testService, PortName: "http"},
+			ProxyMode: httpv1beta1.ProxyModeEndpoint,
+		},
+	}
+}
+
 func addReadyEndpoint(cache *k8s.ReadyEndpointsCache) {
 	cache.Update(testNamespace+"/"+testService, []*discov1.EndpointSlice{
 		{Endpoints: []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}}},
 	})
 }
+
+func addReadyEndpointWithPorts(cache *k8s.ReadyEndpointsCache) {
+	cache.Update(testNamespace+"/"+testService, []*discov1.EndpointSlice{
+		{
+			Ports: []discov1.EndpointPort{
+				{Name: strPtr("http"), Port: int32Ptr(8080)},
+			},
+			Endpoints: []discov1.Endpoint{
+				{Addresses: []string{"10.0.0.1"}},
+				{Addresses: []string{"10.0.0.2"}},
+			},
+		},
+	})
+}
+
+func strPtr(s string) *string   { return &s }
+func int32Ptr(i int32) *int32   { return &i }

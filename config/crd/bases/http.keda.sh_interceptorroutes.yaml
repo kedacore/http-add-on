@@ -86,6 +86,16 @@ spec:
                 x-kubernetes-validations:
                 - message: '''fallback'' must be set'
                   rule: has(self.fallback)
+              proxyMode:
+                default: Service
+                description: |-
+                  How traffic is forwarded to the backend.
+                  "Service" (default): route via Kubernetes Service DNS (service mesh compatible).
+                  "Endpoint": route directly to pod IPs from EndpointSlices.
+                enum:
+                - Service
+                - Endpoint
+                type: string
               rules:
                 description: Routing rules that define how requests are matched to
                   this target.

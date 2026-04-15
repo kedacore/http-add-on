@@ -35,6 +35,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: Add `InterceptorRoute` CRD to separate routing/interceptor config from scaling config; `HTTPScaledObject` remains supported but will be deprecated in a future release ([#1501](https://github.com/kedacore/http-add-on/issues/1501))
 - **Interceptor**: Add per-route timeout configuration via InterceptorRoute `timeouts` spec with `request`, `responseHeader`, and `readiness` fields. When unset, global env var defaults are used. When a fallback service is configured and no readiness timeout is set, it defaults to 30s. ([#1474](https://github.com/kedacore/http-add-on/issues/1474))
+- **Interceptor**: Add direct pod routing via `spec.proxyMode: Endpoint` on InterceptorRoute. When enabled, the interceptor forwards requests directly to pod IPs discovered from EndpointSlices, bypassing kube-proxy for lower latency. The default (`Service`) routes through Kubernetes Service DNS for service mesh compatibility. ([#TODO](https://github.com/kedacore/http-add-on/pull/1578))
 
 ### Improvements
 
