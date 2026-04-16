@@ -39,6 +39,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Improvements
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Support `OTEL_TRACES_SAMPLER` and `OTEL_TRACES_SAMPLER_ARG` for trace sampling configuration ([#1534](https://github.com/kedacore/http-add-on/issues/1534))
 
 ### Fixes
 
