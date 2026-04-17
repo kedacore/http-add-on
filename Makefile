@@ -200,6 +200,9 @@ lint:
 lint-fix:
 	golangci-lint run --fix
 
+check-links:
+	lychee "./**/*.md"
+
 pre-commit: ## Run static-checks.
 	pre-commit run --all-files
 
