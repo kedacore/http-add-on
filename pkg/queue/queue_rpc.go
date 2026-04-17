@@ -28,28 +28,13 @@ func newSizeHandler(
 		cur, err := q.Current()
 		if err != nil {
 			lggr.Error(err, "getting queue size")
-			w.WriteHeader(500)
-			if _, err := w.Write([]byte(
-				"error getting queue size",
-			)); err != nil {
-				lggr.Error(
-					err,
-					"could not send error message to client",
-				)
-			}
+			http.Error(w, "error getting queue size", http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(cur); err != nil {
 			lggr.Error(err, "encoding QueueCounts")
-			w.WriteHeader(500)
-			if _, err := w.Write([]byte(
-				"error encoding queue counts",
-			)); err != nil {
-				lggr.Error(
-					err,
-					"could not send error message to client",
-				)
-			}
+			http.Error(w, "error encoding queue counts", http.StatusInternalServerError)
 			return
 		}
 	})
