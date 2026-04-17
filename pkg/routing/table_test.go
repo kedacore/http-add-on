@@ -264,7 +264,7 @@ func TestTableQueueCounterIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get current counts: %v", err)
 	}
-	if _, exists := counts.Counts[key]; !exists {
+	if _, exists := counts[key]; !exists {
 		t.Errorf("expected queue counter to have key %q", key)
 	}
 }
@@ -297,7 +297,7 @@ func TestTableSignal_DeletedObjectBecomesUnroutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get current counts: %v", err)
 	}
-	if _, exists := counts.Counts[key]; !exists {
+	if _, exists := counts[key]; !exists {
 		t.Fatalf("expected queue counter to have key %q before deletion", key)
 	}
 
@@ -328,7 +328,7 @@ func TestTableSignal_DeletedObjectBecomesUnroutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get current counts: %v", err)
 	}
-	if _, exists := counts.Counts[key]; exists {
+	if _, exists := counts[key]; exists {
 		t.Errorf("expected queue counter to NOT have key %q after deletion", key)
 	}
 }
@@ -544,7 +544,7 @@ func TestTableQueueCounterIntegrationHTTPSO(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get current counts: %v", err)
 	}
-	if _, exists := counts.Counts[key]; !exists {
+	if _, exists := counts[key]; !exists {
 		t.Errorf("expected queue counter to have key %q", key)
 	}
 }
@@ -580,7 +580,7 @@ func TestTableSignalHTTPSO_DeletedObjectBecomesUnroutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get current counts: %v", err)
 	}
-	if _, exists := counts.Counts[key]; !exists {
+	if _, exists := counts[key]; !exists {
 		t.Fatalf("expected queue counter to have key %q before deletion", key)
 	}
 
@@ -611,7 +611,7 @@ func TestTableSignalHTTPSO_DeletedObjectBecomesUnroutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get current counts: %v", err)
 	}
-	if _, exists := counts.Counts[key]; exists {
+	if _, exists := counts[key]; exists {
 		t.Errorf("expected queue counter to NOT have key %q after deletion", key)
 	}
 }

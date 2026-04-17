@@ -63,7 +63,7 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{}
+				qp.allCounts[key] = aggregatedCount{}
 			},
 			scalerMetadata: map[string]string{
 				k8s.HTTPScaledObjectKey: validHTTPScaledObjectName,
@@ -83,7 +83,7 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
+				qp.allCounts[key] = aggregatedCount{
 					Concurrency: 1,
 				}
 			},
@@ -106,7 +106,7 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
+				qp.allCounts[key] = aggregatedCount{
 					Concurrency: 1,
 				}
 			},
@@ -131,7 +131,7 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
+				qp.allCounts[key] = aggregatedCount{
 					Concurrency: 1,
 				}
 			},
@@ -156,8 +156,8 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
-					RPS: 1,
+				qp.allCounts[key] = aggregatedCount{
+					RequestRate: 1,
 				}
 			},
 			scalerMetadata: map[string]string{
@@ -181,8 +181,8 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
-					RPS: 1,
+				qp.allCounts[key] = aggregatedCount{
+					RequestRate: 1,
 				}
 			},
 			scalerMetadata: map[string]string{
@@ -206,7 +206,7 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
+				qp.allCounts[key] = aggregatedCount{
 					Concurrency: 2,
 				}
 			},
@@ -228,13 +228,13 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts["a"] = queue.Count{
+				qp.allCounts["a"] = aggregatedCount{
 					Concurrency: 1,
 				}
-				qp.allCounts["b"] = queue.Count{
+				qp.allCounts["b"] = aggregatedCount{
 					Concurrency: 2,
 				}
-				qp.allCounts["c"] = queue.Count{
+				qp.allCounts["c"] = aggregatedCount{
 					Concurrency: 3,
 				}
 			},
@@ -340,7 +340,7 @@ func TestIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
+				qp.allCounts[key] = aggregatedCount{
 					Concurrency: 0,
 				}
 			},
@@ -362,7 +362,7 @@ func TestIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
+				qp.allCounts[key] = aggregatedCount{
 					Concurrency: 1,
 				}
 			},
@@ -384,7 +384,7 @@ func TestIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts[key] = queue.Count{
+				qp.allCounts[key] = aggregatedCount{
 					Concurrency: 2,
 				}
 			},
@@ -406,13 +406,13 @@ func TestIsActive_HTTPSO(t *testing.T) {
 				qp.pingMut.Lock()
 				defer qp.pingMut.Unlock()
 
-				qp.allCounts["a"] = queue.Count{
+				qp.allCounts["a"] = aggregatedCount{
 					Concurrency: 1,
 				}
-				qp.allCounts["b"] = queue.Count{
+				qp.allCounts["b"] = aggregatedCount{
 					Concurrency: 2,
 				}
-				qp.allCounts["c"] = queue.Count{
+				qp.allCounts["c"] = aggregatedCount{
 					Concurrency: 3,
 				}
 			},

@@ -29,11 +29,18 @@ const (
 	defaultGranularity = time.Second
 )
 
+// aggregatedCount holds the scaler's computed view of a single
+// route: concurrency summed across pods and the windowed request rate.
+type aggregatedCount struct {
+	Concurrency int
+	RequestRate float64
+}
+
 // queuePinger has functionality to ping all interceptors
 // behind a given `Service`, fetch their pending queue counts,
 // and aggregate all of those counts together.
 //
-// It computes request rate (RPS) from monotonic counters
+// It computes request rate from monotonic counters
 // reported by interceptor pods, using a windowed ring buffer.
 //
 // Sample usage:
@@ -48,7 +55,7 @@ type queuePinger struct {
 	adminPort              string
 	pingMut                sync.RWMutex
 	lastPingTime           time.Time
-	allCounts              map[string]queue.Count
+	allCounts              map[string]aggregatedCount
 	lggr                   logr.Logger
 	status                 PingerStatus
 
@@ -69,7 +76,7 @@ func newQueuePinger(lggr logr.Logger, getEndpointsFn k8s.GetEndpointsFunc, ns, s
 		interceptorServiceName: deplName,
 		adminPort:              adminPort,
 		lggr:                   lggr,
-		allCounts:              map[string]queue.Count{},
+		allCounts:              map[string]aggregatedCount{},
 		prevPodCounts:          map[string]map[string]int64{},
 		rateBuckets:            map[string]*queue.RequestsBuckets{},
 	}
@@ -94,13 +101,13 @@ func (q *queuePinger) start(ctx context.Context, ticker *time.Ticker) error {
 	}
 }
 
-func (q *queuePinger) counts() map[string]queue.Count {
+func (q *queuePinger) counts() map[string]aggregatedCount {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return maps.Clone(q.allCounts)
 }
 
-func (q *queuePinger) count(key string) queue.Count {
+func (q *queuePinger) count(key string) aggregatedCount {
 	q.pingMut.RLock()
 	defer q.pingMut.RUnlock()
 	return q.allCounts[key]
@@ -164,9 +171,9 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 
 	for podKey, counts := range perPod {
 		prev := q.prevPodCounts[podKey]
-		newPrev := make(map[string]int64, len(counts.Counts))
+		newPrev := make(map[string]int64, len(counts))
 
-		for key, c := range counts.Counts {
+		for key, c := range counts {
 			newPrev[key] = c.RequestCount
 
 			ha := agg[key]
@@ -200,13 +207,13 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	}
 
 	// Record deltas into ring buffers and compute rates.
-	newCounts := make(map[string]queue.Count, len(agg))
+	newCounts := make(map[string]aggregatedCount, len(agg))
 	for key, ha := range agg {
 		b := q.ensureBucketLocked(key)
 		b.Record(now, int(ha.delta))
-		newCounts[key] = queue.Count{
+		newCounts[key] = aggregatedCount{
 			Concurrency: ha.concurrency,
-			RPS:         b.WindowAverage(now),
+			RequestRate: b.WindowAverage(now),
 		}
 	}
 
@@ -224,7 +231,7 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 
 // fetchCountsPerPod fetches counts from every interceptor pod endpoint
 // and returns the raw per-pod results keyed by pod URL string.
-func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpointsFunc, ns, svcName, adminPort string) (map[string]*queue.Counts, error) {
+func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpointsFunc, ns, svcName, adminPort string) (map[string]queue.Counts, error) {
 	lggr = lggr.WithName("queuePinger.requestCounts")
 
 	endpointURLs, err := k8s.EndpointsForService(ctx, ns, svcName, adminPort, endpointsFn)
@@ -238,7 +245,7 @@ func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.Ge
 
 	type podResult struct {
 		key    string
-		counts *queue.Counts
+		counts queue.Counts
 	}
 
 	resultCh := make(chan podResult, len(endpointURLs))
@@ -263,7 +270,7 @@ func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.Ge
 	}
 	close(resultCh)
 
-	perPod := make(map[string]*queue.Counts, len(endpointURLs))
+	perPod := make(map[string]queue.Counts, len(endpointURLs))
 	for r := range resultCh {
 		perPod[r.key] = r.counts
 	}
