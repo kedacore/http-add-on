@@ -69,6 +69,12 @@
       groupName: "Pre-commit Hooks",
     },
     {
+      matchManagers: ["custom.regex"],
+      matchDepNames: ["/@only-patch/"],
+      matchUpdateTypes: ["minor", "major"],
+      enabled: false,
+    },
+    {
       matchFileNames: [".devcontainer/**"],
       pinDigests: false,
     },
@@ -79,6 +85,13 @@
       managerFilePatterns: ["**/*.go"],
       matchStrings: [
         '// renovate: datasource=(?<datasource>.+?)\\s+\\S+\\s*=\\s*"(?<depName>.+?):(?<currentValue>.+?)"',
+      ],
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: [".github/workflows/**"],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?:\\s+packageName=(?<packageName>\\S+))?\\n\\s+- (?<currentValue>\\S+)',
       ],
     },
   ],
