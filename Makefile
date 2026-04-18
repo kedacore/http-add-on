@@ -36,6 +36,19 @@ KEDA_VERSION ?= 2.19.0
 # renovate: datasource=helm depName=opentelemetry-collector registryUrl=https://open-telemetry.github.io/opentelemetry-helm-charts
 OTEL_COLLECTOR_VERSION ?= 0.150.0
 
+HELM_RETRIES ?= 3
+HELM_RETRY_DELAY ?= 30
+
+define helm-retry
+	for ((i=1; i<=$(HELM_RETRIES); i++)); do \
+		$(1) && break || { \
+			if [ $$i -eq $(HELM_RETRIES) ]; then echo "ERROR: helm command failed after $(HELM_RETRIES) attempts"; exit 1; fi; \
+			echo "WARNING: helm command failed (attempt $$i/$(HELM_RETRIES)), retrying in $(HELM_RETRY_DELAY)s..."; \
+			sleep $(HELM_RETRY_DELAY); \
+		}; \
+	done
+endef
+
 COSIGN_FLAGS ?= -y -a GIT_HASH=$(GIT_COMMIT) -a GIT_VERSION=$(VERSION) -a BUILD_DATE=$(DATE)
 
 ## Tool Binaries
@@ -144,29 +157,29 @@ e2e-deps: e2e-deps-cert-manager e2e-deps-jaeger e2e-deps-keda e2e-deps-otel-coll
 
 e2e-deps-cert-manager:
 	helm repo add jetstack https://charts.jetstack.io --force-update
-	helm upgrade --install cert-manager jetstack/cert-manager \
+	$(call helm-retry,helm upgrade --install cert-manager jetstack/cert-manager \
 		--namespace cert-manager --create-namespace \
 		-f test/fixtures/cert-manager-values.yaml \
-		--version $(CERT_MANAGER_VERSION) --wait
+		--version $(CERT_MANAGER_VERSION) --wait)
 
 e2e-deps-jaeger:
 	helm repo add jaegertracing https://jaegertracing.github.io/helm-charts --force-update
-	helm upgrade --install jaeger jaegertracing/jaeger \
+	$(call helm-retry,helm upgrade --install jaeger jaegertracing/jaeger \
 		--namespace jaeger --create-namespace \
-		--version $(JAEGER_VERSION) --wait
+		--version $(JAEGER_VERSION) --wait)
 
 e2e-deps-keda:
 	helm repo add kedacore https://kedacore.github.io/charts --force-update
-	helm upgrade --install keda kedacore/keda \
+	$(call helm-retry,helm upgrade --install keda kedacore/keda \
 		--namespace keda --create-namespace \
-		--version $(KEDA_VERSION) --wait
+		--version $(KEDA_VERSION) --wait)
 
 e2e-deps-otel-collector:
 	helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts --force-update
-	helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
+	$(call helm-retry,helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
 		--namespace open-telemetry-system --create-namespace \
 		-f test/fixtures/otel-values.yaml \
-		--version $(OTEL_COLLECTOR_VERSION) --wait
+		--version $(OTEL_COLLECTOR_VERSION) --wait)
 
 e2e-setup: e2e-deps deploy ## Full e2e setup: install deps + deploy http-add-on
 

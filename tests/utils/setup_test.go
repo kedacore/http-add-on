@@ -7,11 +7,17 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/kedacore/http-add-on/tests/helper"
+)
+
+const (
+	helmRetries    = 3
+	helmRetryDelay = 30 * time.Second
 )
 
 var (
@@ -234,9 +240,9 @@ func TestSetupArgoRollouts(t *testing.T) {
 	_, err = ExecuteCommand("helm repo update argo")
 	require.NoErrorf(t, err, "cannot update argo helm repo - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install %s argo/argo-rollouts --namespace %s --wait",
+	_, err = ExecuteCommandWithRetry(t, fmt.Sprintf("helm upgrade --install %s argo/argo-rollouts --namespace %s --wait",
 		ArgoRolloutsName,
-		ArgoRolloutsNamespace))
+		ArgoRolloutsNamespace), helmRetries, helmRetryDelay)
 	require.NoErrorf(t, err, "cannot install argo-rollouts - %s", err)
 }
 
@@ -252,8 +258,8 @@ func TestSetupIngress(t *testing.T) {
 	_, err = ExecuteCommand("helm repo update ingress-nginx")
 	require.NoErrorf(t, err, "cannot update ingress-nginx helm repo - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install %s ingress-nginx/ingress-nginx --set fullnameOverride=%s --set controller.service.type=ClusterIP --set controller.progressDeadlineSeconds=30 --namespace %s --wait",
-		IngressReleaseName, IngressReleaseName, IngressNamespace))
+	_, err = ExecuteCommandWithRetry(t, fmt.Sprintf("helm upgrade --install %s ingress-nginx/ingress-nginx --set fullnameOverride=%s --set controller.service.type=ClusterIP --set controller.progressDeadlineSeconds=30 --namespace %s --wait",
+		IngressReleaseName, IngressReleaseName, IngressNamespace), helmRetries, helmRetryDelay)
 	require.NoErrorf(t, err, "cannot install ingress - %s", err)
 }
 
@@ -262,7 +268,8 @@ func TestSetupEnvoyGateway(t *testing.T) {
 	_, err := ExecuteCommand("helm version")
 	require.NoErrorf(t, err, "helm is not installed - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm install %s oci://docker.io/envoyproxy/gateway-helm --version v1.2.0 -n %s --create-namespace", EnvoyReleaseName, EnvoyNamespace))
+	_, err = ExecuteCommandWithRetry(t, fmt.Sprintf("helm install %s oci://docker.io/envoyproxy/gateway-helm --version v1.2.0 -n %s --create-namespace",
+		EnvoyReleaseName, EnvoyNamespace), helmRetries, helmRetryDelay)
 	require.NoErrorf(t, err, "cannot install envoy gateway - %s", err)
 
 	assert.True(t, WaitForDeploymentReplicaReadyCount(t, KubeClient, "envoy-gateway", "envoy-gateway-system", 1, 30, 6))
@@ -281,8 +288,8 @@ func TestSetupKEDA(t *testing.T) {
 	_, err = ExecuteCommand("helm repo update kedacore")
 	require.NoErrorf(t, err, "cannot update kedacore helm repo - %s", err)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install keda kedacore/keda --namespace %s --set extraArgs.keda.kube-api-qps=200 --set extraArgs.keda.kube-api-burst=300",
-		KEDANamespace))
+	_, err = ExecuteCommandWithRetry(t, fmt.Sprintf("helm upgrade --install keda kedacore/keda --namespace %s --set extraArgs.keda.kube-api-qps=200 --set extraArgs.keda.kube-api-burst=300",
+		KEDANamespace), helmRetries, helmRetryDelay)
 	require.NoErrorf(t, err, "cannot install KEDA - %s", err)
 
 	KubeClient = GetKubernetesClient(t)
@@ -318,7 +325,8 @@ func TestSetupOpentelemetryComponents(t *testing.T) {
 	KubeClient = GetKubernetesClient(t)
 	CreateNamespace(t, KubeClient, OpentelemetryNamespace)
 
-	_, err = ExecuteCommand(fmt.Sprintf("helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector -f %s --namespace %s", otlpTempFileName, OpentelemetryNamespace))
+	_, err = ExecuteCommandWithRetry(t, fmt.Sprintf("helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector -f %s --namespace %s",
+		otlpTempFileName, OpentelemetryNamespace), helmRetries, helmRetryDelay)
 	require.NoErrorf(t, err, "cannot install opentelemetry - %s", err)
 
 	_, err = ExecuteCommand(fmt.Sprintf("kubectl apply -f %s -n %s", otlpServiceTempFileName, OpentelemetryNamespace))
