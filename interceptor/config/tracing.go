@@ -8,7 +8,7 @@ import (
 type Tracing struct {
 	// States whether tracing should be enabled, False by default
 	Enabled bool `env:"OTEL_EXPORTER_OTLP_TRACES_ENABLED" envDefault:"false"`
-	// Sets what tracing export to use, must be one of: console,http/protobuf, grpc
+	// Sets what tracing export to use, must be one of: console, http/protobuf, grpc
 	Exporter string `env:"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL" envDefault:"console"`
 }
 

@@ -17,7 +17,7 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/config"
 )
 
-var serviceName = "keda-http-interceptor"
+const serviceName = "keda-http-interceptor"
 
 func SetupOTelSDK(ctx context.Context, tCfg config.Tracing) (shutdown func(context.Context) error, err error) {
 	var shutdownFuncs []func(context.Context) error
@@ -79,7 +79,6 @@ func newTraceProvider(ctx context.Context, res *resource.Resource, tCfg config.T
 	}
 
 	traceProvider := trace.NewTracerProvider(
-		trace.WithSampler(trace.AlwaysSample()),
 		trace.WithBatcher(traceExporter),
 		trace.WithResource(res),
 	)
