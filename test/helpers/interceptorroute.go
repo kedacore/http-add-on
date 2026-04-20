@@ -124,9 +124,11 @@ func IRWithTimeouts(timeouts httpv1beta1.InterceptorRouteTimeouts) IROption {
 func IRWithColdStart(fallbackService string, fallbackPort int32) IROption {
 	return func(ir *httpv1beta1.InterceptorRoute) {
 		ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
-			Fallback: &httpv1beta1.TargetRef{
-				Service: fallbackService,
-				Port:    fallbackPort,
+			Fallback: &httpv1beta1.ColdStartFallback{
+				Service: &httpv1beta1.ServiceRef{
+					Name: fallbackService,
+					Port: fallbackPort,
+				},
 			},
 		}
 	}

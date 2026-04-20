@@ -118,12 +118,45 @@ type TargetRef struct {
 	PortName string `json:"portName,omitzero"`
 }
 
+// AsServiceRef converts the TargetRef to a ServiceRef.
+func (t TargetRef) AsServiceRef() ServiceRef {
+	return ServiceRef{
+		Name:     t.Service,
+		Port:     t.Port,
+		PortName: t.PortName,
+	}
+}
+
+// ServiceRef identifies a Kubernetes Service by name and port.
+// Exactly one of port or portName must be set.
+// +kubebuilder:validation:XValidation:rule="has(self.port) != has(self.portName)",message="exactly one of 'port' or 'portName' must be set"
+type ServiceRef struct {
+	// Name of the Kubernetes Service.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+	// Port number on the Service. Mutually exclusive with portName.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port int32 `json:"port,omitzero"`
+	// Named port on the Service. Mutually exclusive with port.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	PortName string `json:"portName,omitzero"`
+}
+
+// ColdStartFallback configures the fallback target for cold-start scenarios.
+type ColdStartFallback struct {
+	// Kubernetes Service to use as the fallback target.
+	Service *ServiceRef `json:"service,omitzero"`
+}
+
 // ColdStartSpec configures behavior while the target is not ready.
 // +kubebuilder:validation:XValidation:rule="has(self.fallback)",message="'fallback' must be set"
 type ColdStartSpec struct {
-	// Fallback service to route to when the target is scaling from zero
-	// and the wait timeout expires.
-	Fallback *TargetRef `json:"fallback,omitzero"`
+	// Fallback target to route to when the primary backend does not become
+	// ready within the readiness timeout.
+	Fallback *ColdStartFallback `json:"fallback,omitzero"`
 }
 
 // InterceptorRouteTimeouts configures per-route request handling timeouts.
