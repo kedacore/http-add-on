@@ -4,7 +4,6 @@ package default_test
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
 	"k8s.io/utils/ptr"
@@ -50,46 +49,17 @@ func TestHeaderRouting(t *testing.T) {
 		}).
 		Assess("foo routes to app-foo", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:    f.Hostname(),
-				Headers: map[string]string{"X-Route": "foo"},
-			})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "app-foo" {
-				t.Errorf("expected request to be served by app-foo, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname(), Headers: map[string]string{"X-Route": "foo"}}, "app-foo")
 			return ctx
 		}).
 		Assess("bar routes to app-bar", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:    f.Hostname(),
-				Headers: map[string]string{"X-Route": "bar"},
-			})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "app-bar" {
-				t.Errorf("expected request to be served by app-bar, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname(), Headers: map[string]string{"X-Route": "bar"}}, "app-bar")
 			return ctx
 		}).
 		Assess("request without header is rejected", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host: f.Hostname(),
-			})
-			if resp.StatusCode == http.StatusOK {
-				t.Fatalf("expected non-200 status for missing header, got 200; body: %s", resp.Body)
-			}
-
+			f.AssertRouteRejected(h.Request{Host: f.Hostname()})
 			return ctx
 		}).
 		Feature()
@@ -135,34 +105,12 @@ func TestHeaderPresenceRouting(t *testing.T) {
 		}).
 		Assess("exact header value matches exact route", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:    f.Hostname(),
-				Headers: map[string]string{"X-Debug": "verbose"},
-			})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "exact-app" {
-				t.Errorf("expected exact-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname(), Headers: map[string]string{"X-Debug": "verbose"}}, "exact-app")
 			return ctx
 		}).
 		Assess("other header value matches presence route", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:    f.Hostname(),
-				Headers: map[string]string{"X-Debug": "minimal"},
-			})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "presence-app" {
-				t.Errorf("expected presence-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname(), Headers: map[string]string{"X-Debug": "minimal"}}, "presence-app")
 			return ctx
 		}).
 		Feature()

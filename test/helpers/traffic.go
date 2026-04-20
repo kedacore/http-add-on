@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"crypto/tls"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -95,13 +96,61 @@ func (f *Framework) ProxyRequestRaw(r Request) HTTPResponse {
 	}
 }
 
+// AssertRouteReachesApp sends a request through the proxy and verifies it
+// returns 200 and is served by the expected backend app. When the request
+// includes a path, the backend's reported request path is also verified.
+func (f *Framework) AssertRouteReachesApp(r Request, expectedApp string) {
+	f.t.Helper()
+
+	resp := f.ProxyRequest(r)
+	if resp.StatusCode != http.StatusOK {
+		f.t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, string(resp.Body))
+	}
+	if resp.Hostname != expectedApp {
+		f.t.Fatalf("expected request to be served by %s, got %q; body: %s", expectedApp, resp.Hostname, string(resp.Body))
+	}
+	if r.Path != "" && resp.RequestPath != r.Path {
+		f.t.Fatalf("expected request path %s, got %q", r.Path, resp.RequestPath)
+	}
+}
+
+// AssertRouteRejected sends a request through the proxy and verifies it is
+// NOT served successfully (non-200 status code). Fails the test if the
+// request unexpectedly succeeds.
+func (f *Framework) AssertRouteRejected(r Request) {
+	f.t.Helper()
+
+	resp := f.ProxyRequestRaw(r)
+	if resp.StatusCode == http.StatusOK {
+		f.t.Fatalf("expected non-200 status, got 200; body: %s", string(resp.Body))
+	}
+}
+
+// AssertStatus sends a request through the proxy and verifies it returns the
+// expected HTTP status code.
+func (f *Framework) AssertStatus(r Request, expectedStatus int) {
+	f.t.Helper()
+
+	resp := f.ProxyRequestRaw(r)
+	if resp.StatusCode != expectedStatus {
+		f.t.Fatalf("expected status %d, got %d; body: %s", expectedStatus, resp.StatusCode, string(resp.Body))
+	}
+}
+
 // WebSocketDial opens a WebSocket connection through the interceptor proxy.
 // The connection is closed automatically via t.Cleanup.
 func (f *Framework) WebSocketDial(host, path string) *websocket.Conn {
 	f.t.Helper()
 
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 45 * time.Second,
+		NetDialContext: (&net.Dialer{
+			Timeout: 10 * time.Second,
+		}).DialContext,
+	}
+
 	wsURL := url.URL{Scheme: "ws", Host: f.proxyAddr, Path: path}
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL.String(), http.Header{"Host": []string{host}})
+	conn, resp, err := dialer.Dial(wsURL.String(), http.Header{"Host": []string{host}})
 	if err != nil {
 		f.t.Fatalf("WebSocket dial to %s%s failed: %v", host, path, err)
 	}

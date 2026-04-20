@@ -33,15 +33,7 @@ func TestResponseHeaderTimeout(t *testing.T) {
 		}).
 		Assess("allows fast responses", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:  f.Hostname(),
-				Query: "wait=100ms",
-			})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-
+			f.AssertStatus(h.Request{Host: f.Hostname(), Query: "wait=100ms"}, http.StatusOK)
 			return ctx
 		}).
 		Feature()
@@ -63,15 +55,7 @@ func TestResponseHeaderTimeout(t *testing.T) {
 		}).
 		Assess("rejects slow backend with 504", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:  f.Hostname("short"),
-				Query: "wait=5s",
-			})
-			if resp.StatusCode != http.StatusGatewayTimeout {
-				t.Fatalf("expected status 504, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-
+			f.AssertStatus(h.Request{Host: f.Hostname("short"), Query: "wait=5s"}, http.StatusGatewayTimeout)
 			return ctx
 		}).
 		Feature()
@@ -93,15 +77,7 @@ func TestResponseHeaderTimeout(t *testing.T) {
 		}).
 		Assess("allows slow backend", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:  f.Hostname("generous"),
-				Query: "wait=2s",
-			})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-
+			f.AssertStatus(h.Request{Host: f.Hostname("generous"), Query: "wait=2s"}, http.StatusOK)
 			return ctx
 		}).
 		Feature()
@@ -129,15 +105,7 @@ func TestRequestTimeout(t *testing.T) {
 		}).
 		Assess("request within deadline succeeds", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:  f.Hostname(),
-				Query: "wait=100ms",
-			})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-
+			f.AssertStatus(h.Request{Host: f.Hostname(), Query: "wait=100ms"}, http.StatusOK)
 			return ctx
 		}).
 		Feature()
@@ -159,15 +127,7 @@ func TestRequestTimeout(t *testing.T) {
 		}).
 		Assess("request exceeding deadline is terminated with 504", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{
-				Host:  f.Hostname("exceed"),
-				Query: "wait=5s",
-			})
-			if resp.StatusCode != http.StatusGatewayTimeout {
-				t.Fatalf("expected status 504, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-
+			f.AssertStatus(h.Request{Host: f.Hostname("exceed"), Query: "wait=5s"}, http.StatusGatewayTimeout)
 			return ctx
 		}).
 		Feature()
@@ -196,12 +156,7 @@ func TestReadinessTimeout(t *testing.T) {
 		}).
 		Assess("cold start completes within generous timeout", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-
+			f.AssertStatus(h.Request{Host: f.Hostname()}, http.StatusOK)
 			return ctx
 		}).
 		Feature()
@@ -224,12 +179,7 @@ func TestReadinessTimeout(t *testing.T) {
 		}).
 		Assess("returns 504 when backend is not ready in time", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname("short")})
-			if resp.StatusCode != http.StatusGatewayTimeout {
-				t.Fatalf("expected status 504, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-
+			f.AssertStatus(h.Request{Host: f.Hostname("short")}, http.StatusGatewayTimeout)
 			return ctx
 		}).
 		Feature()
