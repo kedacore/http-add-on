@@ -139,6 +139,21 @@ func (t *table) refreshMemory(ctx context.Context) error {
 				}
 			}
 
+			if cb := httpso.Spec.ColdStartStreamingCallback; cb != nil {
+				if ir.Spec.ColdStart == nil {
+					ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{}
+				}
+				interval := 5 * time.Second
+				if cb.IntervalSeconds > 0 {
+					interval = time.Duration(cb.IntervalSeconds) * time.Second
+				}
+				ir.Spec.ColdStart.StreamingCallback = &httpv1beta1.StreamingCallbackSpec{
+					Message:          cb.Message,
+					Interval:         metav1.Duration{Duration: interval},
+					KeepaliveMessage: cb.KeepaliveMessage,
+				}
+			}
+
 			if httpso.Spec.ScalingMetric != nil {
 				if httpso.Spec.ScalingMetric.Concurrency != nil {
 					ir.Spec.ScalingMetric.Concurrency = &httpv1beta1.ConcurrencyTargetSpec{

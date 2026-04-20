@@ -80,12 +80,32 @@ spec:
                     x-kubernetes-validations:
                     - message: exactly one of 'port' or 'portName' must be set
                       rule: has(self.port) != has(self.portName)
-                required:
-                - fallback
+                  streamingCallback:
+                    description: Streaming callback to send SSE events while scaling
+                      from zero.
+                    properties:
+                      interval:
+                        default: 5s
+                        description: Interval between keepalive events.
+                        type: string
+                      keepaliveMessage:
+                        description: |-
+                          Message text to include in SSE keepalive event delta content.
+                          When empty, keepalive events contain an empty string.
+                        type: string
+                      message:
+                        description: Message text to include in the SSE event delta
+                          content.
+                        minLength: 1
+                        type: string
+                    required:
+                    - message
+                    type: object
                 type: object
                 x-kubernetes-validations:
-                - message: '''fallback'' must be set'
-                  rule: has(self.fallback)
+                - message: at least one of 'fallback' or 'streamingCallback' must
+                    be set
+                  rule: has(self.fallback) || has(self.streamingCallback)
               rules:
                 description: Routing rules that define how requests are matched to
                   this target.

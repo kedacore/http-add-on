@@ -118,12 +118,32 @@ type TargetRef struct {
 	PortName string `json:"portName,omitzero"`
 }
 
+// StreamingCallbackSpec configures SSE keepalive events sent to streaming
+// clients while the backend scales from zero.
+type StreamingCallbackSpec struct {
+	// Message text to include in the SSE event delta content.
+	// +kubebuilder:validation:MinLength=1
+	Message string `json:"message"`
+	// Interval between keepalive events.
+	// +kubebuilder:default="5s"
+	// +optional
+	Interval metav1.Duration `json:"interval,omitzero"`
+	// Message text to include in SSE keepalive event delta content.
+	// When empty, keepalive events contain an empty string.
+	// +optional
+	KeepaliveMessage string `json:"keepaliveMessage,omitzero"`
+}
+
 // ColdStartSpec configures behavior while the target is not ready.
-// +kubebuilder:validation:XValidation:rule="has(self.fallback)",message="'fallback' must be set"
+// +kubebuilder:validation:XValidation:rule="has(self.fallback) || has(self.streamingCallback)",message="at least one of 'fallback' or 'streamingCallback' must be set"
 type ColdStartSpec struct {
 	// Fallback service to route to when the target is scaling from zero
 	// and the wait timeout expires.
+	// +optional
 	Fallback *TargetRef `json:"fallback,omitzero"`
+	// Streaming callback to send SSE events while scaling from zero.
+	// +optional
+	StreamingCallback *StreamingCallbackSpec `json:"streamingCallback,omitzero"`
 }
 
 // InterceptorRouteTimeouts configures per-route request handling timeouts.
