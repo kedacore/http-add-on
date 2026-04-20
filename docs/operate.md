@@ -1,8 +1,8 @@
 # Configuring metrics for the KEDA HTTP Add-on interceptor proxy
 
 ### Exportable metrics:
-* **`interceptor_pending_requests`** (gauge) - the number of requests currently in-flight for a given route, labeled by `route_name` and `route_namespace`.
-* **`interceptor_requests_total`** (counter) - the total number of requests for a given route, labeled by `method`, `code`, `route_name`, and `route_namespace`.
+* **`interceptor_request_concurrency`** (gauge) - concurrent requests at the interceptor proxy for a given route, labeled by `route_name` and `route_namespace`.
+* **`interceptor_request_count_total`** (counter) - the total number of requests for a given route, labeled by `method`, `code`, `route_name`, and `route_namespace`.
 * **`interceptor_request_duration_seconds`** (histogram) - request duration in seconds for a given route, labeled by `method`, `code`, `route_name`, and `route_namespace`.
 
 There are currently 2 supported methods for exposing metrics from the interceptor proxy service - via a Prometheus compatible metrics endpoint or by pushing metrics to a OTEL HTTP collector.
