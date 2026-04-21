@@ -4,7 +4,6 @@ package default_test
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -33,15 +32,7 @@ func TestPortNameRouting(t *testing.T) {
 		}).
 		Assess("routes request via named port", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "portname-app" {
-				t.Errorf("expected request to be served by portname-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname()}, "portname-app")
 			return ctx
 		}).
 		Feature()

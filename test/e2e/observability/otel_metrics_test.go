@@ -46,12 +46,6 @@ func TestOtelMetrics(t *testing.T) {
 				t.Fatalf("expected status 200, got %d", resp.StatusCode)
 			}
 
-			requiredMetrics := []string{
-				"interceptor_pending_requests",
-				"interceptor_request_duration_seconds",
-				"interceptor_requests_total",
-			}
-
 			// Poll the collector's Prometheus endpoint - metrics may take a moment to arrive.
 			err := wait.For(func(_ context.Context) (bool, error) {
 				body, err := f.ServiceProxyGet(otelNamespace, otelServiceName, otelPromPort, "/metrics", nil)
@@ -59,7 +53,7 @@ func TestOtelMetrics(t *testing.T) {
 					return false, nil
 				}
 				output := string(body)
-				for _, metric := range requiredMetrics {
+				for _, metric := range h.InterceptorMetrics {
 					if !strings.Contains(output, metric) {
 						return false, nil
 					}

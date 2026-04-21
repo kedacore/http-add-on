@@ -4,7 +4,6 @@ package default_test
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -32,25 +31,12 @@ func TestHostRouting(t *testing.T) {
 		}).
 		Assess("routes request to correct backend", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-			if resp.Hostname != "test-app" {
-				t.Errorf("expected request to be served by test-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname()}, "test-app")
 			return ctx
 		}).
 		Assess("rejects request for unknown host", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname("unknown")})
-			if resp.StatusCode == http.StatusOK {
-				t.Fatalf("expected non-200 status for unknown host, got 200; body: %s", resp.Body)
-			}
-
+			f.AssertRouteRejected(h.Request{Host: f.Hostname("unknown")})
 			return ctx
 		}).
 		Feature()
@@ -76,38 +62,17 @@ func TestMultipleHostsRouting(t *testing.T) {
 		}).
 		Assess("routes host-a to the app", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname("host-a")})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200 for host-a, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "multi-host-app" {
-				t.Errorf("expected request to be served by multi-host-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname("host-a")}, "multi-host-app")
 			return ctx
 		}).
 		Assess("routes host-b to the same app", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname("host-b")})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200 for host-b, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "multi-host-app" {
-				t.Errorf("expected request to be served by multi-host-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname("host-b")}, "multi-host-app")
 			return ctx
 		}).
 		Assess("rejects request for unlisted host", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname("host-c")})
-			if resp.StatusCode == http.StatusOK {
-				t.Fatalf("expected non-200 status for unlisted host, got 200; body: %s", resp.Body)
-			}
-
+			f.AssertRouteRejected(h.Request{Host: f.Hostname("host-c")})
 			return ctx
 		}).
 		Feature()
@@ -142,38 +107,17 @@ func TestWildcardHostRouting(t *testing.T) {
 		}).
 		Assess("exact host matches exact route", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname("specific")})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "specific-app" {
-				t.Errorf("expected specific-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname("specific")}, "specific-app")
 			return ctx
 		}).
 		Assess("other subdomain matches wildcard route", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname("anything")})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "wildcard-app" {
-				t.Errorf("expected wildcard-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname("anything")}, "wildcard-app")
 			return ctx
 		}).
 		Assess("non-matching domain is rejected", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: "unmatched.other.test"})
-			if resp.StatusCode == http.StatusOK {
-				t.Fatalf("expected non-200 for non-matching domain, got 200; body: %s", resp.Body)
-			}
-
+			f.AssertRouteRejected(h.Request{Host: "unmatched.other.test"})
 			return ctx
 		}).
 		Feature()

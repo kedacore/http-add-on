@@ -7,6 +7,9 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/wait"
+	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
@@ -46,9 +49,7 @@ func (f *Framework) CreateInterceptorRoute(name string, app *TestApp, opts ...IR
 		opt(ir)
 	}
 	f.createResource(ir)
-	// The interceptor picks up new routes asynchronously via its informer.
-	// Sleep to give it time to load the route before tests send requests.
-	time.Sleep(5 * time.Second)
+	f.waitForInterceptorRouteReady(ir)
 	return ir
 }
 
@@ -143,7 +144,43 @@ func (f *Framework) UpdateInterceptorRoute(ir *httpv1beta1.InterceptorRoute, opt
 		opt(ir)
 	}
 	f.updateResource(ir)
-	// The interceptor picks up route changes asynchronously via its informer.
-	// Sleep to give it time to reload the route before tests send requests.
-	time.Sleep(5 * time.Second)
+	f.waitForInterceptorRouteReady(ir)
+}
+
+// waitForInterceptorRouteReady polls the InterceptorRoute until the operator
+// has reconciled it (Ready condition = True), then waits briefly for the
+// interceptor's informer to pick up the route.
+func (f *Framework) waitForInterceptorRouteReady(ir *httpv1beta1.InterceptorRoute) {
+	f.t.Helper()
+
+	obj := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ir.Name,
+			Namespace: ir.Namespace,
+		},
+	}
+
+	err := wait.For(
+		conditions.New(f.client.Resources()).ResourceMatch(obj, func(object k8s.Object) bool {
+			route := object.(*httpv1beta1.InterceptorRoute)
+			for _, c := range route.Status.Conditions {
+				if c.Type == httpv1beta1.ConditionTypeReady &&
+					c.Status == metav1.ConditionTrue &&
+					c.ObservedGeneration >= route.Generation {
+					return true
+				}
+			}
+			return false
+		}),
+		wait.WithTimeout(defaultWaitTimeout),
+	)
+	if err != nil {
+		f.t.Fatalf("timed out waiting for InterceptorRoute %s/%s to become ready: %v",
+			ir.Namespace, ir.Name, err)
+	}
+
+	// The operator's Ready status confirms the resource is in the API server,
+	// but the interceptor rebuilds its routing table asynchronously via its
+	// own informer. Allow a brief window for the interceptor to sync.
+	time.Sleep(2 * time.Second)
 }

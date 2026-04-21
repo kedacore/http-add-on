@@ -4,7 +4,6 @@ package default_test
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -35,15 +34,7 @@ func TestRouteUpdate(t *testing.T) {
 		}).
 		Assess("initially routes to app-a", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "app-a" {
-				t.Errorf("expected app-a, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname()}, "app-a")
 			return ctx
 		}).
 		Assess("routes to app-b after IR update", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
@@ -53,14 +44,7 @@ func TestRouteUpdate(t *testing.T) {
 				ir.Spec.Target.Service = "app-b"
 			})
 
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "app-b" {
-				t.Errorf("expected app-b after update, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname()}, "app-b")
 			return ctx
 		}).
 		Feature()

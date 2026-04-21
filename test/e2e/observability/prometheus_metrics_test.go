@@ -49,12 +49,7 @@ func TestPrometheusMetrics(t *testing.T) {
 			}
 			output := string(body)
 
-			// Verify all interceptor metrics are present in the Prometheus output.
-			for _, metric := range []string{
-				"interceptor_pending_requests",
-				"interceptor_request_duration_seconds",
-				"interceptor_requests_total",
-			} {
+			for _, metric := range h.InterceptorMetrics {
 				if !strings.Contains(output, metric) {
 					t.Fatalf("expected %s in metrics output, got:\n%s", metric, output)
 				}
