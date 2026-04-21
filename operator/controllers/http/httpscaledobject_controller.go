@@ -162,6 +162,10 @@ func (r *HTTPScaledObjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&httpv1alpha1.HTTPScaledObject{}, builder.WithPredicates(
 			predicate.Or(
+				util.AnnotationKeyChangedPredicate{Keys: []string{
+					OrphanScaledObjectAnnotation,
+					SkipScaledObjectCreationAnnotation,
+				}},
 				predicate.GenerationChangedPredicate{},
 				util.HTTPScaledObjectReadyConditionPredicate{},
 			),
