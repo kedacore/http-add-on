@@ -4,9 +4,7 @@
 
 - [HTTP Autoscaling Made Simple](#http-autoscaling-made-simple)
 - [Adopters - Become a listed KEDA user!](#adopters---become-a-listed-keda-user)
-- [Walkthrough](#walkthrough)
-- [Design](#design)
-- [Installation](#installation)
+- [Documentation](#documentation)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Code of Conduct](#code-of-conduct)
@@ -22,7 +20,7 @@
 <a href="https://twitter.com/kedaorg"><img src="https://img.shields.io/twitter/follow/kedaorg?style=social" alt="Twitter"></a></p>
 
 
-The KEDA HTTP Add-on allows Kubernetes users to automatically scale their HTTP servers up and down (including to/from zero) based on incoming HTTP traffic. Please see our [use cases document](./docs/use_cases.md) to learn more about how and why you would use this project.
+The KEDA HTTP Add-on allows Kubernetes users to automatically scale their HTTP servers up and down (including to/from zero) based on incoming HTTP traffic.
 
 | 🚧 **Project status: beta** 🚧|
 |---------------------------------------------|
@@ -48,24 +46,9 @@ We are always happy to start list users who run KEDA's HTTP Add-on in production
 
 We welcome pull requests to list new adopters.
 
-## Walkthrough
+## Documentation
 
-Although this is currently a **beta release** project, we have prepared a walkthrough document with instructions on getting started for basic usage.
-
-See that document at [docs/walkthrough.md](./docs/walkthrough.md)
-
-## Design
-
-The HTTP Add-on is composed of multiple mostly independent components. This design was chosen to allow for highly
-customizable installations while allowing us to ship reasonable defaults.
-
-- We have written a complete design document. Please see it at [docs/design.md](./docs/design.md).
-- For more context on the design, please see our [scope document](./docs/scope.md).
-- If you have further questions about the project, please see our [FAQ document](./docs/faq.md).
-
-## Installation
-
-Please see the [complete installation instructions](./docs/install.md).
+For getting started, installation, architecture, and configuration, see the [KEDA HTTP Add-on documentation](https://keda.sh/http-add-on/latest/).
 
 ## Roadmap
 We use GitHub issues to build our backlog, a complete overview of all open items and our planning.

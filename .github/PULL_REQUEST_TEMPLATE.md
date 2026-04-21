@@ -12,7 +12,6 @@ _Provide a description of what has been changed_
 - [ ] Changelog has been updated and is aligned with our [changelog requirements](https://github.com/kedacore/http-add-on/blob/main/CONTRIBUTING.md#updating-the-changelog)
 - [ ] Any necessary documentation is added, such as:
   - [`README.md`](../README.md)
-  - [The `docs/` directory](../docs)
-  - [The docs repo](https://github.com/kedacore/keda-docs)
+  - [keda-docs](https://github.com/kedacore/keda-docs/tree/main/content/http-add-on)
 
 Fixes #
