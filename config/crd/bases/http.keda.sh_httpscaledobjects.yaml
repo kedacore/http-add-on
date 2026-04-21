@@ -60,6 +60,27 @@ spec:
           spec:
             description: HTTPScaledObjectSpec defines the desired state of HTTPScaledObject
             properties:
+              coldStartStreamingCallback:
+                description: (optional) Configuration for streaming SSE callback messages
+                  during cold starts
+                properties:
+                  intervalSeconds:
+                    default: 5
+                    description: How often to send keepalive events in seconds (Default
+                      5)
+                    format: int32
+                    type: integer
+                  keepaliveMessage:
+                    description: The message to send as SSE event content for keepalive
+                      events (Default "")
+                    type: string
+                  message:
+                    description: The message to send as SSE event content during cold
+                      start
+                    type: string
+                required:
+                - message
+                type: object
               coldStartTimeoutFailoverRef:
                 description: (optional) The name of the failover service to route
                   HTTP requests to when the target is not available

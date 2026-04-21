@@ -81,6 +81,20 @@ func (s *ColdStartTimeoutFailoverRef) GetPortName() string {
 	return s.PortName
 }
 
+// ColdStartStreamingCallbackSpec configures SSE streaming callback messages
+// sent to clients during cold starts to keep the connection alive.
+type ColdStartStreamingCallbackSpec struct {
+	// The message to send as SSE event content during cold start
+	Message string `json:"message"`
+	// How often to send keepalive events in seconds (Default 5)
+	// +kubebuilder:default=5
+	// +optional
+	IntervalSeconds int32 `json:"intervalSeconds,omitempty"`
+	// The message to send as SSE event content for keepalive events (Default "")
+	// +optional
+	KeepaliveMessage string `json:"keepaliveMessage,omitempty"`
+}
+
 // ReplicaStruct contains the minimum and maximum amount of replicas to have in the deployment
 type ReplicaStruct struct {
 	// Minimum amount of replicas to have in the deployment (Default 0)
@@ -188,6 +202,9 @@ type HTTPScaledObjectSpec struct {
 	// (optional) Timeouts that override the global ones
 	// +optional
 	Timeouts *HTTPScaledObjectTimeoutsSpec `json:"timeouts,omitempty" description:"Timeouts that override the global ones"`
+	// (optional) Configuration for streaming SSE callback messages during cold starts
+	// +optional
+	ColdStartStreamingCallback *ColdStartStreamingCallbackSpec `json:"coldStartStreamingCallback,omitempty"`
 }
 
 // HTTPScaledObjectStatus defines the observed state of HTTPScaledObject
