@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
@@ -49,6 +50,8 @@ type HTTPScaledObjectReconciler struct {
 
 	ExternalScalerConfig config.ExternalScaler
 	BaseConfig           config.Base
+
+	deprecationWarned sync.Map
 }
 
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch;create;update;patch;delete
@@ -82,6 +85,11 @@ func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	if httpso.GetDeletionTimestamp() != nil {
 		return ctrl.Result{}, finalizeScaledObject(ctx, logger, r.Client, httpso)
+	}
+
+	// TODO(v1): remove before v1 release
+	if _, alreadyWarned := r.deprecationWarned.LoadOrStore(req.String(), true); !alreadyWarned {
+		logger.Info("WARNING: HTTPScaledObject is deprecated and will be removed in a future release, migrate to InterceptorRoute + ScaledObject: https://keda.sh/http-add-on/0.14/operations/migrate-httpscaledobject-to-interceptorroute/")
 	}
 
 	// ensure finalizer is set on this resource
