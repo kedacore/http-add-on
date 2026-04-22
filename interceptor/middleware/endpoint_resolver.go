@@ -50,7 +50,7 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		readinessTimeout = ir.Spec.Timeouts.Readiness.Duration
 	}
 
-	hasFallback := ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Fallback != nil
+	hasFallback := ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Fallback != nil && ir.Spec.ColdStart.Fallback.Service != nil
 	// Bound the readiness wait or otherwise there is no time for the fallback
 	if hasFallback && readinessTimeout == 0 {
 		readinessTimeout = defaultFallbackReadinessTimeout

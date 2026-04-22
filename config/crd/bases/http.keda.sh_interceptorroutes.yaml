@@ -55,31 +55,37 @@ spec:
                 properties:
                   fallback:
                     description: |-
-                      Fallback service to route to when the target is scaling from zero
-                      and the wait timeout expires.
+                      Fallback target to route to when the primary backend does not become
+                      ready within the readiness timeout.
                     properties:
-                      port:
-                        description: Port number on the Service. Mutually exclusive
-                          with portName.
-                        format: int32
-                        maximum: 65535
-                        minimum: 1
-                        type: integer
-                      portName:
-                        description: Named port on the Service. Mutually exclusive
-                          with port.
-                        minLength: 1
-                        type: string
                       service:
-                        description: Name of the Kubernetes Service.
-                        minLength: 1
-                        type: string
+                        description: Kubernetes Service to use as the fallback target.
+                        properties:
+                          name:
+                            description: Name of the Kubernetes Service.
+                            minLength: 1
+                            type: string
+                          port:
+                            description: Port number on the Service. Mutually exclusive
+                              with portName.
+                            format: int32
+                            maximum: 65535
+                            minimum: 1
+                            type: integer
+                          portName:
+                            description: Named port on the Service. Mutually exclusive
+                              with port.
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                        x-kubernetes-validations:
+                        - message: exactly one of 'port' or 'portName' must be set
+                          rule: has(self.port) != has(self.portName)
                     required:
                     - service
                     type: object
-                    x-kubernetes-validations:
-                    - message: exactly one of 'port' or 'portName' must be set
-                      rule: has(self.port) != has(self.portName)
                 required:
                 - fallback
                 type: object
