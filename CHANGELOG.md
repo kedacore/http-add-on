@@ -28,8 +28,9 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Breaking Changes
 
 - **Interceptor**: Change default timeout behavior: request timeout (`KEDA_HTTP_REQUEST_TIMEOUT`) defaults to `0` (disabled), response header timeout (`KEDA_RESPONSE_HEADER_TIMEOUT` → `KEDA_HTTP_RESPONSE_HEADER_TIMEOUT`) defaults to `300s` (was `500ms`), and readiness timeout (`KEDA_CONDITION_WAIT_TIMEOUT` → `KEDA_HTTP_READINESS_TIMEOUT`) defaults to `0` (disabled, was `20s`). Timeout errors return 504 instead of 502. ([#1474](https://github.com/kedacore/http-add-on/issues/1474))
-- **Interceptor**: Redesign interceptor metrics: `interceptor_request_count` → `interceptor_requests_total` (labels: `method`, `code`, `route_name`, `route_namespace`), `interceptor_pending_request_count` → `interceptor_pending_requests` (labels: `route_name`, `route_namespace`), added `interceptor_request_duration_seconds` histogram; `path` and `host` labels removed in favor of route identity via InterceptorRoute name/namespace to fix unbounded cardinality OOM issues; non-standard HTTP methods normalized to `_OTHER`; dashboards and alerting rules must be updated ([#1559](https://github.com/kedacore/http-add-on/issues/1559))
+- **Interceptor**: Redesign interceptor metrics with bounded labels: `path`/`host` labels replaced by `route_name`/`route_namespace`; non-standard HTTP methods normalized to `_OTHER`; dashboards must be updated ([#1559](https://github.com/kedacore/http-add-on/issues/1559))
 - **Interceptor**: Remove `KEDA_HTTP_TLS_HANDSHAKE_TIMEOUT`, `KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT`, `KEDA_HTTP_KEEP_ALIVE`, `KEDA_HTTP_IDLE_CONN_TIMEOUT`, and `KEDA_HTTP_DIAL_RETRY_TIMEOUT` environment variables; these now use Go's `DefaultTransport` defaults. ([#1474](https://github.com/kedacore/http-add-on/issues/1474))
+- **Interceptor**: Rename interceptor metrics to follow OTel semantic conventions: `interceptor_requests_total` → `interceptor_request_count_total`, `interceptor_pending_requests` → `interceptor_request_concurrency`, `interceptor_request_duration_seconds` unchanged ([#1589](https://github.com/kedacore/http-add-on/issues/1589))
 
 ### New
 

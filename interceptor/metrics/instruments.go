@@ -15,9 +15,9 @@ const (
 	meterName   = "keda-interceptor-proxy"
 	serviceName = "interceptor-proxy"
 
-	MetricPendingRequests        = "interceptor_pending_requests"
-	MetricRequestDurationSeconds = "interceptor_request_duration_seconds"
-	MetricRequests               = "interceptor_requests"
+	MetricRequestConcurrency = "interceptor.request.concurrency"
+	MetricRequestCount       = "interceptor.request.count"
+	MetricRequestDuration    = "interceptor.request.duration"
 
 	AttrCode           = "code"
 	AttrMethod         = "method"
@@ -64,7 +64,7 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 	meter := provider.Meter(meterName)
 
 	requestCounter, err := meter.Int64Counter(
-		MetricRequests,
+		MetricRequestCount,
 		api.WithDescription("Total requests processed by the interceptor proxy"),
 	)
 	if err != nil {
@@ -72,7 +72,7 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 	}
 
 	requestDuration, err := meter.Float64Histogram(
-		MetricRequestDurationSeconds,
+		MetricRequestDuration,
 		api.WithDescription("Time from request received to response written"),
 		api.WithUnit("s"),
 		// Bucket boundaries from OTel HTTP semconv: https://opentelemetry.io/docs/specs/semconv/http/http-metrics/
@@ -85,8 +85,8 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 	}
 
 	pendingRequests, err := meter.Int64UpDownCounter(
-		MetricPendingRequests,
-		api.WithDescription("Requests currently in-flight at the interceptor proxy"),
+		MetricRequestConcurrency,
+		api.WithDescription("Concurrent requests at the interceptor proxy"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating pending requests counter: %w", err)
