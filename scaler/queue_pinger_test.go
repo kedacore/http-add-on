@@ -114,8 +114,8 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		count, ok := pinger.allCounts[host]
 		r.True(ok, "host %s missing", host)
 		r.Equal(n, count.Concurrency)
-		// First fetch: no previous data, so RPS should be 0.
-		r.InDelta(0.0, count.RPS, 0.001)
+		// First fetch: no previous data, so RequestRate should be 0.
+		r.InDelta(0.0, count.RequestRate, 0.001)
 	}
 }
 
@@ -156,7 +156,7 @@ func TestFetchCountsPerPod(t *testing.T) {
 
 	for _, counts := range perPod {
 		for host, n := range hosts {
-			c, ok := counts.Counts[host]
+			c, ok := counts[host]
 			r.True(ok, "host %s missing from pod result", host)
 			r.Equal(n, c.Concurrency)
 			r.Equal(int64(n), c.RequestCount)
@@ -180,7 +180,7 @@ func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
 	podBReq.Store(1000)
 
 	podA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]queue.Count{
+		_ = json.NewEncoder(w).Encode(queue.Counts{
 			"host1": {
 				Concurrency:  2,
 				RequestCount: podAReq.Load(),
@@ -190,7 +190,7 @@ func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
 	defer podA.Close()
 
 	podB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]queue.Count{
+		_ = json.NewEncoder(w).Encode(queue.Counts{
 			"host1": {
 				Concurrency:  3,
 				RequestCount: podBReq.Load(),
@@ -225,7 +225,7 @@ func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
 	count := pinger.count("host1")
 	r.Equal(2, count.Concurrency)
-	r.InDelta(0.0, count.RPS, 0.001)
+	r.InDelta(0.0, count.RequestRate, 0.001)
 
 	// Add a new pod with a high existing counter:
 	// this should not spike rate immediately.
@@ -233,7 +233,7 @@ func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
 	count = pinger.count("host1")
 	r.Equal(5, count.Concurrency)
-	r.InDelta(0.0, count.RPS, 0.001)
+	r.InDelta(0.0, count.RequestRate, 0.001)
 
 	// Next tick after both pods increase should produce non-zero rate.
 	podAReq.Store(130)  // +30
@@ -241,7 +241,7 @@ func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
 	count = pinger.count("host1")
 	r.Equal(5, count.Concurrency)
-	r.Greater(count.RPS, 0.0)
+	r.Greater(count.RequestRate, 0.0)
 
 	// Remove pod-b and ensure its previous counters are pruned.
 	readyAddrs.Store([]string{"pod-a"})
@@ -267,7 +267,7 @@ func TestRateComputation(t *testing.T) {
 
 	hdl := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		cur := reqCount.Load()
-		counts := map[string]queue.Count{
+		counts := queue.Counts{
 			"host1": {Concurrency: 5, RequestCount: cur},
 		}
 		_ = json.NewEncoder(w).Encode(counts)
@@ -288,10 +288,10 @@ func TestRateComputation(t *testing.T) {
 		srvURL.Port(),
 	)
 
-	// First poll: establishes baseline (no delta, RPS=0)
+	// First poll: establishes baseline (no delta, RequestRate=0)
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
 	r.Equal(5, pinger.allCounts["host1"].Concurrency)
-	r.InDelta(0.0, pinger.allCounts["host1"].RPS, 0.001)
+	r.InDelta(0.0, pinger.allCounts["host1"].RequestRate, 0.001)
 
 	// Simulate 50 new requests arriving.
 	reqCount.Store(150)
@@ -299,7 +299,7 @@ func TestRateComputation(t *testing.T) {
 	// Second poll: delta = 150 - 100 = 50
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
 	r.Equal(5, pinger.allCounts["host1"].Concurrency)
-	r.Greater(pinger.allCounts["host1"].RPS, 0.0)
+	r.Greater(pinger.allCounts["host1"].RequestRate, 0.0)
 }
 
 func TestRateComputationCounterReset(t *testing.T) {
@@ -316,7 +316,7 @@ func TestRateComputationCounterReset(t *testing.T) {
 
 	hdl := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		cur := reqCount.Load()
-		counts := map[string]queue.Count{
+		counts := queue.Counts{
 			"host1": {Concurrency: 1, RequestCount: cur},
 		}
 		_ = json.NewEncoder(w).Encode(counts)
@@ -346,7 +346,7 @@ func TestRateComputationCounterReset(t *testing.T) {
 	// Second poll: counter went down (500 → 10), treated as reset.
 	// delta = current value (10), not negative.
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
-	r.Greater(pinger.allCounts["host1"].RPS, 0.0)
+	r.Greater(pinger.allCounts["host1"].RequestRate, 0.0)
 }
 
 func TestUpdateBucketConfig(t *testing.T) {

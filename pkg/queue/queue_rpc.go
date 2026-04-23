@@ -46,15 +46,15 @@ func newSizeHandler(
 func GetCounts(
 	httpCl *http.Client,
 	interceptorURL url.URL,
-) (*Counts, error) {
+) (Counts, error) {
 	interceptorURL.Path = countsPath
 	resp, err := httpCl.Get(interceptorURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("requesting the queue counts from %s: %w", interceptorURL.String(), err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	counts := NewCounts()
-	if err := json.NewDecoder(resp.Body).Decode(counts); err != nil {
+	var counts Counts
+	if err := json.NewDecoder(resp.Body).Decode(&counts); err != nil {
 		return nil, fmt.Errorf("decoding response from the interceptor at %s: %w", interceptorURL.String(), err)
 	}
 

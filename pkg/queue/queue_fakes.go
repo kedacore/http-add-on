@@ -14,7 +14,7 @@ type HostAndCount struct {
 }
 type FakeCounter struct {
 	mapMut        *sync.RWMutex
-	RetMap        map[string]Count
+	RetMap        Counts
 	ResizedCh     chan HostAndCount
 	ResizeTimeout time.Duration
 }
@@ -35,7 +35,7 @@ func NewFakeCounterBuffered() *FakeCounter {
 func newFakeCounter(bufferSize int) *FakeCounter {
 	return &FakeCounter{
 		mapMut:        new(sync.RWMutex),
-		RetMap:        map[string]Count{},
+		RetMap:        Counts{},
 		ResizedCh:     make(chan HostAndCount, bufferSize),
 		ResizeTimeout: 1 * time.Second,
 	}
@@ -92,13 +92,10 @@ func (f *FakeCounter) RemoveKey(host string) bool {
 	return ok
 }
 
-func (f *FakeCounter) Current() (*Counts, error) {
-	ret := NewCounts()
+func (f *FakeCounter) Current() (Counts, error) {
 	f.mapMut.RLock()
 	defer f.mapMut.RUnlock()
-	retMap := f.RetMap
-	ret.Counts = retMap
-	return ret, nil
+	return f.RetMap, nil
 }
 
 var _ CountReader = &FakeCountReader{}
@@ -106,18 +103,14 @@ var _ CountReader = &FakeCountReader{}
 type FakeCountReader struct {
 	concurrency  int
 	requestCount int64
-	rps          float64
 	err          error
 }
 
-func (f *FakeCountReader) Current() (*Counts, error) {
-	ret := NewCounts()
-	ret.Counts = map[string]Count{
+func (f *FakeCountReader) Current() (Counts, error) {
+	return Counts{
 		"sample.com": {
 			Concurrency:  f.concurrency,
 			RequestCount: f.requestCount,
-			RPS:          f.rps,
 		},
-	}
-	return ret, f.err
+	}, f.err
 }
