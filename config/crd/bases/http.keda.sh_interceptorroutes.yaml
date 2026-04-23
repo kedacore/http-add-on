@@ -159,11 +159,12 @@ spec:
                     description: Scale based on concurrent request count.
                     properties:
                       targetValue:
-                        default: 100
                         description: Target concurrent request count per replica.
                         format: int32
                         minimum: 1
                         type: integer
+                    required:
+                    - targetValue
                     type: object
                   requestRate:
                     description: Scale based on request rate.
@@ -173,7 +174,6 @@ spec:
                         description: Bucket size for rate calculation within the window.
                         type: string
                       targetValue:
-                        default: 100
                         description: Target request rate per replica.
                         format: int32
                         minimum: 1
@@ -183,6 +183,8 @@ spec:
                         description: Sliding time window over which the request rate
                           is calculated.
                         type: string
+                    required:
+                    - targetValue
                     type: object
                 type: object
                 x-kubernetes-validations:

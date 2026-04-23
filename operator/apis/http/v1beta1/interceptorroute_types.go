@@ -63,10 +63,8 @@ type RoutingRule struct {
 // ConcurrencyTargetSpec defines concurrency-based scaling.
 type ConcurrencyTargetSpec struct {
 	// Target concurrent request count per replica.
-	// +kubebuilder:default=100
 	// +kubebuilder:validation:Minimum=1
-	// +optional
-	TargetValue int32 `json:"targetValue,omitzero"`
+	TargetValue int32 `json:"targetValue"`
 }
 
 // RequestRateTargetSpec defines rate-based scaling.
@@ -76,10 +74,8 @@ type RequestRateTargetSpec struct {
 	// +optional
 	Granularity metav1.Duration `json:"granularity,omitzero"`
 	// Target request rate per replica.
-	// +kubebuilder:default=100
 	// +kubebuilder:validation:Minimum=1
-	// +optional
-	TargetValue int32 `json:"targetValue,omitzero"`
+	TargetValue int32 `json:"targetValue"`
 	// Sliding time window over which the request rate is calculated.
 	// +kubebuilder:default="1m"
 	// +optional
