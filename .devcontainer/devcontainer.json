@@ -1,4 +1,4 @@
 {
-	"name": "Go",
+	"name": "KEDA HTTP Add-on",
 	"image": "mcr.microsoft.com/devcontainers/go:latest"
 }

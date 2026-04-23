@@ -94,6 +94,14 @@
         '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?:\\s+packageName=(?<packageName>\\S+))?\\n\\s+- (?<currentValue>\\S+)',
       ],
     },
+    {
+      customType: "regex",
+      managerFilePatterns: [".ko.yaml"],
+      matchStrings: [
+        "defaultBaseImage:\\s+(?<depName>[^:@\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)",
+      ],
+      datasourceTemplate: "docker",
+    },
   ],
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   // Experimental: pre-commit manager is in beta and disabled by default
