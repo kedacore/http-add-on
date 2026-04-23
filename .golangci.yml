@@ -102,7 +102,3 @@ formatters:
         - localmodule
   exclusions:
     generated: lax # exclude generated files
-    paths:
-      # gci would strip kubebuilder scaffold markers from import blocks
-      - operator/controllers/http/suite_test.go
-      - operator/main.go
