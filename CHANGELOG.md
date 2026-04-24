@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.14.0](#v0140)
 - [v0.13.0](#v0130)
 - [v0.12.2](#v0122)
 - [v0.12.1](#v0121)
@@ -27,6 +28,32 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### New
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Improvements
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Fixes
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.14.0
+
+### Breaking Changes
+
 - **Interceptor**: Change default timeout behavior: request timeout (`KEDA_HTTP_REQUEST_TIMEOUT`) defaults to `0` (disabled), response header timeout (`KEDA_RESPONSE_HEADER_TIMEOUT` → `KEDA_HTTP_RESPONSE_HEADER_TIMEOUT`) defaults to `300s` (was `500ms`), and readiness timeout (`KEDA_CONDITION_WAIT_TIMEOUT` → `KEDA_HTTP_READINESS_TIMEOUT`) defaults to `0` (disabled, was `20s`). Timeout errors return 504 instead of 502. ([#1474](https://github.com/kedacore/http-add-on/issues/1474))
 - **Interceptor**: Redesign interceptor metrics with bounded labels: `path`/`host` labels replaced by `route_name`/`route_namespace`; non-standard HTTP methods normalized to `_OTHER`; dashboards must be updated ([#1559](https://github.com/kedacore/http-add-on/issues/1559))
 - **Interceptor**: Remove `KEDA_HTTP_TLS_HANDSHAKE_TIMEOUT`, `KEDA_HTTP_EXPECT_CONTINUE_TIMEOUT`, `KEDA_HTTP_KEEP_ALIVE`, `KEDA_HTTP_IDLE_CONN_TIMEOUT`, and `KEDA_HTTP_DIAL_RETRY_TIMEOUT` environment variables; these now use Go's `DefaultTransport` defaults. ([#1474](https://github.com/kedacore/http-add-on/issues/1474))
@@ -36,24 +63,25 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: Add `InterceptorRoute` CRD to separate routing/interceptor config from scaling config; `HTTPScaledObject` remains supported but will be deprecated in a future release ([#1501](https://github.com/kedacore/http-add-on/issues/1501))
 - **Interceptor**: Add per-route timeout configuration via InterceptorRoute `timeouts` spec with `request`, `responseHeader`, and `readiness` fields. When unset, global env var defaults are used. When a fallback service is configured and no readiness timeout is set, it defaults to 30s. ([#1474](https://github.com/kedacore/http-add-on/issues/1474))
+- **Operator**: Add `httpscaledobject.keda.sh/orphan-scaledobject` annotation to preserve ScaledObjects during HTTPScaledObject-to-InterceptorRoute migration ([#1593](https://github.com/kedacore/http-add-on/issues/1593))
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Support `OTEL_TRACES_SAMPLER` and `OTEL_TRACES_SAMPLER_ARG` for trace sampling configuration ([#1534](https://github.com/kedacore/http-add-on/issues/1534))
+- **Scaler**: Move request-rate calculation from interceptor to scaler for a consistent view of request rate across all interceptor replicas ([#1557](https://github.com/kedacore/http-add-on/issues/1557))
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Restrict metrics endpoint to `/metrics` path only, matching the Prometheus scrape convention ([#1591](https://github.com/kedacore/http-add-on/issues/1591))
 
 ### Deprecations
 
 - **Interceptor**: Deprecate `KEDA_CONDITION_WAIT_TIMEOUT` and `KEDA_RESPONSE_HEADER_TIMEOUT` environment variables in favor of `KEDA_HTTP_READINESS_TIMEOUT` and `KEDA_HTTP_RESPONSE_HEADER_TIMEOUT`. Old vars take precedence when set and log deprecation warnings. ([#1474](https://github.com/kedacore/http-add-on/issues/1474))
+- **Operator**: Log deprecation warning for HTTPScaledObject resources, guiding users to migrate to InterceptorRoute ([#1595](https://github.com/kedacore/http-add-on/issues/1595))
 
 ### Other
 
 - **General**: Remove legacy in-repo documentation in favor of [keda.sh/http-add-on](https://keda.sh/http-add-on/latest/) ([#1516](https://github.com/kedacore/http-add-on/issues/1516))
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ## v0.13.0
 
