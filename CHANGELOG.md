@@ -52,6 +52,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Other
 
+- **General**: Remove legacy in-repo documentation in favor of [keda.sh/http-add-on](https://keda.sh/http-add-on/latest/) ([#1516](https://github.com/kedacore/http-add-on/issues/1516))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ## v0.13.0

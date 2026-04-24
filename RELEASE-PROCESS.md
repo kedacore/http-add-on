@@ -20,15 +20,14 @@ It should not include every single change but solely what matters to our custome
 
 Add the new released version to the list in `KEDA Version` dropdown in [2_bug_report.yml](https://github.com/kedacore/http-add-on/blob/main/.github/ISSUE_TEMPLATE/2_bug_report.yml).
 
-## 4. Update documentation references to current version
+## 4. Create a new documentation version
 
-Update the links to current version within the file `walkthrough.md`
+The HTTP Add-on documentation lives in the [kedacore/keda-docs](https://github.com/kedacore/keda-docs) repository under `content/http-add-on/<version>/`.
 
-> ```console
-> kubectl apply -n $NAMESPACE -f examples/v0.10.0/httpscaledobject.yaml
-> ```
-
-> > If you'd like to learn more about this object, please see the [`HTTPScaledObject` reference](THE REFERENCE).
+1. Copy the latest version folder (e.g., `content/http-add-on/0.14/`) to a new folder matching the release version (e.g., `content/http-add-on/0.15/`).
+2. Update `config.toml` to add the new version to the `[params.http_add_on_versions]` section.
+3. Review the copied content for any version-specific references and update them.
+4. Submit a PR to [kedacore/keda-docs](https://github.com/kedacore/keda-docs).
 
 ## 5: Create a new GitHub release
 
@@ -83,4 +82,4 @@ Publish release on Artifact Hub by creating a new version in [kedacore/external-
 
 If you believe that your release is large enough to warrant a blog post on the [keda.sh/blog](https://keda.sh/blog/) site, please go to [github.com/kedacore/keda-docs](https://github.com/kedacore/keda-docs) and submit a new PR with a blog article about the release.
 
-Include in the article a longer summary of changes and any important information about the new functionality, bugfixes, or anything else appropriate. The post should go into the [content/blog](https://github.com/kedacore/keda-docs/tree/master/content/blog) directory.
+Include in the article a longer summary of changes and any important information about the new functionality, bugfixes, or anything else appropriate. The post should go into the [content/blog](https://github.com/kedacore/keda-docs/tree/main/content/blog) directory.

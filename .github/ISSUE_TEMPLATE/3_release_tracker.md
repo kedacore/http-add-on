@@ -21,5 +21,6 @@ We aim to release this release in the week of <week range, example March 27-31>.
 
 - [ ] Create the KEDA HTTP Add-on release
 - [ ] Prepare & ship the Helm chart
+- [ ] Create a new documentation version in [kedacore/keda-docs](https://github.com/kedacore/keda-docs) (see [RELEASE-PROCESS.md](https://github.com/kedacore/http-add-on/blob/main/RELEASE-PROCESS.md#4-create-a-new-documentation-version))
 - [ ] Publish on Artifact Hub ([repo](https://github.com/kedacore/external-scalers))
 - [ ] Provide update in Slack

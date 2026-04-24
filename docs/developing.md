@@ -34,7 +34,7 @@ You can use a cloud provider (AKS, GKE, EKS) or a local cluster like [KinD](http
 
 ### KEDA
 
-Install KEDA and the HTTP Add-on following the [install instructions](./install.md).
+Install [KEDA](https://keda.sh/docs/latest/deploy/) on your cluster before deploying the HTTP Add-on.
 
 ## Makefile Reference
 
@@ -54,6 +54,8 @@ Install KEDA and the HTTP Add-on following the [install instructions](./install.
 
 This project uses [ko](https://ko.build/) for building container images and deploying to Kubernetes.
 ko builds Go binaries and packages them into container images without requiring Docker, with automatic dependency caching for fast incremental builds.
+
+`make deploy` builds from source and deploys the HTTP Add-on to your cluster. If you previously installed the HTTP Add-on via Helm, uninstall it first before using `make deploy`.
 
 Set the `KO_DOCKER_REPO` environment variable for your target:
 
