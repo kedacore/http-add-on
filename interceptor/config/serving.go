@@ -28,7 +28,7 @@ type Serving struct {
 	TLSCertPath string `env:"KEDA_HTTP_PROXY_TLS_CERT_PATH" envDefault:"/certs/tls.crt"`
 	// TLSKeyPath is the path to read the private key file from for the TLS server
 	TLSKeyPath string `env:"KEDA_HTTP_PROXY_TLS_KEY_PATH" envDefault:"/certs/tls.key"`
-	// TLSCertStorePaths is a comma separated list of directories containing additional
+	// TLSCertStorePaths is a comma-separated list of directories containing additional
 	// certificate/key pairs for the TLS server. During the TLS handshake, the proxy
 	// first looks for an exact SNI/SAN match in these directories and falls back to
 	// TLSCertPath/TLSKeyPath when no matching certificate is found.

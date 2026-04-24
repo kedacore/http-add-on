@@ -125,7 +125,7 @@ The `E2E_ARGS` variable passes flags to the [e2e-framework](https://github.com/k
 
 ### TLS SNI behavior
 
-The interceptor can serve more than one certificate from the TLS listener by setting `KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS` to one or more directories that contain certificate/key pairs. During the TLS handshake it:
+The interceptor can serve more than one certificate from the TLS listener by setting `KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS` to a comma-separated list of one or more directories that contain certificate/key pairs. During the TLS handshake it:
 
 1. Looks for an exact match between the client SNI value and a certificate SAN loaded from the configured certificate-store directories.
 2. Falls back to the certificate from `KEDA_HTTP_PROXY_TLS_CERT_PATH` and `KEDA_HTTP_PROXY_TLS_KEY_PATH` when no SNI-specific certificate matches.

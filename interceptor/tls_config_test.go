@@ -80,14 +80,18 @@ func TestBuildTLSConfig_FallbackToDefault(t *testing.T) {
 }
 
 func TestBuildTLSConfig_PrefersSNIMatchOverDefault(t *testing.T) {
-	dir := t.TempDir()
-	writeCert(t, dir, "default", "default.example.com")
-	writeCert(t, dir, "app", "app.example.com")
+	baseDir := t.TempDir()
+	storeDir := filepath.Join(baseDir, "store")
+	if err := os.Mkdir(storeDir, 0o755); err != nil {
+		t.Fatalf("creating cert store dir: %v", err)
+	}
+	writeCert(t, baseDir, "default", "default.example.com")
+	writeCert(t, storeDir, "app", "app.example.com")
 
 	opts := TLSOptions{
-		CertificatePath: filepath.Join(dir, "default.crt"),
-		KeyPath:         filepath.Join(dir, "default.key"),
-		CertStorePaths:  dir,
+		CertificatePath: filepath.Join(baseDir, "default.crt"),
+		KeyPath:         filepath.Join(baseDir, "default.key"),
+		CertStorePaths:  storeDir,
 	}
 
 	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
