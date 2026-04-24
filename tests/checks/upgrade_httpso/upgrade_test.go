@@ -155,6 +155,20 @@ func TestUpgrade(t *testing.T) {
 
 	kc := GetKubernetesClient(t)
 
+	// The main runner (tests/run-all.go → tests/utils/setup_test.go) installs the
+	// add-on via `make deploy-e2e` (kustomize/ko), which creates the same
+	// keda-add-ons-http-* resources Helm wants to own. Tear those down first so
+	// the Helm release can take ownership cleanly. `make undeploy` is idempotent
+	// (it swallows errors if nothing is deployed) so this also handles the case
+	// where the test runs on a fresh cluster.
+	t.Log("--- tearing down any pre-existing add-on install ---")
+	undeployPreExistingAddon(t)
+	t.Cleanup(func() {
+		// Leave the cluster without the Helm release when we're done; a follow-up
+		// `make deploy-e2e` can reinstall via kustomize/ko.
+		_, _ = ExecuteCommand(fmt.Sprintf("helm uninstall %s --namespace %s --wait", releaseName, KEDANamespace))
+	})
+
 	t.Logf("--- installing http-add-on %s (baseline) ---", fromVersion)
 	installOrUpgradeAddon(t, fromVersion)
 	waitForAddonReady(t, kc)
@@ -173,20 +187,32 @@ func TestUpgrade(t *testing.T) {
 	t.Log("--- scale out (baseline) ---")
 	testScaleOut(t, kc, data)
 
+	t.Log("--- scale in (baseline) ---")
+	testScaleIn(t, kc, data)
+
 	t.Logf("--- upgrading http-add-on to %s ---", toVersion)
 	installOrUpgradeAddon(t, toVersion)
 	waitForAddonReady(t, kc)
 
-	t.Log("--- HTTPScaledObject survives upgrade ---")
-	// Give the new operator a moment to reconcile pre-existing HTTPScaledObject resources.
-	assert.True(t, WaitForDeploymentReplicaReadyCount(t, kc, deploymentName, testNamespace, maxReplicaCount, 6, 10),
-		"expected HTTPScaledObject to still route traffic and keep the deployment at max replicas post-upgrade")
+	// The upgrade itself takes longer than scaledownPeriod (10s), so any traffic
+	// applied before the upgrade will have drained by the time it finishes.
+	// Generate fresh load post-upgrade to prove the surviving HTTPScaledObject is
+	// still reconciled correctly and the interceptor still routes into it.
+	t.Log("--- scale out (post-upgrade) ---")
+	testScaleOut(t, kc, data)
 
 	t.Log("--- scale in (post-upgrade) ---")
 	testScaleIn(t, kc, data)
+}
 
-	t.Log("--- scale out again (post-upgrade) ---")
-	testScaleOut(t, kc, data)
+func undeployPreExistingAddon(t *testing.T) {
+	t.Helper()
+	// Runs from tests/checks/upgrade_httpso/ — repo root is two levels up.
+	out, err := ExecuteCommandWithDir("make undeploy", "../../..")
+	if err != nil {
+		// Not fatal — `make undeploy` may return non-zero on a clean cluster.
+		t.Logf("make undeploy returned error (may be harmless on a clean cluster): %s\n%s", err, string(out))
+	}
 }
 
 func installOrUpgradeAddon(t *testing.T, version string) {
