@@ -18,6 +18,7 @@ const defaultFallbackReadinessTimeout = 30 * time.Second
 type EndpointResolverConfig struct {
 	ReadinessTimeout      time.Duration
 	EnableColdStartHeader bool
+	DirectPodOnColdStart  bool // route to pod IP directly during cold start
 }
 
 type EndpointResolver struct {
@@ -64,7 +65,7 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceKey := ir.Namespace + "/" + ir.Spec.Target.Service
-	isColdStart, err := er.readyCache.WaitForReady(waitCtx, serviceKey)
+	isColdStart, podHost, err := er.readyCache.WaitForReady(waitCtx, serviceKey, ir.Spec.Target.PortName)
 	if err != nil {
 		// No fallback, return an error
 		if !hasFallback {
@@ -90,12 +91,30 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Fall back to alternate upstream.
 		fallbackURL := util.FallbackURLFromContext(ctx)
 		ctx = util.ContextWithUpstreamURL(ctx, fallbackURL)
+		// Update SNI to the fallback service hostname for TLS upstreams so the
+		// transport uses the correct server name instead of the primary service's.
+		// For non-TLS fallbacks the context may still hold the primary service's
+		// server name, but the transport ignores it for plain HTTP — no update needed.
+		if fallbackURL.Scheme == schemeHTTPS {
+			ctx = util.ContextWithUpstreamServerName(ctx, fallbackURL.Hostname())
+		}
 		r = r.WithContext(ctx)
-	}
+	} else {
+		// isColdStart is only meaningful when the backend resolved without errors
+		if er.cfg.EnableColdStartHeader {
+			w.Header().Set(kedahttp.HeaderColdStart, strconv.FormatBool(isColdStart))
+		}
 
-	// isColdStart is only meaningful when the backend resolved without errors
-	if err == nil && er.cfg.EnableColdStartHeader {
-		w.Header().Set(kedahttp.HeaderColdStart, strconv.FormatBool(isColdStart))
+		// Cold-start direct-to-pod routing: rewrites upstream to a pod IP, reducing latency when kube-proxy rules are slow to propagate.
+		// TLS SNI uses the original service hostname captured in context. Empty podHost leaves the upstream URL unchanged.
+		if isColdStart && er.cfg.DirectPodOnColdStart && podHost != "" {
+			if upstreamURL := util.UpstreamURLFromContext(ctx); upstreamURL != nil {
+				podURL := *upstreamURL
+				podURL.Host = podHost
+				ctx = util.ContextWithUpstreamURL(ctx, &podURL)
+				r = r.WithContext(ctx)
+			}
+		}
 	}
 
 	er.next.ServeHTTP(w, r)

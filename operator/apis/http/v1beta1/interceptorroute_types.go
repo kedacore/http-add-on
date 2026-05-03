@@ -104,11 +104,14 @@ type TargetRef struct {
 	// +kubebuilder:validation:MinLength=1
 	Service string `json:"service"`
 	// Port number on the Service. Mutually exclusive with portName.
+	// Note: direct-pod routing (when enabled on the interceptor) requires portName;
+	// routes using a numeric port will always be forwarded via the Service ClusterIP.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
 	Port int32 `json:"port,omitzero"`
 	// Named port on the Service. Mutually exclusive with port.
+	// Required for direct-pod routing to activate during cold starts.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	PortName string `json:"portName,omitzero"`
