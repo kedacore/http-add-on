@@ -40,6 +40,7 @@
         "k8s.io/**",
         "sigs.k8s.io/controller-runtime",
         "sigs.k8s.io/controller-tools",
+        "sigs.k8s.io/e2e-framework",
         "sigs.k8s.io/gateway-api",
         "github.com/cert-manager/cert-manager",
       ],
@@ -52,6 +53,7 @@
         "k8s.io/**",
         "sigs.k8s.io/controller-runtime",
         "sigs.k8s.io/controller-tools",
+        "sigs.k8s.io/e2e-framework", // tracks k8s.io/* minor versions
         "sigs.k8s.io/gateway-api", // independently versioned but depends on k8s.io/*
         "github.com/cert-manager/cert-manager", // depends on specific k8s.io/* minor versions
       ],
