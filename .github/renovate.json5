@@ -74,6 +74,13 @@
       matchUpdateTypes: ["minor", "major"],
       enabled: false,
     },
+    // Disable digest pinning for kindest/node as we don't need it and as it causes renovate update failures when not captured.
+    {
+      matchManagers: ["custom.regex"],
+      matchFileNames: [".github/workflows/e2e-tests.yaml"],
+      matchDepNames: ["/kindest\\/node/"],
+      pinDigests: false,
+    },
     {
       matchFileNames: [".devcontainer/**"],
       pinDigests: false,
@@ -91,7 +98,7 @@
       customType: "regex",
       managerFilePatterns: [".github/workflows/**"],
       matchStrings: [
-        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?:\\s+packageName=(?<packageName>\\S+))?\\n\\s+- (?<currentValue>\\S+)',
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?:\\s+packageName=(?<packageName>\\S+))?\\n\\s+- (?<currentValue>\\S+)",
       ],
     },
     {
