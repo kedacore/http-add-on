@@ -117,6 +117,27 @@ clean-test-certs:
 test:
 	go test ./...
 
+FUZZ_TIME ?= 30s
+FUZZ_TARGETS = \
+	FuzzNewKey:./pkg/routing/ \
+	FuzzStripPort:./pkg/routing/ \
+	FuzzWildcardHostnames:./pkg/routing/ \
+	FuzzTableMemoryRoute:./pkg/routing/ \
+	FuzzCountsJSON:./pkg/queue/ \
+	FuzzRequestsBuckets:./pkg/queue/ \
+	FuzzProxyHandler:./interceptor/ \
+	FuzzEscapeString:./scaler/ \
+	FuzzConcurrencyMetricName:./scaler/ \
+	FuzzRateMetricName:./scaler/
+
+.PHONY: fuzz
+fuzz: ## Run all fuzz tests (FUZZ_TIME=30s by default)
+	@for entry in $(FUZZ_TARGETS); do \
+		func=$${entry%%:*}; pkg=$${entry#*:}; \
+		echo "=== Fuzzing $$func in $$pkg ==="; \
+		go test $$pkg -run='^$$' -fuzz=$$func -fuzztime=$(FUZZ_TIME) || exit 1; \
+	done
+
 e2e-test-legacy:
 	go run -tags e2e ./tests/run-all.go
 
