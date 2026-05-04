@@ -89,6 +89,24 @@ func ExecuteCommand(cmdWithArgs string) ([]byte, error) {
 	return out, err
 }
 
+func ExecuteCommandWithRetry(t *testing.T, cmdWithArgs string, retries int, delay time.Duration) ([]byte, error) {
+	t.Helper()
+	var out []byte
+	var err error
+	for i := 1; i <= retries; i++ {
+		out, err = ExecuteCommand(cmdWithArgs)
+		if err == nil {
+			return out, nil
+		}
+		if i == retries {
+			break
+		}
+		t.Logf("WARNING: command failed (attempt %d/%d), retrying in %v...: %v", i, retries, delay, err)
+		time.Sleep(delay)
+	}
+	return out, err
+}
+
 func ExecuteCommandWithDir(cmdWithArgs, dir string) ([]byte, error) {
 	out, err := ParseCommandWithDir(cmdWithArgs, dir).Output()
 	if err != nil {
