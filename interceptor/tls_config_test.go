@@ -79,6 +79,38 @@ func TestBuildTLSConfig_FallbackToDefault(t *testing.T) {
 	requireCertForHost(t, tlsCfg, "unknown.example.com")
 }
 
+func TestBuildTLSConfig_PrefersSNIMatchOverDefault(t *testing.T) {
+	baseDir := t.TempDir()
+	storeDir := filepath.Join(baseDir, "store")
+	if err := os.Mkdir(storeDir, 0o755); err != nil {
+		t.Fatalf("creating cert store dir: %v", err)
+	}
+	writeCert(t, baseDir, "default", "default.example.com")
+	writeCert(t, storeDir, "app", "app.example.com")
+
+	opts := TLSOptions{
+		CertificatePath: filepath.Join(baseDir, "default.crt"),
+		KeyPath:         filepath.Join(baseDir, "default.key"),
+		CertStorePaths:  storeDir,
+	}
+
+	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
+	if err != nil {
+		t.Fatalf("failed to build TLS config: %v", err)
+	}
+
+	cert, err := tlsCfg.GetCertificate(&tls.ClientHelloInfo{ServerName: "app.example.com"})
+	if err != nil {
+		t.Fatalf("expected SNI-matched certificate, got error: %v", err)
+	}
+	if cert == nil || cert.Leaf == nil {
+		t.Fatal("expected certificate leaf to be populated")
+	}
+	if got := cert.Leaf.DNSNames; len(got) != 1 || got[0] != "app.example.com" {
+		t.Fatalf("expected app.example.com certificate, got %v", got)
+	}
+}
+
 func TestBuildTLSConfig_NoDefaultCert(t *testing.T) {
 	opts := TLSOptions{}
 
