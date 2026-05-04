@@ -66,6 +66,13 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx = util.ContextWithLogger(ctx, logger.WithName("RoutingMiddleware"))
 	ctx = util.ContextWithInterceptorRoute(ctx, ir)
 	ctx = util.ContextWithUpstreamURL(ctx, url)
+	// Store the intended TLS server name before any middleware (e.g. EndpointResolver)
+	// rewrites the upstream URL to a pod IP. Empty for non-TLS upstreams.
+	serverName := ""
+	if rm.tlsEnabled {
+		serverName = url.Hostname()
+	}
+	ctx = util.ContextWithUpstreamServerName(ctx, serverName)
 
 	if ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Fallback != nil && ir.Spec.ColdStart.Fallback.Service != nil {
 		fallbackURL, err := rm.resolveUpstreamURL(ctx, *ir.Spec.ColdStart.Fallback.Service, ir.Namespace)
@@ -121,9 +128,9 @@ func (rm *Routing) resolveUpstreamURL(ctx context.Context, svc httpv1beta.Servic
 		return nil, fmt.Errorf("failed to get port: %w", err)
 	}
 
-	scheme := "http"
+	scheme := schemeHTTP
 	if rm.tlsEnabled {
-		scheme = "https"
+		scheme = schemeHTTPS
 	}
 
 	return &url.URL{
