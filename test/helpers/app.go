@@ -15,8 +15,9 @@ import (
 
 const (
 	// renovate: datasource=docker
-	defaultImage = "ghcr.io/traefik/whoami:v1.11.0"
-	defaultPort  = int32(8080)
+	defaultImage   = "ghcr.io/traefik/whoami:v1.11.0"
+	defaultPort    = int32(8080)
+	tlsCertsVolume = "tls-certs"
 )
 
 // TestApp bundles a Deployment and Service for a test backend.
@@ -81,12 +82,12 @@ func (a *TestApp) Resources() []k8s.Object {
 		probeScheme = corev1.URISchemeHTTPS
 		args = append(args, "--cert=/certs/tls.crt", "--key=/certs/tls.key")
 		volumeMounts = []corev1.VolumeMount{{
-			Name:      "tls-certs",
+			Name:      tlsCertsVolume,
 			MountPath: "/certs",
 			ReadOnly:  true,
 		}}
 		volumes = []corev1.Volume{{
-			Name: "tls-certs",
+			Name: tlsCertsVolume,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: a.TLSSecretName,

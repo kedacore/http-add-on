@@ -111,10 +111,9 @@ func WithTLSCert(dnsNames []string) PatchDeploymentOption {
 			return err
 		}
 
-		volName := "tls-certs"
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes,
 			corev1.Volume{
-				Name: volName,
+				Name: tlsCertsVolume,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{SecretName: certName},
 				},
@@ -124,7 +123,7 @@ func WithTLSCert(dnsNames []string) PatchDeploymentOption {
 			dep.Spec.Template.Spec.Containers[i].VolumeMounts = append(
 				dep.Spec.Template.Spec.Containers[i].VolumeMounts,
 				corev1.VolumeMount{
-					Name:      volName,
+					Name:      tlsCertsVolume,
 					MountPath: "/certs",
 				},
 			)
