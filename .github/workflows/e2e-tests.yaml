@@ -125,3 +125,16 @@ jobs:
           KO_DOCKER_REPO: kind.local
           KO_DEFAULTPLATFORMS: ${{ matrix.platform }} # only need target arch
           VERSION: ${{ github.sha }}
+
+  e2e_summary:
+    name: "e2e Summary"
+    if: always()
+    needs: [e2e_tests, e2e_tests_legacy]
+    runs-on: ubuntu-latest
+    steps:
+      - if: |
+          needs.e2e_tests.result == 'failure' ||
+          needs.e2e_tests.result == 'cancelled' ||
+          needs.e2e_tests_legacy.result == 'failure' ||
+          needs.e2e_tests_legacy.result == 'cancelled'
+        run: exit 1
