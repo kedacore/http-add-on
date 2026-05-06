@@ -45,6 +45,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Deprecations
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Operator**: Rename `KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE` and `KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT` environment variables to `KEDA_HTTP_OPERATOR_EXTERNAL_SCALER_SERVICE` and `KEDA_HTTP_OPERATOR_EXTERNAL_SCALER_PORT`. Old names are still accepted but log a deprecation warning and will be removed in a future release. ([#1623](https://github.com/kedacore/http-add-on/issues/1623))
 
 ### Other
 
