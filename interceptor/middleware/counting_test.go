@@ -62,10 +62,10 @@ func currentConcurrency(t *testing.T, counter *queue.FakeCounter) int {
 	if err != nil {
 		t.Fatalf("counter.Current() error: %v", err)
 	}
-	if got, want := len(counts.Counts), 1; got != want {
+	if got, want := len(counts), 1; got != want {
 		t.Fatalf("expected %d counter entry, got %d", want, got)
 	}
-	for _, c := range counts.Counts {
+	for _, c := range counts {
 		return c.Concurrency
 	}
 

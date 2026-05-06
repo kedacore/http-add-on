@@ -10,6 +10,27 @@ import (
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 )
 
+type AnnotationKeyChangedPredicate struct {
+	predicate.Funcs
+	Keys []string
+}
+
+func (p AnnotationKeyChangedPredicate) Update(e event.UpdateEvent) bool {
+	if e.ObjectOld == nil || e.ObjectNew == nil {
+		return false
+	}
+
+	oldAnnotations := e.ObjectOld.GetAnnotations()
+	newAnnotations := e.ObjectNew.GetAnnotations()
+
+	for _, key := range p.Keys {
+		if oldAnnotations[key] != newAnnotations[key] {
+			return true
+		}
+	}
+	return false
+}
+
 type HTTPScaledObjectReadyConditionPredicate struct {
 	predicate.Funcs
 }

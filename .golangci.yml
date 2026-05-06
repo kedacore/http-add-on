@@ -28,17 +28,19 @@ linters:
     - unparam # reports unused function parameters
     - unused # checks for unused code
     - whitespace # checks for unnecessary newlines
+  settings:
+    goconst:
+      ignore-tests: true
   exclusions:
     generated: lax # exclude generated files
     presets:
       # suppress "exported X should have comment" — not all exports are documented
       - comments
     rules:
-      # test files: relax duplicate detection, unused params, and repeated strings
+      # test files: relax duplicate detection and unused params
       - linters:
           - dupl
           - unparam
-          - goconst
         path: _test\.go
       - linters:
           - revive
@@ -102,7 +104,3 @@ formatters:
         - localmodule
   exclusions:
     generated: lax # exclude generated files
-    paths:
-      # gci would strip kubebuilder scaffold markers from import blocks
-      - operator/controllers/http/suite_test.go
-      - operator/main.go

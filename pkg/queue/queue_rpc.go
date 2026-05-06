@@ -28,28 +28,13 @@ func newSizeHandler(
 		cur, err := q.Current()
 		if err != nil {
 			lggr.Error(err, "getting queue size")
-			w.WriteHeader(500)
-			if _, err := w.Write([]byte(
-				"error getting queue size",
-			)); err != nil {
-				lggr.Error(
-					err,
-					"could not send error message to client",
-				)
-			}
+			http.Error(w, "error getting queue size", http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(cur); err != nil {
 			lggr.Error(err, "encoding QueueCounts")
-			w.WriteHeader(500)
-			if _, err := w.Write([]byte(
-				"error encoding queue counts",
-			)); err != nil {
-				lggr.Error(
-					err,
-					"could not send error message to client",
-				)
-			}
+			http.Error(w, "error encoding queue counts", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -61,15 +46,15 @@ func newSizeHandler(
 func GetCounts(
 	httpCl *http.Client,
 	interceptorURL url.URL,
-) (*Counts, error) {
+) (Counts, error) {
 	interceptorURL.Path = countsPath
 	resp, err := httpCl.Get(interceptorURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("requesting the queue counts from %s: %w", interceptorURL.String(), err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	counts := NewCounts()
-	if err := json.NewDecoder(resp.Body).Decode(counts); err != nil {
+	var counts Counts
+	if err := json.NewDecoder(resp.Body).Decode(&counts); err != nil {
 		return nil, fmt.Errorf("decoding response from the interceptor at %s: %w", interceptorURL.String(), err)
 	}
 

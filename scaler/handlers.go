@@ -233,7 +233,7 @@ func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externals
 		if ir.Spec.ScalingMetric.RequestRate != nil {
 			metricValues = append(metricValues, &externalscaler.MetricValue{
 				MetricName:       RateMetricName(irName),
-				MetricValueFloat: count.RPS,
+				MetricValueFloat: count.RequestRate,
 			})
 		}
 
@@ -277,7 +277,7 @@ func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externals
 
 	var metricValue int
 	if httpso.Spec.ScalingMetric != nil && httpso.Spec.ScalingMetric.Rate != nil {
-		metricValue = int(math.Ceil(count.RPS))
+		metricValue = int(math.Ceil(count.RequestRate))
 		lggr.V(1).Info(fmt.Sprintf("%d rps for %s", metricValue, httpso.GetName()))
 	} else {
 		metricValue = count.Concurrency

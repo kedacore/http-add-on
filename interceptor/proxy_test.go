@@ -243,7 +243,7 @@ func TestProxyHandler_QueueCounting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get queue counts: %v", err)
 	}
-	concurrency := counts.Counts[testIRKey].Concurrency
+	concurrency := counts[testIRKey].Concurrency
 	if concurrency != 0 {
 		t.Errorf("expected final concurrency to be 0, got %d", concurrency)
 	}

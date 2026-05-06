@@ -1,0 +1,9 @@
+cache = true         # default: false
+max_cache_age = "7d" # default: 1d
+max_concurrency = 6  # default: 128
+max_retries = 6      # default: 3
+retry_wait_time = 10 # default: 1s; survive transient network failures
+
+exclude = [
+  '^http://opentelemetry-collector\.open-telemetry-system:4318',
+]

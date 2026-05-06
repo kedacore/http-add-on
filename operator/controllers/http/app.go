@@ -6,14 +6,20 @@ import (
 
 	"github.com/go-logr/logr"
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 )
 
-var SkipScaledObjectCreationAnnotation = "httpscaledobject.keda.sh/skip-scaledobject-creation"
+const (
+	annotationEnabled                  = "true"
+	SkipScaledObjectCreationAnnotation = "httpscaledobject.keda.sh/skip-scaledobject-creation"
+	OrphanScaledObjectAnnotation       = "httpscaledobject.keda.sh/orphan-scaledobject"
+)
 
 func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 	ctx context.Context,
@@ -32,11 +38,18 @@ func (r *HTTPScaledObjectReconciler) createOrUpdateApplicationResources(
 		httpso.Namespace,
 	)
 
+	if httpso.Annotations[OrphanScaledObjectAnnotation] == annotationEnabled {
+		logger.Info(
+			"Orphaning ScaledObject with annotation 'httpscaledobject.keda.sh/orphan-scaledobject'=true",
+			"HTTPScaledObject", httpso.Name)
+		return r.orphanScaledObject(ctx, cl, logger, httpso)
+	}
+
 	// We want to integrate http scaler with other
 	// scalers. when "httpscaledobject.keda.sh/skip-scaledobject-creation" is set to true,
 	// reconciler will skip the KEDA core ScaledObjects creation or delete scaledObject if it already exists.
 	// you can then create your own SO, and add http scaler as one of your triggers.
-	if httpso.Annotations[SkipScaledObjectCreationAnnotation] == "true" {
+	if httpso.Annotations[SkipScaledObjectCreationAnnotation] == annotationEnabled {
 		logger.Info(
 			"Skip scaled objects creation with flag 'httpscaledobject.keda.sh/skip-scaledobject-creation'=true",
 			"HTTPScaledObject", httpso.Name)
@@ -90,6 +103,45 @@ func (r *HTTPScaledObjectReconciler) deleteScaledObject(
 			"ScaledObject", &fetchedSO.Name)
 	}
 
+	return nil
+}
+
+func (r *HTTPScaledObjectReconciler) orphanScaledObject(
+	ctx context.Context,
+	cl client.Client,
+	logger logr.Logger,
+	httpso *v1alpha1.HTTPScaledObject,
+) error {
+	var fetchedSO kedav1alpha1.ScaledObject
+
+	objectKey := types.NamespacedName{
+		Namespace: httpso.Namespace,
+		Name:      httpso.Name,
+	}
+
+	if err := cl.Get(ctx, objectKey, &fetchedSO); err != nil {
+		if k8serrors.IsNotFound(err) {
+			logger.Info("ScaledObject not found, nothing to orphan",
+				"HTTPScaledObject", httpso.Name)
+			return nil
+		}
+		return err
+	}
+
+	if !isOwnerReferenceMatch(&fetchedSO, httpso) {
+		return nil
+	}
+
+	if err := controllerutil.RemoveOwnerReference(httpso, &fetchedSO, r.Scheme); err != nil {
+		return err
+	}
+
+	if err := cl.Update(ctx, &fetchedSO); err != nil {
+		return err
+	}
+
+	logger.Info("Orphaned ScaledObject by removing owner reference",
+		"ScaledObject", fetchedSO.Name)
 	return nil
 }
 

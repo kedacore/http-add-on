@@ -297,7 +297,9 @@ func runMetricsServer(
 ) error {
 	lggr.Info("starting the prometheus metrics server", "port", metricsCfg.OtelPrometheusExporterPort, "path", "/metrics")
 	addr := fmt.Sprintf("0.0.0.0:%d", metricsCfg.OtelPrometheusExporterPort)
-	return kedahttp.ServeContext(ctx, addr, promhttp.Handler(), nil)
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	return kedahttp.ServeContext(ctx, addr, mux, nil)
 }
 
 func runProxyServer(

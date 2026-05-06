@@ -38,6 +38,11 @@ func NewFramework(ctx context.Context, t *testing.T) *Framework {
 	}
 }
 
+// Namespace returns the per-test namespace name.
+func (f *Framework) Namespace() string {
+	return f.namespace
+}
+
 // Hostname returns a unique hostname scoped to this test's namespace to avoid hostname conflicts.
 //
 //	f.Hostname()           => "e2e-hostrouting-ab12x.test"
@@ -48,6 +53,11 @@ func (f *Framework) Hostname(subdomain ...string) string {
 		return subdomain[0] + "." + f.namespace + ".test"
 	}
 	return f.namespace + ".test"
+}
+
+// Get fetches a single Kubernetes object from the cluster.
+func (f *Framework) Get(name, namespace string, obj k8s.Object) error {
+	return f.client.Resources().Get(f.ctx, name, namespace, obj)
 }
 
 // createResource creates a single Kubernetes object in the cluster, failing the test on error.

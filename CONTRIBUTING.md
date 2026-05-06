@@ -34,13 +34,11 @@ For larger changes or new features, please [open an issue](https://github.com/ke
 2. Set up your development environment — see [docs/developing.md](./docs/developing.md) for prerequisites and tooling
 3. Create a branch for your changes (`git switch -c my-change`)
 4. Make your changes and verify them:
-
    ```bash
    make lint       # runs linter
    make lint-fix   # runs linter and auto-fixes issues
    make test       # runs unit tests
    ```
-
 5. Commit using [conventional commits](#commit-conventions) with a DCO sign-off (`git commit -s`)
 6. Update the [changelog](#updating-the-changelog) for user-facing changes
 7. Open a pull request — see [pull request guidelines](#pull-request-guidelines)

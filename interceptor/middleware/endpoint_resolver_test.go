@@ -109,7 +109,9 @@ func TestEndpointResolver_Fallback(t *testing.T) {
 
 	ir := defaultIR()
 	ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
-		Fallback: &httpv1beta1.TargetRef{Service: "fallback"},
+		Fallback: &httpv1beta1.ColdStartFallback{
+			Service: &httpv1beta1.ServiceRef{Name: "fallback"},
+		},
 	}
 
 	mw := NewEndpointResolver(next, cache, EndpointResolverConfig{
@@ -146,7 +148,9 @@ func TestEndpointResolver_FallbackConfiguredButUpstreamReady(t *testing.T) {
 
 	ir := defaultIR()
 	ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
-		Fallback: &httpv1beta1.TargetRef{Service: "fallback"},
+		Fallback: &httpv1beta1.ColdStartFallback{
+			Service: &httpv1beta1.ServiceRef{Name: "fallback"},
+		},
 	}
 
 	mw := NewEndpointResolver(next, cache, EndpointResolverConfig{
@@ -234,7 +238,9 @@ func TestEndpointResolver_FallbackWithPerRouteReadinessOverride(t *testing.T) {
 
 	ir := defaultIR()
 	ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
-		Fallback: &httpv1beta1.TargetRef{Service: "fallback"},
+		Fallback: &httpv1beta1.ColdStartFallback{
+			Service: &httpv1beta1.ServiceRef{Name: "fallback"},
+		},
 	}
 	// Set a short readiness timeout to trigger fast fallback
 	ir.Spec.Timeouts.Readiness = &metav1.Duration{Duration: 25 * time.Millisecond}
@@ -272,7 +278,9 @@ func TestEndpointResolver_FallbackDeadContextReturns504(t *testing.T) {
 
 	ir := defaultIR()
 	ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
-		Fallback: &httpv1beta1.TargetRef{Service: "fallback"},
+		Fallback: &httpv1beta1.ColdStartFallback{
+			Service: &httpv1beta1.ServiceRef{Name: "fallback"},
+		},
 	}
 
 	// Set readiness timeout equal to the request timeout so the parent

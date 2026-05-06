@@ -11,9 +11,8 @@ import (
 //
 // It is concurrency safe.
 type CountReader interface {
-	// Current returns the current count of pending requests
-	// for the given hostname
-	Current() (*Counts, error)
+	// Current returns the current counts of pending requests.
+	Current() (Counts, error)
 }
 
 // Counter represents a virtual HTTP queue, possibly distributed across
@@ -113,13 +112,13 @@ func (r *Memory) RemoveKey(host string) bool {
 }
 
 // Current returns the current size of the queue.
-func (r *Memory) Current() (*Counts, error) {
-	cts := NewCounts()
+func (r *Memory) Current() (Counts, error) {
+	cts := Counts{}
 	r.entries.Range(func(k, v any) bool {
 		key := k.(string)
 		entry := v.(*hostEntry)
 
-		cts.Counts[key] = Count{
+		cts[key] = Count{
 			Concurrency:  int(entry.concurrency.Load()),
 			RequestCount: entry.requestCount.Load(),
 		}

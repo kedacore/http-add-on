@@ -19,7 +19,6 @@ import (
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/cache"
 	"github.com/kedacore/http-add-on/pkg/k8s"
-	"github.com/kedacore/http-add-on/pkg/queue"
 )
 
 var (
@@ -60,7 +59,7 @@ func newTestInterceptorRoute(scalingMetric httpv1beta1.ScalingMetricSpec) *httpv
 	}
 }
 
-func newTestScalerHandler(t *testing.T, ir *httpv1beta1.InterceptorRoute, count queue.Count) *scalerHandler {
+func newTestScalerHandler(t *testing.T, ir *httpv1beta1.InterceptorRoute, count aggregatedCount) *scalerHandler {
 	t.Helper()
 
 	var reader client.Reader
@@ -120,7 +119,7 @@ func TestGetMetricSpec(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			ir := newTestInterceptorRoute(tc.scalingMetric)
-			hdl := newTestScalerHandler(t, ir, queue.Count{})
+			hdl := newTestScalerHandler(t, ir, aggregatedCount{})
 
 			resp, err := hdl.GetMetricSpec(t.Context(), testScaledObjectRef)
 			if err != nil {
@@ -143,7 +142,7 @@ func TestGetMetricSpec(t *testing.T) {
 	}
 
 	t.Run("IR not found", func(t *testing.T) {
-		hdl := newTestScalerHandler(t, nil, queue.Count{})
+		hdl := newTestScalerHandler(t, nil, aggregatedCount{})
 
 		_, err := hdl.GetMetricSpec(t.Context(), testScaledObjectRef)
 		if err == nil {
@@ -155,14 +154,14 @@ func TestGetMetricSpec(t *testing.T) {
 func TestGetMetrics(t *testing.T) {
 	tests := map[string]struct {
 		scalingMetric httpv1beta1.ScalingMetricSpec
-		count         queue.Count
+		count         aggregatedCount
 		want          []*externalscaler.MetricValue
 	}{
 		"concurrency value": {
 			scalingMetric: httpv1beta1.ScalingMetricSpec{
 				Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 100},
 			},
-			count: queue.Count{Concurrency: 42},
+			count: aggregatedCount{Concurrency: 42},
 			want: []*externalscaler.MetricValue{
 				{MetricName: testIRConcurrencyMetric, MetricValueFloat: 42},
 			},
@@ -171,7 +170,7 @@ func TestGetMetrics(t *testing.T) {
 			scalingMetric: httpv1beta1.ScalingMetricSpec{
 				RequestRate: &httpv1beta1.RequestRateTargetSpec{TargetValue: 100},
 			},
-			count: queue.Count{RPS: 15.5},
+			count: aggregatedCount{RequestRate: 15.5},
 			want: []*externalscaler.MetricValue{
 				{MetricName: testIRRateMetric, MetricValueFloat: 15.5},
 			},
@@ -181,7 +180,7 @@ func TestGetMetrics(t *testing.T) {
 				Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 100},
 				RequestRate: &httpv1beta1.RequestRateTargetSpec{TargetValue: 200},
 			},
-			count: queue.Count{Concurrency: 10, RPS: 5.5},
+			count: aggregatedCount{Concurrency: 10, RequestRate: 5.5},
 			want: []*externalscaler.MetricValue{
 				{MetricName: testIRConcurrencyMetric, MetricValueFloat: 10},
 				{MetricName: testIRRateMetric, MetricValueFloat: 5.5},
@@ -226,7 +225,7 @@ func TestGetMetrics(t *testing.T) {
 	}
 
 	t.Run("IR not found", func(t *testing.T) {
-		hdl := newTestScalerHandler(t, nil, queue.Count{})
+		hdl := newTestScalerHandler(t, nil, aggregatedCount{})
 
 		req := &externalscaler.GetMetricsRequest{
 			ScaledObjectRef: testScaledObjectRef,
@@ -241,21 +240,21 @@ func TestGetMetrics(t *testing.T) {
 func TestIsActive(t *testing.T) {
 	tests := map[string]struct {
 		scalingMetric httpv1beta1.ScalingMetricSpec
-		count         queue.Count
+		count         aggregatedCount
 		wantActive    bool
 	}{
 		"active by concurrency": {
 			scalingMetric: httpv1beta1.ScalingMetricSpec{
 				Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 100},
 			},
-			count:      queue.Count{Concurrency: 5},
+			count:      aggregatedCount{Concurrency: 5},
 			wantActive: true,
 		},
 		"active by rate": {
 			scalingMetric: httpv1beta1.ScalingMetricSpec{
 				RequestRate: &httpv1beta1.RequestRateTargetSpec{TargetValue: 100},
 			},
-			count:      queue.Count{RPS: 3.5},
+			count:      aggregatedCount{RequestRate: 3.5},
 			wantActive: true,
 		},
 		"inactive zero traffic": {
@@ -269,7 +268,7 @@ func TestIsActive(t *testing.T) {
 				Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 100},
 				RequestRate: &httpv1beta1.RequestRateTargetSpec{TargetValue: 200},
 			},
-			count:      queue.Count{Concurrency: 1, RPS: 0},
+			count:      aggregatedCount{Concurrency: 1, RequestRate: 0},
 			wantActive: true,
 		},
 	}
@@ -291,7 +290,7 @@ func TestIsActive(t *testing.T) {
 	}
 
 	t.Run("IR not found", func(t *testing.T) {
-		hdl := newTestScalerHandler(t, nil, queue.Count{})
+		hdl := newTestScalerHandler(t, nil, aggregatedCount{})
 
 		_, err := hdl.IsActive(t.Context(), testScaledObjectRef)
 		if err == nil {
@@ -302,11 +301,11 @@ func TestIsActive(t *testing.T) {
 
 func TestStreamIsActive(t *testing.T) {
 	tests := map[string]struct {
-		count      queue.Count
+		count      aggregatedCount
 		wantActive bool
 	}{
 		"active": {
-			count:      queue.Count{Concurrency: 3},
+			count:      aggregatedCount{Concurrency: 3},
 			wantActive: true,
 		},
 		"inactive": {

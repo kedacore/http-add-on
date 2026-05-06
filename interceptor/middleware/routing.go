@@ -52,7 +52,7 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		info.Namespace = ir.Namespace
 	}
 
-	url, err := rm.resolveUpstreamURL(r.Context(), ir.Spec.Target, ir.Namespace)
+	url, err := rm.resolveUpstreamURL(r.Context(), ir.Spec.Target.AsServiceRef(), ir.Namespace)
 	if err != nil {
 		sh := handler.NewStatic(http.StatusInternalServerError, err)
 		sh.ServeHTTP(w, r)
@@ -67,8 +67,8 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx = util.ContextWithInterceptorRoute(ctx, ir)
 	ctx = util.ContextWithUpstreamURL(ctx, url)
 
-	if ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Fallback != nil {
-		fallbackURL, err := rm.resolveUpstreamURL(ctx, *ir.Spec.ColdStart.Fallback, ir.Namespace)
+	if ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Fallback != nil && ir.Spec.ColdStart.Fallback.Service != nil {
+		fallbackURL, err := rm.resolveUpstreamURL(ctx, *ir.Spec.ColdStart.Fallback.Service, ir.Namespace)
 		if err != nil {
 			sh := handler.NewStatic(http.StatusInternalServerError, err)
 			sh.ServeHTTP(w, r)
@@ -93,30 +93,30 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rm.next.ServeHTTP(w, r)
 }
 
-func (rm *Routing) resolvePort(ctx context.Context, target httpv1beta.TargetRef, namespace string) (int32, error) {
-	if target.Port != 0 {
-		return target.Port, nil
+func (rm *Routing) resolvePort(ctx context.Context, svc httpv1beta.ServiceRef, namespace string) (int32, error) {
+	if svc.Port != 0 {
+		return svc.Port, nil
 	}
-	if target.PortName == "" {
+	if svc.PortName == "" {
 		return 0, fmt.Errorf(`must specify either "port" or "portName"`)
 	}
 
-	var svc corev1.Service
-	err := rm.reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: target.Service}, &svc)
+	var k8sSvc corev1.Service
+	err := rm.reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: svc.Name}, &k8sSvc)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get Service: %w", err)
 	}
 
-	for _, port := range svc.Spec.Ports {
-		if target.PortName == port.Name {
+	for _, port := range k8sSvc.Spec.Ports {
+		if svc.PortName == port.Name {
 			return port.Port, nil
 		}
 	}
-	return 0, fmt.Errorf("port name %q not found in Service", target.PortName)
+	return 0, fmt.Errorf("port name %q not found in Service", svc.PortName)
 }
 
-func (rm *Routing) resolveUpstreamURL(ctx context.Context, target httpv1beta.TargetRef, namespace string) (*url.URL, error) {
-	port, err := rm.resolvePort(ctx, target, namespace)
+func (rm *Routing) resolveUpstreamURL(ctx context.Context, svc httpv1beta.ServiceRef, namespace string) (*url.URL, error) {
+	port, err := rm.resolvePort(ctx, svc, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port: %w", err)
 	}
@@ -128,6 +128,6 @@ func (rm *Routing) resolveUpstreamURL(ctx context.Context, target httpv1beta.Tar
 
 	return &url.URL{
 		Scheme: scheme,
-		Host:   fmt.Sprintf("%s.%s:%d", target.Service, namespace, port),
+		Host:   fmt.Sprintf("%s.%s:%d", svc.Name, namespace, port),
 	}, nil
 }

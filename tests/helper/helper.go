@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 	"text/template"
@@ -416,8 +417,7 @@ func KubectlDeleteWithTemplate(t *testing.T, data any, templateName, config stri
 
 // Delete templates in reverse order of slice
 func KubectlDeleteMultipleWithTemplate(t *testing.T, data any, templates []Template) {
-	for idx := len(templates) - 1; idx >= 0; idx-- {
-		tmpl := templates[idx]
+	for _, tmpl := range slices.Backward(templates) {
 		KubectlDeleteWithTemplate(t, data, tmpl.Name, tmpl.Config)
 	}
 }

@@ -9,10 +9,11 @@ import (
 )
 
 func TestTracingConfig(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "console")
+
 	tracingCfg := config.MustParseTracing()
 	tracingCfg.Enabled = true
 
-	// check defaults are set correctly
 	assert.Equal(t, "console", tracingCfg.Exporter)
 	assert.True(t, tracingCfg.Enabled)
 }

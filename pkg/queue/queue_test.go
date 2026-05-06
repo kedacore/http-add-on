@@ -20,8 +20,8 @@ func TestCurrent(t *testing.T) {
 	r.NoError(err)
 	current, err := memory.Current()
 	r.NoError(err)
-	r.Equal(1, current.Counts[host].Concurrency)
-	r.Equal(int64(1), current.Counts[host].RequestCount)
+	r.Equal(1, current[host].Concurrency)
+	r.Equal(int64(1), current[host].RequestCount)
 
 	err = memory.Increase(host, 1)
 	r.NoError(err)
@@ -29,8 +29,8 @@ func TestCurrent(t *testing.T) {
 	r.NoError(err)
 	current2, err := memory.Current()
 	r.NoError(err)
-	r.Equal(3, current2.Counts[host].Concurrency)
-	r.Equal(int64(3), current2.Counts[host].RequestCount)
+	r.Equal(3, current2[host].Concurrency)
+	r.Equal(int64(3), current2[host].RequestCount)
 }
 
 func TestDecreaseClamp(t *testing.T) {
@@ -43,7 +43,7 @@ func TestDecreaseClamp(t *testing.T) {
 	r.NoError(err)
 	current, err := memory.Current()
 	r.NoError(err)
-	r.Equal(0, current.Counts[host].Concurrency)
+	r.Equal(0, current[host].Concurrency)
 }
 
 func TestRemoveKey(t *testing.T) {
@@ -57,7 +57,7 @@ func TestRemoveKey(t *testing.T) {
 
 	current, err := memory.Current()
 	r.NoError(err)
-	r.Empty(current.Counts)
+	r.Empty(current)
 }
 
 func TestRequestCountMonotonic(t *testing.T) {
@@ -72,7 +72,7 @@ func TestRequestCountMonotonic(t *testing.T) {
 
 	current, err := memory.Current()
 	r.NoError(err)
-	r.Equal(1, current.Counts[host].Concurrency)
-	r.Equal(int64(2), current.Counts[host].RequestCount,
+	r.Equal(1, current[host].Concurrency)
+	r.Equal(int64(2), current[host].RequestCount,
 		"RequestCount should keep growing even after Decrease")
 }

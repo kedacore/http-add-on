@@ -36,10 +36,7 @@ func TestMetrics_RecordsRequestWithRouteInfo(t *testing.T) {
 		t.Fatalf("Collect() error: %v", err)
 	}
 
-	m := findMetric(rm, metrics.MetricRequests)
-	if m == nil {
-		t.Fatal("metric interceptor_requests_total not found")
-	}
+	m := requireMetric(t, rm, metrics.MetricRequestCount)
 
 	sum := m.Data.(metricdata.Sum[int64])
 	if got := len(sum.DataPoints); got != 1 {
@@ -52,11 +49,7 @@ func TestMetrics_RecordsRequestWithRouteInfo(t *testing.T) {
 	assertStringAttr(t, dp.Attributes, metrics.AttrRouteName, "test-route")
 	assertStringAttr(t, dp.Attributes, metrics.AttrRouteNamespace, "test-ns")
 
-	// Duration histogram should also be recorded
-	m = findMetric(rm, metrics.MetricRequestDurationSeconds)
-	if m == nil {
-		t.Fatal("metric interceptor_request_duration_seconds not found")
-	}
+	requireMetric(t, rm, metrics.MetricRequestDuration)
 }
 
 func TestMetrics_UnmatchedRoute(t *testing.T) {
@@ -78,10 +71,7 @@ func TestMetrics_UnmatchedRoute(t *testing.T) {
 		t.Fatalf("Collect() error: %v", err)
 	}
 
-	m := findMetric(rm, metrics.MetricRequests)
-	if m == nil {
-		t.Fatal("metric interceptor_requests_total not found")
-	}
+	m := requireMetric(t, rm, metrics.MetricRequestCount)
 
 	dp := m.Data.(metricdata.Sum[int64]).DataPoints[0]
 	assertStringAttr(t, dp.Attributes, metrics.AttrRouteName, "")

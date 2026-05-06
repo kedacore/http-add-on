@@ -128,10 +128,12 @@ func (t *table) refreshMemory(ctx context.Context) error {
 
 			if c := httpso.Spec.ColdStartTimeoutFailoverRef; c != nil {
 				ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
-					Fallback: &httpv1beta1.TargetRef{
-						Port:     c.Port,
-						PortName: c.PortName,
-						Service:  c.Service,
+					Fallback: &httpv1beta1.ColdStartFallback{
+						Service: &httpv1beta1.ServiceRef{
+							Name:     c.Service,
+							Port:     c.Port,
+							PortName: c.PortName,
+						},
 					},
 				}
 				if c.TimeoutSeconds > 0 {

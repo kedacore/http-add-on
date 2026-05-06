@@ -44,11 +44,7 @@ func TestColdStart(t *testing.T) {
 		Assess("first request triggers scale from zero", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
 
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, string(resp.Body))
-			}
-
+			f.AssertStatus(h.Request{Host: f.Hostname()}, http.StatusOK)
 			f.WaitForReplicas(app, 1)
 
 			return ctx
@@ -90,15 +86,7 @@ func TestColdStartFallback(t *testing.T) {
 		}).
 		Assess("request is served by fallback when main app is not available", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
-
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status 200, got %d; body: %s", resp.StatusCode, resp.Body)
-			}
-			if resp.Hostname != "fallback-app" {
-				t.Errorf("expected fallback-app, got %q", resp.Hostname)
-			}
-
+			f.AssertRouteReachesApp(h.Request{Host: f.Hostname()}, "fallback-app")
 			return ctx
 		}).
 		Feature()

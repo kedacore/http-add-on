@@ -360,3 +360,5 @@ admin/Cargo.lock
 /certs/
 
 *.test
+
+.lycheecache
