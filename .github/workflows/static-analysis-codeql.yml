@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -17,6 +16,9 @@ jobs:
   codeQl:
     name: Analyze CodeQL Go
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     if: (github.actor != 'dependabot[bot]')
     steps:
       - name: Checkout repository
