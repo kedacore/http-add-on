@@ -31,7 +31,9 @@ spec:
             - --zap-time-encoding=rfc3339
           env:
             - name: KEDA_HTTP_SCALER_TARGET_ADMIN_NAMESPACE
-              value: "keda"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: KEDA_HTTP_SCALER_TARGET_ADMIN_DEPLOYMENT
               value: "keda-add-ons-http-interceptor"
             - name: KEDA_HTTP_SCALER_TARGET_ADMIN_SERVICE
