@@ -16,8 +16,11 @@
 <p style="font-size: 25px" align="center"><b>Kubernetes-based Event Driven Autoscaling - HTTP Add-on</b></p>
 <p style="font-size: 25px" align="center">
 <a href="https://github.com/kedacore/http-add-on/actions/workflows/e2e-tests.yaml"><img src="https://github.com/kedacore/http-add-on/actions/workflows/e2e-tests.yaml/badge.svg?branch=main" alt="e2e"></a>
+<a href="https://bestpractices.coreinfrastructure.org/projects/12745"><img src="https://bestpractices.coreinfrastructure.org/projects/12745/badge" alt="OpenSSF Best Practices"></a>
+<a href="https://scorecard.dev/viewer/?uri=github.com/kedacore/http-add-on"><img src="https://img.shields.io/ossf-scorecard/github.com/kedacore/http-add-on?label=openssf%20scorecard&style=flat" alt="OpenSSF Scorecard"></a>
+<a href="https://artifacthub.io/packages/helm/kedacore/keda-add-ons-http"><img src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/keda-add-ons-http" alt="Artifact Hub"></a>
 <a href="https://app.fossa.com/projects/custom%2B162%2Fgithub.com%2Fkedacore%2Fhttp-add-on?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/custom%2B162%2Fgithub.com%2Fkedacore%2Fhttp-add-on.svg?type=shield"/></a>
-<a href="https://twitter.com/kedaorg"><img src="https://img.shields.io/twitter/follow/kedaorg?style=social" alt="Twitter"></a></p>
+<a href="https://kubernetes.slack.com/archives/CKZJ36A5D"><img src="https://img.shields.io/badge/slack-keda-brightgreen.svg?style=social&logo=slack" alt="Slack"></a></p>
 
 
 The KEDA HTTP Add-on allows Kubernetes users to automatically scale their HTTP servers up and down (including to/from zero) based on incoming HTTP traffic.
