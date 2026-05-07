@@ -36,7 +36,9 @@ spec:
             - name: KEDA_HTTP_OPERATOR_EXTERNAL_SCALER_PORT
               value: "9090"
             - name: KEDA_HTTP_OPERATOR_NAMESPACE
-              value: "keda"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           ports:
             - name: metrics-http
               containerPort: 8080
