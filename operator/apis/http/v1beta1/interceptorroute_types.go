@@ -141,18 +141,63 @@ type ServiceRef struct {
 	PortName string `json:"portName,omitzero"`
 }
 
+// StaticResponse defines a static HTTP response.
+// At most one of body or bodyFromConfigMap may be set. If neither is set,
+// the response has an empty body.
+// +kubebuilder:validation:XValidation:rule="!(has(self.body) && has(self.bodyFromConfigMap))",message="at most one of 'body' or 'bodyFromConfigMap' may be set"
+type StaticResponse struct {
+	// HTTP status code.
+	// +optional
+	// +kubebuilder:default=503
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:Maximum=599
+	StatusCode int32 `json:"statusCode,omitzero"`
+	// Inline response body.
+	// +optional
+	// +kubebuilder:validation:MaxLength=32768
+	Body *string `json:"body,omitzero"`
+	// Response body from a ConfigMap in the same namespace. The ConfigMap must
+	// carry the label "http.keda.sh/response-body: true". A missing ConfigMap
+	// or a missing explicit key returns HTTP 500.
+	// +optional
+	BodyFromConfigMap *ConfigMapKeyRef `json:"bodyFromConfigMap,omitzero"`
+	// HTTP response headers.
+	// +optional
+	Headers map[string]string `json:"headers,omitzero"`
+}
+
+// ConfigMapKeyRef references a key within a ConfigMap.
+type ConfigMapKeyRef struct {
+	// Name of the ConfigMap.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+	// Key within the ConfigMap.
+	// +kubebuilder:validation:MinLength=1
+	Key string `json:"key"`
+}
+
 // ColdStartFallback configures the fallback target for cold-start scenarios.
 type ColdStartFallback struct {
 	// Kubernetes Service to use as the fallback target.
 	Service *ServiceRef `json:"service,omitzero"`
 }
 
+// ColdStartPlaceholder configures the placeholder behavior during cold start.
+type ColdStartPlaceholder struct {
+	// Static response to return immediately when the backend has no ready endpoints.
+	Response *StaticResponse `json:"response,omitzero"`
+}
+
 // ColdStartSpec configures behavior while the target is not ready.
-// +kubebuilder:validation:XValidation:rule="has(self.fallback)",message="'fallback' must be set"
+// +kubebuilder:validation:XValidation:rule="has(self.fallback) || has(self.placeholder)",message="at least one of 'fallback' or 'placeholder' must be set"
 type ColdStartSpec struct {
 	// Fallback target to route to when the primary backend does not become
 	// ready within the readiness timeout.
+	// +optional
 	Fallback *ColdStartFallback `json:"fallback,omitzero"`
+	// Placeholder response to serve while the target has no ready endpoints.
+	// +optional
+	Placeholder *ColdStartPlaceholder `json:"placeholder,omitzero"`
 }
 
 // InterceptorRouteTimeouts configures per-route request handling timeouts.
