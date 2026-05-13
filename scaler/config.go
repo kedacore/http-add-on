@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v11"
+
+	"github.com/kedacore/http-add-on/pkg/observability"
 )
 
 type config struct {
@@ -30,6 +32,9 @@ type config struct {
 	ProfilingAddr string `env:"PROFILING_BIND_ADDRESS" envDefault:""`
 	// StreamIntervalMS is the interval in milliseconds between stream ticks
 	StreamIntervalMS int `env:"KEDA_HTTP_SCALER_STREAM_INTERVAL_MS" envDefault:"200"`
+
+	Metrics observability.MetricsConfig `envPrefix:""`
+	Tracing observability.TracingConfig `envPrefix:""`
 }
 
 func mustParseConfig() config {

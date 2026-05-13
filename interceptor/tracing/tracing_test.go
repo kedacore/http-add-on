@@ -5,13 +5,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/pkg/observability"
 )
 
 func TestTracingConfig(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "console")
 
-	tracingCfg := config.MustParseTracing()
+	tracingCfg := observability.MustParseTracingConfig()
 	tracingCfg.Enabled = true
 
 	assert.Equal(t, "console", tracingCfg.Exporter)

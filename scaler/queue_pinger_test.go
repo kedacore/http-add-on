@@ -18,6 +18,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
+	"github.com/kedacore/http-add-on/scaler/metrics"
 )
 
 func TestCounts(t *testing.T) {
@@ -55,6 +56,7 @@ func TestCounts(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		metrics.NewNoopInstruments(),
 	)
 
 	ticker := time.NewTicker(tickDur)
@@ -106,6 +108,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		metrics.NewNoopInstruments(),
 	)
 
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
@@ -143,7 +146,7 @@ func TestFetchCountsPerPod(t *testing.T) {
 		return endpoints, nil
 	}
 
-	perPod, err := fetchCountsPerPod(
+	result, err := fetchCountsPerPod(
 		ctx,
 		logr.Discard(),
 		endpointsFn,
@@ -152,9 +155,10 @@ func TestFetchCountsPerPod(t *testing.T) {
 		fmt.Sprintf("%v", srvURL.Port()),
 	)
 	r.NoError(err)
-	r.Len(perPod, 1)
+	r.Len(result.perPod, 1)
+	r.Equal(1, result.endpointCount)
 
-	for _, counts := range perPod {
+	for _, counts := range result.perPod {
 		for host, n := range hosts {
 			c, ok := counts[host]
 			r.True(ok, "host %s missing from pod result", host)
@@ -219,6 +223,7 @@ func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
 		svcName,
 		deplName,
 		adminPort,
+		metrics.NewNoopInstruments(),
 	)
 
 	// Baseline with one pod.
@@ -286,6 +291,7 @@ func TestRateComputation(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		metrics.NewNoopInstruments(),
 	)
 
 	// First poll: establishes baseline (no delta, RequestRate=0)
@@ -335,6 +341,7 @@ func TestRateComputationCounterReset(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		metrics.NewNoopInstruments(),
 	)
 
 	// First poll: baseline
@@ -407,6 +414,7 @@ func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, 
 		"testsvc",
 		"testdepl",
 		opts.port,
+		metrics.NewNoopInstruments(),
 	)
 	return ticker, pinger, nil
 }
