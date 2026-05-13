@@ -30,6 +30,20 @@ type config struct {
 	ProfilingAddr string `env:"PROFILING_BIND_ADDRESS" envDefault:""`
 	// StreamIntervalMS is the interval in milliseconds between stream ticks
 	StreamIntervalMS int `env:"KEDA_HTTP_SCALER_STREAM_INTERVAL_MS" envDefault:"200"`
+
+	Metrics metricsConfig `envPrefix:""`
+	Tracing tracingConfig `envPrefix:""`
+}
+
+type metricsConfig struct {
+	OtelPrometheusExporterEnabled bool `env:"OTEL_PROM_EXPORTER_ENABLED" envDefault:"true"`
+	OtelPrometheusExporterPort    int  `env:"OTEL_PROM_EXPORTER_PORT" envDefault:"2224"`
+	OtelHTTPExporterEnabled       bool `env:"OTEL_EXPORTER_OTLP_METRICS_ENABLED" envDefault:"false"`
+}
+
+type tracingConfig struct {
+	Enabled  bool   `env:"OTEL_EXPORTER_OTLP_TRACES_ENABLED" envDefault:"false"`
+	Exporter string `env:"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL" envDefault:"console"`
 }
 
 func mustParseConfig() config {

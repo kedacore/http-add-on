@@ -55,6 +55,7 @@ func TestCounts(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		nil,
 	)
 
 	ticker := time.NewTicker(tickDur)
@@ -106,6 +107,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		nil,
 	)
 
 	r.NoError(pinger.fetchAndSaveCounts(ctx))
@@ -143,7 +145,7 @@ func TestFetchCountsPerPod(t *testing.T) {
 		return endpoints, nil
 	}
 
-	perPod, err := fetchCountsPerPod(
+	result, err := fetchCountsPerPod(
 		ctx,
 		logr.Discard(),
 		endpointsFn,
@@ -152,9 +154,10 @@ func TestFetchCountsPerPod(t *testing.T) {
 		fmt.Sprintf("%v", srvURL.Port()),
 	)
 	r.NoError(err)
-	r.Len(perPod, 1)
+	r.Len(result.perPod, 1)
+	r.Equal(1, result.endpointCount)
 
-	for _, counts := range perPod {
+	for _, counts := range result.perPod {
 		for host, n := range hosts {
 			c, ok := counts[host]
 			r.True(ok, "host %s missing from pod result", host)
@@ -219,6 +222,7 @@ func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
 		svcName,
 		deplName,
 		adminPort,
+		nil,
 	)
 
 	// Baseline with one pod.
@@ -286,6 +290,7 @@ func TestRateComputation(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		nil,
 	)
 
 	// First poll: establishes baseline (no delta, RequestRate=0)
@@ -335,6 +340,7 @@ func TestRateComputationCounterReset(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		nil,
 	)
 
 	// First poll: baseline
@@ -407,6 +413,7 @@ func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, 
 		"testsvc",
 		"testdepl",
 		opts.port,
+		nil,
 	)
 	return ticker, pinger, nil
 }

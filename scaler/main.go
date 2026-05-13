@@ -13,10 +13,13 @@ import (
 	"net/http"
 	_ "net/http/pprof" //nolint:gosec // G108: pprof intentionally exposed, gated by --profiling-addr
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -29,8 +32,11 @@ import (
 
 	"github.com/kedacore/http-add-on/pkg/build"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
+	"github.com/kedacore/http-add-on/scaler/metrics"
+	"github.com/kedacore/http-add-on/scaler/tracing"
 )
 
 var setupLog = ctrl.Log.WithName("setup")
@@ -53,10 +59,36 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	setupLog.Info(
+		"starting scaler",
+		"metricsConfig", cfg.Metrics,
+		"tracingConfig", cfg.Tracing,
+	)
+
+	provider, err := metrics.NewMeterProvider(
+		cfg.Metrics.OtelPrometheusExporterEnabled,
+		cfg.Metrics.OtelHTTPExporterEnabled,
+	)
+	if err != nil {
+		setupLog.Error(err, "failed to create meter provider")
+		os.Exit(1)
+	}
+	defer func() {
+		if err := provider.Shutdown(context.Background()); err != nil {
+			setupLog.Error(err, "error shutting down meter provider")
+		}
+	}()
+
+	instruments, err := metrics.NewInstruments(provider)
+	if err != nil {
+		setupLog.Error(err, "failed to create metric instruments")
+		runtime.Goexit()
+	}
+
 	k8sCfg, err := ctrl.GetConfig()
 	if err != nil {
 		setupLog.Error(err, "Kubernetes client config not found")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	ctrlCache, err := cache.New(k8sCfg, cache.Options{
@@ -65,15 +97,28 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "creating cache")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
-	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForControllerClient(ctrlCache), namespace, svcName, deplName, targetPortStr)
+	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForControllerClient(ctrlCache), namespace, svcName, deplName, targetPortStr, instruments)
 
 	ctx := ctrl.SetupSignalHandler()
 	ctx = util.ContextWithLogger(ctx, setupLog)
 
 	eg, ctx := errgroup.WithContext(ctx)
+
+	if cfg.Tracing.Enabled {
+		shutdown, err := tracing.SetupOTelSDK(ctx, cfg.Tracing.Exporter)
+		if err != nil {
+			setupLog.Error(err, "error setting up tracer")
+			runtime.Goexit()
+		}
+		defer func() {
+			if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
+				setupLog.Error(shutdownErr, "error during tracer shutdown")
+			}
+		}()
+	}
 
 	// start the controller-runtime cache
 	eg.Go(func() error {
@@ -95,7 +140,7 @@ func main() {
 	// Wait for cache to sync before starting components that depend on it
 	if !ctrlCache.WaitForCacheSync(ctx) {
 		setupLog.Error(nil, "cache failed to sync")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	eg.Go(func() error {
@@ -120,11 +165,21 @@ func main() {
 		return nil
 	})
 
+	if cfg.Metrics.OtelPrometheusExporterEnabled {
+		eg.Go(func() error {
+			if err := runMetricsServer(ctx, ctrl.Log, cfg.Metrics); !util.IsIgnoredErr(err) {
+				setupLog.Error(err, "could not start the Prometheus metrics server")
+				return err
+			}
+			return nil
+		})
+	}
+
 	build.PrintComponentInfo(ctrl.Log, "Scaler")
 
 	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
 		setupLog.Error(err, "fatal error")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	setupLog.Info("Bye!")
@@ -139,7 +194,12 @@ func startGrpcServer(ctx context.Context, cfg config, lggr logr.Logger, pinger *
 		return err
 	}
 
-	grpcServer := grpc.NewServer()
+	var grpcOpts []grpc.ServerOption
+	if cfg.Tracing.Enabled {
+		grpcOpts = append(grpcOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
+	}
+
+	grpcServer := grpc.NewServer(grpcOpts...)
 	reflection.Register(grpcServer)
 
 	hs := health.NewServer()
@@ -179,4 +239,12 @@ func startGrpcServer(ctx context.Context, cfg config, lggr logr.Logger, pinger *
 	}()
 
 	return grpcServer.Serve(lis)
+}
+
+func runMetricsServer(ctx context.Context, lggr logr.Logger, metricsCfg metricsConfig) error {
+	lggr.Info("starting the prometheus metrics server", "port", metricsCfg.OtelPrometheusExporterPort, "path", "/metrics")
+	addr := fmt.Sprintf("0.0.0.0:%d", metricsCfg.OtelPrometheusExporterPort)
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	return kedahttp.ServeContext(ctx, addr, mux, nil)
 }
