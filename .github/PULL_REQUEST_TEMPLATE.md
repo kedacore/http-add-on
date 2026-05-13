@@ -8,10 +8,8 @@ _Provide a description of what has been changed_
 
 ### Checklist
 
-- [ ] Commits are signed with Developer Certificate of Origin (DCO)
-- [ ] Changelog has been updated and is aligned with our [changelog requirements](https://github.com/kedacore/http-add-on/blob/main/CONTRIBUTING.md#updating-the-changelog)
-- [ ] Any necessary documentation is added, such as:
-  - [`README.md`](../README.md)
-  - [keda-docs](https://github.com/kedacore/keda-docs/tree/main/content/http-add-on)
+- [ ] Commits are signed with Developer Certificate of Origin ([DCO](https://developercertificate.org/))
+- [ ] Changelog is updated per our [changelog requirements](https://github.com/kedacore/http-add-on/blob/main/CONTRIBUTING.md#updating-the-changelog)
+- [ ] Documentation is updated if needed ([`README.md`](../README.md), [keda-docs](https://github.com/kedacore/keda-docs/tree/main/content/http-add-on))
 
 Fixes #
