@@ -171,9 +171,12 @@ type ConfigMapKeyRef struct {
 	// Name of the ConfigMap.
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
-	// Key within the ConfigMap.
-	// +kubebuilder:validation:MinLength=1
-	Key string `json:"key"`
+	// Key within the ConfigMap. When omitted, the key is the request path
+	// without the leading "/" (defaulting to "index.html" for "/").
+	// The Content-Type header is auto-detected from the key's file extension
+	// unless explicitly set in headers.
+	// +optional
+	Key string `json:"key,omitzero"`
 }
 
 // ColdStartFallback configures the fallback target for cold-start scenarios.
