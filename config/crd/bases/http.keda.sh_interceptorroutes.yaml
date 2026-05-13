@@ -105,15 +105,17 @@ spec:
                               or a missing explicit key returns HTTP 500.
                             properties:
                               key:
-                                description: Key within the ConfigMap.
-                                minLength: 1
+                                description: |-
+                                  Key within the ConfigMap. When omitted, the key is the request path
+                                  without the leading "/" (defaulting to "index.html" for "/").
+                                  The Content-Type header is auto-detected from the key's file extension
+                                  unless explicitly set in headers.
                                 type: string
                               name:
                                 description: Name of the ConfigMap.
                                 minLength: 1
                                 type: string
                             required:
-                            - key
                             - name
                             type: object
                           headers:
