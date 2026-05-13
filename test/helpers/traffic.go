@@ -4,15 +4,15 @@ package helpers
 
 import (
 	"cmp"
+	"context"
 	"crypto/tls"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
 )
 
 type Request struct {
@@ -142,20 +142,18 @@ func (f *Framework) AssertStatus(r Request, expectedStatus int) {
 func (f *Framework) WebSocketDial(host, path string) *websocket.Conn {
 	f.t.Helper()
 
-	dialer := websocket.Dialer{
-		HandshakeTimeout: 45 * time.Second,
-		NetDialContext: (&net.Dialer{
-			Timeout: 10 * time.Second,
-		}).DialContext,
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
 
 	wsURL := url.URL{Scheme: "ws", Host: f.proxyAddr, Path: path}
-	conn, resp, err := dialer.Dial(wsURL.String(), http.Header{"Host": []string{host}})
+	conn, resp, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
+		HTTPHeader: http.Header{"Host": []string{host}},
+	})
 	if err != nil {
 		f.t.Fatalf("WebSocket dial to %s%s failed: %v", host, path, err)
 	}
 	_ = resp.Body.Close()
-	f.t.Cleanup(func() { _ = conn.Close() })
+	f.t.Cleanup(func() { _ = conn.Close(websocket.StatusNormalClosure, "") })
 
 	return conn
 }
