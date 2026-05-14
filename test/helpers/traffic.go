@@ -142,17 +142,16 @@ func (f *Framework) AssertStatus(r Request, expectedStatus int) {
 func (f *Framework) WebSocketDial(host, path string) *websocket.Conn {
 	f.t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	ctx, cancel := context.WithTimeout(f.ctx, 45*time.Second)
 	defer cancel()
 
 	wsURL := url.URL{Scheme: "ws", Host: f.proxyAddr, Path: path}
-	conn, resp, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
+	conn, _, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
 		HTTPHeader: http.Header{"Host": []string{host}},
 	})
 	if err != nil {
 		f.t.Fatalf("WebSocket dial to %s%s failed: %v", host, path, err)
 	}
-	_ = resp.Body.Close()
 	f.t.Cleanup(func() { _ = conn.Close(websocket.StatusNormalClosure, "") })
 
 	return conn
