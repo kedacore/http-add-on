@@ -207,7 +207,7 @@ func TestUpgrade(t *testing.T) {
 
 func undeployPreExistingAddon(t *testing.T) {
 	t.Helper()
-	// Runs from tests/checks/upgrade_httpso/ — repo root is two levels up.
+	// Runs from test/e2e/upgrade/ — repo root is three levels up.
 	out, err := ExecuteCommandWithDir("make undeploy", "../../..")
 	if err != nil {
 		// Not fatal — `make undeploy` may return non-zero on a clean cluster.
