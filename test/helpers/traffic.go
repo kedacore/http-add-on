@@ -146,11 +146,14 @@ func (f *Framework) WebSocketDial(host, path string) *websocket.Conn {
 	defer cancel()
 
 	wsURL := url.URL{Scheme: "ws", Host: f.proxyAddr, Path: path}
-	conn, _, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
+	conn, resp, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
 		HTTPHeader: http.Header{"Host": []string{host}},
 	})
 	if err != nil {
 		f.t.Fatalf("WebSocket dial to %s%s failed: %v", host, path, err)
+	}
+	if resp != nil && resp.Body != nil {
+		defer func() { _ = resp.Body.Close() }()
 	}
 	f.t.Cleanup(func() { _ = conn.Close(websocket.StatusNormalClosure, "") })
 
