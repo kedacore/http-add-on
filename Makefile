@@ -136,8 +136,7 @@ FUZZ_TARGETS = \
 	FuzzParseTLSVersion:./interceptor/ \
 	FuzzParseCipherSuites:./interceptor/ \
 	FuzzParseCurvePreferences:./interceptor/ \
-	FuzzProxyHandler:./interceptor/ \
-	FuzzEscapeString:./scaler/
+	FuzzProxyHandler:./interceptor/
 
 .PHONY: fuzz
 fuzz: ## Run all fuzz tests (FUZZ_TIME=30s by default)
