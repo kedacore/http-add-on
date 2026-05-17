@@ -65,7 +65,6 @@ func (t *table) refreshMemory(ctx context.Context) error {
 			t.queueCounter.EnsureKey(key)
 		}
 
-
 		for key := range t.previousKeys {
 			if _, exists := currentKeys[key]; !exists {
 				t.queueCounter.RemoveKey(key)

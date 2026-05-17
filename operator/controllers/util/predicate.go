@@ -28,7 +28,6 @@ func (p AnnotationKeyChangedPredicate) Update(e event.UpdateEvent) bool {
 	return false
 }
 
-
 type ScaledObjectSpecChangedPredicate struct {
 	predicate.Funcs
 }

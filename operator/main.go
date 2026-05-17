@@ -20,7 +20,6 @@ import (
 	"flag"
 	"os"
 
-
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -38,8 +37,6 @@ var (
 	scheme   = kedacache.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
-
-
 
 // +kubebuilder:rbac:groups="",namespace=keda,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=coordination.k8s.io,namespace=keda,resources=leases,verbs=get;list;watch;create;update;patch;delete
@@ -115,7 +112,6 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
 
 	if err = (&httpcontrollers.InterceptorRouteReconciler{
 		Client: mgr.GetClient(),
