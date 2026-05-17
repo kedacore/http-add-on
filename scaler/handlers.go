@@ -21,8 +21,6 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 )
 
-
-
 var errNoMetricValues = errors.New("no metric values in response")
 
 type scalerHandler struct {
