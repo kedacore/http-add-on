@@ -20,8 +20,7 @@ import (
 	"flag"
 	"os"
 
-	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -40,10 +39,7 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-func init() {
-	// TODO(v1): remove when removing HTTPSO
-	utilruntime.Must(kedav1alpha1.AddToScheme(scheme))
-}
+
 
 // +kubebuilder:rbac:groups="",namespace=keda,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=coordination.k8s.io,namespace=keda,resources=leases,verbs=get;list;watch;create;update;patch;delete
@@ -73,11 +69,6 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	externalScalerCfg, err := config.NewExternalScalerFromEnv()
-	if err != nil {
-		setupLog.Error(err, "unable to parse external scaler config from environment")
-		os.Exit(1)
-	}
 	baseConfig, err := config.NewBaseFromEnv()
 	if err != nil {
 		setupLog.Error(err, "unable to parse operator config from environment")
@@ -125,16 +116,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&httpcontrollers.HTTPScaledObjectReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
 
-		ExternalScalerConfig: externalScalerCfg,
-		BaseConfig:           baseConfig,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
-		os.Exit(1)
-	}
 	if err = (&httpcontrollers.InterceptorRouteReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),

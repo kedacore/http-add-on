@@ -36,7 +36,6 @@ import (
 var setupLog = ctrl.Log.WithName("setup")
 
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
-// +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 // +kubebuilder:rbac:groups=http.keda.sh,resources=interceptorroutes,verbs=get;list;watch
 
 func main() {

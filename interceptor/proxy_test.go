@@ -30,7 +30,7 @@ import (
 
 const (
 	testHost       = "test.example.com"
-	testIRKey      = "test-namespace/test-httpso"
+	testIRKey      = "test-namespace/test-ir"
 	testServiceKey = "test-namespace/test-service"
 )
 
@@ -346,7 +346,7 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 	routingTable := routingtest.NewTable()
 	ir := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-httpso",
+			Name:      "test-ir",
 			Namespace: "test-namespace",
 		},
 		Spec: httpv1beta1.InterceptorRouteSpec{

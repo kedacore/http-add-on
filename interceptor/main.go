@@ -25,7 +25,6 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/handler"
 	"github.com/kedacore/http-add-on/interceptor/metrics"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
-	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/build"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
@@ -38,7 +37,6 @@ import (
 
 var setupLog = ctrl.Log.WithName("setup")
 
-// +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 // +kubebuilder:rbac:groups=http.keda.sh,resources=interceptorroutes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
@@ -118,8 +116,8 @@ func main() {
 	queues := queue.NewMemory()
 	routingTable := routing.NewTable(ctrlCache, queues)
 
-	// Setup informers to signal routing table on IR and HTTPSO changes
-	routeSources := []client.Object{&v1beta1.InterceptorRoute{}, &v1alpha1.HTTPScaledObject{}}
+	// Setup informers to signal routing table on InterceptorRoute changes
+	routeSources := []client.Object{&v1beta1.InterceptorRoute{}}
 
 	for _, obj := range routeSources {
 		informer, err := ctrlCache.GetInformer(ctx, obj)
@@ -168,7 +166,7 @@ func main() {
 		runtime.Goexit()
 	}
 
-	// Start the update loop that refreshes the routing table on InterceptorRoute & HTTPSO changes
+	// Start the update loop that refreshes the routing table on InterceptorRoute changes
 	eg.Go(func() error {
 		setupLog.Info("starting the routing table")
 
