@@ -49,7 +49,7 @@ linters:
       # test files: unchecked Close/Remove in deferred cleanup
       - linters:
           - errcheck
-        path: _test\.go|tests/
+        path: _test\.go
         text: "Close|Remove"
       # var-naming: packages that intentionally shadow stdlib names
       - linters:
@@ -60,7 +60,7 @@ linters:
       - linters:
           - revive
         text: "var-naming: avoid meaningless package names"
-        path: pkg/util/|operator/controllers/util/|tests/utils/
+        path: pkg/util/|operator/controllers/util/
       # revive: dot imports are standard for ginkgo/gomega
       - linters:
           - revive
@@ -75,17 +75,12 @@ linters:
       - linters:
           - gosec
         text: "G109|G115"
-        path: _test\.go|tests/|pkg/k8s/fake_
+        path: _test\.go|pkg/k8s/fake_
       # gosec: weak RNG is fine for test data
       - linters:
           - gosec
         text: "G404"
-        path: _test\.go|tests/
-      # gosec: test helpers invoke subprocesses with known inputs
-      - linters:
-          - gosec
-        text: "G204|G702"
-        path: tests/
+        path: _test\.go
       # gosec: test HTTP requests target local test servers, not user-controlled URLs
       - linters:
           - gosec

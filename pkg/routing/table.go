@@ -5,12 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
@@ -62,99 +59,6 @@ func (t *table) refreshMemory(ctx context.Context) error {
 			key := k8s.ResourceKey(ir.Namespace, ir.Name)
 
 			currentKeys[key] = struct{}{}
-
-			tm = tm.Remember(ir)
-
-			t.queueCounter.EnsureKey(key)
-		}
-
-		// TODO(v1): remove the HTTPSO to IR conversion
-		var httpsoList httpv1alpha1.HTTPScaledObjectList
-		if err := t.reader.List(ctx, &httpsoList); err != nil {
-			return fmt.Errorf("listing HTTPScaledObjects: %w", err)
-		}
-
-		for i := range httpsoList.Items {
-			httpso := &httpsoList.Items[i]
-			key := fmt.Sprintf("%s/%s", httpso.Namespace, httpso.Name)
-
-			if _, ok := currentKeys[key]; ok {
-				// skip the conflicting HTTPSO, IR takes precedence
-				continue
-			}
-			currentKeys[key] = struct{}{}
-
-			// Create an IR from the HTTPSO to simplify the whole routing logic
-			ir := &httpv1beta1.InterceptorRoute{
-				ObjectMeta: metav1.ObjectMeta{
-					CreationTimestamp: httpso.CreationTimestamp,
-					Name:              httpso.Name,
-					Namespace:         httpso.Namespace,
-				},
-				Spec: httpv1beta1.InterceptorRouteSpec{
-					Target: httpv1beta1.TargetRef{
-						Port:     httpso.Spec.ScaleTargetRef.Port,
-						PortName: httpso.Spec.ScaleTargetRef.PortName,
-						Service:  httpso.Spec.ScaleTargetRef.Service,
-					},
-				},
-			}
-
-			rr := httpv1beta1.RoutingRule{
-				Hosts: httpso.Spec.Hosts,
-			}
-			for _, pathPrefix := range httpso.Spec.PathPrefixes {
-				rr.Paths = append(rr.Paths, httpv1beta1.PathMatch{
-					Value: pathPrefix,
-				})
-			}
-			for _, header := range httpso.Spec.Headers {
-				rr.Headers = append(rr.Headers, httpv1beta1.HeaderMatch{
-					Name:  header.Name,
-					Value: header.Value,
-				})
-			}
-			ir.Spec.Rules = []httpv1beta1.RoutingRule{rr}
-
-			// Convert HTTPSO timeouts to InterceptorRoute timeouts spec.
-			if httpso.Spec.Timeouts != nil {
-				if httpso.Spec.Timeouts.ConditionWait.Duration > 0 {
-					ir.Spec.Timeouts.Readiness = &metav1.Duration{Duration: httpso.Spec.Timeouts.ConditionWait.Duration}
-				}
-				if httpso.Spec.Timeouts.ResponseHeader.Duration > 0 {
-					ir.Spec.Timeouts.ResponseHeader = &metav1.Duration{Duration: httpso.Spec.Timeouts.ResponseHeader.Duration}
-				}
-			}
-
-			if c := httpso.Spec.ColdStartTimeoutFailoverRef; c != nil {
-				ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
-					Fallback: &httpv1beta1.ColdStartFallback{
-						Service: &httpv1beta1.ServiceRef{
-							Name:     c.Service,
-							Port:     c.Port,
-							PortName: c.PortName,
-						},
-					},
-				}
-				if c.TimeoutSeconds > 0 {
-					ir.Spec.Timeouts.Readiness = &metav1.Duration{Duration: time.Duration(c.TimeoutSeconds) * time.Second}
-				}
-			}
-
-			if httpso.Spec.ScalingMetric != nil {
-				if httpso.Spec.ScalingMetric.Concurrency != nil {
-					ir.Spec.ScalingMetric.Concurrency = &httpv1beta1.ConcurrencyTargetSpec{
-						TargetValue: int32(httpso.Spec.ScalingMetric.Concurrency.TargetValue), //nolint:gosec // kubebuilder-validated field, overflow not possible
-					}
-				}
-				if httpso.Spec.ScalingMetric.Rate != nil {
-					ir.Spec.ScalingMetric.RequestRate = &httpv1beta1.RequestRateTargetSpec{
-						TargetValue: int32(httpso.Spec.ScalingMetric.Rate.TargetValue), //nolint:gosec // kubebuilder-validated field, overflow not possible
-						Window:      httpso.Spec.ScalingMetric.Rate.Window,
-						Granularity: httpso.Spec.ScalingMetric.Rate.Granularity,
-					}
-				}
-			}
 
 			tm = tm.Remember(ir)
 
