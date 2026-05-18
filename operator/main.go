@@ -17,8 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
+	"runtime"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -33,12 +35,15 @@ import (
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
+	"github.com/kedacore/http-add-on/pkg/observability"
 )
 
 var (
 	scheme   = kedacache.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
+
+const serviceName = "keda-http-operator"
 
 func init() {
 	// TODO(v1): remove when removing HTTPSO
@@ -49,6 +54,7 @@ func init() {
 // +kubebuilder:rbac:groups=coordination.k8s.io,namespace=keda,resources=leases,verbs=get;list;watch;create;update;patch;delete
 
 func main() {
+	defer os.Exit(1)
 	var metricsAddr string
 	var metricsSecure bool
 	var metricsAuth bool
@@ -73,15 +79,30 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	tracingCfg := observability.MustParseTracingConfig()
+
+	if tracingCfg.Enabled {
+		shutdown, err := observability.SetupTracing(context.Background(), serviceName, tracingCfg)
+		if err != nil {
+			setupLog.Error(err, "error setting up tracer")
+			runtime.Goexit()
+		}
+		defer func() {
+			if err := shutdown(context.Background()); err != nil {
+				setupLog.Error(err, "error during tracer shutdown")
+			}
+		}()
+	}
+
 	externalScalerCfg, err := config.NewExternalScalerFromEnv()
 	if err != nil {
 		setupLog.Error(err, "unable to parse external scaler config from environment")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 	baseConfig, err := config.NewBaseFromEnv()
 	if err != nil {
 		setupLog.Error(err, "unable to parse operator config from environment")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	var namespaces map[string]cache.Config
@@ -123,7 +144,7 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	if err = (&httpcontrollers.HTTPScaledObjectReconciler{
@@ -134,28 +155,28 @@ func main() {
 		BaseConfig:           baseConfig,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HTTPScaledObject")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 	if err = (&httpcontrollers.InterceptorRouteReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "InterceptorRoute")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		runtime.Goexit()
 	}
 }

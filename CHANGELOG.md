@@ -31,9 +31,8 @@ This changelog keeps track of work items that have been completed and are ready 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### New
-
 - **General**: Add `coldStart.placeholder` support for returning static HTTP responses during scale-from-zero ([#874](https://github.com/kedacore/http-add-on/issues/874))
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Operator**: Add OpenTelemetry distributed tracing support ([#965](https://github.com/kedacore/http-add-on/issues/965))
 - **Scaler**: Add OpenTelemetry metrics and distributed tracing to the external scaler ([#965](https://github.com/kedacore/http-add-on/issues/965))
 
 ### Improvements
