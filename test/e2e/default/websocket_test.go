@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
@@ -35,13 +35,16 @@ func TestWebSocket(t *testing.T) {
 			conn := f.WebSocketDial(f.Hostname(), "/echo")
 
 			msg := "hello from e2e"
-			if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			if err := conn.Write(ctx, websocket.MessageText, []byte(msg)); err != nil {
 				t.Fatalf("failed to write WebSocket message: %v", err)
 			}
 
-			_, received, err := conn.ReadMessage()
+			msgType, received, err := conn.Read(ctx)
 			if err != nil {
 				t.Fatalf("failed to read WebSocket message: %v", err)
+			}
+			if msgType != websocket.MessageText {
+				t.Errorf("expected message type %v, got %v", websocket.MessageText, msgType)
 			}
 			if string(received) != msg {
 				t.Errorf("expected echo %q, got %q", msg, string(received))
