@@ -32,11 +32,13 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Add `KEDA_HTTP_DIRECT_POD_ROUTING` environment variable (`disabled` | `cold-start-only`). When set to `cold-start-only`, the interceptor routes cold-start requests directly to a ready pod IP instead of through the service ClusterIP, reducing latency when kube-proxy rules are slow to propagate. ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: TLS server name is captured in context by the routing middleware before any URL rewrites, so downstream transports always use the original service hostname for SNI. ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
+- **Interceptor**: `ReadyEndpointsCache` now tracks full `(ip, port)` pairs per named port from EndpointSlices, enabling direct-pod routing (replaces the previous bool-only ready state). ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
+- **Interceptor**: `TransportPool` now keys on `(responseHeaderTimeout, serverName)` and applies TLS `ServerName` per transport, enabling correct SNI when the upstream URL is rewritten to a pod IP. ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
 
 ### Fixes
 

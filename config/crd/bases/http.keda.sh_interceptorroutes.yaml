@@ -195,15 +195,18 @@ spec:
                 description: Backend service to route traffic to.
                 properties:
                   port:
-                    description: Port number on the Service. Mutually exclusive with
-                      portName.
+                    description: |-
+                      Port number on the Service. Mutually exclusive with portName.
+                      Note: direct-pod routing (when enabled on the interceptor) requires portName;
+                      routes using a numeric port will always be forwarded via the Service ClusterIP.
                     format: int32
                     maximum: 65535
                     minimum: 1
                     type: integer
                   portName:
-                    description: Named port on the Service. Mutually exclusive with
-                      port.
+                    description: |-
+                      Named port on the Service. Mutually exclusive with port.
+                      Required for direct-pod routing to activate during cold starts.
                     minLength: 1
                     type: string
                   service:

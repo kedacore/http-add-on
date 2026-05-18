@@ -1,9 +1,22 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/caarlos0/env/v11"
+)
+
+// DirectPodRoutingMode controls whether and when the interceptor routes requests
+// directly to a ready pod IP instead of through the ClusterIP service.
+type DirectPodRoutingMode string
+
+const (
+	// DirectPodRoutingDisabled never bypasses the ClusterIP service (default).
+	DirectPodRoutingDisabled DirectPodRoutingMode = "disabled"
+	// DirectPodRoutingColdStartOnly bypasses the ClusterIP service only on cold
+	// starts, reducing latency when kube-proxy rules are slow to propagate.
+	DirectPodRoutingColdStartOnly DirectPodRoutingMode = "cold-start-only"
 )
 
 // Serving is configuration for how the interceptor serves the proxy
@@ -53,10 +66,21 @@ type Serving struct {
 	EnableColdStartHeader bool `env:"KEDA_HTTP_ENABLE_COLD_START_HEADER" envDefault:"true"`
 	// LogRequests enables/disables logging of incoming requests
 	LogRequests bool `env:"KEDA_HTTP_LOG_REQUESTS" envDefault:"false"`
+	// DirectPodRouting controls when the interceptor routes directly to a pod IP
+	// instead of the ClusterIP service. Valid values: "disabled", "cold-start-only".
+	DirectPodRouting DirectPodRoutingMode `env:"KEDA_HTTP_DIRECT_POD_ROUTING" envDefault:"disabled"`
 }
 
 // MustParseServing parses standard configs and returns the
 // newly created config. It panics if parsing fails.
 func MustParseServing() Serving {
-	return env.Must(env.ParseAs[Serving]())
+	s := env.Must(env.ParseAs[Serving]())
+	switch s.DirectPodRouting {
+	case DirectPodRoutingDisabled, DirectPodRoutingColdStartOnly:
+		// valid
+	default:
+		panic(fmt.Sprintf("invalid KEDA_HTTP_DIRECT_POD_ROUTING value %q: must be %q or %q",
+			s.DirectPodRouting, DirectPodRoutingDisabled, DirectPodRoutingColdStartOnly))
+	}
+	return s
 }
