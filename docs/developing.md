@@ -122,3 +122,13 @@ make e2e-test E2E_ARGS="--dry-run"
 The `PROFILE` variable selects a test profile directory under `test/e2e/` (e.g. `PROFILE=tls` runs `./test/e2e/tls/...`). Each subdirectory in `test/e2e/` is a profile.
 The `RUN` variable filters tests by name using Go's `-run` flag (supports regex, e.g. `RUN=TestColdStart` or `RUN="TestHost|TestPath"`).
 The `E2E_ARGS` variable passes flags to the [e2e-framework](https://github.com/kubernetes-sigs/e2e-framework) via `-args` (e.g. `--labels`, `--feature`, `--skip-labels`, `--dry-run`).
+
+### TLS SNI behavior
+
+The interceptor can serve more than one certificate from the TLS listener by setting `KEDA_HTTP_PROXY_TLS_CERT_STORE_PATHS` to a comma-separated list of one or more directories that contain certificate/key pairs. During the TLS handshake it:
+
+1. Looks for an exact match between the client SNI value and a certificate SAN loaded from the configured certificate-store directories.
+2. Falls back to the certificate from `KEDA_HTTP_PROXY_TLS_CERT_PATH` and `KEDA_HTTP_PROXY_TLS_KEY_PATH` when no SNI-specific certificate matches.
+3. Fails the handshake when there is no matching SNI certificate and no default certificate is configured.
+
+The existing `test/e2e/tls` profile covers successful TLS termination. The interceptor unit tests in `interceptor/tls_config_test.go` additionally cover the no-match fallback and no-default error paths.

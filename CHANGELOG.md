@@ -36,7 +36,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Document TLS SNI certificate selection and fallback behavior; add tests covering SNI-specific certificate preference over the default certificate ([#1600](https://github.com/kedacore/http-add-on/issues/1600))
 
 ### Fixes
 
