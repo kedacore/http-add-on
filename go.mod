@@ -31,9 +31,9 @@ require (
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.81.0
 	google.golang.org/protobuf v1.36.11
-	k8s.io/api v0.34.7
-	k8s.io/apimachinery v0.34.7
-	k8s.io/client-go v0.34.7
+	k8s.io/api v0.34.8
+	k8s.io/apimachinery v0.34.8
+	k8s.io/client-go v0.34.8
 	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
 	sigs.k8s.io/controller-runtime v0.22.5
 	sigs.k8s.io/e2e-framework v0.6.0
@@ -46,8 +46,8 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
-	k8s.io/apiserver v0.34.7
-	k8s.io/component-base v0.34.7 // indirect
+	k8s.io/apiserver v0.34.8
+	k8s.io/component-base v0.34.8 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.33.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1 // indirect
 )
