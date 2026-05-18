@@ -119,6 +119,17 @@ make e2e-test E2E_ARGS="--labels=area=scaling"
 make e2e-test E2E_ARGS="--dry-run"
 ```
 
-The `PROFILE` variable selects a test profile directory under `test/e2e/` (e.g. `PROFILE=tls` runs `./test/e2e/tls/...`). Each subdirectory in `test/e2e/` is a profile.
+The `PROFILE` variable selects a test profile directory under `test/e2e/` (e.g. `PROFILE=tls` runs `./test/e2e/tls/...`).
+Each subdirectory in `test/e2e/` is a profile.
 The `RUN` variable filters tests by name using Go's `-run` flag (supports regex, e.g. `RUN=TestColdStart` or `RUN="TestHost|TestPath"`).
 The `E2E_ARGS` variable passes flags to the [e2e-framework](https://github.com/kubernetes-sigs/e2e-framework) via `-args` (e.g. `--labels`, `--feature`, `--skip-labels`, `--dry-run`).
+
+### Writing a new test
+
+Add your test to the profile whose add-on configuration it needs (or propose a new profile if none fits).
+
+Each test creates a feature spec with setup and assertions, then runs it against the profile's shared `testenv`.
+The [`test/helpers/`](../test/helpers/) package provides a `Framework` that handles the common boilerplate: creating test apps, interceptor routes, scaled objects, sending requests, and waiting for expected replica counts.
+The framework also manages namespace lifecycle, so individual tests don't need explicit cleanup.
+
+See [`test/e2e/default/cold_start_test.go`](../test/e2e/default/cold_start_test.go) for a complete example of this pattern.

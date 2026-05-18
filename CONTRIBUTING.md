@@ -81,7 +81,7 @@ Where component is `General`, `Interceptor`, `Operator`, or `Scaler`. Run `./hac
 - Reference the issue being fixed (e.g., `Fixes #123`).
 - Ensure `make test` passes before submitting.
 - Include documentation updates in the same PR for changes that affect behavior, and if appropriate, in [the KEDA docs repository](https://github.com/kedacore/keda-docs).
-- For end-to-end tests, see [tests/README.md](./tests/README.md).
+- For end-to-end tests, see [Running E2E Tests](./docs/developing.md#running-e2e-tests) in `docs/developing.md`.
 
 ## Developer Certificate of Origin: Signing your work
 
