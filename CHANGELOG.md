@@ -33,6 +33,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### New
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Operator**: Add custom Prometheus metrics for reconciliation counts, errors, and resource tracking ([#965](https://github.com/kedacore/http-add-on/issues/965))
 
 ### Improvements
 

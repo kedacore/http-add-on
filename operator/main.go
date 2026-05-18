@@ -32,6 +32,7 @@ import (
 
 	httpcontrollers "github.com/kedacore/http-add-on/operator/controllers/http"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
+	_ "github.com/kedacore/http-add-on/operator/metrics"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 )
 
