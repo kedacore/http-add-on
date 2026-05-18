@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
+	operatormetrics "github.com/kedacore/http-add-on/operator/metrics"
 )
 
 // InterceptorRouteReconciler reconciles InterceptorRoute objects.
@@ -26,8 +27,16 @@ type InterceptorRouteReconciler struct {
 // +kubebuilder:rbac:groups=http.keda.sh,resources=interceptorroutes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=http.keda.sh,resources=interceptorroutes/finalizers,verbs=update
 
-func (r *InterceptorRouteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *InterceptorRouteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, reconcileErr error) {
 	logger := log.FromContext(ctx)
+
+	defer func() {
+		if reconcileErr != nil {
+			operatormetrics.ReconcileTotal.WithLabelValues("interceptorroute", "error").Inc()
+		} else {
+			operatormetrics.ReconcileTotal.WithLabelValues("interceptorroute", "success").Inc()
+		}
+	}()
 
 	var ir httpv1beta1.InterceptorRoute
 	if err := r.Get(ctx, req.NamespacedName, &ir); err != nil {

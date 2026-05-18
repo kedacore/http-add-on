@@ -38,6 +38,7 @@ import (
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	"github.com/kedacore/http-add-on/operator/controllers/http/config"
 	"github.com/kedacore/http-add-on/operator/controllers/util"
+	operatormetrics "github.com/kedacore/http-add-on/operator/metrics"
 )
 
 // HTTPScaledObjectReconciler reconciles a HTTPScaledObject object
@@ -61,9 +62,17 @@ type HTTPScaledObjectReconciler struct {
 
 // Reconcile reconciles a newly created, deleted, or otherwise changed
 // HTTPScaledObject
-func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *HTTPScaledObjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, reconcileErr error) {
 	logger := log.FromContext(ctx, "httpscaledobject", req.NamespacedName)
 	logger.Info("Reconciliation start")
+
+	defer func() {
+		if reconcileErr != nil {
+			operatormetrics.ReconcileTotal.WithLabelValues("httpscaledobject", "error").Inc()
+		} else {
+			operatormetrics.ReconcileTotal.WithLabelValues("httpscaledobject", "success").Inc()
+		}
+	}()
 
 	httpso := &httpv1alpha1.HTTPScaledObject{}
 	if err := r.Get(ctx, req.NamespacedName, httpso); err != nil {
