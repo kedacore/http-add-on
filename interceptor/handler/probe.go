@@ -10,13 +10,15 @@ import (
 )
 
 type Probe struct {
+	draining       *atomic.Bool
+	hasBeenHealthy atomic.Bool
 	healthCheckers []util.HealthChecker
 	healthy        atomic.Bool
-	hasBeenHealthy atomic.Bool
 }
 
-func NewProbe(healthChecks ...util.HealthChecker) *Probe {
+func NewProbe(draining *atomic.Bool, healthChecks ...util.HealthChecker) *Probe {
 	return &Probe{
+		draining:       draining,
 		healthCheckers: healthChecks,
 	}
 }
@@ -28,7 +30,7 @@ func (ph *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	sc := http.StatusOK
-	if !ph.healthy.Load() {
+	if ph.draining.Load() || !ph.healthy.Load() {
 		sc = http.StatusServiceUnavailable
 	}
 	w.WriteHeader(sc)
@@ -56,6 +58,10 @@ func (ph *Probe) Start(ctx context.Context) {
 }
 
 func (ph *Probe) check(ctx context.Context) {
+	if ph.draining.Load() {
+		return
+	}
+
 	logger := util.LoggerFromContext(ctx)
 	logger = logger.WithName("Probe")
 
@@ -66,7 +72,7 @@ func (ph *Probe) check(ctx context.Context) {
 			// Log at info level before the first successful check to avoid
 			// noisy error logs during normal startup sequencing.
 			if ph.hasBeenHealthy.Load() {
-				logger.Error(err, "health check function failed")
+				logger.Error(err, "health check failed")
 			} else {
 				logger.Info("waiting for health check to pass", "error", err)
 			}

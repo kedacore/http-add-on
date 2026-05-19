@@ -3,13 +3,12 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" //nolint:gosec // G108: pprof intentionally exposed, gated by --profiling-addr
 	"os"
-	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -47,7 +46,13 @@ var setupLog = ctrl.Log.WithName("setup")
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 
 func main() {
-	defer os.Exit(1)
+	if err := run(); err != nil {
+		setupLog.Error(err, "fatal error")
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	timeoutCfg := config.MustParseTimeouts(setupLog)
 	servingCfg := config.MustParseServing()
 	metricsCfg := observability.MustParseMetricsConfig()
@@ -63,21 +68,14 @@ func main() {
 
 	setupLog.Info(
 		"starting interceptor",
-		"timeoutConfig",
-		timeoutCfg,
-		"servingConfig",
-		servingCfg,
-		"metricsConfig",
-		metricsCfg,
+		"timeoutConfig", timeoutCfg,
+		"servingConfig", servingCfg,
+		"metricsConfig", metricsCfg,
 	)
-
-	proxyTLSEnabled := servingCfg.ProxyTLSEnabled
-	profilingAddr := servingCfg.ProfilingAddr
 
 	provider, err := observability.NewMeterProvider(metrics.ServiceName, metricsCfg)
 	if err != nil {
-		setupLog.Error(err, "failed to create meter provider")
-		runtime.Goexit()
+		return fmt.Errorf("creating meter provider: %w", err)
 	}
 	defer func() {
 		if err := provider.Shutdown(context.Background()); err != nil {
@@ -87,14 +85,11 @@ func main() {
 
 	instruments, err := metrics.NewInstruments(provider)
 	if err != nil {
-		setupLog.Error(err, "failed to create metric instruments")
-		runtime.Goexit()
+		return fmt.Errorf("creating metric instruments: %w", err)
 	}
 
 	cfg := ctrl.GetConfigOrDie()
-
-	ctx := ctrl.SetupSignalHandler()
-	ctx = util.ContextWithLogger(ctx, ctrl.Log)
+	signalCtx := ctrl.SetupSignalHandler()
 
 	cacheOpts := cache.Options{
 		DefaultTransform: cache.TransformStripManagedFields(),
@@ -116,14 +111,12 @@ func main() {
 
 	ctrlCache, err := cache.New(cfg, cacheOpts)
 	if err != nil {
-		setupLog.Error(err, "creating cache")
-		runtime.Goexit()
+		return fmt.Errorf("creating cache: %w", err)
 	}
 
-	readyCache, err := k8s.NewReadyEndpointsCacheWithInformer(ctx, ctrl.Log, ctrlCache)
+	readyCache, err := k8s.NewReadyEndpointsCacheWithInformer(signalCtx, ctrl.Log, ctrlCache)
 	if err != nil {
-		setupLog.Error(err, "creating endpoints cache")
-		runtime.Goexit()
+		return fmt.Errorf("creating endpoints cache: %w", err)
 	}
 
 	queues := queue.NewMemory()
@@ -131,12 +124,10 @@ func main() {
 
 	// Setup informers to signal routing table on IR and HTTPSO changes
 	routeSources := []client.Object{&v1beta1.InterceptorRoute{}, &v1alpha1.HTTPScaledObject{}}
-
 	for _, obj := range routeSources {
-		informer, err := ctrlCache.GetInformer(ctx, obj)
+		informer, err := ctrlCache.GetInformer(signalCtx, obj)
 		if err != nil {
-			setupLog.Error(err, "getting informer", "type", fmt.Sprintf("%T", obj))
-			runtime.Goexit()
+			return fmt.Errorf("getting informer for %T: %w", obj, err)
 		}
 
 		_, err = informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
@@ -145,83 +136,108 @@ func main() {
 			DeleteFunc: func(_ any) { routingTable.Signal() },
 		})
 		if err != nil {
-			setupLog.Error(err, "adding event handlers")
-			runtime.Goexit()
+			return fmt.Errorf("adding event handlers: %w", err)
 		}
 	}
 
-	setupLog.Info("Interceptor starting")
-
-	eg, ctx := errgroup.WithContext(ctx)
-
 	if tracingCfg.Enabled {
-		shutdown, err := tracing.SetupOTelSDK(ctx, tracingCfg)
+		shutdown, err := tracing.SetupOTelSDK(signalCtx, tracingCfg)
 		if err != nil {
-			setupLog.Error(err, "Error setting up tracer")
-			runtime.Goexit()
+			return fmt.Errorf("setting up tracer: %w", err)
 		}
-
 		defer func() {
 			if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
-				setupLog.Error(shutdownErr, "Error during tracer shutdown")
+				setupLog.Error(shutdownErr, "error during tracer shutdown")
 			}
 		}()
 	}
 
-	eg.Go(func() error {
+	var draining atomic.Bool
+	probeHandler := handler.NewProbe(&draining, routingTable)
+
+	// Two separate lifecycles: proxy servers drain before infrastructure shuts
+	// down. This keeps the admin server (readiness probe) alive during proxy
+	// drain so Kubernetes sees 503 rather than connection refused.
+	proxyCtx, cancelProxy := context.WithCancel(context.Background())
+	defer cancelProxy()
+	proxyCtx = util.ContextWithLogger(proxyCtx, ctrl.Log)
+
+	infraCtx, cancelInfra := context.WithCancel(context.Background())
+	defer cancelInfra()
+	infraCtx = util.ContextWithLogger(infraCtx, ctrl.Log)
+
+	proxyEg, proxyCtx := errgroup.WithContext(proxyCtx)
+	infraEg, infraCtx := errgroup.WithContext(infraCtx)
+
+	// If infrastructure dies, bring down proxy too.
+	context.AfterFunc(infraCtx, cancelProxy)
+
+	// --- Infrastructure goroutines (use infraCtx) ---
+
+	infraEg.Go(func() error {
 		setupLog.Info("starting the controller-runtime cache")
-		return ctrlCache.Start(ctx)
+		return ctrlCache.Start(infraCtx)
 	})
 
 	// Wait for cache to sync before starting components that depend on it
-	if !ctrlCache.WaitForCacheSync(ctx) {
-		setupLog.Error(nil, "cache failed to sync")
-		runtime.Goexit()
+	if !ctrlCache.WaitForCacheSync(infraCtx) {
+		return fmt.Errorf("cache failed to sync")
 	}
 
 	// Start the update loop that refreshes the routing table on InterceptorRoute & HTTPSO changes
-	eg.Go(func() error {
+	infraEg.Go(func() error {
 		setupLog.Info("starting the routing table")
-
-		if err := routingTable.Start(ctx); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "routing table failed")
-			return err
+		if err := routingTable.Start(infraCtx); !util.IsIgnoredErr(err) {
+			return fmt.Errorf("routing table: %w", err)
 		}
+		return nil
+	})
 
+	infraEg.Go(func() error {
+		probeHandler.Start(infraCtx)
 		return nil
 	})
 
 	// start the administrative server. this is the server
 	// that serves the queue size API
-	eg.Go(func() error {
+	infraEg.Go(func() error {
 		setupLog.Info("starting the admin server", "port", servingCfg.AdminPort)
-
-		if err := runAdminServer(ctx, ctrl.Log, servingCfg.AdminPort, queues, routingTable); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "admin server failed")
-			return err
+		if err := runAdminServer(infraCtx, ctrl.Log, servingCfg.AdminPort, queues, probeHandler); !util.IsIgnoredErr(err) {
+			return fmt.Errorf("admin server: %w", err)
 		}
-
 		return nil
 	})
 
 	if metricsCfg.OtelPrometheusExporterEnabled {
 		// start the prometheus compatible metrics server
 		// serves a prometheus compatible metrics endpoint on the configured port
-		eg.Go(func() error {
-			if err := runMetricsServer(ctx, ctrl.Log, metricsCfg); !util.IsIgnoredErr(err) {
-				setupLog.Error(err, "could not start the Prometheus metrics server")
-				return err
+		infraEg.Go(func() error {
+			if err := runMetricsServer(infraCtx, ctrl.Log, metricsCfg); !util.IsIgnoredErr(err) {
+				return fmt.Errorf("metrics server: %w", err)
 			}
-
 			return nil
 		})
 	}
 
+	if servingCfg.ProfilingAddr != "" {
+		infraEg.Go(func() error {
+			setupLog.Info("enabling pprof for profiling", "address", servingCfg.ProfilingAddr)
+			if err := kedahttp.ServeContext(infraCtx, kedahttp.ServerConfig{
+				Addr:    servingCfg.ProfilingAddr,
+				Handler: http.DefaultServeMux,
+			}); !util.IsIgnoredErr(err) {
+				return fmt.Errorf("pprof server: %w", err)
+			}
+			return nil
+		})
+	}
+
+	// --- Proxy goroutines (use proxyCtx) ---
+
 	// start the proxy servers. This is the server that
 	// accepts, holds and forwards user requests
-	// start a proxy server with TLS
-	if proxyTLSEnabled {
-		eg.Go(func() error {
+	if servingCfg.ProxyTLSEnabled {
+		proxyEg.Go(func() error {
 			tlsCfg, err := BuildTLSConfig(TLSOptions{
 				CertificatePath:    servingCfg.TLSCertPath,
 				KeyPath:            servingCfg.TLSKeyPath,
@@ -233,53 +249,67 @@ func main() {
 				CurvePreferences:   servingCfg.TLSCurvePreferences,
 			}, setupLog)
 			if err != nil {
-				setupLog.Error(err, "failed to configure TLS")
-				return fmt.Errorf("failed to configure TLS: %w", err)
+				return fmt.Errorf("configuring TLS: %w", err)
 			}
 
-			proxyTLSPort := servingCfg.TLSPort
-
-			setupLog.Info("starting the proxy server with TLS enabled", "port", proxyTLSPort)
-
-			if err := runProxyServer(ctx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, proxyTLSPort, tlsCfg, tracingCfg, instruments); !util.IsIgnoredErr(err) {
-				setupLog.Error(err, "tls proxy server failed")
-				return err
+			setupLog.Info("starting the proxy server with TLS enabled", "port", servingCfg.TLSPort)
+			if err := runProxyServer(proxyCtx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, servingCfg.TLSPort, tlsCfg, tracingCfg, instruments, &draining); !util.IsIgnoredErr(err) {
+				return fmt.Errorf("tls proxy server: %w", err)
 			}
 			return nil
 		})
 	}
 
-	// start a proxy server without TLS.
-	eg.Go(func() error {
-		setupLog.Info("starting the proxy server with TLS disabled", "port", servingCfg.ProxyPort)
-
-		if err := runProxyServer(ctx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, servingCfg.ProxyPort, nil, tracingCfg, instruments); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "proxy server failed")
-			return err
+	proxyEg.Go(func() error {
+		setupLog.Info("starting the proxy server", "port", servingCfg.ProxyPort)
+		if err := runProxyServer(proxyCtx, ctrl.Log, queues, readyCache, routingTable, ctrlCache, timeoutCfg, servingCfg, servingCfg.ProxyPort, nil, tracingCfg, instruments, &draining); !util.IsIgnoredErr(err) {
+			return fmt.Errorf("proxy server: %w", err)
 		}
-
 		return nil
 	})
 
-	if len(profilingAddr) > 0 {
-		eg.Go(func() error {
-			setupLog.Info("enabling pprof for profiling", "address", profilingAddr)
-			srv := &http.Server{
-				Addr:              profilingAddr,
-				ReadHeaderTimeout: time.Minute, // mitigate Slowloris attacks
-			}
-			return srv.ListenAndServe()
-		})
-	}
+	// --- Shutdown sequencing ---
+	//
+	// Pod deletion triggers the EndpointSlice removal and a SIGTERM:
+	//   1. Mark readiness probe unhealthy (503 on /readyz) for external load balancers
+	//   2. Delay the Shutdown e.g. to allow endpoint removal to be propagated to all nodes
+	//   3. Close proxy listener, drain in-flight requests
+	//   4. After proxy drain completes, stop infrastructure
+	go func() {
+		<-signalCtx.Done()
+
+		setupLog.Info("shutdown: starting drain")
+		draining.Store(true)
+
+		if servingCfg.ShutdownDelay > 0 {
+			setupLog.Info("shutdown: delaying shutdown while still accepting new connections", "delay", servingCfg.ShutdownDelay)
+			time.Sleep(servingCfg.ShutdownDelay)
+		}
+
+		setupLog.Info("shutdown: draining proxy connections", "timeout", servingCfg.DrainTimeout)
+		cancelProxy()
+	}()
 
 	build.PrintComponentInfo(ctrl.Log, "Interceptor")
+	setupLog.Info("Interceptor starting")
 
-	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-		setupLog.Error(err, "fatal error")
-		runtime.Goexit()
+	// Wait for proxy to finish (blocks during normal operation).
+	proxyErr := proxyEg.Wait()
+
+	// Proxy drained (or failed), shut down infrastructure.
+	setupLog.Info("shutdown: proxy drained, stopping infrastructure")
+	cancelInfra()
+	infraErr := infraEg.Wait()
+
+	if proxyErr != nil && !util.IsIgnoredErr(proxyErr) {
+		return fmt.Errorf("proxy: %w", proxyErr)
+	}
+	if infraErr != nil && !util.IsIgnoredErr(infraErr) {
+		return fmt.Errorf("infrastructure: %w", infraErr)
 	}
 
 	setupLog.Info("Bye!")
+	return nil
 }
 
 func runAdminServer(
@@ -287,18 +317,18 @@ func runAdminServer(
 	lggr logr.Logger,
 	port int,
 	q queue.Counter,
-	routingTable routing.Table,
+	probeHandler *handler.Probe,
 ) error {
 	lggr = lggr.WithName("runAdminServer")
-
-	probeHandler := handler.NewProbe(routingTable)
-	go probeHandler.Start(ctx)
 
 	adminHandler := BuildAdminHandler(lggr, q, probeHandler)
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("admin server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, adminHandler, nil)
+	return kedahttp.ServeContext(ctx, kedahttp.ServerConfig{
+		Addr:    addr,
+		Handler: adminHandler,
+	})
 }
 
 func runMetricsServer(
@@ -310,7 +340,10 @@ func runMetricsServer(
 	addr := fmt.Sprintf("0.0.0.0:%d", metricsCfg.OtelPrometheusExporterPort)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
-	return kedahttp.ServeContext(ctx, addr, mux, nil)
+	return kedahttp.ServeContext(ctx, kedahttp.ServerConfig{
+		Addr:    addr,
+		Handler: mux,
+	})
 }
 
 func runProxyServer(
@@ -326,6 +359,7 @@ func runProxyServer(
 	tlsCfg *tls.Config,
 	tracingConfig config.Tracing,
 	instruments *metrics.Instruments,
+	draining *atomic.Bool,
 ) error {
 	// Build handler chain using the shared builder
 	rootHandler := BuildProxyHandler(&ProxyHandlerConfig{
@@ -343,5 +377,11 @@ func runProxyServer(
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	logger.Info("proxy server starting", "address", addr)
-	return kedahttp.ServeContext(ctx, addr, rootHandler, tlsCfg)
+	return kedahttp.ServeContext(ctx, kedahttp.ServerConfig{
+		Addr:         addr,
+		Handler:      rootHandler,
+		TLSConfig:    tlsCfg,
+		DrainTimeout: serving.DrainTimeout,
+		Draining:     draining,
+	})
 }

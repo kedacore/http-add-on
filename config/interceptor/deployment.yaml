@@ -70,4 +70,4 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       serviceAccountName: interceptor
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 45

@@ -245,5 +245,8 @@ func runMetricsServer(ctx context.Context, lggr logr.Logger, metricsCfg observab
 	addr := fmt.Sprintf("0.0.0.0:%d", metricsCfg.OtelPrometheusExporterPort)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
-	return kedahttp.ServeContext(ctx, addr, mux, nil)
+	return kedahttp.ServeContext(ctx, kedahttp.ServerConfig{
+		Addr:    addr,
+		Handler: mux,
+	})
 }

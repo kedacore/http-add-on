@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -44,7 +45,8 @@ func TestProbeServeHTTP(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			ph := NewProbe(tt.checkers...)
+			var draining atomic.Bool
+			ph := NewProbe(&draining, tt.checkers...)
 			ph.check(t.Context())
 			assertProbe(t, ph, tt.code)
 		})
@@ -54,8 +56,11 @@ func TestProbeServeHTTP(t *testing.T) {
 func TestProbeHealthyToUnhealthyTransition(t *testing.T) {
 	ctx := t.Context()
 
-	var retErr error
-	ph := NewProbe(util.HealthCheckerFunc(func(_ context.Context) error {
+	var (
+		draining atomic.Bool
+		retErr   error
+	)
+	ph := NewProbe(&draining, util.HealthCheckerFunc(func(_ context.Context) error {
 		return retErr
 	}))
 
@@ -69,8 +74,11 @@ func TestProbeHealthyToUnhealthyTransition(t *testing.T) {
 
 func TestProbePeriodicCheck(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		var count int
-		ph := NewProbe(util.HealthCheckerFunc(func(_ context.Context) error {
+		var (
+			draining atomic.Bool
+			count    int
+		)
+		ph := NewProbe(&draining, util.HealthCheckerFunc(func(_ context.Context) error {
 			count++
 			return nil
 		}))
@@ -92,6 +100,25 @@ func TestProbePeriodicCheck(t *testing.T) {
 			t.Fatalf("after 2nd cycle: count=%d, want 2", count)
 		}
 	})
+}
+
+func TestProbeDraining(t *testing.T) {
+	var draining atomic.Bool
+	ph := NewProbe(&draining, util.HealthCheckerFunc(func(_ context.Context) error {
+		return nil
+	}))
+
+	// Initially healthy after a check.
+	ph.check(t.Context())
+	assertProbe(t, ph, http.StatusOK)
+
+	// After setting draining, probe must return 503.
+	draining.Store(true)
+	assertProbe(t, ph, http.StatusServiceUnavailable)
+
+	// A subsequent health check must NOT flip readiness back to healthy.
+	ph.check(t.Context())
+	assertProbe(t, ph, http.StatusServiceUnavailable)
 }
 
 func assertProbe(t *testing.T, ph *Probe, code int) {
