@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -145,16 +146,21 @@ func (f *Framework) WebSocketDial(host, path string) *websocket.Conn {
 	ctx, cancel := context.WithTimeout(f.ctx, 45*time.Second)
 	defer cancel()
 
-	wsURL := url.URL{Scheme: "ws", Host: f.proxyAddr, Path: path}
-	// coder/websocket consumes the response body internally
-	//nolint:bodyclose // Response body is handled by coder/websocket library
-	conn, resp, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
-		HTTPHeader: http.Header{"Host": []string{host}},
+	wsURL := url.URL{Scheme: "ws", Host: host, Path: path}
+	conn, _, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
+		HTTPClient: &http.Client{
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return (&net.Dialer{
+						Timeout: 10 * time.Second,
+					}).DialContext(ctx, network, f.proxyAddr)
+				},
+			},
+		},
 	})
 	if err != nil {
 		f.t.Fatalf("WebSocket dial to %s%s failed: %v", host, path, err)
 	}
-	_ = resp
 	f.t.Cleanup(func() { _ = conn.Close(websocket.StatusNormalClosure, "") })
 
 	return conn
