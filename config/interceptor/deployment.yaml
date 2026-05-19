@@ -5,21 +5,15 @@ metadata:
 spec:
   replicas: 1
   selector:
-    # TODO: selector labels are immutable and must match v0.12.1 for upgrade
-    # compatibility. Fix to use name/component/part-of when a breaking change
-    # is acceptable (requires delete+recreate of deployments).
     matchLabels:
-      app.kubernetes.io/component: add-on
-      app.kubernetes.io/instance: interceptor
-      app.kubernetes.io/name: http
+      app.kubernetes.io/component: interceptor
+      app.kubernetes.io/name: http-add-on
       app.kubernetes.io/part-of: keda
   template:
     metadata:
-      # TODO: must match selector.matchLabels above, fix together
       labels:
-        app.kubernetes.io/component: add-on
-        app.kubernetes.io/instance: interceptor
-        app.kubernetes.io/name: http
+        app.kubernetes.io/component: interceptor
+        app.kubernetes.io/name: http-add-on
         app.kubernetes.io/part-of: keda
     spec:
       containers:

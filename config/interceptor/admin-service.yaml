@@ -3,12 +3,9 @@ kind: Service
 metadata:
   name: interceptor-admin
 spec:
-  # TODO: selector must match pod template labels, fix together with
-  # deployment selector.matchLabels when breaking change is acceptable.
   selector:
-    app.kubernetes.io/component: add-on
-    app.kubernetes.io/instance: interceptor
-    app.kubernetes.io/name: http
+    app.kubernetes.io/component: interceptor
+    app.kubernetes.io/name: http-add-on
     app.kubernetes.io/part-of: keda
   ports:
     - name: admin
