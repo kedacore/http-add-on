@@ -147,7 +147,7 @@ func (f *Framework) WebSocketDial(host, path string) *websocket.Conn {
 	defer cancel()
 
 	wsURL := url.URL{Scheme: "ws", Host: host, Path: path}
-	conn, _, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
+	conn, resp, err := websocket.Dial(ctx, wsURL.String(), &websocket.DialOptions{
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -161,6 +161,7 @@ func (f *Framework) WebSocketDial(host, path string) *websocket.Conn {
 	if err != nil {
 		f.t.Fatalf("WebSocket dial to %s%s failed: %v", host, path, err)
 	}
+	_ = resp
 	f.t.Cleanup(func() { _ = conn.Close(websocket.StatusNormalClosure, "") })
 
 	return conn
