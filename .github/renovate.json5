@@ -87,6 +87,14 @@
       matchFileNames: [".devcontainer/**"],
       pinDigests: false,
     },
+    // slsa-github-generator reusable workflows and actions must be referenced
+    // by semver tag (not digest) per the SLSA spec and project guidance:
+    // https://github.com/slsa-framework/slsa-github-generator/blob/4d014fae4dbd39eb09e8d40348b73db095e6ba9a/RENOVATE.md
+    {
+      matchManagers: ["github-actions"],
+      matchPackageNames: ["slsa-framework/slsa-github-generator"],
+      pinDigests: false,
+    },
   ],
   customManagers: [
     {

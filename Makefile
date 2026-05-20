@@ -17,13 +17,15 @@ GIT_COMMIT       ?= $(shell git rev-list -1 HEAD)
 GIT_COMMIT_SHORT ?= $(shell git rev-parse --short HEAD)
 DATE             ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-IMAGE_OPERATOR_VERSIONED_TAG     ?= $(IMAGE_OPERATOR):$(VERSION)
-IMAGE_INTERCEPTOR_VERSIONED_TAG  ?= $(IMAGE_INTERCEPTOR):$(VERSION)
-IMAGE_SCALER_VERSIONED_TAG       ?= $(IMAGE_SCALER):$(VERSION)
+# Digest refs for cosign signing. Must be set by CI after ko-publish-*.
+# IMAGE_OPERATOR / IMAGE_INTERCEPTOR / IMAGE_SCALER must also be set.
+IMAGE_OPERATOR_DIGEST     ?=
+IMAGE_INTERCEPTOR_DIGEST  ?=
+IMAGE_SCALER_DIGEST       ?=
 
-IMAGE_OPERATOR_SHA_TAG     ?= $(IMAGE_OPERATOR):$(GIT_COMMIT_SHORT)
-IMAGE_INTERCEPTOR_SHA_TAG  ?= $(IMAGE_INTERCEPTOR):$(GIT_COMMIT_SHORT)
-IMAGE_SCALER_SHA_TAG       ?= $(IMAGE_SCALER):$(GIT_COMMIT_SHORT)
+IMAGE_OPERATOR_REF     := $(IMAGE_OPERATOR)@$(IMAGE_OPERATOR_DIGEST)
+IMAGE_INTERCEPTOR_REF  := $(IMAGE_INTERCEPTOR)@$(IMAGE_INTERCEPTOR_DIGEST)
+IMAGE_SCALER_REF       := $(IMAGE_SCALER)@$(IMAGE_SCALER_DIGEST)
 
 KO_RELEASE_PLATFORMS ?= linux/amd64,linux/arm64
 
@@ -265,32 +267,39 @@ undeploy:
 # Publish, release & signing                     #
 ##################################################
 
-publish-operator:
-	# --bare preserves image names like ghcr.io/kedacore/http-add-on-operator
-	KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./operator
+ko-publish-operator: ## Publish operator image; prints image@sha256:digest to stdout. Build errors go to stderr.
+	KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT) ./operator
 
-publish-interceptor:
-	KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./interceptor
+ko-publish-interceptor: ## Publish interceptor image; prints image@sha256:digest to stdout. Build errors go to stderr.
+	KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT) ./interceptor
 
-publish-scaler:
-	KO_DOCKER_REPO=$(IMAGE_SCALER) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./scaler
+ko-publish-scaler: ## Publish scaler image; prints image@sha256:digest to stdout. Build errors go to stderr.
+	KO_DOCKER_REPO=$(IMAGE_SCALER) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT) ./scaler
 
-publish: publish-operator publish-interceptor publish-scaler
-
-release: manifests ## Produce new KEDA Http Add-on release in keda-add-ons-http-$(VERSION).yaml file.
+generate-manifests: ## Generate deployment YAML with pinned digest refs (requires OPERATOR_REF, INTERCEPTOR_REF, SCALER_REF).
 	kustomize build config/crd > keda-add-ons-http-$(VERSION).yaml
 	echo '---' >> keda-add-ons-http-$(VERSION).yaml
-	kustomize build config/operator | KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	kustomize build config/operator \
+	  | sed "s|ko://github.com/kedacore/http-add-on/operator|$(OPERATOR_REF)|g" \
+	  >> keda-add-ons-http-$(VERSION).yaml
 	echo '---' >> keda-add-ons-http-$(VERSION).yaml
-	kustomize build config/interceptor | KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	kustomize build config/interceptor \
+	  | sed "s|ko://github.com/kedacore/http-add-on/interceptor|$(INTERCEPTOR_REF)|g" \
+	  >> keda-add-ons-http-$(VERSION).yaml
 	echo '---' >> keda-add-ons-http-$(VERSION).yaml
-	kustomize build config/scaler | KO_DOCKER_REPO=$(IMAGE_SCALER) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	kustomize build config/scaler \
+	  | sed "s|ko://github.com/kedacore/http-add-on/scaler|$(SCALER_REF)|g" \
+	  >> keda-add-ons-http-$(VERSION).yaml
 	kustomize build config/crd > keda-add-ons-http-$(VERSION)-crds.yaml
+	@grep -q "sha256:" keda-add-ons-http-$(VERSION).yaml \
+	  || { echo "ERROR: no digest refs in manifest — sed substitution failed"; exit 1; }
+	@! grep -q "ko://" keda-add-ons-http-$(VERSION).yaml \
+	  || { echo "ERROR: manifest still contains ko:// placeholder refs"; exit 1; }
 
 sign-images: ## Sign KEDA images published on GitHub Container Registry
-	cosign sign $(COSIGN_FLAGS) $(IMAGE_OPERATOR_VERSIONED_TAG)
-	cosign sign $(COSIGN_FLAGS) $(IMAGE_OPERATOR_SHA_TAG)
-	cosign sign $(COSIGN_FLAGS) $(IMAGE_INTERCEPTOR_VERSIONED_TAG)
-	cosign sign $(COSIGN_FLAGS) $(IMAGE_INTERCEPTOR_SHA_TAG)
-	cosign sign $(COSIGN_FLAGS) $(IMAGE_SCALER_VERSIONED_TAG)
-	cosign sign $(COSIGN_FLAGS) $(IMAGE_SCALER_SHA_TAG)
+	@[ -n "$(IMAGE_OPERATOR_DIGEST)" ]    || { echo "ERROR: IMAGE_OPERATOR_DIGEST is not set";    exit 1; }
+	@[ -n "$(IMAGE_INTERCEPTOR_DIGEST)" ] || { echo "ERROR: IMAGE_INTERCEPTOR_DIGEST is not set"; exit 1; }
+	@[ -n "$(IMAGE_SCALER_DIGEST)" ]      || { echo "ERROR: IMAGE_SCALER_DIGEST is not set";      exit 1; }
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_OPERATOR_REF)
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_INTERCEPTOR_REF)
+	cosign sign $(COSIGN_FLAGS) $(IMAGE_SCALER_REF)
