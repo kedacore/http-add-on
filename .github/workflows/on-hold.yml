@@ -1,0 +1,22 @@
+name: On Hold
+on:
+  pull_request:
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-hold-label:
+    name: Block PR if on hold
+    runs-on: ubuntu-slim
+    steps:
+      - name: Fail if PR has 'on hold' label
+        if: contains(github.event.pull_request.labels.*.name, 'on hold')
+        run: |
+          echo "::error::This PR is on hold. Remove the 'on hold' label to unblock merging."
+          exit 1
