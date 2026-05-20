@@ -7,7 +7,7 @@ tool sigs.k8s.io/controller-tools/cmd/controller-gen
 require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/cert-manager/cert-manager v1.19.5
-	github.com/coder/websocket v1.8.12
+	github.com/coder/websocket v1.8.14
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
