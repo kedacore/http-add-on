@@ -60,8 +60,9 @@ func main() {
 	}
 
 	ctrlCache, err := cache.New(k8sCfg, cache.Options{
-		Scheme:     kedacache.NewScheme(),
-		SyncPeriod: &cfg.CacheSyncPeriod,
+		DefaultTransform: cache.TransformStripManagedFields(),
+		Scheme:           kedacache.NewScheme(),
+		SyncPeriod:       &cfg.CacheSyncPeriod,
 	})
 	if err != nil {
 		setupLog.Error(err, "creating cache")

@@ -118,6 +118,7 @@ func main() {
 		RetryPeriod:                   baseConfig.RetryPeriod,
 		Cache: cache.Options{
 			DefaultNamespaces: namespaces,
+			DefaultTransform:  cache.TransformStripManagedFields(),
 		},
 	})
 	if err != nil {
