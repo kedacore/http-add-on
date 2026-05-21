@@ -94,8 +94,9 @@ func main() {
 	ctx = util.ContextWithLogger(ctx, ctrl.Log)
 
 	cacheOpts := cache.Options{
-		Scheme:     kedacache.NewScheme(),
-		SyncPeriod: &servingCfg.CacheSyncPeriod,
+		DefaultTransform: cache.TransformStripManagedFields(),
+		Scheme:           kedacache.NewScheme(),
+		SyncPeriod:       &servingCfg.CacheSyncPeriod,
 	}
 	if servingCfg.WatchNamespace != "" {
 		cacheOpts.DefaultNamespaces = map[string]cache.Config{
