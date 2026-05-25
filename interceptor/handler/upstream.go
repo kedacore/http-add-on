@@ -68,7 +68,7 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	transport := uh.transportPool.Get(responseHeaderTimeout)
+	transport := uh.transportPool.Get(responseHeaderTimeout, util.UpstreamServerNameFromContext(ctx))
 
 	var rt http.RoundTripper = transport
 	if uh.tracingCfg.Enabled {
