@@ -13,7 +13,7 @@ import (
 
 const (
 	meterName   = "keda-interceptor-proxy"
-	serviceName = "interceptor-proxy"
+	ServiceName = "keda-http-interceptor"
 
 	MetricRequestConcurrency = "interceptor.request.concurrency"
 	MetricRequestCount       = "interceptor.request.count"

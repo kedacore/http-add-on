@@ -45,6 +45,8 @@ spec:
           ports:
             - name: grpc
               containerPort: 9090
+            - name: metrics
+              containerPort: 2223
           livenessProbe:
             grpc:
               port: 9090

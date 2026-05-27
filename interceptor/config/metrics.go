@@ -1,21 +1,9 @@
 package config
 
 import (
-	"github.com/caarlos0/env/v11"
+	"github.com/kedacore/http-add-on/pkg/observability"
 )
 
-// Metrics is the configuration for configuring metrics in the interceptor.
-type Metrics struct {
-	// Sets whether or not to enable the Prometheus metrics exporter
-	OtelPrometheusExporterEnabled bool `env:"OTEL_PROM_EXPORTER_ENABLED" envDefault:"true"`
-	// Sets the port which the Prometheus compatible metrics endpoint should be served on
-	OtelPrometheusExporterPort int `env:"OTEL_PROM_EXPORTER_PORT" envDefault:"2223"`
-	// Sets whether or not to enable the OTEL metrics exporter
-	OtelHTTPExporterEnabled bool `env:"OTEL_EXPORTER_OTLP_METRICS_ENABLED" envDefault:"false"`
-}
-
-// MustParseMetrics parses standard configs and returns the
-// newly created config. Panics if parsing fails.
-func MustParseMetrics() Metrics {
-	return env.Must(env.ParseAs[Metrics]())
-}
+// Metrics is an alias for the shared observability metrics config.
+// Kept to avoid refactoring all existing interceptor code that references config.Metrics.
+type Metrics = observability.MetricsConfig

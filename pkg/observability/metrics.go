@@ -1,4 +1,4 @@
-package metrics
+package observability
 
 import (
 	"context"
@@ -10,13 +10,12 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 
-	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/pkg/build"
 )
 
 // NewMeterProvider creates a MeterProvider with Prometheus and/or OTLP readers.
 // Without readers, all instrument operations become no-ops.
-func NewMeterProvider(cfg config.Metrics, opts ...sdkmetric.Option) (*sdkmetric.MeterProvider, error) {
+func NewMeterProvider(serviceName string, cfg MetricsConfig, opts ...sdkmetric.Option) (*sdkmetric.MeterProvider, error) {
 	var options []sdkmetric.Option
 
 	if cfg.OtelPrometheusExporterEnabled {

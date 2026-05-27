@@ -32,6 +32,7 @@ import (
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/observability"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -49,8 +50,8 @@ func main() {
 	defer os.Exit(1)
 	timeoutCfg := config.MustParseTimeouts(setupLog)
 	servingCfg := config.MustParseServing()
-	metricsCfg := config.MustParseMetrics()
-	tracingCfg := config.MustParseTracing()
+	metricsCfg := observability.MustParseMetricsConfig()
+	tracingCfg := observability.MustParseTracingConfig()
 
 	opts := zap.Options{
 		Development: true,
@@ -73,7 +74,7 @@ func main() {
 	proxyTLSEnabled := servingCfg.ProxyTLSEnabled
 	profilingAddr := servingCfg.ProfilingAddr
 
-	provider, err := metrics.NewMeterProvider(metricsCfg)
+	provider, err := observability.NewMeterProvider(metrics.ServiceName, metricsCfg)
 	if err != nil {
 		setupLog.Error(err, "failed to create meter provider")
 		runtime.Goexit()
