@@ -86,12 +86,62 @@ spec:
                     required:
                     - service
                     type: object
-                required:
-                - fallback
+                  placeholder:
+                    description: Placeholder response to serve while the target has
+                      no ready endpoints.
+                    properties:
+                      response:
+                        description: Static response to return immediately when the
+                          backend has no ready endpoints.
+                        properties:
+                          body:
+                            description: Inline response body.
+                            maxLength: 32768
+                            type: string
+                          bodyFromConfigMap:
+                            description: |-
+                              Response body from a ConfigMap in the same namespace. The ConfigMap must
+                              carry the label "http.keda.sh/response-body: true". A missing ConfigMap
+                              or a missing explicit key returns HTTP 500.
+                            properties:
+                              key:
+                                description: |-
+                                  Key within the ConfigMap. When omitted, the key is the request path
+                                  without the leading "/" (defaulting to "index.html" for "/").
+                                  The Content-Type header is auto-detected from the key's file extension
+                                  unless explicitly set in headers.
+                                type: string
+                              name:
+                                description: Name of the ConfigMap.
+                                minLength: 1
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          headers:
+                            additionalProperties:
+                              type: string
+                            description: HTTP response headers.
+                            type: object
+                          statusCode:
+                            default: 503
+                            description: HTTP status code.
+                            format: int32
+                            maximum: 599
+                            minimum: 100
+                            type: integer
+                        type: object
+                        x-kubernetes-validations:
+                        - message: at most one of 'body' or 'bodyFromConfigMap' may
+                            be set
+                          rule: '!(has(self.body) && has(self.bodyFromConfigMap))'
+                    required:
+                    - response
+                    type: object
                 type: object
                 x-kubernetes-validations:
-                - message: '''fallback'' must be set'
-                  rule: has(self.fallback)
+                - message: at least one of 'fallback' or 'placeholder' must be set
+                  rule: has(self.fallback) || has(self.placeholder)
               rules:
                 description: Routing rules that define how requests are matched to
                   this target.
