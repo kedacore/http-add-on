@@ -15,6 +15,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/errgroup"
+	corev1 "k8s.io/api/core/v1"
 	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -31,6 +32,7 @@ import (
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/observability"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -41,14 +43,15 @@ var setupLog = ctrl.Log.WithName("setup")
 // +kubebuilder:rbac:groups=http.keda.sh,resources=httpscaledobjects,verbs=get;list;watch
 // +kubebuilder:rbac:groups=http.keda.sh,resources=interceptorroutes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 
 func main() {
 	defer os.Exit(1)
 	timeoutCfg := config.MustParseTimeouts(setupLog)
 	servingCfg := config.MustParseServing()
-	metricsCfg := config.MustParseMetrics()
-	tracingCfg := config.MustParseTracing()
+	metricsCfg := observability.MustParseMetricsConfig()
+	tracingCfg := observability.MustParseTracingConfig()
 
 	opts := zap.Options{
 		Development: true,
@@ -71,7 +74,7 @@ func main() {
 	proxyTLSEnabled := servingCfg.ProxyTLSEnabled
 	profilingAddr := servingCfg.ProfilingAddr
 
-	provider, err := metrics.NewMeterProvider(metricsCfg)
+	provider, err := observability.NewMeterProvider(metrics.ServiceName, metricsCfg)
 	if err != nil {
 		setupLog.Error(err, "failed to create meter provider")
 		runtime.Goexit()
@@ -94,8 +97,16 @@ func main() {
 	ctx = util.ContextWithLogger(ctx, ctrl.Log)
 
 	cacheOpts := cache.Options{
-		Scheme:     kedacache.NewScheme(),
-		SyncPeriod: &servingCfg.CacheSyncPeriod,
+		DefaultTransform: cache.TransformStripManagedFields(),
+		Scheme:           kedacache.NewScheme(),
+		SyncPeriod:       &servingCfg.CacheSyncPeriod,
+		// Scope the ConfigMap informer to only cache labeled ConfigMaps,
+		// avoiding cluster-wide caching of all ConfigMaps on first Get.
+		ByObject: map[client.Object]cache.ByObject{
+			&corev1.ConfigMap{}: {
+				Label: k8s.ResponseBodyLabels.AsSelector(),
+			},
+		},
 	}
 	if servingCfg.WatchNamespace != "" {
 		cacheOpts.DefaultNamespaces = map[string]cache.Config{

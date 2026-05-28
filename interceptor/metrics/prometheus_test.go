@@ -11,7 +11,7 @@ import (
 	promexporter "go.opentelemetry.io/otel/exporters/prometheus"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 
-	"github.com/kedacore/http-add-on/interceptor/config"
+	"github.com/kedacore/http-add-on/pkg/observability"
 )
 
 func testRegistry(t *testing.T) (*prometheus.Registry, *Instruments) {
@@ -26,12 +26,13 @@ func testRegistry(t *testing.T) (*prometheus.Registry, *Instruments) {
 		t.Fatalf("creating prometheus exporter: %v", err)
 	}
 
-	provider, err := NewMeterProvider(
-		config.Metrics{OtelPrometheusExporterEnabled: false},
+	provider, err := observability.NewMeterProvider(
+		ServiceName,
+		observability.MetricsConfig{OtelPrometheusExporterEnabled: false},
 		sdkmetric.WithReader(exporter),
 	)
 	if err != nil {
-		t.Fatalf("NewMeterProvider() error: %v", err)
+		t.Fatalf("observability.NewMeterProvider() error: %v", err)
 	}
 	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
 
