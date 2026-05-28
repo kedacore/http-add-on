@@ -8,7 +8,6 @@ spec:
     matchLabels:
       app.kubernetes.io/component: interceptor
       app.kubernetes.io/name: http-add-on
-      app.kubernetes.io/part-of: keda
   template:
     metadata:
       labels:
