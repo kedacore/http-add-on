@@ -6,7 +6,6 @@ spec:
   selector:
     app.kubernetes.io/component: scaler
     app.kubernetes.io/name: http-add-on
-    app.kubernetes.io/part-of: keda
   ports:
     - name: grpc
       protocol: TCP
