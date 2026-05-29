@@ -16,18 +16,32 @@ import (
 func TestServe(t *testing.T) {
 	cert, caPool := testutil.GenerateCert(t, []string{"localhost"}, []net.IP{net.IPv4(127, 0, 0, 1)})
 
+	var http2Proto http.Protocols
+	http2Proto.SetUnencryptedHTTP2(true)
+	http2Proto.SetHTTP2(true)
+
 	tests := map[string]struct {
-		serverTLS *tls.Config
-		clientTLS *tls.Config
+		serverTLS   *tls.Config
+		clientTLS   *tls.Config
+		clientProto *http.Protocols
+		wantProto   int
 	}{
-		"plain HTTP": {},
-		"TLS": {
+		"plain HTTP": {
+			wantProto: 1,
+		},
+		"h2c": {
+			clientProto: &http2Proto,
+			wantProto:   2,
+		},
+		"h2 over TLS": {
 			serverTLS: &tls.Config{
 				Certificates: []tls.Certificate{cert},
 			},
 			clientTLS: &tls.Config{
 				RootCAs: caPool,
 			},
+			clientProto: &http2Proto,
+			wantProto:   2,
 		},
 	}
 
@@ -40,7 +54,9 @@ func TestServe(t *testing.T) {
 			}
 
 			// Launch the server
+			var serverProtoMajor int
 			hdl := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				serverProtoMajor = r.ProtoMajor
 				w.WriteHeader(http.StatusOK)
 			})
 			go func() {
@@ -55,7 +71,10 @@ func TestServe(t *testing.T) {
 			if tc.clientTLS != nil {
 				scheme = "https"
 			}
-			client := &http.Client{Transport: &http.Transport{TLSClientConfig: tc.clientTLS}}
+			client := &http.Client{Transport: &http.Transport{
+				TLSClientConfig: tc.clientTLS,
+				Protocols:       tc.clientProto,
+			}}
 
 			resp, err := client.Get(scheme + "://" + ln.Addr().String())
 			if err != nil {
@@ -69,6 +88,9 @@ func TestServe(t *testing.T) {
 			}
 			if tc.serverTLS != nil && resp.TLS == nil {
 				t.Fatal("expected TLS connection, but resp.TLS is nil")
+			}
+			if serverProtoMajor != tc.wantProto {
+				t.Fatalf("server saw HTTP/%d, want HTTP/%d", serverProtoMajor, tc.wantProto)
 			}
 		})
 	}

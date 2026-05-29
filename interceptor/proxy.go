@@ -64,17 +64,16 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	}
 
 	// Clone DefaultTransport to inherit Go's defaults for IdleConnTimeout, ...
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DialContext = dialFunc
-	transport.ForceAttemptHTTP2 = cfg.Timeouts.ForceHTTP2
-	transport.MaxIdleConns = cfg.Timeouts.MaxIdleConns
-	transport.MaxIdleConnsPerHost = cfg.Timeouts.MaxIdleConnsPerHost
-	transport.TLSClientConfig = forwardingTLSCfg
+	baseTransport := http.DefaultTransport.(*http.Transport).Clone()
+	baseTransport.DialContext = dialFunc
+	baseTransport.MaxIdleConns = cfg.Timeouts.MaxIdleConns
+	baseTransport.MaxIdleConnsPerHost = cfg.Timeouts.MaxIdleConnsPerHost
+	baseTransport.TLSClientConfig = forwardingTLSCfg
 
 	// Build handler chain (innermost to outermost)
 	var h http.Handler
 
-	h = handler.NewUpstream(transport, cfg.Tracing, cfg.Timeouts.ResponseHeader)
+	h = handler.NewUpstream(baseTransport, cfg.Tracing, cfg.Timeouts.ResponseHeader)
 
 	h = middleware.NewEndpointResolver(h, cfg.ReadyCache, middleware.EndpointResolverConfig{
 		ReadinessTimeout:      cfg.Timeouts.Readiness,

@@ -35,6 +35,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **General**: Add s390x to supported release platforms ([#1662](https://github.com/kedacore/http-add-on/issues/1662))
 - **General**: Add `coldStart.placeholder` support for returning static HTTP responses during scale-from-zero ([#874](https://github.com/kedacore/http-add-on/issues/874))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Add HTTP/2 support (h2c and h2 over TLS), enabling autoscaling of gRPC workloads ([#1084](https://github.com/kedacore/http-add-on/issues/1084))
 - **Scaler**: Add OpenTelemetry metrics and distributed tracing to the external scaler ([#965](https://github.com/kedacore/http-add-on/issues/965))
 
 ### Improvements
@@ -51,6 +52,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Deprecations
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Remove `KEDA_HTTP_FORCE_HTTP2` environment variable. This is not a breaking change — HTTP/2 is now negotiated automatically. ([#1084](https://github.com/kedacore/http-add-on/issues/1084))
 - **Operator**: Rename `KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE` and `KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT` environment variables to `KEDA_HTTP_OPERATOR_EXTERNAL_SCALER_SERVICE` and `KEDA_HTTP_OPERATOR_EXTERNAL_SCALER_PORT`. Old names are still accepted but log a deprecation warning and will be removed in a future release. ([#1623](https://github.com/kedacore/http-add-on/issues/1623))
 
 ### Other

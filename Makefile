@@ -170,6 +170,10 @@ e2e-test-ci: ## Run all e2e tests (CI mode with retries)
 # -parallel 4 limits concurrent tests to avoid overwhelming the kubelet port-forward
 	gotestsum --rerun-fails=2 --format=github-actions --packages="./test/e2e/..." -- -tags e2e -p 1 -count=1 -timeout 30m -v -parallel 4
 
+e2e-test-images: ## Build all test images under test/images/ and push to $KO_DOCKER_REPO
+	# --base-import-paths prevents the hash suffix in image names
+	ko build --base-import-paths ./test/images/*/
+
 e2e-deps: e2e-deps-cert-manager e2e-deps-jaeger e2e-deps-keda e2e-deps-otel-collector ## Install all e2e dependencies
 
 e2e-deps-cert-manager:
@@ -198,13 +202,16 @@ e2e-deps-otel-collector:
 		-f test/fixtures/otel-values.yaml \
 		--version $(OTEL_COLLECTOR_VERSION) --wait)
 
-e2e-setup: e2e-deps deploy ## Full e2e setup: install deps + deploy http-add-on
+e2e-setup: e2e-deps deploy e2e-test-images ## Full e2e setup: install deps + deploy http-add-on + build test images
 
 ##################################################
 # Code generation & manifests                    #
 ##################################################
 
 generate: codegen manifests  ## Generate code and manifests.
+
+generate-proto: ## Generate protobuf and gRPC stubs only used in e2e test images
+	buf generate
 
 codegen: ## Generate DeepCopy method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'

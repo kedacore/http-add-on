@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package echo;
+
+option go_package = "github.com/kedacore/http-add-on/test/images/grpc-echo/proto";
+
+service EchoService {
+  rpc Echo(EchoRequest) returns (EchoResponse) {}
+  rpc EchoStream(stream EchoRequest) returns (stream EchoResponse) {}
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoResponse {
+  string message = 1;
+  string hostname = 2;
+  string protocol = 3;
+}

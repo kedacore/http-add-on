@@ -24,16 +24,20 @@ var (
 )
 
 type Upstream struct {
-	transportPool         *kedahttp.TransportPool
-	tracingCfg            config.Tracing
-	responseHeaderTimeout time.Duration
+	defaultTransportPool   *kedahttp.TransportPool
+	http2OnlyTransportPool *kedahttp.TransportPool
+	tracingCfg             config.Tracing
+	responseHeaderTimeout  time.Duration
 }
 
 func NewUpstream(baseTransport *http.Transport, tracingCfg config.Tracing, responseHeaderTimeout time.Duration) *Upstream {
+	defaultTransport, http2OnlyTransport := kedahttp.NewTransports(baseTransport)
+
 	return &Upstream{
-		transportPool:         kedahttp.NewTransportPool(baseTransport),
-		tracingCfg:            tracingCfg,
-		responseHeaderTimeout: responseHeaderTimeout,
+		defaultTransportPool:   kedahttp.NewTransportPool(defaultTransport),
+		http2OnlyTransportPool: kedahttp.NewTransportPool(http2OnlyTransport),
+		tracingCfg:             tracingCfg,
+		responseHeaderTimeout:  responseHeaderTimeout,
 	}
 }
 
@@ -68,7 +72,11 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	transport := uh.transportPool.Get(responseHeaderTimeout)
+	pool := uh.defaultTransportPool
+	if r.ProtoMajor == 2 {
+		pool = uh.http2OnlyTransportPool
+	}
+	transport := pool.Get(responseHeaderTimeout)
 
 	var rt http.RoundTripper = transport
 	if uh.tracingCfg.Enabled {

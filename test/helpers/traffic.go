@@ -14,6 +14,11 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+
+	echopb "github.com/kedacore/http-add-on/test/images/grpc-echo/proto"
 )
 
 type Request struct {
@@ -163,6 +168,34 @@ func (f *Framework) WebSocketDial(host, path string) *websocket.Conn {
 	f.t.Cleanup(func() { _ = conn.Close(websocket.StatusNormalClosure, "") })
 
 	return conn
+}
+
+// GRPCEchoClient creates a gRPC client for the echo.EchoService service that
+// dials through the interceptor proxy. The authority header is set to host for
+// routing. The connection is closed via t.Cleanup.
+func (f *Framework) GRPCEchoClient(host string, tlsConfig *tls.Config) echopb.EchoServiceClient {
+	f.t.Helper()
+
+	var creds grpc.DialOption
+	if tlsConfig != nil {
+		creds = grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))
+	} else {
+		creds = grpc.WithTransportCredentials(insecure.NewCredentials())
+	}
+
+	// passthrough:/// tells gRPC to use the address literally without DNS
+	// resolution, so we can dial our port-forwarded proxy address directly.
+	conn, err := grpc.NewClient(
+		"passthrough:///"+f.proxyAddr,
+		creds,
+		grpc.WithAuthority(host),
+	)
+	if err != nil {
+		f.t.Fatalf("failed to create gRPC client: %v", err)
+	}
+	f.t.Cleanup(func() { _ = conn.Close() })
+
+	return echopb.NewEchoServiceClient(conn)
 }
 
 type whoamiResult struct {

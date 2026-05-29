@@ -63,10 +63,16 @@ func serve(ctx context.Context, ln net.Listener, cfg ServerConfig) error {
 	baseCtx, cancelBase := context.WithCancel(context.Background())
 	defer cancelBase()
 
+	var protocols http.Protocols
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	// Create the actual server
 	srv := &http.Server{
 		Handler:           handler,
 		TLSConfig:         cfg.TLSConfig,
+		Protocols:         &protocols,
 		ReadHeaderTimeout: time.Minute, // mitigate Slowloris attacks
 		BaseContext: func(_ net.Listener) context.Context {
 			return baseCtx
