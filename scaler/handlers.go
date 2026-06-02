@@ -223,18 +223,25 @@ func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externals
 
 		count := e.pinger.count(key)
 
+		// KEDA sets metricName per metric; empty means return all (used by IsActive).
+		requestedMetric := metricRequest.GetMetricName()
+
 		var metricValues []*externalscaler.MetricValue
-		if ir.Spec.ScalingMetric.Concurrency != nil {
+		if ir.Spec.ScalingMetric.Concurrency != nil && (requestedMetric == "" || requestedMetric == ConcurrencyMetricName(irName)) {
 			metricValues = append(metricValues, &externalscaler.MetricValue{
 				MetricName:       ConcurrencyMetricName(irName),
 				MetricValueFloat: float64(count.Concurrency),
 			})
 		}
-		if ir.Spec.ScalingMetric.RequestRate != nil {
+		if ir.Spec.ScalingMetric.RequestRate != nil && (requestedMetric == "" || requestedMetric == RateMetricName(irName)) {
 			metricValues = append(metricValues, &externalscaler.MetricValue{
 				MetricName:       RateMetricName(irName),
 				MetricValueFloat: count.RequestRate,
 			})
+		}
+
+		if requestedMetric != "" && len(metricValues) == 0 {
+			lggr.V(1).Info("requested metric not found", "metricName", requestedMetric, "interceptorRouteName", irName)
 		}
 
 		return &externalscaler.GetMetricsResponse{

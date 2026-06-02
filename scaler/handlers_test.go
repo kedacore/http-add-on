@@ -235,6 +235,69 @@ func TestGetMetrics(t *testing.T) {
 			t.Fatal("expected error, got nil")
 		}
 	})
+
+	t.Run("filters by requested metric name", func(t *testing.T) {
+		ir := newTestInterceptorRoute(httpv1beta1.ScalingMetricSpec{
+			Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 3},
+			RequestRate: &httpv1beta1.RequestRateTargetSpec{TargetValue: 4},
+		})
+		hdl := newTestScalerHandler(t, ir, aggregatedCount{Concurrency: 12, RequestRate: 24})
+
+		tests := map[string]struct {
+			metricName string
+			want       []*externalscaler.MetricValue
+		}{
+			"request concurrency only": {
+				metricName: testIRConcurrencyMetric,
+				want: []*externalscaler.MetricValue{
+					{MetricName: testIRConcurrencyMetric, MetricValueFloat: 12},
+				},
+			},
+			"request rate only": {
+				metricName: testIRRateMetric,
+				want: []*externalscaler.MetricValue{
+					{MetricName: testIRRateMetric, MetricValueFloat: 24},
+				},
+			},
+			"empty metric name returns all": {
+				metricName: "",
+				want: []*externalscaler.MetricValue{
+					{MetricName: testIRConcurrencyMetric, MetricValueFloat: 12},
+					{MetricName: testIRRateMetric, MetricValueFloat: 24},
+				},
+			},
+			"unknown metric name returns empty": {
+				metricName: "http_test-ir_unknown",
+				want:       []*externalscaler.MetricValue{},
+			},
+		}
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				req := &externalscaler.GetMetricsRequest{
+					ScaledObjectRef: testScaledObjectRef,
+					MetricName:      tc.metricName,
+				}
+				resp, err := hdl.GetMetrics(t.Context(), req)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				values := resp.GetMetricValues()
+				if got, want := len(values), len(tc.want); got != want {
+					t.Fatalf("got %d metric values, want %d", got, want)
+				}
+
+				for i, v := range values {
+					if got, want := v.MetricName, tc.want[i].MetricName; got != want {
+						t.Errorf("values[%d].MetricName = %q, want %q", i, got, want)
+					}
+					if got, want := v.MetricValueFloat, tc.want[i].MetricValueFloat; got != want {
+						t.Errorf("values[%d].MetricValueFloat = %v, want %v", i, got, want)
+					}
+				}
+			})
+		}
+	})
 }
 
 func TestIsActive(t *testing.T) {
