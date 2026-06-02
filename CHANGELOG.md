@@ -32,6 +32,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
+- **General**: Add s390x to supported release platforms ([#1662](https://github.com/kedacore/http-add-on/issues/1662))
 - **General**: Add `coldStart.placeholder` support for returning static HTTP responses during scale-from-zero ([#874](https://github.com/kedacore/http-add-on/issues/874))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Scaler**: Add OpenTelemetry metrics and distributed tracing to the external scaler ([#965](https://github.com/kedacore/http-add-on/issues/965))
