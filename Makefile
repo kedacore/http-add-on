@@ -25,7 +25,7 @@ IMAGE_OPERATOR_SHA_TAG     ?= $(IMAGE_OPERATOR):$(GIT_COMMIT_SHORT)
 IMAGE_INTERCEPTOR_SHA_TAG  ?= $(IMAGE_INTERCEPTOR):$(GIT_COMMIT_SHORT)
 IMAGE_SCALER_SHA_TAG       ?= $(IMAGE_SCALER):$(GIT_COMMIT_SHORT)
 
-KO_RELEASE_PLATFORMS ?= linux/amd64,linux/arm64
+KO_RELEASE_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 
 # renovate: datasource=helm depName=cert-manager registryUrl=https://charts.jetstack.io
 CERT_MANAGER_VERSION ?= v1.20.2
