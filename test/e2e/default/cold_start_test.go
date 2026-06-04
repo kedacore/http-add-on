@@ -5,6 +5,7 @@ package default_test
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,6 +47,18 @@ func TestColdStart(t *testing.T) {
 
 			f.AssertStatus(h.Request{Host: f.Hostname()}, http.StatusOK)
 			f.WaitForReplicas(app, 1)
+
+			return ctx
+		}).
+		Assess("POST with body returns 200", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			f := h.NewFramework(ctx, t)
+
+			f.AssertStatus(h.Request{
+				Method:  http.MethodPost,
+				Host:    f.Hostname(),
+				Headers: map[string]string{"Content-Type": "application/json"},
+				Body:    strings.NewReader(`{"key":"value"}`),
+			}, http.StatusOK)
 
 			return ctx
 		}).

@@ -2,12 +2,15 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -466,6 +469,55 @@ func TestUpstream_RouteSpecResponseHeaderOverride(t *testing.T) {
 
 	r.Equal(http.StatusGatewayTimeout, res.Code)
 	close(originWaitCh)
+}
+
+// TestFullDuplexBodyPanic verifies that the upstream handler does not trigger
+// a "invalid concurrent Body.Read call" panic (golang/go#68560) when the
+// reverse proxy's RoundTrip fails without consuming the request body.
+//
+// The panic is recovered by the server and logged via its ErrorLog.
+func TestFullDuplexBodyPanic(t *testing.T) {
+	failingTransport := &http.Transport{
+		DialContext: func(context.Context, string, string) (net.Conn, error) {
+			return nil, errors.New("connection refused")
+		},
+	}
+
+	upstream := NewUpstream(failingTransport, config.Tracing{}, 1*time.Second)
+
+	targetURL, _ := url.Parse("http://fake-backend:8080")
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = r.WithContext(util.ContextWithUpstreamURL(r.Context(), targetURL))
+		upstream.ServeHTTP(w, r)
+	})
+
+	var panicked atomic.Bool
+	srv := httptest.NewUnstartedServer(handler)
+	srv.Config.ErrorLog = log.New(panicLogWriter{onPanic: func() { panicked.Store(true) }}, "", 0)
+	srv.Start()
+	defer srv.Close()
+
+	resp, err := srv.Client().Post(srv.URL+"/test", "application/json", strings.NewReader(`{"key":"value"}`))
+	if err == nil {
+		_ = resp.Body.Close()
+	}
+
+	// The panic fires asynchronously after the response is sent.
+	time.Sleep(5 * time.Millisecond)
+
+	if panicked.Load() {
+		t.Fatal("server panicked with 'invalid concurrent Body.Read call' (golang/go#68560)")
+	}
+}
+
+// panicLogWriter detects panics logged by net/http's server error recovery.
+type panicLogWriter struct{ onPanic func() }
+
+func (w panicLogWriter) Write(p []byte) (int, error) {
+	if strings.Contains(string(p), "panic") {
+		w.onPanic()
+	}
+	return len(p), nil
 }
 
 func newTestTransport(dialCtxFunc kedanet.DialContextFunc) *http.Transport {
