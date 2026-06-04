@@ -48,8 +48,8 @@ func testRegistry(t *testing.T) (*prometheus.Registry, *Instruments) {
 func TestPrometheus_FetchDuration(t *testing.T) {
 	registry, instruments := testRegistry(t)
 
-	instruments.RecordFetch(50*time.Millisecond, 3, nil)
-	instruments.RecordFetch(200*time.Millisecond, 3, nil)
+	instruments.RecordFetch(50*time.Millisecond, 3, 0, nil)
+	instruments.RecordFetch(200*time.Millisecond, 3, 0, nil)
 
 	expected := `
 		# HELP scaler_pinger_fetch_duration_seconds Duration of a queue pinger fetch cycle across all interceptor pods
@@ -78,9 +78,9 @@ func TestPrometheus_FetchDuration(t *testing.T) {
 func TestPrometheus_FetchErrors(t *testing.T) {
 	registry, instruments := testRegistry(t)
 
-	instruments.RecordFetch(10*time.Millisecond, 2, errors.New("connection refused"))
-	instruments.RecordFetch(10*time.Millisecond, 2, nil)
-	instruments.RecordFetch(10*time.Millisecond, 0, errors.New("no endpoints"))
+	instruments.RecordFetch(10*time.Millisecond, 2, 2, errors.New("connection refused"))
+	instruments.RecordFetch(10*time.Millisecond, 2, 0, nil)
+	instruments.RecordFetch(10*time.Millisecond, 0, 0, errors.New("no endpoints"))
 
 	expected := `
 		# HELP scaler_pinger_fetch_errors_total Total failed queue pinger fetch cycles
@@ -92,10 +92,27 @@ func TestPrometheus_FetchErrors(t *testing.T) {
 	}
 }
 
+func TestPrometheus_UnreachablePods(t *testing.T) {
+	registry, instruments := testRegistry(t)
+
+	instruments.RecordFetch(10*time.Millisecond, 3, 1, nil)
+	instruments.RecordFetch(10*time.Millisecond, 3, 0, nil)
+	instruments.RecordFetch(10*time.Millisecond, 3, 2, nil)
+
+	expected := `
+		# HELP scaler_pinger_unreachable_pods Number of interceptor pods that were unreachable in the last fetch cycle
+		# TYPE scaler_pinger_unreachable_pods gauge
+		scaler_pinger_unreachable_pods 2
+	`
+	if err := testutil.CollectAndCompare(registry, strings.NewReader(expected), "scaler_pinger_unreachable_pods"); err != nil {
+		t.Fatalf("unexpected metrics output:\n%v", err)
+	}
+}
+
 func TestPrometheus_Endpoints(t *testing.T) {
 	registry, instruments := testRegistry(t)
 
-	instruments.RecordFetch(10*time.Millisecond, 5, nil)
+	instruments.RecordFetch(10*time.Millisecond, 5, 0, nil)
 
 	expected := `
 		# HELP scaler_pinger_endpoints Number of interceptor endpoints the scaler is polling

@@ -356,6 +356,160 @@ func TestRateComputationCounterReset(t *testing.T) {
 	r.Greater(pinger.allCounts["host1"].RequestRate, 0.0)
 }
 
+func TestFetchCountsPerPod_PartialFailure(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const adminPort = "8081"
+
+	podA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(queue.Counts{
+			"host1": {Concurrency: 5, RequestCount: 100},
+		})
+	}))
+	defer podA.Close()
+
+	// Pod B: unreachable (closed listener, simulates spot node eviction).
+	podBListener, err := net.Listen("tcp", "127.0.0.1:0")
+	r.NoError(err)
+	podBAddr := podBListener.Addr().String()
+	r.NoError(podBListener.Close())
+
+	withPatchedDefaultTransport(t, map[string]string{
+		"pod-a:" + adminPort: podA.Listener.Addr().String(),
+		"pod-b:" + adminPort: podBAddr,
+	})
+
+	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
+		return k8s.Endpoints{
+			ReadyAddresses: []string{"pod-a", "pod-b"},
+		}, nil
+	}
+
+	result, err := fetchCountsPerPod(ctx, logr.Discard(), endpointsFn, "testns", "testsvc", adminPort)
+	r.NoError(err, "one unreachable pod should not fail the entire fetch")
+	r.Len(result.perPod, 1, "should contain results from the reachable pod only")
+	r.Equal(2, result.endpointCount, "endpointCount should reflect all endpoints")
+	r.ElementsMatch([]string{"pod-a:" + adminPort, "pod-b:" + adminPort}, result.endpointKeys)
+
+	counts := result.perPod["pod-a:"+adminPort]
+	r.Equal(5, counts["host1"].Concurrency)
+	r.Equal(int64(100), counts["host1"].RequestCount)
+}
+
+func TestFetchCountsPerPod_AllPodsUnreachable(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const adminPort = "8081"
+
+	// Both pods unreachable.
+	listenerA, err := net.Listen("tcp", "127.0.0.1:0")
+	r.NoError(err)
+	addrA := listenerA.Addr().String()
+	r.NoError(listenerA.Close())
+
+	listenerB, err := net.Listen("tcp", "127.0.0.1:0")
+	r.NoError(err)
+	addrB := listenerB.Addr().String()
+	r.NoError(listenerB.Close())
+
+	withPatchedDefaultTransport(t, map[string]string{
+		"pod-a:" + adminPort: addrA,
+		"pod-b:" + adminPort: addrB,
+	})
+
+	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
+		return k8s.Endpoints{
+			ReadyAddresses: []string{"pod-a", "pod-b"},
+		}, nil
+	}
+
+	_, err = fetchCountsPerPod(ctx, logr.Discard(), endpointsFn, "testns", "testsvc", adminPort)
+	r.Error(err, "should fail when all pods are unreachable")
+	r.Contains(err.Error(), "all 2 interceptor pods were unreachable")
+}
+
+func TestFetchAndSaveCounts_CachedUnreachablePod(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const (
+		ns        = "testns"
+		svcName   = "testsvc"
+		deplName  = "testdepl"
+		adminPort = "8081"
+	)
+
+	podA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(queue.Counts{
+			"host1": {Concurrency: 2, RequestCount: 100},
+		})
+	}))
+	defer podA.Close()
+
+	podBSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(queue.Counts{
+			"host1": {Concurrency: 3, RequestCount: 200},
+		})
+	}))
+	defer podBSrv.Close()
+
+	// Grab pod-b's real address so we can redirect to a closed port later.
+	podBAddr := podBSrv.Listener.Addr().String()
+	closedListener, err := net.Listen("tcp", "127.0.0.1:0")
+	r.NoError(err)
+	closedAddr := closedListener.Addr().String()
+	r.NoError(closedListener.Close())
+
+	withPatchedDefaultTransport(t, map[string]string{
+		"pod-a:" + adminPort: podA.Listener.Addr().String(),
+		"pod-b:" + adminPort: podBAddr,
+	})
+
+	var readyAddrs atomic.Value
+	readyAddrs.Store([]string{"pod-a", "pod-b"})
+
+	pinger := newQueuePinger(
+		logr.Discard(),
+		func(context.Context, string, string) (k8s.Endpoints, error) {
+			addrs := readyAddrs.Load().([]string)
+			return k8s.Endpoints{
+				ReadyAddresses: append([]string(nil), addrs...),
+			}, nil
+		},
+		ns, svcName, deplName, adminPort,
+		metrics.NewNoopInstruments(),
+	)
+
+	// --- Tick 1: both pods reachable ---
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	count := pinger.count("host1")
+	r.Equal(5, count.Concurrency, "should sum concurrency from both pods")
+
+	// --- Tick 2: pod-b becomes unreachable, still in EndpointSlice ---
+	withPatchedDefaultTransport(t, map[string]string{
+		"pod-a:" + adminPort: podA.Listener.Addr().String(),
+		"pod-b:" + adminPort: closedAddr,
+	})
+
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	count = pinger.count("host1")
+	r.Equal(5, count.Concurrency,
+		"cached concurrency from pod-b should be preserved")
+	r.Contains(pinger.cachedPodCounts, "pod-b:"+adminPort,
+		"cached data should still exist for unreachable pod")
+
+	// --- Tick 3: pod-b removed from EndpointSlice ---
+	readyAddrs.Store([]string{"pod-a"})
+
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	count = pinger.count("host1")
+	r.Equal(2, count.Concurrency,
+		"should only have pod-a's concurrency after pod-b leaves EndpointSlice")
+	r.NotContains(pinger.cachedPodCounts, "pod-b:"+adminPort,
+		"cached data should be pruned when pod leaves EndpointSlice")
+	r.NotContains(pinger.prevPodCounts, "pod-b:"+adminPort,
+		"prevPodCounts should be pruned when pod leaves EndpointSlice")
+}
+
 func TestUpdateBucketConfig(t *testing.T) {
 	r := require.New(t)
 	_, pinger, err := newFakeQueuePinger(logr.Discard())

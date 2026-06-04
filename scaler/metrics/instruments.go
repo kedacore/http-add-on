@@ -15,16 +15,18 @@ const (
 	// ServiceName is the OTEL service.name used for both metrics and tracing.
 	ServiceName = "keda-http-external-scaler"
 
-	MetricPingerFetchDuration = "scaler.pinger.fetch.duration"
-	MetricPingerFetchErrors   = "scaler.pinger.fetch.errors"
-	MetricPingerEndpoints     = "scaler.pinger.endpoints"
+	MetricPingerFetchDuration   = "scaler.pinger.fetch.duration"
+	MetricPingerFetchErrors     = "scaler.pinger.fetch.errors"
+	MetricPingerUnreachablePods = "scaler.pinger.unreachable_pods"
+	MetricPingerEndpoints       = "scaler.pinger.endpoints"
 )
 
 // Instruments holds all metric instruments for the external scaler.
 type Instruments struct {
-	pingerFetchDuration api.Float64Histogram
-	pingerFetchErrors   api.Int64Counter
-	pingerEndpoints     api.Int64Gauge
+	pingerFetchDuration   api.Float64Histogram
+	pingerFetchErrors     api.Int64Counter
+	pingerUnreachablePods api.Int64Gauge
+	pingerEndpoints       api.Int64Gauge
 }
 
 // NewNoopInstruments returns Instruments backed by a no-op provider, for use in tests.
@@ -60,6 +62,14 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 		return nil, fmt.Errorf("creating pinger fetch errors counter: %w", err)
 	}
 
+	pingerUnreachablePods, err := meter.Int64Gauge(
+		MetricPingerUnreachablePods,
+		api.WithDescription("Number of interceptor pods that were unreachable in the last fetch cycle"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating pinger unreachable pods gauge: %w", err)
+	}
+
 	pingerEndpoints, err := meter.Int64Gauge(
 		MetricPingerEndpoints,
 		api.WithDescription("Number of interceptor endpoints the scaler is polling"),
@@ -69,16 +79,18 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 	}
 
 	return &Instruments{
-		pingerFetchDuration: pingerFetchDuration,
-		pingerFetchErrors:   pingerFetchErrors,
-		pingerEndpoints:     pingerEndpoints,
+		pingerFetchDuration:   pingerFetchDuration,
+		pingerFetchErrors:     pingerFetchErrors,
+		pingerUnreachablePods: pingerUnreachablePods,
+		pingerEndpoints:       pingerEndpoints,
 	}, nil
 }
 
 // RecordFetch records a completed pinger fetch cycle.
-func (i *Instruments) RecordFetch(duration time.Duration, endpointCount int, fetchErr error) {
+func (i *Instruments) RecordFetch(duration time.Duration, endpointCount, failedPods int, fetchErr error) {
 	i.pingerFetchDuration.Record(context.Background(), duration.Seconds())
 	i.pingerEndpoints.Record(context.Background(), int64(endpointCount))
+	i.pingerUnreachablePods.Record(context.Background(), int64(failedPods))
 	if fetchErr != nil {
 		i.pingerFetchErrors.Add(context.Background(), 1)
 	}
