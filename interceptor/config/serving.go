@@ -9,8 +9,8 @@ import (
 // Serving is configuration for how the interceptor serves the proxy
 // and admin server
 type Serving struct {
-	// WatchNamespace is the namespace to watch for new HTTPScaledObjects.
-	// Leave this empty to watch HTTPScaledObjects in all namespaces.
+	// WatchNamespace is the namespace to watch for new InterceptorRoutes.
+	// Leave this empty to watch InterceptorRoutes in all namespaces.
 	WatchNamespace string `env:"KEDA_HTTP_WATCH_NAMESPACE" envDefault:""`
 	// ProxyPort is the port that the public proxy should run on
 	ProxyPort int `env:"KEDA_HTTP_PROXY_PORT,required"`

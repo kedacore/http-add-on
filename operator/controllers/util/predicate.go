@@ -3,11 +3,8 @@ package util
 import (
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 )
 
 type AnnotationKeyChangedPredicate struct {
@@ -29,32 +26,6 @@ func (p AnnotationKeyChangedPredicate) Update(e event.UpdateEvent) bool {
 		}
 	}
 	return false
-}
-
-type HTTPScaledObjectReadyConditionPredicate struct {
-	predicate.Funcs
-}
-
-func (HTTPScaledObjectReadyConditionPredicate) Update(e event.UpdateEvent) bool {
-	if e.ObjectOld == nil || e.ObjectNew == nil {
-		return false
-	}
-
-	oldObj, ok := e.ObjectOld.(*v1alpha1.HTTPScaledObject)
-	if !ok {
-		return false
-	}
-
-	newObj, ok := e.ObjectNew.(*v1alpha1.HTTPScaledObject)
-	if !ok {
-		return false
-	}
-
-	oldReady := meta.IsStatusConditionTrue(oldObj.Status.Conditions, v1alpha1.ConditionTypeReady)
-	newReady := meta.IsStatusConditionTrue(newObj.Status.Conditions, v1alpha1.ConditionTypeReady)
-
-	// False/Unknown -> True
-	return !oldReady && newReady
 }
 
 type ScaledObjectSpecChangedPredicate struct {
