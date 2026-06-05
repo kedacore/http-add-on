@@ -44,6 +44,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Fix panic with "invalid concurrent Body.Read call" when reverse proxy fails without consuming the request body ([#1668](https://github.com/kedacore/http-add-on/issues/1668))
 - **Scaler**: Fix incorrect HPA values when both concurrency and requestRate metrics are configured ([#1659](https://github.com/kedacore/http-add-on/issues/1659))
 
 ### Deprecations

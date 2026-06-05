@@ -80,6 +80,12 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		util.LoggerFromContext(ctx).Error(err, "could not enable full duplex on response writer, continuing")
 	}
 
+	// Close the request body to prevent a server panic when it tries to read
+	// the next keep-alive request after EnableFullDuplex (golang/go#68560).
+	if r.Body != nil {
+		defer func() { _ = r.Body.Close() }()
+	}
+
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(url)
