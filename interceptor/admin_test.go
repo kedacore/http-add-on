@@ -16,7 +16,7 @@ func TestAdminHandler(t *testing.T) {
 	}{
 		"livez": {
 			path:            "/livez",
-			wantProbeCalled: true,
+			wantProbeCalled: false,
 			wantStatus:      http.StatusOK,
 		},
 		"readyz": {

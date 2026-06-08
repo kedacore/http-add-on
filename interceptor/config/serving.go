@@ -21,6 +21,7 @@ type Serving struct {
 	// CacheSyncPeriod is the time interval for the controller-runtime cache to resync.
 	// TODO: consider removing this to use the default value, otherwise align the env var name
 	CacheSyncPeriod time.Duration `env:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" envDefault:"60m"`
+
 	// ProxyTLSEnabled is a flag to specify whether the interceptor proxy should
 	// be running using a TLS enabled server
 	ProxyTLSEnabled bool `env:"KEDA_HTTP_PROXY_TLS_ENABLED" envDefault:"false"`
@@ -47,12 +48,23 @@ type Serving struct {
 	// TLSCurvePreferences is a comma-separated list of elliptic curve names
 	// (e.g. "X25519,CurveP256"). If empty, the default Go curve preferences are used.
 	TLSCurvePreferences string `env:"KEDA_HTTP_PROXY_TLS_CURVE_PREFERENCES" envDefault:""`
+
 	// ProfilingAddr if not empty, pprof will be available on this address, assuming host:port here
 	ProfilingAddr string `env:"PROFILING_BIND_ADDRESS" envDefault:""`
 	// EnableColdStartHeader enables/disables the X-KEDA-HTTP-Cold-Start response header
 	EnableColdStartHeader bool `env:"KEDA_HTTP_ENABLE_COLD_START_HEADER" envDefault:"true"`
 	// LogRequests enables/disables logging of incoming requests
 	LogRequests bool `env:"KEDA_HTTP_LOG_REQUESTS" envDefault:"false"`
+
+	// DrainTimeout is the maximum time to wait for in-flight requests to
+	// complete after the proxy listener is closed. If 0, waits indefinitely
+	// (bounded only by terminationGracePeriodSeconds).
+	DrainTimeout time.Duration `env:"KEDA_HTTP_DRAIN_TIMEOUT" envDefault:"30s"`
+	// ShutdownDelay is the time between receiving SIGTERM and closing the proxy
+	// listener. During this window the readiness probe returns 503 while the
+	// server continues serving in-flight and new requests, giving Kubernetes
+	// time to propagate endpoint removal.
+	ShutdownDelay time.Duration `env:"KEDA_HTTP_SHUTDOWN_DELAY" envDefault:"5s"`
 }
 
 // MustParseServing parses standard configs and returns the

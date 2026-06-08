@@ -13,7 +13,10 @@ func BuildAdminHandler(logger logr.Logger, counter queue.Counter, probeHandler h
 	mux := http.NewServeMux()
 
 	mux.Handle("/readyz", probeHandler)
-	mux.Handle("/livez", probeHandler)
+	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
+		// Best practice is to always return 200 as this indicates process health
+		w.WriteHeader(http.StatusOK)
+	})
 
 	queue.AddCountsRoute(
 		logger,
