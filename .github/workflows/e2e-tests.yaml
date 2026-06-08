@@ -24,11 +24,11 @@ jobs:
           - ARM64
         kindVersion:
           # renovate: datasource=docker depName=kindest/node
+          - v1.36.1
+          # renovate: datasource=docker depName=kindest/node@only-patch packageName=kindest/node
           - v1.35.1
           # renovate: datasource=docker depName=kindest/node@only-patch packageName=kindest/node
           - v1.34.3
-          # renovate: datasource=docker depName=kindest/node@only-patch packageName=kindest/node
-          - v1.33.7
         include:
           - arch: AMD64
             runner: ubuntu-latest
@@ -58,7 +58,7 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         env:
           # renovate: datasource=github-releases depName=kubernetes-sigs/kind
-          KIND_VERSION: "v0.31.0"
+          KIND_VERSION: "v0.32.0"
         with:
           node_image: kindest/node:${{ matrix.kindVersion }}
           cluster_name: kind
@@ -85,11 +85,11 @@ jobs:
           - ARM64
         kindVersion:
           # renovate: datasource=docker depName=kindest/node
+          - v1.36.1
+          # renovate: datasource=docker depName=kindest/node@only-patch packageName=kindest/node
           - v1.35.1
           # renovate: datasource=docker depName=kindest/node@only-patch packageName=kindest/node
           - v1.34.3
-          # renovate: datasource=docker depName=kindest/node@only-patch packageName=kindest/node
-          - v1.33.7
         include:
           - arch: AMD64
             runner: ubuntu-latest
