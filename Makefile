@@ -30,11 +30,11 @@ KO_RELEASE_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 # renovate: datasource=helm depName=cert-manager registryUrl=https://charts.jetstack.io
 CERT_MANAGER_VERSION ?= v1.20.2
 # renovate: datasource=helm depName=jaeger registryUrl=https://jaegertracing.github.io/helm-charts
-JAEGER_VERSION ?= 4.8.0
+JAEGER_VERSION ?= 4.11.0
 # renovate: datasource=helm depName=keda registryUrl=https://kedacore.github.io/charts
-KEDA_VERSION ?= 2.19.0
+KEDA_VERSION ?= 2.20.0
 # renovate: datasource=helm depName=opentelemetry-collector registryUrl=https://open-telemetry.github.io/opentelemetry-helm-charts
-OTEL_COLLECTOR_VERSION ?= 0.158.0
+OTEL_COLLECTOR_VERSION ?= 0.158.1
 
 HELM_RETRIES ?= 3
 HELM_RETRY_DELAY ?= 30
