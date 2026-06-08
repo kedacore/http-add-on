@@ -65,6 +65,21 @@ func (f *Framework) WaitForMinReplicas(app *TestApp, minReplicas int32) {
 	}
 }
 
+// ScaleDeployment updates the app's deployment to the given replica count and waits for it to converge.
+func (f *Framework) ScaleDeployment(app *TestApp, replicas int32) {
+	f.t.Helper()
+
+	dep := &appsv1.Deployment{}
+	if err := f.client.Resources().Get(f.ctx, app.Name, app.Namespace, dep); err != nil {
+		f.t.Fatalf("failed to get deployment %s/%s: %v", app.Namespace, app.Name, err)
+	}
+	dep.Spec.Replicas = &replicas
+	if err := f.client.Resources().Update(f.ctx, dep); err != nil {
+		f.t.Fatalf("failed to scale deployment %s/%s to %d: %v", app.Namespace, app.Name, replicas, err)
+	}
+	f.WaitForReplicas(app, replicas)
+}
+
 // AssertReplicasStable asserts that the deployment maintains exactly the expected replica count for the given duration.
 func (f *Framework) AssertReplicasStable(app *TestApp, expected int32, duration time.Duration) {
 	f.t.Helper()
