@@ -20,6 +20,22 @@ type IROption func(*httpv1beta1.InterceptorRoute)
 // CreateInterceptorRoute creates an InterceptorRoute targeting the given app in the cluster.
 func (f *Framework) CreateInterceptorRoute(name string, app *TestApp, opts ...IROption) *httpv1beta1.InterceptorRoute {
 	f.t.Helper()
+	ir := f.newInterceptorRoute(name, app, opts...)
+	f.createResource(ir)
+	f.waitForInterceptorRouteReady(ir)
+	return ir
+}
+
+// CreateInterceptorRouteNoWait creates an InterceptorRoute without waiting for
+// reconciliation or informer sync.
+func (f *Framework) CreateInterceptorRouteNoWait(name string, app *TestApp, opts ...IROption) {
+	f.t.Helper()
+	ir := f.newInterceptorRoute(name, app, opts...)
+	f.createResource(ir)
+}
+
+// newInterceptorRoute builds an InterceptorRoute struct with sensible e2e defaults.
+func (f *Framework) newInterceptorRoute(name string, app *TestApp, opts ...IROption) *httpv1beta1.InterceptorRoute {
 	ir := &httpv1beta1.InterceptorRoute{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "http.keda.sh/v1beta1",
@@ -48,8 +64,6 @@ func (f *Framework) CreateInterceptorRoute(name string, app *TestApp, opts ...IR
 	for _, opt := range opts {
 		opt(ir)
 	}
-	f.createResource(ir)
-	f.waitForInterceptorRouteReady(ir)
 	return ir
 }
 
