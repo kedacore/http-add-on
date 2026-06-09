@@ -1,0 +1,12 @@
+# For details on buf.yaml configuration, visit https://buf.build/docs/configuration/v2/buf-yaml
+version: v2
+modules:
+  - path: test/images/grpc-echo/proto
+lint:
+  use:
+    - STANDARD
+  ignore_only:
+    PACKAGE_VERSION_SUFFIX:
+      - test/images/grpc-echo/proto/echo.proto
+    PACKAGE_DIRECTORY_MATCH:
+      - test/images/grpc-echo/proto/echo.proto

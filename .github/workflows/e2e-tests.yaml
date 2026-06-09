@@ -73,6 +73,8 @@ jobs:
 
       - name: Run e2e tests
         run: make e2e-test-ci
+        env:
+          KO_DOCKER_REPO: kind.local
 
   e2e_tests_legacy:
     runs-on: ${{ matrix.runner }}

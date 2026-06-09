@@ -4,6 +4,8 @@ package helpers
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +20,8 @@ const (
 	defaultImage   = "ghcr.io/traefik/whoami:v1.11.0"
 	defaultPort    = int32(8080)
 	tlsCertsVolume = "tls-certs"
+
+	ImageGRPCEcho = "grpc-echo"
 )
 
 // TestApp bundles a Deployment and Service for a test backend.
@@ -33,6 +37,21 @@ type TestApp struct {
 
 // TestAppOption configures a TestApp before its resources are created.
 type TestAppOption func(*TestApp)
+
+// AppWithImage overrides the default container image.
+func AppWithImage(image string) TestAppOption {
+	return func(a *TestApp) { a.Image = image }
+}
+
+// AppWithTestImage sets the app's container image to a test image built by
+// `make e2e-test-images`. The name must match a directory under test/images/.
+func AppWithTestImage(name string) TestAppOption {
+	repo := os.Getenv("KO_DOCKER_REPO")
+	if repo == "" {
+		panic("KO_DOCKER_REPO must be set")
+	}
+	return AppWithImage(fmt.Sprintf("%s/%s:latest", repo, name))
+}
 
 // AppWithReplicas sets the initial replica count for the app's deployment.
 func AppWithReplicas(n int32) TestAppOption {
@@ -110,10 +129,15 @@ func (a *TestApp) Resources() []k8s.Object {
 					Hostname: a.Name, // override the hostname to allow matching the response to a specific app
 					Volumes:  volumes,
 					Containers: []corev1.Container{{
-						Name:  a.Name,
-						Image: a.Image,
-						Args:  args,
+						Name:            a.Name,
+						Image:           a.Image,
+						ImagePullPolicy: a.imagePullPolicy(),
+						Args:            args,
 						Env: []corev1.EnvVar{
+							{
+								Name:  "PORT",
+								Value: fmt.Sprintf("%d", a.Port),
+							},
 							{
 								Name:  "WHOAMI_PORT_NUMBER",
 								Value: fmt.Sprintf("%d", a.Port),
@@ -122,29 +146,9 @@ func (a *TestApp) Resources() []k8s.Object {
 						Ports: []corev1.ContainerPort{
 							{ContainerPort: a.Port},
 						},
-						VolumeMounts: volumeMounts,
-						LivenessProbe: &corev1.Probe{
-							ProbeHandler: corev1.ProbeHandler{
-								HTTPGet: &corev1.HTTPGetAction{
-									Path:   "/health",
-									Port:   intstr.FromInt32(a.Port),
-									Scheme: probeScheme,
-								},
-							},
-							PeriodSeconds:    5,
-							FailureThreshold: 3,
-						},
-						ReadinessProbe: &corev1.Probe{
-							ProbeHandler: corev1.ProbeHandler{
-								HTTPGet: &corev1.HTTPGetAction{
-									Path:   "/health",
-									Port:   intstr.FromInt32(a.Port),
-									Scheme: probeScheme,
-								},
-							},
-							PeriodSeconds:    1,
-							FailureThreshold: 3,
-						},
+						VolumeMounts:   volumeMounts,
+						LivenessProbe:  a.probe(5, probeScheme),
+						ReadinessProbe: a.probe(1, probeScheme),
 					}},
 				},
 			},
@@ -167,4 +171,28 @@ func (a *TestApp) Resources() []k8s.Object {
 	}
 
 	return []k8s.Object{deployment, service}
+}
+
+// imagePullPolicy returns IfNotPresent for images loaded into Kind via ko
+// (kind.local/), since Kubernetes defaults :latest to Always which fails
+// because kind.local is not an actual registry.
+func (a *TestApp) imagePullPolicy() corev1.PullPolicy {
+	if strings.HasPrefix(a.Image, "kind.local/") {
+		return corev1.PullIfNotPresent
+	}
+	return ""
+}
+
+func (a *TestApp) probe(periodSeconds int32, httpScheme corev1.URIScheme) *corev1.Probe {
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:   "/health",
+				Port:   intstr.FromInt32(a.Port),
+				Scheme: httpScheme,
+			},
+		},
+		PeriodSeconds:    periodSeconds,
+		FailureThreshold: 3,
+	}
 }

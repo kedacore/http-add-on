@@ -33,8 +33,6 @@ type Timeouts struct {
 	// MaxIdleConnsPerHost is the max number of idle connections to keep per backend service.
 	// Increase this if you observe many new connection establishments under load.
 	MaxIdleConnsPerHost int `env:"KEDA_HTTP_MAX_IDLE_CONNS_PER_HOST" envDefault:"200"`
-	// ForceHTTP2 toggles whether to try to force HTTP2 for all requests.
-	ForceHTTP2 bool `env:"KEDA_HTTP_FORCE_HTTP2" envDefault:"false"`
 }
 
 // deprecatedTimeouts holds deprecated env vars that take precedence when set.
