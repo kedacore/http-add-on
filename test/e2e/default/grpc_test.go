@@ -26,6 +26,7 @@ func TestGRPC(t *testing.T) {
 
 			app := f.CreateTestApp("grpc-app",
 				h.AppWithTestImage(h.ImageGRPCEcho),
+				h.AppWithAppProtocol(h.AppProtocolH2C),
 			)
 			ir := f.CreateInterceptorRoute("grpc-ir", app,
 				h.IRWithHosts(f.Hostname()),

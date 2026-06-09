@@ -29,6 +29,7 @@ func TestGRPCOverTLS(t *testing.T) {
 
 			app := f.CreateTestApp(appName,
 				h.AppWithTestImage(h.ImageGRPCEcho),
+				h.AppWithAppProtocol(h.AppProtocolH2C),
 				h.AppWithTLSSecret(certSecretName),
 			)
 			ir := f.CreateInterceptorRoute("grpc-tls-ir", app,

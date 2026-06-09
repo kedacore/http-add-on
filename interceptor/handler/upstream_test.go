@@ -20,11 +20,15 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kedacore/http-add-on/interceptor/config"
 	"github.com/kedacore/http-add-on/interceptor/tracing"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
+	"github.com/kedacore/http-add-on/pkg/cache"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -160,7 +164,7 @@ func TestForwarderSuccess(t *testing.T) {
 	req = util.RequestWithUpstreamURL(req, forwardURL)
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts)
-	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), newFakeClient(), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 
 	r.True(
@@ -202,7 +206,7 @@ func TestForwarderHeaderTimeout(t *testing.T) {
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithUpstreamURL(req, originURL)
-	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), newFakeClient(), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 
 	r.Equal(http.StatusGatewayTimeout, res.Code)
@@ -246,7 +250,7 @@ func TestForwarderWaitsForSlowOrigin(t *testing.T) {
 	res, req, err := reqAndRes(path)
 	r.NoError(err)
 	req = util.RequestWithUpstreamURL(req, originURL)
-	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), newFakeClient(), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 	// wait for the goroutine above to finish, with a little cusion
 	ensureSignalBeforeTimeout(originWaitCh, originDelay*2)
@@ -262,6 +266,8 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	const requestTimeout = 500 * time.Millisecond
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), newFakeClient(), config.Tracing{}, timeouts.ResponseHeader)
+
 	res, req, err := reqAndRes("/test")
 	r.NoError(err)
 
@@ -270,7 +276,6 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	req = req.WithContext(ctx)
 
 	req = util.RequestWithUpstreamURL(req, noSuchURL)
-	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
 
 	start := time.Now()
 	uh.ServeHTTP(res, req)
@@ -318,7 +323,7 @@ func TestForwardRequestRedirectAndHeaders(t *testing.T) {
 	res, req, err := reqAndRes("/testfwd")
 	r.NoError(err)
 	req = util.RequestWithUpstreamURL(req, srvURL)
-	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), newFakeClient(), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 	r.Equal(301, res.Code)
 	r.Equal("abc123.com", res.Header().Get("Location"))
@@ -375,7 +380,7 @@ func TestUpstreamPreservesXForwardedHeaders(t *testing.T) {
 			}
 
 			// Configure the Upstream and send a dummy request
-			upstream := NewUpstream(http.DefaultTransport.(*http.Transport), config.Tracing{}, 500*time.Millisecond)
+			upstream := NewUpstream(http.DefaultTransport.(*http.Transport), newFakeClient(), config.Tracing{}, 500*time.Millisecond)
 
 			req := httptest.NewRequest("GET", "/test", nil)
 			if tt.forwardedFor != "" {
@@ -464,7 +469,7 @@ func TestUpstream_RouteSpecResponseHeaderOverride(t *testing.T) {
 	ctx := util.ContextWithInterceptorRoute(req.Context(), ir)
 	req = req.WithContext(ctx)
 
-	uh := NewUpstream(newTestTransport(dialCtxFunc), config.Tracing{}, timeouts.ResponseHeader)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), newFakeClient(), config.Tracing{}, timeouts.ResponseHeader)
 	uh.ServeHTTP(res, req)
 
 	r.Equal(http.StatusGatewayTimeout, res.Code)
@@ -483,7 +488,7 @@ func TestFullDuplexBodyPanic(t *testing.T) {
 		},
 	}
 
-	upstream := NewUpstream(failingTransport, config.Tracing{}, 1*time.Second)
+	upstream := NewUpstream(failingTransport, newFakeClient(), config.Tracing{}, 1*time.Second)
 
 	targetURL, _ := url.Parse("http://fake-backend:8080")
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -518,6 +523,157 @@ func (w panicLogWriter) Write(p []byte) (int, error) {
 		w.onPanic()
 	}
 	return len(p), nil
+}
+
+func TestUpstream_AppProtocolTransportSelection(t *testing.T) {
+	h2cProto := "kubernetes.io/h2c"
+
+	tests := map[string]struct {
+		appProtocol        *string
+		incomingProtoMajor int
+		wantBackendProto   int
+	}{
+		"h2c appProtocol with HTTP/1 request uses HTTP/2": {
+			appProtocol:        &h2cProto,
+			incomingProtoMajor: 1,
+			wantBackendProto:   2,
+		},
+		"h2c appProtocol with HTTP/2 request uses HTTP/2": {
+			appProtocol:        &h2cProto,
+			incomingProtoMajor: 2,
+			wantBackendProto:   2,
+		},
+		"no appProtocol with HTTP/1 request uses HTTP/1": {
+			appProtocol:        nil,
+			incomingProtoMajor: 1,
+			wantBackendProto:   1,
+		},
+		"no appProtocol with HTTP/2 request uses HTTP/1": {
+			appProtocol:        nil,
+			incomingProtoMajor: 2,
+			wantBackendProto:   1,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var backendProtoMajor int
+			backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				backendProtoMajor = r.ProtoMajor
+				w.WriteHeader(http.StatusOK)
+			}))
+			var protocols http.Protocols
+			protocols.SetHTTP1(true)
+			protocols.SetUnencryptedHTTP2(true)
+			backend.Config.Protocols = &protocols
+			backend.Start()
+			defer backend.Close()
+
+			backendURL, err := url.Parse(backend.URL)
+			if err != nil {
+				t.Fatalf("failed to parse backend URL: %v", err)
+			}
+
+			fakeClient := newFakeClient(corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-svc",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Name:        "grpc",
+						Port:        8080,
+						AppProtocol: tc.appProtocol,
+					}},
+				},
+			})
+
+			ir := &httpv1beta1.InterceptorRoute{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-ir",
+					Namespace: "default",
+				},
+				Spec: httpv1beta1.InterceptorRouteSpec{
+					Target: httpv1beta1.TargetRef{
+						Service: "test-svc",
+						Port:    8080,
+					},
+				},
+			}
+
+			upstream := NewUpstream(http.DefaultTransport.(*http.Transport), fakeClient, config.Tracing{}, 5*time.Second)
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.ProtoMajor = tc.incomingProtoMajor
+			ctx := util.ContextWithUpstreamURL(req.Context(), backendURL)
+			ctx = util.ContextWithInterceptorRoute(ctx, ir)
+			req = req.WithContext(ctx)
+
+			rec := httptest.NewRecorder()
+			upstream.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+			}
+			if backendProtoMajor != tc.wantBackendProto {
+				t.Errorf("backend saw HTTP/%d, want HTTP/%d", backendProtoMajor, tc.wantBackendProto)
+			}
+		})
+	}
+}
+
+func TestUpstream_AppProtocolFallbackOnMissingService(t *testing.T) {
+	var backendProtoMajor int
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		backendProtoMajor = r.ProtoMajor
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatalf("failed to parse backend URL: %v", err)
+	}
+
+	fakeClient := newFakeClient()
+
+	ir := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-ir",
+			Namespace: "default",
+		},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{
+				Service: "missing-svc",
+				Port:    8080,
+			},
+		},
+	}
+
+	upstream := NewUpstream(http.DefaultTransport.(*http.Transport), fakeClient, config.Tracing{}, 5*time.Second)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	ctx := util.ContextWithUpstreamURL(req.Context(), backendURL)
+	ctx = util.ContextWithInterceptorRoute(ctx, ir)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	upstream.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+	if backendProtoMajor != 1 {
+		t.Errorf("expected fallback to HTTP/1, got HTTP/%d", backendProtoMajor)
+	}
+}
+
+func newFakeClient(objs ...corev1.Service) client.Reader {
+	builder := fake.NewClientBuilder().WithScheme(cache.NewScheme())
+	for i := range objs {
+		builder = builder.WithObjects(&objs[i])
+	}
+	return builder.Build()
 }
 
 func newTestTransport(dialCtxFunc kedanet.DialContextFunc) *http.Transport {
@@ -565,7 +721,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 	timeouts := defaultTimeouts()
 	dialCtxFunc := retryDialContextFunc(timeouts)
 	transport := newTestTransport(dialCtxFunc)
-	upstream := NewUpstream(transport, config.Tracing{Enabled: true}, timeouts.ResponseHeader)
+	upstream := NewUpstream(transport, newFakeClient(), config.Tracing{Enabled: true}, timeouts.ResponseHeader)
 
 	upstream.ServeHTTP(w, r)
 }
