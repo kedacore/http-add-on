@@ -73,7 +73,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	// Build handler chain (innermost to outermost)
 	var h http.Handler
 
-	h = handler.NewUpstream(baseTransport, cfg.Tracing, cfg.Timeouts.ResponseHeader)
+	h = handler.NewUpstream(baseTransport, cfg.Reader, cfg.Tracing, cfg.Timeouts.ResponseHeader)
 
 	h = middleware.NewEndpointResolver(h, cfg.ReadyCache, middleware.EndpointResolverConfig{
 		ReadinessTimeout:      cfg.Timeouts.Readiness,

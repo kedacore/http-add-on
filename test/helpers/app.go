@@ -21,13 +21,15 @@ const (
 	defaultPort    = int32(8080)
 	tlsCertsVolume = "tls-certs"
 
-	ImageGRPCEcho = "grpc-echo"
+	AppProtocolH2C = "kubernetes.io/h2c"
+	ImageGRPCEcho  = "grpc-echo"
 )
 
 // TestApp bundles a Deployment and Service for a test backend.
 type TestApp struct {
 	Namespace     string
 	Name          string
+	AppProtocol   *string
 	Image         string
 	Replicas      int32
 	Port          int32
@@ -61,6 +63,11 @@ func AppWithReplicas(n int32) TestAppOption {
 // AppWithPortName sets the service port name.
 func AppWithPortName(name string) TestAppOption {
 	return func(a *TestApp) { a.PortName = name }
+}
+
+// AppWithAppProtocol sets the service port appProtocol (e.g. "kubernetes.io/h2c").
+func AppWithAppProtocol(proto string) TestAppOption {
+	return func(a *TestApp) { a.AppProtocol = &proto }
 }
 
 // AppWithTLSSecret configures the app to serve TLS using the given cert secret.
@@ -163,9 +170,10 @@ func (a *TestApp) Resources() []k8s.Object {
 		Spec: corev1.ServiceSpec{
 			Selector: labels,
 			Ports: []corev1.ServicePort{{
-				Name:       a.PortName,
-				Port:       a.Port,
-				TargetPort: intstr.FromInt32(a.Port),
+				AppProtocol: a.AppProtocol,
+				Name:        a.PortName,
+				Port:        a.Port,
+				TargetPort:  intstr.FromInt32(a.Port),
 			}},
 		},
 	}

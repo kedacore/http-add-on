@@ -36,6 +36,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **General**: Add `coldStart.placeholder` support for returning static HTTP responses during scale-from-zero ([#874](https://github.com/kedacore/http-add-on/issues/874))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Add HTTP/2 support (h2c and h2 over TLS), enabling autoscaling of gRPC workloads ([#1084](https://github.com/kedacore/http-add-on/issues/1084))
+- **Interceptor**: Select backend transport based on Kubernetes `appProtocol` instead of mirroring the client's protocol. Cleartext backends default to HTTP/1.1 unless the Service port sets `appProtocol: kubernetes.io/h2c`; TLS backends negotiate via ALPN ([#1676](https://github.com/kedacore/http-add-on/issues/1676))
 - **Scaler**: Add OpenTelemetry metrics and distributed tracing to the external scaler ([#965](https://github.com/kedacore/http-add-on/issues/965))
 
 ### Improvements
