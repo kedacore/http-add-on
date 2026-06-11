@@ -28,7 +28,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Fix deployment selector labels to use correct Kubernetes recommended label semantics: `app.kubernetes.io/name` changed from `http` to `http-add-on`, `app.kubernetes.io/component` changed from `add-on` to the actual component name (`interceptor`/`operator`/`scaler`), and `app.kubernetes.io/instance` removed. Since `spec.selector` is immutable on `apps/v1` Deployments, upgrading from v0.14.0 requires deleting and recreating the deployments (`kubectl delete deployment -n keda keda-add-ons-http-interceptor keda-add-ons-http-operator keda-add-ons-http-scaler` then `kubectl apply`). ([#1462](https://github.com/kedacore/http-add-on/issues/1462))
 
 ### New
 
