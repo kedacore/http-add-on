@@ -2,7 +2,7 @@
 # See https://ko.build/configuration/ for details
 
 # Preferred over chainguard/static (missing s390x) and distroless/static (12 vs 1 layer)
-defaultBaseImage: ghcr.io/wolfi-dev/static:alpine@sha256:de720d589fde216a0b7ebef5ca83ba80e563ac43fedf8c5d9db65e792bc5e3a9
+defaultBaseImage: ghcr.io/wolfi-dev/static:alpine@sha256:6a4616efaf003ee42d158b514f0dcc2c6c8be0a5a8e2d33d46416100e00d0e18
 
 defaultEnv:
   - CGO_ENABLED=0
