@@ -10,4 +10,8 @@ const (
 const (
 	// ConditionReasonReconciled indicates reconciliation completed successfully.
 	ConditionReasonReconciled = "Reconciled"
+
+	// ConditionReasonScaledObjectSyncError indicates that the controller failed
+	// to propagate scaling metric changes to one or more ScaledObjects.
+	ConditionReasonScaledObjectSyncError = "ScaledObjectSyncError"
 )
