@@ -181,26 +181,26 @@ e2e-deps-cert-manager:
 	$(call helm-retry,helm upgrade --install cert-manager jetstack/cert-manager \
 		--namespace cert-manager --create-namespace \
 		-f test/fixtures/cert-manager-values.yaml \
-		--version $(CERT_MANAGER_VERSION) --wait)
+		--version $(CERT_MANAGER_VERSION) --wait --timeout 5m)
 
 e2e-deps-jaeger:
 	helm repo add jaegertracing https://jaegertracing.github.io/helm-charts --force-update
 	$(call helm-retry,helm upgrade --install jaeger jaegertracing/jaeger \
 		--namespace jaeger --create-namespace \
-		--version $(JAEGER_VERSION) --wait)
+		--version $(JAEGER_VERSION) --wait --timeout 5m)
 
 e2e-deps-keda:
 	helm repo add kedacore https://kedacore.github.io/charts --force-update
 	$(call helm-retry,helm upgrade --install keda kedacore/keda \
 		--namespace keda --create-namespace \
-		--version $(KEDA_VERSION) --wait)
+		--version $(KEDA_VERSION) --wait --timeout 5m)
 
 e2e-deps-otel-collector:
 	helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts --force-update
 	$(call helm-retry,helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
 		--namespace open-telemetry-system --create-namespace \
 		-f test/fixtures/otel-values.yaml \
-		--version $(OTEL_COLLECTOR_VERSION) --wait)
+		--version $(OTEL_COLLECTOR_VERSION) --wait --timeout 5m)
 
 e2e-setup: e2e-deps deploy e2e-test-images ## Full e2e setup: install deps + deploy http-add-on + build test images
 
