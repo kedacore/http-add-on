@@ -26,23 +26,14 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapiv1clientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1"
 )
 
 const (
-	KEDANamespace         = "keda"
-	ArgoRolloutsNamespace = "argo-rollouts"
-	ArgoRolloutsName      = "argo-rollouts"
-	IngressNamespace      = "ingress"
-	IngressReleaseName    = "ingress"
-	EnvoyNamespace        = "envoy-gateway-system"
-	EnvoyReleaseName      = "eg"
+	KEDANamespace = "keda"
 )
 
 var (
 	KubeClient *kubernetes.Clientset
-	GWClient   *gatewayapiv1clientset.GatewayV1Client
 	KubeConfig *rest.Config
 )
 
@@ -167,21 +158,6 @@ func GetKubernetesClient(t *testing.T) *kubernetes.Clientset {
 	return KubeClient
 }
 
-func GetGatewayClient(t *testing.T) *gatewayapiv1clientset.GatewayV1Client {
-	if GWClient != nil && KubeConfig != nil {
-		return GWClient
-	}
-
-	var err error
-	KubeConfig, err = config.GetConfig()
-	require.NoErrorf(t, err, "cannot fetch kube config file - %s", err)
-
-	GWClient, err = gatewayapiv1clientset.NewForConfig(KubeConfig)
-	assert.NoErrorf(t, err, "cannot create gateway client - %s", err)
-
-	return GWClient
-}
-
 // Creates a new namespace. If it already exists, make sure it is deleted first.
 func CreateNamespace(t *testing.T, kc *kubernetes.Clientset, nsName string) {
 	DeleteNamespace(t, nsName)
@@ -240,32 +216,6 @@ func WaitForNamespaceDeletion(t *testing.T, nsName string) bool {
 	return false
 }
 
-// Waits until all the pods in the namespace have a running status.
-func WaitForAllPodRunningInNamespace(t *testing.T, kc *kubernetes.Clientset, namespace string, iterations, intervalSeconds int) bool {
-	for range iterations {
-		runningCount := 0
-		pods, _ := kc.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
-
-		for _, pod := range pods.Items {
-			if pod.Status.Phase != corev1.PodRunning {
-				break
-			}
-			runningCount++
-		}
-
-		t.Logf("Waiting for pods in namespace to be in 'Running' status. Namespace - %s, Current - %d, Target - %d",
-			namespace, runningCount, len(pods.Items))
-
-		if runningCount == len(pods.Items) {
-			return true
-		}
-
-		time.Sleep(time.Duration(intervalSeconds) * time.Second)
-	}
-
-	return false
-}
-
 // Waits until deployment ready replica count hits target or number of iterations are done.
 func WaitForDeploymentReplicaReadyCount(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
 	target, iterations, intervalSeconds int,
@@ -285,81 +235,6 @@ func WaitForDeploymentReplicaReadyCount(t *testing.T, kc *kubernetes.Clientset, 
 	}
 
 	return false
-}
-
-// Waits until ingress resource is ready or number of iterations are done.
-func WaitForIngressReady(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
-	iterations, intervalSeconds int,
-) bool {
-	for range iterations {
-		ingress, _ := kc.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		if ingress.Status.LoadBalancer.Ingress != nil {
-			return true
-		}
-		t.Log("Waiting for ready ingress")
-
-		time.Sleep(time.Duration(intervalSeconds) * time.Second)
-	}
-
-	return false
-}
-
-func WaitForHTTPRouteAccepted(t *testing.T, gc *gatewayapiv1clientset.GatewayV1Client, name, namespace string, iterations, intervalSeconds int) bool {
-	for range iterations {
-		httpRoute, _ := gc.HTTPRoutes(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		for _, parent := range httpRoute.Status.Parents {
-			for _, condition := range parent.Conditions {
-				if condition.Type == string(gatewayapiv1.RouteConditionAccepted) && condition.Status == metav1.ConditionTrue {
-					return true
-				}
-			}
-		}
-		t.Log("Waiting for accepted HTTPRoute")
-
-		time.Sleep(time.Duration(intervalSeconds) * time.Second)
-	}
-	return false
-}
-
-// Waits until statefulset count hits target or number of iterations are done.
-func WaitForStatefulsetReplicaReadyCount(t *testing.T, kc *kubernetes.Clientset, name, namespace string,
-	target, iterations, intervalSeconds int,
-) bool {
-	for range iterations {
-		statefulset, _ := kc.AppsV1().StatefulSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		replicas := statefulset.Status.ReadyReplicas
-
-		t.Logf("Waiting for statefulset replicas to hit target. Statefulset - %s, Current  - %d, Target - %d",
-			name, replicas, target)
-
-		if replicas == int32(target) {
-			return true
-		}
-
-		time.Sleep(time.Duration(intervalSeconds) * time.Second)
-	}
-
-	return false
-}
-
-// Waits some time to ensure that the replica count doesn't change.
-func AssertReplicaCountNotChangeDuringTimePeriod(t *testing.T, kc *kubernetes.Clientset, name, namespace string, target, intervalSeconds int) {
-	t.Logf("Waiting for some time to ensure deployment replica count doesn't change from %d", target)
-	var replicas int32
-
-	for range intervalSeconds {
-		deployment, _ := kc.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		replicas = deployment.Status.Replicas
-
-		t.Logf("Deployment - %s, Current  - %d", name, replicas)
-
-		if replicas != int32(target) {
-			assert.Fail(t, fmt.Sprintf("%s replica count has changed from %d to %d", name, target, replicas))
-			return
-		}
-
-		time.Sleep(time.Second)
-	}
 }
 
 type Template struct {
