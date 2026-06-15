@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.15.0](#v0150)
 - [v0.14.0](#v0140)
 - [v0.13.0](#v0130)
 - [v0.12.2](#v0122)
@@ -32,12 +33,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: Add s390x to supported release platforms ([#1662](https://github.com/kedacore/http-add-on/issues/1662))
-- **General**: Add `coldStart.placeholder` support for returning static HTTP responses during scale-from-zero ([#874](https://github.com/kedacore/http-add-on/issues/874))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-- **Interceptor**: Add HTTP/2 support (h2c and h2 over TLS), enabling autoscaling of gRPC workloads ([#1084](https://github.com/kedacore/http-add-on/issues/1084))
-- **Interceptor**: Select backend transport based on Kubernetes `appProtocol` instead of mirroring the client's protocol. Cleartext backends default to HTTP/1.1 unless the Service port sets `appProtocol: kubernetes.io/h2c`; TLS backends negotiate via ALPN ([#1676](https://github.com/kedacore/http-add-on/issues/1676))
-- **Scaler**: Add OpenTelemetry metrics and distributed tracing to the external scaler ([#965](https://github.com/kedacore/http-add-on/issues/965))
 
 ### Improvements
 
@@ -46,6 +42,31 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.15.0
+
+### New
+
+- **General**: Add s390x to supported release platforms ([#1662](https://github.com/kedacore/http-add-on/issues/1662))
+- **General**: Add `coldStart.placeholder` support for returning static HTTP responses during scale-from-zero ([#874](https://github.com/kedacore/http-add-on/issues/874))
+- **Interceptor**: Add HTTP/2 support (h2c and h2 over TLS), enabling autoscaling of gRPC workloads ([#1084](https://github.com/kedacore/http-add-on/issues/1084))
+- **Interceptor**: Select backend transport based on Kubernetes `appProtocol` instead of mirroring the client's protocol. Cleartext backends default to HTTP/1.1 unless the Service port sets `appProtocol: kubernetes.io/h2c`; TLS backends negotiate via ALPN ([#1676](https://github.com/kedacore/http-add-on/issues/1676))
+- **Scaler**: Add OpenTelemetry metrics and distributed tracing to the external scaler ([#965](https://github.com/kedacore/http-add-on/issues/965))
+
+### Improvements
+
+- **General**: Strip managed fields from controller-runtime cache to reduce memory consumption ([#1651](https://github.com/kedacore/http-add-on/issues/1651))
+
+### Fixes
+
 - **Interceptor**: Fix graceful shutdown so in-flight requests are drained before the process exits. The interceptor now waits for active handlers to complete (bounded by `KEDA_HTTP_DRAIN_TIMEOUT`), marks the readiness probe unhealthy immediately on SIGTERM, and delays listener closure by `KEDA_HTTP_SHUTDOWN_DELAY` to let Kubernetes propagate endpoint removal. ([#1636](https://github.com/kedacore/http-add-on/issues/1636))
 - **Interceptor**: Fix panic with "invalid concurrent Body.Read call" when reverse proxy fails without consuming the request body ([#1668](https://github.com/kedacore/http-add-on/issues/1668))
 - **Scaler**: Fix incorrect HPA values when both concurrency and requestRate metrics are configured ([#1659](https://github.com/kedacore/http-add-on/issues/1659))
@@ -53,13 +74,8 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Deprecations
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Remove `KEDA_HTTP_FORCE_HTTP2` environment variable. This is not a breaking change — HTTP/2 is now negotiated automatically. ([#1084](https://github.com/kedacore/http-add-on/issues/1084))
 - **Operator**: Rename `KEDAHTTP_OPERATOR_EXTERNAL_SCALER_SERVICE` and `KEDAHTTP_OPERATOR_EXTERNAL_SCALER_PORT` environment variables to `KEDA_HTTP_OPERATOR_EXTERNAL_SCALER_SERVICE` and `KEDA_HTTP_OPERATOR_EXTERNAL_SCALER_PORT`. Old names are still accepted but log a deprecation warning and will be removed in a future release. ([#1623](https://github.com/kedacore/http-add-on/issues/1623))
-
-### Other
-
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ## v0.14.0
 
