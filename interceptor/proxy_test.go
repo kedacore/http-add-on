@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -26,6 +28,7 @@ import (
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 const (
@@ -40,7 +43,8 @@ var testEndpointSlice = &discov1.EndpointSlice{
 		Namespace: "test-namespace",
 		Labels:    map[string]string{discov1.LabelServiceName: "test-service"},
 	},
-	Endpoints: []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
+	AddressType: discov1.AddressTypeIPv4,
+	Endpoints:   []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
 }
 
 func TestProxyHandler_SuccessfulRequest(t *testing.T) {
@@ -401,4 +405,86 @@ func (h *proxyTestHarness) doRequest(t *testing.T, method, path, host string) *h
 	h.Handler.ServeHTTP(rec, req)
 
 	return rec.Result()
+}
+
+// TestNewTLSDialer_UsesServerNameFromContext verifies the happy path: when
+// Routing has stamped UpstreamServerName, the dialer uses it and proceeds
+// with the underlying TCP dial regardless of cert-verification policy.
+func TestNewTLSDialer_UsesServerNameFromContext(t *testing.T) {
+	for _, insecure := range []bool{false, true} {
+		var dialCalled bool
+		stubDial := func(_ context.Context, _, _ string) (net.Conn, error) {
+			dialCalled = true
+			c, _ := net.Pipe()
+			return c, nil
+		}
+		dialer := newTLSDialer(&tls.Config{InsecureSkipVerify: insecure}, stubDial)
+
+		ctx := util.ContextWithUpstreamServerName(context.Background(), "myservice.default")
+		conn, err := dialer(ctx, "tcp", "10.1.2.3:8443")
+		if err != nil {
+			t.Fatalf("InsecureSkipVerify=%v: unexpected error: %v", insecure, err)
+		}
+		if !dialCalled {
+			t.Errorf("InsecureSkipVerify=%v: dial was not called", insecure)
+		}
+		if conn == nil {
+			t.Errorf("InsecureSkipVerify=%v: returned conn was nil", insecure)
+		} else {
+			_ = conn.Close()
+		}
+	}
+}
+
+// TestNewTLSDialer_HardFailsWhenNoSNI verifies the guardrail: a missing SNI
+// must error out without dialing, so we never open a TLS connection without an
+// explicit upstream identity. The error message must name both the dial address
+// and the reason, so operators don't mistake it for an upstream connectivity
+// failure. This holds regardless of InsecureSkipVerify.
+func TestNewTLSDialer_HardFailsWhenNoSNI(t *testing.T) {
+	for _, skipVerify := range []bool{true, false} {
+		var dialCalled bool
+		stubDial := func(_ context.Context, _, _ string) (net.Conn, error) {
+			dialCalled = true
+			return nil, nil
+		}
+		dialer := newTLSDialer(&tls.Config{InsecureSkipVerify: skipVerify}, stubDial)
+
+		conn, err := dialer(context.Background(), "tcp", "10.1.2.3:8443")
+		if err == nil {
+			t.Fatalf("expected error when SNI is missing (InsecureSkipVerify=%v), got nil", skipVerify)
+		}
+		if dialCalled {
+			t.Errorf("dial must not be called when we hard-fail on missing SNI (InsecureSkipVerify=%v)", skipVerify)
+		}
+		if conn != nil {
+			t.Errorf("returned conn must be nil on error (InsecureSkipVerify=%v)", skipVerify)
+		}
+		if !strings.Contains(err.Error(), "10.1.2.3:8443") {
+			t.Errorf("error %q should name the dial address", err)
+		}
+		if !strings.Contains(err.Error(), "refusing to dial without explicit SNI") {
+			t.Errorf("error %q should explain why we refuse to dial", err)
+		}
+	}
+}
+
+// TestNewTLSDialer_PropagatesDialError verifies that errors from the
+// underlying TCP dialer surface unchanged — there's no swallow / wrap that
+// would mask a connection refusal or timeout.
+func TestNewTLSDialer_PropagatesDialError(t *testing.T) {
+	wantErr := errors.New("connection refused")
+	stubDial := func(_ context.Context, _, _ string) (net.Conn, error) {
+		return nil, wantErr
+	}
+	dialer := newTLSDialer(&tls.Config{InsecureSkipVerify: false}, stubDial)
+
+	ctx := util.ContextWithUpstreamServerName(context.Background(), "myservice.default")
+	conn, err := dialer(ctx, "tcp", "10.1.2.3:8443")
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("err = %v, want %v", err, wantErr)
+	}
+	if conn != nil {
+		t.Error("returned conn must be nil on dial error")
+	}
 }

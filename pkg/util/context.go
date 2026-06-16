@@ -16,6 +16,8 @@ const (
 	ckUpstreamURL
 	ckFallbackURL
 	ckIR
+	ckUpstreamServerName
+	ckUpstreamPortName
 )
 
 func ContextWithLogger(ctx context.Context, logger logr.Logger) context.Context {
@@ -51,5 +53,27 @@ func ContextWithFallbackURL(ctx context.Context, url *url.URL) context.Context {
 
 func FallbackURLFromContext(ctx context.Context) *url.URL {
 	cv, _ := ctx.Value(ckFallbackURL).(*url.URL)
+	return cv
+}
+
+// ContextWithUpstreamServerName stores the upstream TLS server name (SNI),
+// set before any middleware rewrites the upstream URL.
+func ContextWithUpstreamServerName(ctx context.Context, serverName string) context.Context {
+	return context.WithValue(ctx, ckUpstreamServerName, serverName)
+}
+
+func UpstreamServerNameFromContext(ctx context.Context) string {
+	cv, _ := ctx.Value(ckUpstreamServerName).(string)
+	return cv
+}
+
+// ContextWithUpstreamPortName stores the upstream's resolved named port so
+// EndpointResolver can pick the correct pod port.
+func ContextWithUpstreamPortName(ctx context.Context, portName string) context.Context {
+	return context.WithValue(ctx, ckUpstreamPortName, portName)
+}
+
+func UpstreamPortNameFromContext(ctx context.Context) string {
+	cv, _ := ctx.Value(ckUpstreamPortName).(string)
 	return cv
 }

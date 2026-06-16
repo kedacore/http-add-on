@@ -17,6 +17,7 @@ import (
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/cache"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 const requestTimeout = 60 * time.Second
@@ -127,6 +128,42 @@ var _ = Describe("RoutingMiddleware", func() {
 			})
 		})
 
+		When("route is found with TLS enabled", func() {
+			It("stores the upstream hostname as server name in context", func() {
+				irTLS := &httpv1beta1.InterceptorRoute{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "default"},
+					Spec: httpv1beta1.InterceptorRouteSpec{
+						Target: httpv1beta1.TargetRef{Service: "my-svc", Port: 8443},
+					},
+				}
+				tlsMiddleware := NewRouting(upstreamHandler, routingTable, client, true, requestTimeout)
+
+				var capturedServerName string
+				upstreamHandler.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					capturedServerName = util.UpstreamServerNameFromContext(r.Context())
+					w.WriteHeader(http.StatusOK)
+				}))
+
+				routingTable.Memory[host] = irTLS
+				tlsMiddleware.ServeHTTP(w, r)
+				Expect(capturedServerName).To(Equal("my-svc.default"))
+			})
+		})
+
+		When("route is found with TLS disabled", func() {
+			It("stores an empty server name in context", func() {
+				var capturedServerName string
+				upstreamHandler.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					capturedServerName = util.UpstreamServerNameFromContext(r.Context())
+					w.WriteHeader(http.StatusOK)
+				}))
+
+				routingTable.Memory[host] = &ir
+				routingMiddleware.ServeHTTP(w, r)
+				Expect(capturedServerName).To(Equal(""))
+			})
+		})
+
 		When("route is found with portName", func() {
 			It("routes to the upstream handler", func() {
 				clientWithSvc := fake.NewClientBuilder().WithScheme(cache.NewScheme()).WithObjects(svc).Build()
@@ -154,6 +191,38 @@ var _ = Describe("RoutingMiddleware", func() {
 				Expect(uh).To(BeTrue())
 				Expect(w.Code).To(Equal(sc))
 				Expect(w.Body.String()).To(Equal(st))
+			})
+		})
+
+		When("route is found with numeric port and the Service has a named port", func() {
+			It("resolves the portName and stores it in context", func() {
+				clientWithSvc := fake.NewClientBuilder().WithScheme(cache.NewScheme()).WithObjects(svc).Build()
+				routingMiddleware = NewRouting(upstreamHandler, routingTable, clientWithSvc, false, requestTimeout)
+
+				irWithNumericPort := &httpv1beta1.InterceptorRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "keda",
+						Namespace: "default",
+					},
+					Spec: httpv1beta1.InterceptorRouteSpec{
+						Target: httpv1beta1.TargetRef{
+							Service: "keda-svc",
+							Port:    80,
+						},
+					},
+				}
+
+				var capturedPortName string
+				upstreamHandler.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					capturedPortName = util.UpstreamPortNameFromContext(r.Context())
+					w.WriteHeader(http.StatusOK)
+				}))
+
+				routingTable.Memory["keda2.sh"] = irWithNumericPort
+				r.Host = "keda2.sh"
+				routingMiddleware.ServeHTTP(w, r)
+				Expect(w.Code).To(Equal(http.StatusOK))
+				Expect(capturedPortName).To(Equal("http"))
 			})
 		})
 

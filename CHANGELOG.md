@@ -34,10 +34,13 @@ This changelog keeps track of work items that have been completed and are ready 
 ### New
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Add `KEDA_HTTP_DIRECT_POD_ROUTING` environment variable (`true` | `false`, default `false`). When enabled, the interceptor routes requests directly to a ready pod IP instead of through the Service ClusterIP, bypassing kube-proxy and other Service-layer features (Service-level NetworkPolicy, session affinity, topology-aware routing). ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
 
 ### Improvements
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: The forwarding transport sets TLS `ServerName` per-dial via `DialTLSContext`, using the original service hostname captured in context, so SNI stays correct when the upstream URL is rewritten to a pod IP. ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
+- **Interceptor**: TLS server name is captured in context by the routing middleware before any URL rewrites, so downstream transports always use the original service hostname for SNI. The routing middleware also resolves the upstream named port into context to drive direct-pod target selection. ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
+- **Interceptor**: `ReadyEndpointsCache` now tracks full `(ip, port)` pairs per named port from EndpointSlices, enabling direct-pod routing (replaces the previous bool-only ready state). ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
 
 ### Fixes
 

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 
@@ -18,6 +19,7 @@ import (
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/routing"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 // ProxyHandlerConfig contains all dependencies for building the proxy handler chain.
@@ -60,6 +62,10 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 			MaxVersion:         cfg.TLSConfig.MaxVersion,
 			CipherSuites:       cfg.TLSConfig.CipherSuites,
 			CurvePreferences:   cfg.TLSConfig.CurvePreferences,
+			// Advertise h2 in ALPN explicitly: a custom TLSClientConfig +
+			// DialTLSContext disables net/http's auto-h2, so without this HTTPS
+			// upstreams (incl. gRPC) downgrade to HTTP/1.1 (golang/go#20645).
+			NextProtos: []string{"h2", "http/1.1"},
 		}
 	}
 
@@ -70,6 +76,12 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	baseTransport.MaxIdleConnsPerHost = cfg.Timeouts.MaxIdleConnsPerHost
 	baseTransport.TLSClientConfig = forwardingTLSCfg
 
+	// Direct-pod routing rewrites the upstream URL to a pod IP, so SNI must come
+	// from context (the original service hostname) rather than the dial address.
+	if forwardingTLSCfg != nil {
+		baseTransport.DialTLSContext = newTLSDialer(forwardingTLSCfg, dialFunc)
+	}
+
 	// Build handler chain (innermost to outermost)
 	var h http.Handler
 
@@ -78,6 +90,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	h = middleware.NewEndpointResolver(h, cfg.ReadyCache, middleware.EndpointResolverConfig{
 		ReadinessTimeout:      cfg.Timeouts.Readiness,
 		EnableColdStartHeader: cfg.Serving.EnableColdStartHeader,
+		DirectPodRouting:      cfg.Serving.DirectPodRouting,
 	})
 
 	h = middleware.NewPlaceholder(h, cfg.ReadyCache, cfg.Reader)
@@ -103,4 +116,25 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	}
 
 	return h
+}
+
+// newTLSDialer dials TCP then wraps the conn in TLS, taking ServerName from
+// context (not the dial address, which direct-pod routing rewrites to a pod IP).
+// The SNI should never be empty here as Routing sets it before any https dial;
+// the empty check is just a safety net so we fail closed instead of dialing
+// without an explicit upstream identity.
+func newTLSDialer(tlsCfg *tls.Config, dial func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		serverName := util.UpstreamServerNameFromContext(ctx)
+		if serverName == "" {
+			return nil, fmt.Errorf("upstream server name missing from context for TLS dial to %s (refusing to dial without explicit SNI)", addr)
+		}
+		conn, err := dial(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		dialed := tlsCfg.Clone()
+		dialed.ServerName = serverName
+		return tls.Client(conn, dialed), nil
+	}
 }

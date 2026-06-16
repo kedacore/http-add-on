@@ -66,6 +66,15 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx = util.ContextWithLogger(ctx, logger.WithName("RoutingMiddleware"))
 	ctx = util.ContextWithInterceptorRoute(ctx, ir)
 	ctx = util.ContextWithUpstreamURL(ctx, url)
+	// Capture the SNI hostname before EndpointResolver may rewrite the URL to a
+	// pod IP. Empty for non-TLS upstreams.
+	serverName := ""
+	if rm.tlsEnabled {
+		serverName = url.Hostname()
+	}
+	ctx = util.ContextWithUpstreamServerName(ctx, serverName)
+	portName := rm.resolveUpstreamPortName(ctx, ir.Spec.Target.AsServiceRef(), ir.Namespace)
+	ctx = util.ContextWithUpstreamPortName(ctx, portName)
 
 	if ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Fallback != nil && ir.Spec.ColdStart.Fallback.Service != nil {
 		fallbackURL, err := rm.resolveUpstreamURL(ctx, *ir.Spec.ColdStart.Fallback.Service, ir.Namespace)
@@ -91,6 +100,31 @@ func (rm *Routing) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	r = r.WithContext(ctx)
 	rm.next.ServeHTTP(w, r)
+}
+
+// resolveUpstreamPortName returns the named port for direct-pod routing, or ""
+// when the port is unnamed or the Service lookup fails ("" matches unnamed
+// EndpointSlice ports).
+func (rm *Routing) resolveUpstreamPortName(ctx context.Context, svc httpv1beta.ServiceRef, namespace string) string {
+	if svc.PortName != "" {
+		return svc.PortName
+	}
+
+	var k8sSvc corev1.Service
+	if err := rm.reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: svc.Name}, &k8sSvc); err != nil {
+		util.LoggerFromContext(ctx).V(1).Info(
+			"failed to look up Service for upstream port name; direct-pod routing may not engage for this request",
+			"namespace", namespace, "service", svc.Name, "err", err.Error(),
+		)
+		return ""
+	}
+
+	for _, port := range k8sSvc.Spec.Ports {
+		if port.Port == svc.Port {
+			return port.Name
+		}
+	}
+	return ""
 }
 
 func (rm *Routing) resolvePort(ctx context.Context, svc httpv1beta.ServiceRef, namespace string) (int32, error) {

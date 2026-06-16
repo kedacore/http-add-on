@@ -59,7 +59,8 @@ func TestIntegrationHappyPath(t *testing.T) {
 				Namespace: target.Namespace,
 				Labels:    map[string]string{discov1.LabelServiceName: serviceName},
 			},
-			Endpoints: []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
+			AddressType: discov1.AddressTypeIPv4,
+			Endpoints:   []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
 		},
 	})
 
@@ -190,7 +191,8 @@ func TestIntegrationWaitReplicas(t *testing.T) {
 					Namespace: target.Namespace,
 					Labels:    map[string]string{discov1.LabelServiceName: serviceName},
 				},
-				Endpoints: []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
+				AddressType: discov1.AddressTypeIPv4,
+				Endpoints:   []discov1.Endpoint{{Addresses: []string{"1.2.3.4"}}},
 			},
 		})
 		return nil
