@@ -63,7 +63,7 @@ func (tm *TableMemory) Route(hostname, path string, headers http.Header) *httpv1
 
 	// Filter header matches, the entries are already sorted by specificity so the first match is the most specific one
 	for _, e := range routeEntries {
-		if headersMatch(e.headers, headers) {
+		if MatchHeaders(e.headers, headers) {
 			return e.ir
 		}
 	}
@@ -85,34 +85,11 @@ func (tm *TableMemory) Route(hostname, path string, headers http.Header) *httpv1
 func (tm *TableMemory) tryWithKey(key Key, headers http.Header) *httpv1beta1.InterceptorRoute {
 	_, routeEntries, _ := tm.store.Root().LongestPrefix(key)
 	for _, e := range routeEntries {
-		if headersMatch(e.headers, headers) {
+		if MatchHeaders(e.headers, headers) {
 			return e.ir
 		}
 	}
 	return nil
-}
-
-// headersMatch checks if the provided headers match the header requirements.
-func headersMatch(matchers []httpv1beta1.HeaderMatch, reqHeaders http.Header) bool {
-	if len(matchers) == 0 {
-		// No header requirements, always match
-		return true
-	}
-
-	for _, matcher := range matchers {
-		reqHeaderValues := reqHeaders.Values(matcher.Name)
-		if matcher.Value == nil && len(reqHeaderValues) == 0 {
-			// Required header not present
-			return false
-		}
-
-		if matcher.Value != nil && !slices.Contains(reqHeaderValues, *matcher.Value) {
-			// Required header with value not present
-			return false
-		}
-	}
-
-	return true
 }
 
 // remember adds a route entry to the store for the given key, sorting by specificity.

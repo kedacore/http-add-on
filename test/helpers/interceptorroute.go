@@ -147,6 +147,13 @@ func IRWithPlaceholderResponse(resp httpv1beta1.StaticResponse) IROption {
 	}
 }
 
+// IRWithStaticRoutes configures static routes on the InterceptorRoute.
+func IRWithStaticRoutes(routes ...httpv1beta1.StaticRoute) IROption {
+	return func(ir *httpv1beta1.InterceptorRoute) {
+		ir.Spec.StaticRoutes = append(ir.Spec.StaticRoutes, routes...)
+	}
+}
+
 // IRWithColdStart configures a fallback service for cold-start scenarios.
 func IRWithColdStart(fallbackService string, fallbackPort int32) IROption {
 	return func(ir *httpv1beta1.InterceptorRoute) {

@@ -71,11 +71,9 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	baseTransport.TLSClientConfig = forwardingTLSCfg
 
 	// Build handler chain (innermost to outermost)
-	var h http.Handler
+	upstream := handler.NewUpstream(baseTransport, cfg.Reader, cfg.Tracing, cfg.Timeouts.ResponseHeader)
 
-	h = handler.NewUpstream(baseTransport, cfg.Reader, cfg.Tracing, cfg.Timeouts.ResponseHeader)
-
-	h = middleware.NewEndpointResolver(h, cfg.ReadyCache, middleware.EndpointResolverConfig{
+	var h http.Handler = middleware.NewEndpointResolver(upstream, cfg.ReadyCache, middleware.EndpointResolverConfig{
 		ReadinessTimeout:      cfg.Timeouts.Readiness,
 		EnableColdStartHeader: cfg.Serving.EnableColdStartHeader,
 	})
@@ -83,6 +81,8 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	h = middleware.NewPlaceholder(h, cfg.ReadyCache, cfg.Reader)
 
 	h = middleware.NewCounting(h, cfg.Queue, cfg.Instruments)
+
+	h = middleware.NewStaticRouting(h, upstream, cfg.ReadyCache, cfg.Reader)
 
 	h = middleware.NewRouting(
 		h,

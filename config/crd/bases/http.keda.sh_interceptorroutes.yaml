@@ -124,7 +124,6 @@ spec:
                             description: HTTP response headers.
                             type: object
                           statusCode:
-                            default: 503
                             description: HTTP status code.
                             format: int32
                             maximum: 599
@@ -241,6 +240,139 @@ spec:
                 - message: at least one of 'concurrency' or 'requestRate' must be
                     set
                   rule: has(self.concurrency) || has(self.requestRate)
+              staticRoutes:
+                description: |-
+                  Sub-routes that serve static responses without affecting scaling.
+                  Evaluated in list order (first match wins).
+                items:
+                  description: |-
+                    StaticRoute defines a sub-route excluded from scaling metrics.
+                    Multiple rules within a StaticRoute use OR semantics.
+                    Multiple StaticRoute entries use first-match-wins ordering.
+                  properties:
+                    response:
+                      description: Static response configuration.
+                      properties:
+                        body:
+                          description: Inline response body.
+                          maxLength: 32768
+                          type: string
+                        bodyFromConfigMap:
+                          description: |-
+                            Response body from a ConfigMap in the same namespace. The ConfigMap must
+                            carry the label "http.keda.sh/response-body: true". A missing ConfigMap
+                            or a missing explicit key returns HTTP 500.
+                          properties:
+                            key:
+                              description: |-
+                                Key within the ConfigMap. When omitted, the key is the request path
+                                without the leading "/" (defaulting to "index.html" for "/").
+                                The Content-Type header is auto-detected from the key's file extension
+                                unless explicitly set in headers.
+                              type: string
+                            name:
+                              description: Name of the ConfigMap.
+                              minLength: 1
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        headers:
+                          additionalProperties:
+                            type: string
+                          description: HTTP response headers.
+                          type: object
+                        statusCode:
+                          description: HTTP status code.
+                          format: int32
+                          maximum: 599
+                          minimum: 100
+                          type: integer
+                      type: object
+                      x-kubernetes-validations:
+                      - message: at most one of 'body' or 'bodyFromConfigMap' may
+                          be set
+                        rule: '!(has(self.body) && has(self.bodyFromConfigMap))'
+                    responseMode:
+                      default: WhenUnavailable
+                      description: |-
+                        Determines when the static response is served.
+                        Always: the response is always returned, the backend is never contacted.
+                        WhenUnavailable: the request is forwarded to the backend when it has
+                        ready endpoints; the static response is returned only when unavailable.
+                      enum:
+                      - Always
+                      - WhenUnavailable
+                      type: string
+                    rules:
+                      description: |-
+                        Matching rules for this static route. A request matching any rule
+                        is handled by this static route.
+                      items:
+                        description: RoutingRule defines a set of matching criteria
+                          for routing requests.
+                        properties:
+                          headers:
+                            description: |-
+                              All listed headers must match the request (AND semantics).
+                              If a header's Value is omitted, the header must be present but any
+                              value is accepted.
+                            items:
+                              description: HeaderMatch defines a header matching rule.
+                              properties:
+                                name:
+                                  description: Name of the HTTP header.
+                                  minLength: 1
+                                  type: string
+                                value:
+                                  description: Value to match against (exact match).
+                                    If omitted, matches any value for given header
+                                    name.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
+                          hosts:
+                            description: |-
+                              Match any of these hostnames. Wildcard patterns (e.g. "*.example.com")
+                              are supported. A single "*" acts as a catch-all. Exact matches take
+                              priority over wildcards; more specific wildcards (e.g. "*.bar.example.com")
+                              take priority over less specific ones.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: set
+                          paths:
+                            description: |-
+                              Match any of these path prefixes. When multiple paths match,
+                              the longest prefix wins.
+                            items:
+                              description: PathMatch defines a path matching rule.
+                              properties:
+                                value:
+                                  description: Path prefix to match against. The longest
+                                    matching prefix wins.
+                                  minLength: 1
+                                  type: string
+                              required:
+                              - value
+                              type: object
+                            type: array
+                            x-kubernetes-list-type: atomic
+                        type: object
+                      minItems: 1
+                      type: array
+                      x-kubernetes-list-type: atomic
+                  required:
+                  - response
+                  - rules
+                  type: object
+                type: array
+                x-kubernetes-list-type: atomic
               target:
                 description: Backend service to route traffic to.
                 properties:

@@ -33,6 +33,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
+- **General**: Add `staticRoutes` to InterceptorRoute for defining routes that should not trigger autoscaling, such as health checks, redirects, and maintenance pages. Supports `responseMode: WhenUnavailable` (forward to backend when ready, static response otherwise) and `responseMode: Always` (always serve static response) ([#1622](https://github.com/kedacore/http-add-on/issues/1622))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### Improvements
