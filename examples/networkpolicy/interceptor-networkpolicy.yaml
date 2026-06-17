@@ -1,0 +1,173 @@
+---
+# NetworkPolicy for KEDA HTTP Add-on Interceptor
+#
+# The Interceptor acts as an HTTP proxy that:
+# - Receives HTTP/HTTPS traffic from ingress controllers or load balancers
+# - Proxies requests to backend application services
+# - Exposes admin API for queue count metrics (accessed by Scaler)
+# - Exposes Prometheus metrics for monitoring
+#
+# This policy implements the principle of least privilege by:
+# - Allowing only necessary ingress traffic on specific ports
+# - Restricting egress to required destinations (backends, K8s API, DNS)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: interceptor
+  namespace: keda
+  labels:
+    app.kubernetes.io/name: http-add-on
+    app.kubernetes.io/component: interceptor
+spec:
+  # Apply policy to interceptor pods
+  # NOTE: These labels match Helm chart deployments
+  # For manual deployments, adjust labels to match your pod labels
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: interceptor
+      app.kubernetes.io/instance: http-add-on
+      app.kubernetes.io/name: http-add-on
+      app.kubernetes.io/part-of: keda-add-ons-http
+
+  # Allow both ingress and egress (default deny all)
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # 1. Allow HTTP/HTTPS proxy traffic from ingress controllers
+    # This is the main entry point for user traffic
+    - from:
+        # Allow from ingress-nginx namespace
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+        # Allow from any pod with ingress-controller label (generic)
+        # CUSTOMIZE: This allows from ANY namespace - restrict to specific
+        # ingress namespace for better security
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app: ingress-controller
+      ports:
+        - protocol: TCP
+          port: 8080  # HTTP proxy
+        - protocol: TCP
+          port: 8443  # HTTPS proxy
+
+    # 2. Allow admin API access from Scaler (same namespace only)
+    # Scaler fetches queue counts from interceptor admin API
+    # IMPORTANT: Omitting namespaceSelector means "same namespace only"
+    # Using namespaceSelector: {} would allow from ALL namespaces!
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: scaler
+              app.kubernetes.io/instance: http-add-on
+              app.kubernetes.io/name: http-add-on
+              app.kubernetes.io/part-of: keda-add-ons-http
+      ports:
+        - protocol: TCP
+          port: 9090  # Admin API
+
+    # 3. Allow Prometheus metrics scraping
+    # Optional: Remove if not using Prometheus monitoring
+    # NOTE: Adjust namespace/pod selectors to match your Prometheus setup
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        # Alternative: Allow from any namespace with prometheus label
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: prometheus
+          podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 2223  # Metrics
+
+  egress:
+    # 1. Allow connections to backend application services
+    # Interceptor proxies requests to actual backend pods
+    # CUSTOMIZE: This allows connections to ANY pod in ANY namespace on common ports
+    # For production, restrict to specific application namespaces and/or pod labels:
+    #   - namespaceSelector:
+    #       matchLabels:
+    #         kubernetes.io/metadata.name: my-app-namespace
+    - to:
+        - namespaceSelector: {}
+          podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80    # HTTP backends
+        - protocol: TCP
+          port: 443   # HTTPS backends
+        - protocol: TCP
+          port: 8080  # Common app port
+        - protocol: TCP
+          port: 8443  # Common app TLS port
+
+    # 2. Allow Kubernetes API server access
+    # Required for watching Services, EndpointSlices, HTTPScaledObjects, InterceptorRoutes
+    # API server is typically accessed via service IP, not pod IP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: default
+          podSelector:
+            matchLabels:
+              component: apiserver
+        # Also allow to kube-system namespace for API server
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: TCP
+          port: 443   # API server HTTPS
+        - protocol: TCP
+          port: 6443  # Alternative API server port
+
+    # 3. Allow DNS resolution
+    # Required for service discovery
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+        # Also allow CoreDNS (alternative DNS implementation)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: coredns
+      ports:
+        - protocol: UDP
+          port: 53    # DNS
+        - protocol: TCP
+          port: 53    # DNS over TCP
+
+---
+# Optional: Deny-all default policy for the namespace
+# Uncomment to enforce that all pods must have explicit NetworkPolicies
+#
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: default-deny-all
+#   namespace: keda
+# spec:
+#   podSelector: {}
+#   policyTypes:
+#     - Ingress
+#     - Egress
