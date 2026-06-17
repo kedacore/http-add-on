@@ -49,7 +49,7 @@ jobs:
         uses: Azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         env:
           # renovate: datasource=github-releases depName=helm/helm
-          HELM_VERSION: "v4.2.0"
+          HELM_VERSION: "v4.2.2"
         with:
           version: ${{ env.HELM_VERSION }}
 
@@ -111,7 +111,7 @@ jobs:
         uses: Azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         env:
           # renovate: datasource=github-releases depName=helm/helm
-          HELM_VERSION: "v4.2.0"
+          HELM_VERSION: "v4.2.2"
         with:
           version: ${{ env.HELM_VERSION }}
 
