@@ -53,12 +53,6 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
-      - name: Install gotestsum
-        run: go install gotest.tools/gotestsum@${GOTESTSUM_VERSION}
-        env:
-          # renovate: datasource=github-releases depName=gotestyourself/gotestsum
-          GOTESTSUM_VERSION: "v1.13.0"
-
       - name: Create Kind cluster
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         env:

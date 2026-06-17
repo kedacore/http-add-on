@@ -168,7 +168,7 @@ e2e-test-default: e2e-test
 e2e-test-ci: ## Run all e2e tests (CI mode with retries)
 # -p 1 is needed to run only one profile (=addon configuration) in parallel
 # -parallel 4 limits concurrent tests to avoid overwhelming the kubelet port-forward
-	gotestsum --rerun-fails=2 --format=github-actions --packages="./test/e2e/..." -- -tags e2e -p 1 -count=1 -timeout 30m -v -parallel 4
+	go tool gotestsum --rerun-fails=2 --format=github-actions --packages="./test/e2e/..." -- -tags e2e -p 1 -count=1 -timeout 30m -v -parallel 4
 
 e2e-test-images: ## Build all test images under test/images/ and push to $KO_DOCKER_REPO
 	# --base-import-paths prevents the hash suffix in image names
@@ -203,6 +203,12 @@ e2e-deps-otel-collector:
 		--version $(OTEL_COLLECTOR_VERSION) --wait --timeout 5m)
 
 e2e-setup: e2e-deps deploy e2e-test-images ## Full e2e setup: install deps + deploy http-add-on + build test images
+
+benchmark-test: ## Run benchmark tests (BENCH_THROUGHPUT_RATE=300, BENCH_P99_MAX=2s, ...)
+	BENCHMARK=true go test -tags e2e ./test/e2e/benchmark/... -p 1 -count=1 -timeout 30m -v $(if $(RUN),-run '$(RUN)')
+
+benchmark-test-ci: ## Run benchmark tests (CI mode with retries)
+	BENCHMARK=true go tool gotestsum --rerun-fails=1 --format=github-actions --packages="./test/e2e/benchmark/..." -- -tags e2e -p 1 -count=1 -timeout 30m -v
 
 ##################################################
 # Code generation & manifests                    #
