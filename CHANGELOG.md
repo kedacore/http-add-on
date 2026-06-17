@@ -33,7 +33,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Add NetworkPolicy examples for securing KEDA HTTP Add-on components ([#1602](https://github.com/kedacore/http-add-on/issues/1602))
 
 ### Improvements
 

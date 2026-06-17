@@ -46,6 +46,8 @@ spec:
             matchLabels:
               app.kubernetes.io/name: ingress-nginx
         # Allow from any pod with ingress-controller label (generic)
+        # CUSTOMIZE: This allows from ANY namespace - restrict to specific
+        # ingress namespace for better security
         - namespaceSelector: {}
           podSelector:
             matchLabels:
@@ -95,8 +97,11 @@ spec:
   egress:
     # 1. Allow connections to backend application services
     # Interceptor proxies requests to actual backend pods
-    # This allows connections to any pod in any namespace
-    # For tighter security, restrict to specific namespaces/labels
+    # CUSTOMIZE: This allows connections to ANY pod in ANY namespace on common ports
+    # For production, restrict to specific application namespaces and/or pod labels:
+    #   - namespaceSelector:
+    #       matchLabels:
+    #         kubernetes.io/metadata.name: my-app-namespace
     - to:
         - namespaceSelector: {}
           podSelector: {}

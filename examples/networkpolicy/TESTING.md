@@ -21,6 +21,11 @@ This guide provides step-by-step instructions for testing and verifying the Netw
    helm install xkcd examples/xkcd -n test-app
    ```
 
+   **Note**: The `app-networkpolicy.yaml` example uses `namespace: default` and `app: example-app` labels.
+   For this test, you'll need to either:
+   - Deploy your test app to the `default` namespace, OR
+   - Edit `app-networkpolicy.yaml` to use `namespace: test-app` and match your app's labels before applying
+
 # Testing Strategy
 
 The testing approach follows the principle: "Verify it works WITH policies, then verify it FAILS WITHOUT specific rules"
@@ -325,7 +330,11 @@ kubectl get nodes -o wide
 # Verify pod labels
 kubectl get pods -n keda --show-labels
 
-# Add namespace labels if missing
+# Check existing namespace labels
+kubectl get ns keda kube-system --show-labels
+
+# Note: Namespaces have kubernetes.io/metadata.name label by default (Kubernetes 1.21+)
+# If using custom labels in your NetworkPolicies, add them:
 kubectl label namespace keda name=keda
 kubectl label namespace kube-system name=kube-system
 ```
@@ -360,7 +369,7 @@ Possible Causes:
 - DNS egress rules missing
 - CoreDNS labels don't match
 
-Slution:
+Solution:
 ```bash
 # Check CoreDNS labels
 kubectl get pods -n kube-system -l k8s-app=kube-dns --show-labels

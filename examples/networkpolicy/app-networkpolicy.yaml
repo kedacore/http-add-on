@@ -101,8 +101,14 @@ spec:
           port: 5432  # PostgreSQL
 
     # 3. Allow connections to external services (internet)
-    # CUSTOMIZE: For production, consider using egress gateway
-    # or restricting to specific IP ranges
+    # IMPORTANT: namespaceSelector/podSelector only match cluster pods, not external IPs
+    # For external services, use ipBlock instead:
+    #   - to:
+    #     - ipBlock:
+    #         cidr: 0.0.0.0/0  # Allow all (not recommended)
+    #         except:
+    #           - 10.0.0.0/8   # Exclude internal ranges
+    # OR specify exact external IP ranges your app needs
     - to:
         - namespaceSelector: {}
       ports:
