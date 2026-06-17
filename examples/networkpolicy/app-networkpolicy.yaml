@@ -1,0 +1,203 @@
+---
+# Example NetworkPolicy for User Applications
+#
+# This is a template NetworkPolicy for applications that are scaled by
+# the KEDA HTTP Add-on. It demonstrates how to secure your application
+# while allowing necessary traffic from the Interceptor.
+#
+# IMPORTANT: Customize this policy for your specific application needs:
+# - Update namespace to match your application namespace
+# - Update podSelector to match your application labels
+# - Add additional ingress/egress rules as needed for your app
+#
+# This example assumes:
+# - Application runs in "default" namespace
+# - Application listens on port 8080
+# - Application needs to access external APIs and databases
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: example-app
+  namespace: default  # Change to your application namespace
+  labels:
+    app.kubernetes.io/name: example-app
+spec:
+  # Apply policy to your application pods
+  # CUSTOMIZE: Update these labels to match your application
+  podSelector:
+    matchLabels:
+      app: example-app
+
+  # Allow both ingress and egress (default deny all)
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # 1. Allow HTTP traffic from KEDA HTTP Add-on Interceptor
+    # The Interceptor proxies requests to your application
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: keda
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: interceptor
+              app.kubernetes.io/instance: http-add-on
+              app.kubernetes.io/name: http-add-on
+              app.kubernetes.io/part-of: keda-add-ons-http
+      ports:
+        - protocol: TCP
+          port: 8080  # Your application port
+
+    # 2. Allow Kubernetes health probes
+    # Kubelet needs to access liveness/readiness endpoints
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: TCP
+          port: 8080  # Your application port
+
+    # 3. Optional: Allow Prometheus metrics scraping
+    # Uncomment if your application exposes Prometheus metrics
+    # - from:
+    #     - namespaceSelector:
+    #         matchLabels:
+    #           kubernetes.io/metadata.name: monitoring
+    #       podSelector:
+    #         matchLabels:
+    #           app.kubernetes.io/name: prometheus
+    #   ports:
+    #     - protocol: TCP
+    #       port: 9090  # Metrics port
+
+  egress:
+    # 1. Allow connections to other services in the same namespace
+    # CUSTOMIZE: Restrict to specific services if needed
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 8080
+
+    # 2. Allow connections to databases
+    # Example: PostgreSQL, MySQL, MongoDB
+    # CUSTOMIZE: Add your specific database ports and selectors
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: database  # Your database namespace
+          podSelector:
+            matchLabels:
+              app: postgresql  # Your database label
+      ports:
+        - protocol: TCP
+          port: 5432  # PostgreSQL
+
+    # 3. Allow connections to external services (internet)
+    # CUSTOMIZE: For production, consider using egress gateway
+    # or restricting to specific IP ranges
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS
+        - protocol: TCP
+          port: 80   # HTTP
+
+    # 4. Allow DNS resolution
+    # Required for service discovery
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # 5. Allow connections to CoreDNS (alternative DNS label)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: coredns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# Example: More restrictive policy for production
+# This example shows a tighter policy that only allows specific connections
+#
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: example-app-strict
+#   namespace: default
+# spec:
+#   podSelector:
+#     matchLabels:
+#       app: example-app
+#       tier: backend
+#   policyTypes:
+#     - Ingress
+#     - Egress
+#   ingress:
+#     # Only allow from interceptor
+#     - from:
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: keda
+#           podSelector:
+#             matchLabels:
+#               app.kubernetes.io/component: interceptor
+#               app.kubernetes.io/instance: http-add-on
+#       ports:
+#         - protocol: TCP
+#           port: 8080
+#   egress:
+#     # Only allow to specific database
+#     - to:
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: database
+#           podSelector:
+#             matchLabels:
+#               app: postgresql
+#               instance: prod
+#       ports:
+#         - protocol: TCP
+#           port: 5432
+#     # Only allow to specific external API (by IP)
+#     - to:
+#         - ipBlock:
+#             cidr: 203.0.113.0/24  # Example external API IP range
+#       ports:
+#         - protocol: TCP
+#           port: 443
+#     # DNS
+#     - to:
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: kube-system
+#           podSelector:
+#             matchLabels:
+#               k8s-app: kube-dns
+#       ports:
+#         - protocol: UDP
+#           port: 53

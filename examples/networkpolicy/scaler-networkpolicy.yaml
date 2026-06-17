@@ -1,0 +1,117 @@
+---
+# NetworkPolicy for KEDA HTTP Add-on Scaler (External Scaler)
+#
+# The Scaler is a gRPC service that:
+# - Implements the KEDA external scaler protocol
+# - Fetches queue counts from Interceptor admin API
+# - Provides scaling metrics to KEDA operator
+# - Watches HTTPScaledObjects and InterceptorRoutes
+#
+# This policy implements the principle of least privilege by:
+# - Allowing only KEDA operator to connect via gRPC
+# - Restricting egress to Interceptor, Kubernetes API, and DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scaler
+  namespace: keda
+  labels:
+    app.kubernetes.io/name: http-add-on
+    app.kubernetes.io/component: scaler
+spec:
+  # Apply policy to scaler pods
+  # NOTE: These labels match Helm chart deployments
+  # For manual deployments, adjust labels to match your pod labels
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: scaler
+      app.kubernetes.io/instance: http-add-on
+      app.kubernetes.io/name: http-add-on
+      app.kubernetes.io/part-of: keda-add-ons-http
+
+  # Allow both ingress and egress (default deny all)
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # 1. Allow gRPC connections from KEDA operator
+    # KEDA calls the external scaler to get metrics
+    # IMPORTANT: Omitting namespaceSelector means "same namespace only"
+    # Using namespaceSelector: {} would allow from ALL namespaces!
+    - from:
+        - podSelector:
+            matchLabels:
+              app: keda-operator
+      ports:
+        - protocol: TCP
+          port: 9090  # gRPC service
+
+    # 2. Allow Kubernetes health probes
+    # Kubelet runs on nodes and doesn't have pod identity in NetworkPolicy
+    # Health probes come from the node IP, not from pods
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: TCP
+          port: 9090  # gRPC health probes
+
+  egress:
+    # 1. Allow connections to Interceptor admin API
+    # Scaler fetches queue counts from all interceptor pods in the same namespace
+    # IMPORTANT: Omitting namespaceSelector means "same namespace only"
+    # Using namespaceSelector: {} would allow to ALL namespaces!
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: interceptor
+              app.kubernetes.io/instance: http-add-on
+              app.kubernetes.io/name: http-add-on
+              app.kubernetes.io/part-of: keda-add-ons-http
+      ports:
+        - protocol: TCP
+          port: 9090  # Interceptor admin API
+
+    # 2. Allow Kubernetes API server access
+    # Required for watching EndpointSlices, HTTPScaledObjects, InterceptorRoutes
+    # API server is typically accessed via service IP, not pod IP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: default
+          podSelector:
+            matchLabels:
+              component: apiserver
+        # Also allow to kube-system namespace for API server
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: TCP
+          port: 443   # API server HTTPS
+        - protocol: TCP
+          port: 6443  # Alternative API server port
+
+    # 3. Allow DNS resolution
+    # Required for service discovery
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+        # Also allow CoreDNS (alternative DNS implementation)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: coredns
+      ports:
+        - protocol: UDP
+          port: 53    # DNS
+        - protocol: TCP
+          port: 53    # DNS over TCP
