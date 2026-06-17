@@ -41,7 +41,7 @@ kubectl apply -f examples/networkpolicy/app-networkpolicy.yaml
 
 ### 1. `interceptor-networkpolicy.yaml`
 Secures the Interceptor component:
-- **Ingress**: Allows HTTP/HTTPS traffic from ingress controllers, scaler admin API access, metrics scraping, and health probes
+- **Ingress**: Allows HTTP/HTTPS traffic from ingress controllers, scaler admin API access, and metrics scraping
 - **Egress**: Allows connections to backend services, Kubernetes API, and DNS
 
 ### 2. `operator-networkpolicy.yaml`
@@ -188,6 +188,46 @@ Monitor NetworkPolicy denials:
 - Check CNI plugin logs for dropped packets
 - Use tools like Cilium Hubble for network observability
 - Set up alerts for unexpected connection attempts
+
+## Important Production Considerations
+
+### Node IP and API Server Access
+
+**⚠️ Important**: The example NetworkPolicies use `podSelector` and `namespaceSelector` which only match pods within the cluster. For production deployments, you may need to use `ipBlock` for:
+
+1. **Kubernetes Health Probes**: Kubelet health probes originate from the node IP, not from pods. To allow health probes:
+   ```yaml
+   - from:
+     - ipBlock:
+         cidr: 10.0.0.0/8  # Replace with your node CIDR range
+   ```
+
+2. **Kubernetes API Server Access**: The API server is typically reached via node IPs or control-plane endpoints. For operator/scaler egress to API server:
+   ```yaml
+   - to:
+     - ipBlock:
+         cidr: 10.96.0.1/32  # kubernetes.default Service IP
+   # OR specify your control-plane endpoint CIDRs
+   ```
+
+3. **External Services**: For application egress to external services (internet, external databases):
+   ```yaml
+   - to:
+     - ipBlock:
+         cidr: 0.0.0.0/0  # Allow all (not recommended)
+         except:
+           - 10.0.0.0/8   # Exclude internal ranges
+   # OR specify exact external IP ranges needed
+   ```
+
+### Customization Required
+
+These example policies are **templates** that require customization for your environment:
+
+- **Ingress Controller Labels**: Update `interceptor-networkpolicy.yaml` to match your actual ingress controller's namespace and pod labels
+- **Monitoring Labels**: Update metrics scraping rules to match your Prometheus/monitoring setup
+- **IP Ranges**: Add `ipBlock` rules for node IPs, API server, and external services as needed
+- **Namespace Labels**: Verify your namespaces have the labels referenced in `namespaceSelector` rules
 
 ## Production Recommendations
 

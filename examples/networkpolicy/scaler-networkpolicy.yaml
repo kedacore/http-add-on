@@ -48,8 +48,12 @@ spec:
           port: 9090  # gRPC service
 
     # 2. Allow Kubernetes health probes
-    # Kubelet runs on nodes and doesn't have pod identity in NetworkPolicy
+    # IMPORTANT: Kubelet runs on nodes and doesn't have pod identity in NetworkPolicy
     # Health probes come from the node IP, not from pods
+    # For production, use ipBlock with your node CIDR range:
+    #   - from:
+    #     - ipBlock:
+    #         cidr: 10.0.0.0/8  # Replace with your node CIDR
     - from:
         - namespaceSelector:
             matchLabels:
