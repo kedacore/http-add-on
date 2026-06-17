@@ -1,0 +1,117 @@
+---
+# NetworkPolicy for KEDA HTTP Add-on Operator
+#
+# The Operator is a Kubernetes controller that:
+# - Watches HTTPScaledObject and InterceptorRoute custom resources
+# - Creates and manages KEDA ScaledObjects
+# - Performs leader election for high availability
+# - Exposes Prometheus metrics for monitoring
+#
+# This policy implements the principle of least privilege by:
+# - Allowing only necessary ingress traffic (metrics and probes)
+# - Restricting egress to Kubernetes API and DNS only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operator
+  namespace: keda
+  labels:
+    app.kubernetes.io/name: http-add-on
+    app.kubernetes.io/component: operator
+spec:
+  # Apply policy to operator pods
+  # NOTE: These labels match Helm chart deployments
+  # For manual deployments, adjust labels to match your pod labels
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: operator
+      app.kubernetes.io/instance: http-add-on
+      app.kubernetes.io/name: http-add-on
+      app.kubernetes.io/part-of: keda-add-ons-http
+
+  # Allow both ingress and egress (default deny all)
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # 1. Allow Prometheus metrics scraping
+    # Optional: Remove if not using Prometheus monitoring
+    # NOTE: Adjust namespace/pod selectors to match your Prometheus setup
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        # Alternative: Allow from any namespace with prometheus label
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: prometheus
+          podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080  # Metrics HTTP
+        - protocol: TCP
+          port: 8443  # Metrics HTTPS
+
+    # 2. Allow Kubernetes health probes
+    # Kubelet runs on nodes and doesn't have pod identity in NetworkPolicy
+    # Health probes come from the node IP, not from pods
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: TCP
+          port: 8081  # Health probes
+
+  egress:
+    # 1. Allow Kubernetes API server access
+    # Required for:
+    # - Watching HTTPScaledObjects, InterceptorRoutes
+    # - Creating/updating ScaledObjects
+    # - Leader election (leases)
+    # - Creating events
+    # API server is typically accessed via service IP, not pod IP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: default
+          podSelector:
+            matchLabels:
+              component: apiserver
+        # Also allow to kube-system namespace for API server
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: TCP
+          port: 443   # API server HTTPS
+        - protocol: TCP
+          port: 6443  # Alternative API server port
+
+    # 2. Allow DNS resolution
+    # Required for service discovery
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+        # Also allow CoreDNS (alternative DNS implementation)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: coredns
+      ports:
+        - protocol: UDP
+          port: 53    # DNS
+        - protocol: TCP
+          port: 53    # DNS over TCP
