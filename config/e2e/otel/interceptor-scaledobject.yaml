@@ -1,7 +1,0 @@
-apiVersion: keda.sh/v1alpha1
-kind: ScaledObject
-metadata:
-  name: keda-add-ons-http-interceptor
-  namespace: keda
-spec:
-  minReplicaCount: 1

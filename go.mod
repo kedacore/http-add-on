@@ -43,7 +43,6 @@ require (
 	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
 	sigs.k8s.io/controller-runtime v0.22.5
 	sigs.k8s.io/e2e-framework v0.6.0
-	sigs.k8s.io/gateway-api v1.4.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -146,6 +145,7 @@ require (
 	knative.dev/pkg v0.0.0-20250602175424-3c3a920206ea // indirect
 	pgregory.net/rapid v1.2.0 // indirect
 	sigs.k8s.io/controller-tools v0.19.0 // indirect
+	sigs.k8s.io/gateway-api v1.4.1 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )

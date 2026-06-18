@@ -54,27 +54,6 @@ COSIGN_FLAGS ?= -y -a GIT_HASH=$(GIT_COMMIT) -a GIT_VERSION=$(VERSION) -a BUILD_
 ## Tool Binaries
 CONTROLLER_GEN ?= go tool controller-gen
 
-# TODO(v1): remove DOMAINS, ABC_DOMAINS, and the cert targets below when removing the legacy e2e tests.
-define DOMAINS
-basicConstraints=CA:FALSE
-keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-subjectAltName = @alt_names
-[alt_names]
-DNS.1 = localhost
-DNS.2 = *.keda
-DNS.3 = *.interceptor-tls-test-ns
-endef
-export DOMAINS
-
-define ABC_DOMAINS
-basicConstraints=CA:FALSE
-keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-subjectAltName = @alt_names
-[alt_names]
-DNS.1 = abc
-endef
-export ABC_DOMAINS
-
 ##################################################
 # Go build                                       #
 ##################################################
@@ -108,23 +87,6 @@ ko-build: ko-build-operator ko-build-interceptor ko-build-scaler
 ##################################################
 # Testing                                        #
 ##################################################
-
-# TODO(v1): remove cert targets below when removing the legacy e2e tests.
-rootca-test-certs:
-	mkdir -p certs
-	openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout certs/RootCA.key -out certs/RootCA.pem -subj "/C=US/CN=Keda-Root-CA"
-	openssl x509 -outform pem -in certs/RootCA.pem -out certs/RootCA.crt
-
-test-certs: rootca-test-certs
-	echo "$$DOMAINS" > certs/domains.ext
-	openssl req -new -nodes -newkey rsa:2048 -keyout certs/tls.key -out certs/tls.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Keda-Certificates/CN=keda.local"
-	openssl x509 -req -sha256 -days 1024 -in certs/tls.csr -CA certs/RootCA.pem -CAkey certs/RootCA.key -CAcreateserial -extfile certs/domains.ext -out certs/tls.crt
-	echo "$$ABC_DOMAINS" > certs/abc_domains.ext
-	openssl req -new -nodes -newkey rsa:2048 -keyout certs/abc.tls.key -out certs/abc.tls.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Keda-Certificates/CN=abc"
-	openssl x509 -req -sha256 -days 1024 -in certs/abc.tls.csr -CA certs/RootCA.pem -CAkey certs/RootCA.key -CAcreateserial -extfile certs/abc_domains.ext -out certs/abc.tls.crt
-
-clean-test-certs:
-	rm -rf certs
 
 .PHONY: test
 test:
@@ -258,9 +220,6 @@ install:
 
 deploy:
 	kustomize build config/default | ko apply -f -
-
-deploy-e2e:
-	kustomize build config/e2e | ko apply -f -
 
 deploy-operator:
 	kustomize build config/operator | ko apply -f -
