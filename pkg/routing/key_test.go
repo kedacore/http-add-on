@@ -158,7 +158,7 @@ func TestStripPort(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := stripPort(tt.host)
+			got := StripPort(tt.host)
 			if got != tt.want {
 				t.Errorf("got %q, want %q", got, tt.want)
 			}

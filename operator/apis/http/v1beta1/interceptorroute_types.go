@@ -148,7 +148,6 @@ type ServiceRef struct {
 type StaticResponse struct {
 	// HTTP status code.
 	// +optional
-	// +kubebuilder:default=503
 	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:Maximum=599
 	StatusCode int32 `json:"statusCode,omitzero"`
@@ -229,6 +228,39 @@ type InterceptorRouteTimeouts struct {
 	ResponseHeader *metav1.Duration `json:"responseHeader,omitzero"`
 }
 
+// StaticRouteResponseMode determines when the static response is served.
+// +kubebuilder:validation:Enum=Always;WhenUnavailable
+type StaticRouteResponseMode string
+
+const (
+	// StaticRouteResponseModeAlways always serves the static response,
+	// regardless of backend availability.
+	StaticRouteResponseModeAlways StaticRouteResponseMode = "Always"
+	// StaticRouteResponseModeWhenUnavailable serves the static response
+	// only when the backend has no ready endpoints.
+	StaticRouteResponseModeWhenUnavailable StaticRouteResponseMode = "WhenUnavailable"
+)
+
+// StaticRoute defines a sub-route excluded from scaling metrics.
+// Multiple rules within a StaticRoute use OR semantics.
+// Multiple StaticRoute entries use first-match-wins ordering.
+type StaticRoute struct {
+	// Matching rules for this static route. A request matching any rule
+	// is handled by this static route.
+	// +kubebuilder:validation:MinItems=1
+	// +listType=atomic
+	Rules []RoutingRule `json:"rules"`
+	// Static response configuration.
+	Response StaticResponse `json:"response"`
+	// Determines when the static response is served.
+	// Always: the response is always returned, the backend is never contacted.
+	// WhenUnavailable: the request is forwarded to the backend when it has
+	// ready endpoints; the static response is returned only when unavailable.
+	// +optional
+	// +kubebuilder:default=WhenUnavailable
+	ResponseMode StaticRouteResponseMode `json:"responseMode,omitzero"`
+}
+
 // InterceptorRouteSpec defines the desired state of InterceptorRoute.
 type InterceptorRouteSpec struct {
 	// Backend service to route traffic to.
@@ -245,6 +277,11 @@ type InterceptorRouteSpec struct {
 	Rules []RoutingRule `json:"rules,omitzero"`
 	// Metric configuration for autoscaling.
 	ScalingMetric ScalingMetricSpec `json:"scalingMetric"`
+	// Sub-routes that serve static responses without affecting scaling.
+	// Evaluated in list order (first match wins).
+	// +optional
+	// +listType=atomic
+	StaticRoutes []StaticRoute `json:"staticRoutes,omitzero"`
 }
 
 // InterceptorRouteStatus defines the observed state of InterceptorRoute.

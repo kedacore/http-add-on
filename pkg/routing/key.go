@@ -2,7 +2,6 @@ package routing
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -50,21 +49,11 @@ func NewKeyFromURL(url *url.URL) Key {
 
 // NewKeyFromRequest creates a routing key from an HTTP request.
 func NewKeyFromRequest(req *http.Request) Key {
-	if req == nil {
+	if req == nil || req.URL == nil {
 		return nil
 	}
 
-	reqURL := req.URL
-	if reqURL == nil {
-		return nil
-	}
-
-	keyURL := *reqURL
-	if reqHost := req.Host; reqHost != "" {
-		keyURL.Host = reqHost
-	}
-
-	return NewKeyFromURL(&keyURL)
+	return NewKey(RequestHost(req), req.URL.Path)
 }
 
 // newKeysFromRoutingRule creates routing keys from a RoutingRule.
@@ -83,7 +72,7 @@ func newKeysFromRoutingRule(rule httpv1beta1.RoutingRule) Keys {
 	keys := make([]Key, 0, len(hosts)*len(paths))
 
 	for _, hostname := range hosts {
-		hostname = stripPort(hostname)
+		hostname = StripPort(hostname)
 		if isCatchAllHostname(hostname) {
 			hostname = catchAllHostKey
 		}
@@ -95,17 +84,6 @@ func newKeysFromRoutingRule(rule httpv1beta1.RoutingRule) Keys {
 	}
 
 	return keys
-}
-
-// stripPort removes the port from a host string.
-func stripPort(host string) string {
-	if host == "" {
-		return ""
-	}
-	if hostname, _, err := net.SplitHostPort(host); err == nil {
-		return hostname
-	}
-	return host
 }
 
 // wildcardHostnames returns all wildcard patterns for a hostname,
