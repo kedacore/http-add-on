@@ -282,10 +282,11 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 	elapsed := time.Since(start)
 	log.Printf("forwardRequest took %s", elapsed)
 
+	const timerJitter = 5 * time.Millisecond
 	r.GreaterOrEqualf(
 		elapsed,
-		requestTimeout,
-		"proxy returned after %s, expected not to return until %s",
+		requestTimeout-timerJitter,
+		"proxy returned after %s, expected not to return until ~%s",
 		elapsed,
 		requestTimeout,
 	)
