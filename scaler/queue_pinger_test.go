@@ -356,6 +356,21 @@ func TestRateComputationCounterReset(t *testing.T) {
 	r.Greater(pinger.allCounts["host1"].RequestRate, 0.0)
 }
 
+func TestFetchCountsPerPod_NoEndpoints(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+
+	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
+		return k8s.Endpoints{}, nil
+	}
+
+	result, err := fetchCountsPerPod(ctx, logr.Discard(), endpointsFn, "testns", "testsvc", "8081")
+	r.NoError(err, "no endpoints should not be an error")
+	r.Empty(result.perPod)
+	r.Empty(result.endpointKeys)
+	r.Equal(0, result.endpointCount)
+}
+
 func TestFetchCountsPerPod_PartialFailure(t *testing.T) {
 	r := require.New(t)
 	ctx := t.Context()

@@ -289,11 +289,15 @@ type fetchResult struct {
 // and returns the raw per-pod results keyed by pod URL string along with
 // the total number of endpoints that were polled.
 //
+// If there are no ready interceptor endpoints (e.g. during startup
+// before the interceptor passes its readiness probe), an empty result
+// is returned without error.
+//
 // Individual pod failures are logged and skipped. An error is only
-// returned when no pod could be reached at all, so that a single
-// unreachable interceptor (e.g. during a rolling update or spot-node
-// eviction) does not cause the scaler to report NOT_SERVING and get
-// restarted by Kubernetes.
+// returned when endpoints exist but no pod could be reached at all,
+// so that a single unreachable interceptor (e.g. during a rolling
+// update or spot-node eviction) does not cause the scaler to report
+// NOT_SERVING and get restarted by Kubernetes.
 func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpointsFunc, ns, svcName, adminPort string) (fetchResult, error) {
 	lggr = lggr.WithName("queuePinger.requestCounts")
 
@@ -303,7 +307,8 @@ func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.Ge
 	}
 
 	if len(endpointURLs) == 0 {
-		return fetchResult{}, fmt.Errorf("there isn't any valid interceptor endpoint")
+		lggr.V(1).Info("no interceptor endpoints found")
+		return fetchResult{}, nil
 	}
 
 	endpointKeys := make([]string, len(endpointURLs))
