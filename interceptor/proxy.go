@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 
@@ -52,34 +51,17 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		}
 	}
 
-	var forwardingTLSCfg *tls.Config
-	if cfg.TLSConfig != nil {
-		forwardingTLSCfg = &tls.Config{
-			RootCAs:            cfg.TLSConfig.RootCAs,
-			Certificates:       cfg.TLSConfig.Certificates,
-			InsecureSkipVerify: cfg.TLSConfig.InsecureSkipVerify, //nolint:gosec // G402: user-configurable
-			MinVersion:         cfg.TLSConfig.MinVersion,
-			MaxVersion:         cfg.TLSConfig.MaxVersion,
-			CipherSuites:       cfg.TLSConfig.CipherSuites,
-			CurvePreferences:   cfg.TLSConfig.CurvePreferences,
-			// Advertise h2 in ALPN explicitly: a custom TLSClientConfig +
-			// DialTLSContext disables net/http's auto-h2, so without this HTTPS
-			// upstreams (incl. gRPC) downgrade to HTTP/1.1 (golang/go#20645).
-			NextProtos: []string{"h2", "http/1.1"},
-		}
-	}
-
 	// Clone DefaultTransport to inherit Go's defaults for IdleConnTimeout, ...
 	baseTransport := http.DefaultTransport.(*http.Transport).Clone()
 	baseTransport.DialContext = dialFunc
 	baseTransport.MaxIdleConns = cfg.Timeouts.MaxIdleConns
 	baseTransport.MaxIdleConnsPerHost = cfg.Timeouts.MaxIdleConnsPerHost
-	baseTransport.TLSClientConfig = forwardingTLSCfg
 
-	// Direct-pod routing rewrites the upstream URL to a pod IP, so SNI must come
-	// from context (the original service hostname) rather than the dial address.
-	if forwardingTLSCfg != nil {
-		baseTransport.DialTLSContext = newTLSDialer(forwardingTLSCfg, dialFunc)
+	// When TLS is enabled, use DialTLSContext to set ServerName per-dial from
+	// context. This is required for direct-pod routing where the URL host is a
+	// pod IP but SNI must remain the original service hostname.
+	if cfg.TLSConfig != nil {
+		baseTransport.DialTLSContext = newTLSDialer(cfg.TLSConfig, dialFunc)
 	}
 
 	// Build handler chain (innermost to outermost)
@@ -119,22 +101,28 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 }
 
 // newTLSDialer dials TCP then wraps the conn in TLS, taking ServerName from
-// context (not the dial address, which direct-pod routing rewrites to a pod IP).
-// The SNI should never be empty here as Routing sets it before any https dial;
-// the empty check is just a safety net so we fail closed instead of dialing
-// without an explicit upstream identity.
-func newTLSDialer(tlsCfg *tls.Config, dial func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
+// context (the original service hostname captured by routing middleware). When
+// direct-pod routing rewrites the URL to a pod IP, this ensures SNI stays the
+// service hostname. If the context has no server name (e.g. non-routing paths),
+// falls back to the hostname extracted from the dial address.
+func newTLSDialer(baseCfg *tls.Config, dial func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		serverName := util.UpstreamServerNameFromContext(ctx)
-		if serverName == "" {
-			return nil, fmt.Errorf("upstream server name missing from context for TLS dial to %s (refusing to dial without explicit SNI)", addr)
-		}
 		conn, err := dial(ctx, network, addr)
 		if err != nil {
 			return nil, err
 		}
-		dialed := tlsCfg.Clone()
-		dialed.ServerName = serverName
-		return tls.Client(conn, dialed), nil
+		tlsCfg := baseCfg.Clone()
+		// Advertise h2 in ALPN explicitly: a custom DialTLSContext disables
+		// net/http's auto-h2, so without this HTTPS upstreams (incl. gRPC)
+		// downgrade to HTTP/1.1 (golang/go#20645).
+		tlsCfg.NextProtos = []string{"h2", "http/1.1"}
+		tlsCfg.ServerName = util.UpstreamServerNameFromContext(ctx)
+		if tlsCfg.ServerName == "" {
+			host, _, err := net.SplitHostPort(addr)
+			if err == nil {
+				tlsCfg.ServerName = host
+			}
+		}
+		return tls.Client(conn, tlsCfg), nil
 	}
 }

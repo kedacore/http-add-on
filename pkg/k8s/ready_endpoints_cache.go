@@ -41,8 +41,9 @@ type ReadyEndpointsCache struct {
 	// "namespace/service" -> *serviceState
 	states sync.Map
 
-	// Broadcast mechanism: the channel is closed on any change,
-	// then replaced with a fresh one. Waiters select on the channel.
+	// Broadcast mechanism: the channel is closed on a ready-state transition
+	// (ready→not-ready or not-ready→ready), then replaced with a fresh one.
+	// Waiters select on the channel.
 	mu       sync.Mutex
 	notifyCh chan struct{}
 }
@@ -176,7 +177,9 @@ func (c *ReadyEndpointsCache) broadcast() {
 
 // collectServiceState builds an immutable serviceState snapshot. Each candidate
 // pairs a ready pod's address with a port from the same slice, keyed by portName
-// ("" for unnamed). Address families are not distinguished.
+// ("" for unnamed). EndpointSlices are address-family typed, so on a dual-stack
+// service the IPv4 and IPv6 slices are pooled together and pickHost may return
+// either family; the interceptor is dual-stack in that case and can reach both.
 func collectServiceState(slices []*discov1.EndpointSlice) *serviceState {
 	// Dedup (ip, port) per portName so overlapping slices don't weight a pod twice.
 	seen := make(map[string]map[endpoint]struct{})

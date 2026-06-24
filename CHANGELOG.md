@@ -35,7 +35,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: Add `staticRoutes` to InterceptorRoute for defining routes that should not trigger autoscaling, such as health checks, redirects, and maintenance pages. Supports `responseMode: WhenUnavailable` (forward to backend when ready, static response otherwise) and `responseMode: Always` (always serve static response) ([#1622](https://github.com/kedacore/http-add-on/issues/1622))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
-- **Interceptor**: Add `KEDA_HTTP_DIRECT_POD_ROUTING` environment variable (`true` | `false`, default `false`). When enabled, the interceptor routes requests directly to a ready pod IP instead of through the Service ClusterIP, bypassing kube-proxy and other Service-layer features (Service-level NetworkPolicy, session affinity, topology-aware routing). ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
+- **Interceptor**: Add `KEDA_HTTP_DIRECT_POD_ROUTING` environment variable (`true` | `false`, default `true`). When enabled, the interceptor routes requests directly to a ready pod IP instead of through the Service ClusterIP, bypassing kube-proxy and other Service-layer features (Service-level NetworkPolicy, session affinity, topology-aware routing). ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
 
 ### Improvements
 
