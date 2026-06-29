@@ -11,7 +11,7 @@ tool (
 
 require (
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/cert-manager/cert-manager v1.19.5
+	github.com/cert-manager/cert-manager v1.19.6
 	github.com/coder/websocket v1.8.15
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
