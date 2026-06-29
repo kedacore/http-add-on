@@ -67,8 +67,11 @@ type Serving struct {
 	ShutdownDelay time.Duration `env:"KEDA_HTTP_SHUTDOWN_DELAY" envDefault:"5s"`
 	// DirectPodRouting routes requests to a ready pod IP instead of the Service
 	// ClusterIP, bypassing kube-proxy and other Service-layer features
-	// (NetworkPolicy, session affinity, topology-aware routing). Single-stack only.
-	DirectPodRouting bool `env:"KEDA_HTTP_DIRECT_POD_ROUTING" envDefault:"false"`
+	// (NetworkPolicy, session affinity, topology-aware routing).
+	// Note: in dual-stack clusters, endpoint selection does not distinguish
+	// address families, so a pod IPv6 address may be returned in an IPv4-only
+	// environment (or vice versa). Disable this flag if that is a concern.
+	DirectPodRouting bool `env:"KEDA_HTTP_DIRECT_POD_ROUTING" envDefault:"true"`
 }
 
 // MustParseServing parses standard configs and returns the

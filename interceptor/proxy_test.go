@@ -2,8 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -408,64 +414,25 @@ func (h *proxyTestHarness) doRequest(t *testing.T, method, path, host string) *h
 }
 
 // TestNewTLSDialer_UsesServerNameFromContext verifies the happy path: when
-// Routing has stamped UpstreamServerName, the dialer uses it and proceeds
-// with the underlying TCP dial regardless of cert-verification policy.
+// Routing has stamped UpstreamServerName, the dialer uses it as SNI regardless
+// of what the dial address is (e.g. a pod IP).
 func TestNewTLSDialer_UsesServerNameFromContext(t *testing.T) {
-	for _, insecure := range []bool{false, true} {
-		var dialCalled bool
-		stubDial := func(_ context.Context, _, _ string) (net.Conn, error) {
-			dialCalled = true
-			c, _ := net.Pipe()
-			return c, nil
-		}
-		dialer := newTLSDialer(&tls.Config{InsecureSkipVerify: insecure}, stubDial)
-
-		ctx := util.ContextWithUpstreamServerName(context.Background(), "myservice.default")
-		conn, err := dialer(ctx, "tcp", "10.1.2.3:8443")
-		if err != nil {
-			t.Fatalf("InsecureSkipVerify=%v: unexpected error: %v", insecure, err)
-		}
-		if !dialCalled {
-			t.Errorf("InsecureSkipVerify=%v: dial was not called", insecure)
-		}
-		if conn == nil {
-			t.Errorf("InsecureSkipVerify=%v: returned conn was nil", insecure)
-		} else {
-			_ = conn.Close()
-		}
+	serverName := captureDialerSNI(
+		util.ContextWithUpstreamServerName(context.Background(), "myservice.default"),
+		t, &tls.Config{InsecureSkipVerify: true}, "10.1.2.3:8443")
+	if serverName != "myservice.default" {
+		t.Fatalf("ServerName = %q, want %q (should use context, not dial addr)", serverName, "myservice.default")
 	}
 }
 
-// TestNewTLSDialer_HardFailsWhenNoSNI verifies the guardrail: a missing SNI
-// must error out without dialing, so we never open a TLS connection without an
-// explicit upstream identity. The error message must name both the dial address
-// and the reason, so operators don't mistake it for an upstream connectivity
-// failure. This holds regardless of InsecureSkipVerify.
-func TestNewTLSDialer_HardFailsWhenNoSNI(t *testing.T) {
-	for _, skipVerify := range []bool{true, false} {
-		var dialCalled bool
-		stubDial := func(_ context.Context, _, _ string) (net.Conn, error) {
-			dialCalled = true
-			return nil, nil
-		}
-		dialer := newTLSDialer(&tls.Config{InsecureSkipVerify: skipVerify}, stubDial)
-
-		conn, err := dialer(context.Background(), "tcp", "10.1.2.3:8443")
-		if err == nil {
-			t.Fatalf("expected error when SNI is missing (InsecureSkipVerify=%v), got nil", skipVerify)
-		}
-		if dialCalled {
-			t.Errorf("dial must not be called when we hard-fail on missing SNI (InsecureSkipVerify=%v)", skipVerify)
-		}
-		if conn != nil {
-			t.Errorf("returned conn must be nil on error (InsecureSkipVerify=%v)", skipVerify)
-		}
-		if !strings.Contains(err.Error(), "10.1.2.3:8443") {
-			t.Errorf("error %q should name the dial address", err)
-		}
-		if !strings.Contains(err.Error(), "refusing to dial without explicit SNI") {
-			t.Errorf("error %q should explain why we refuse to dial", err)
-		}
+// TestNewTLSDialer_FallsBackToAddrHostname verifies that when the context has
+// no UpstreamServerName, the dialer extracts the hostname from the dial address
+// and uses it as ServerName for SNI.
+func TestNewTLSDialer_FallsBackToAddrHostname(t *testing.T) {
+	serverName := captureDialerSNI(context.Background(),
+		t, &tls.Config{InsecureSkipVerify: true}, "my-svc.default:8443")
+	if serverName != "my-svc.default" {
+		t.Fatalf("ServerName = %q, want %q (should fall back to addr hostname)", serverName, "my-svc.default")
 	}
 }
 
@@ -487,4 +454,85 @@ func TestNewTLSDialer_PropagatesDialError(t *testing.T) {
 	if conn != nil {
 		t.Error("returned conn must be nil on dial error")
 	}
+}
+
+// captureDialerSNI invokes newTLSDialer with a pipe-backed stub, initiates a
+// TLS handshake, and returns the ServerName the server saw in the ClientHello.
+// We only need the SNI from the first flight, so we abort via pipe close once
+// GetConfigForClient fires.
+func captureDialerSNI(ctx context.Context, t *testing.T, clientCfg *tls.Config, addr string) string {
+	t.Helper()
+	clientEnd, serverEnd := net.Pipe()
+
+	stubDial := func(_ context.Context, _, _ string) (net.Conn, error) {
+		return clientEnd, nil
+	}
+	dialer := newTLSDialer(clientCfg, stubDial)
+
+	sniCh := make(chan string, 1)
+	serverCert := generateSelfSignedCert(t)
+	serverTLSCfg := &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+			sniCh <- hello.ServerName
+			return nil, nil
+		},
+	}
+
+	go func() {
+		srv := tls.Server(serverEnd, serverTLSCfg)
+		_ = srv.Handshake()
+		_ = srv.Close()
+	}()
+
+	conn, err := dialer(ctx, "tcp", addr)
+	if err != nil {
+		t.Fatalf("dialer error: %v", err)
+	}
+
+	// Drive the handshake just far enough for the server to receive ClientHello.
+	go func() {
+		tlsConn := conn.(*tls.Conn)
+		_ = tlsConn.Handshake()
+	}()
+
+	select {
+	case sni := <-sniCh:
+		_ = conn.Close()
+		_ = serverEnd.Close()
+		return sni
+	case <-time.After(5 * time.Second):
+		_ = conn.Close()
+		_ = serverEnd.Close()
+		t.Fatal("timed out waiting for TLS ClientHello")
+		return ""
+	}
+}
+
+func generateSelfSignedCert(t *testing.T) tls.Certificate {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	certDER, err := x509.CreateCertificate(crand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create cert: %v", err)
+	}
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshal key: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("load keypair: %v", err)
+	}
+	return cert
 }
