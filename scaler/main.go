@@ -6,14 +6,12 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof" //nolint:gosec // G108: pprof intentionally exposed, gated by --profiling-addr
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -46,7 +44,13 @@ var setupLog = ctrl.Log.WithName("setup")
 // +kubebuilder:rbac:groups=http.keda.sh,resources=interceptorroutes,verbs=get;list;watch
 
 func main() {
-	defer os.Exit(1)
+	if err := run(); err != nil {
+		setupLog.Error(err, "fatal error")
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	cfg := mustParseConfig()
 	namespace := cfg.TargetNamespace
 	svcName := cfg.TargetService
@@ -68,8 +72,7 @@ func main() {
 
 	provider, err := observability.NewMeterProvider(metrics.ServiceName, cfg.Metrics)
 	if err != nil {
-		setupLog.Error(err, "failed to create meter provider")
-		runtime.Goexit()
+		return fmt.Errorf("creating meter provider: %w", err)
 	}
 	defer func() {
 		if err := provider.Shutdown(context.Background()); err != nil {
@@ -79,14 +82,12 @@ func main() {
 
 	instruments, err := metrics.NewInstruments(provider)
 	if err != nil {
-		setupLog.Error(err, "failed to create metric instruments")
-		runtime.Goexit()
+		return fmt.Errorf("creating metric instruments: %w", err)
 	}
 
 	k8sCfg, err := ctrl.GetConfig()
 	if err != nil {
-		setupLog.Error(err, "Kubernetes client config not found")
-		runtime.Goexit()
+		return fmt.Errorf("getting Kubernetes client config: %w", err)
 	}
 
 	ctrlCache, err := cache.New(k8sCfg, cache.Options{
@@ -95,8 +96,7 @@ func main() {
 		SyncPeriod:       &cfg.CacheSyncPeriod,
 	})
 	if err != nil {
-		setupLog.Error(err, "creating cache")
-		runtime.Goexit()
+		return fmt.Errorf("creating cache: %w", err)
 	}
 
 	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForControllerClient(ctrlCache), namespace, svcName, deplName, targetPortStr, instruments)
@@ -109,8 +109,7 @@ func main() {
 	if cfg.Tracing.Enabled {
 		shutdown, err := observability.SetupTracing(ctx, metrics.ServiceName, cfg.Tracing)
 		if err != nil {
-			setupLog.Error(err, "error setting up tracer")
-			runtime.Goexit()
+			return fmt.Errorf("setting up tracer: %w", err)
 		}
 		defer func() {
 			if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
@@ -128,26 +127,26 @@ func main() {
 	if len(profilingAddr) > 0 {
 		eg.Go(func() error {
 			setupLog.Info("enabling pprof for profiling", "address", profilingAddr)
-			srv := &http.Server{
-				Addr:              profilingAddr,
-				ReadHeaderTimeout: time.Minute, // mitigate Slowloris attacks
+			if err := kedahttp.ServeContext(ctx, kedahttp.ServerConfig{
+				Addr:    profilingAddr,
+				Handler: http.DefaultServeMux,
+			}); !util.IsIgnoredErr(err) {
+				return fmt.Errorf("pprof server: %w", err)
 			}
-			return srv.ListenAndServe()
+			return nil
 		})
 	}
 
 	// Wait for cache to sync before starting components that depend on it
 	if !ctrlCache.WaitForCacheSync(ctx) {
-		setupLog.Error(nil, "cache failed to sync")
-		runtime.Goexit()
+		return fmt.Errorf("cache failed to sync")
 	}
 
 	eg.Go(func() error {
 		setupLog.Info("starting the queue pinger")
 
 		if err := pinger.start(ctx, time.NewTicker(cfg.QueueTickDuration)); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "queue pinger failed")
-			return err
+			return fmt.Errorf("queue pinger: %w", err)
 		}
 
 		return nil
@@ -157,8 +156,7 @@ func main() {
 		setupLog.Info("starting the grpc server")
 
 		if err := startGrpcServer(ctx, cfg, ctrl.Log, pinger, ctrlCache); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "grpc server failed")
-			return err
+			return fmt.Errorf("grpc server: %w", err)
 		}
 
 		return nil
@@ -167,8 +165,7 @@ func main() {
 	if cfg.Metrics.OtelPrometheusExporterEnabled {
 		eg.Go(func() error {
 			if err := runMetricsServer(ctx, ctrl.Log, cfg.Metrics); !util.IsIgnoredErr(err) {
-				setupLog.Error(err, "could not start the Prometheus metrics server")
-				return err
+				return fmt.Errorf("metrics server: %w", err)
 			}
 			return nil
 		})
@@ -176,12 +173,12 @@ func main() {
 
 	build.PrintComponentInfo(ctrl.Log, "Scaler")
 
-	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-		setupLog.Error(err, "fatal error")
-		runtime.Goexit()
+	if err := eg.Wait(); err != nil && !util.IsIgnoredErr(err) {
+		return err
 	}
 
 	setupLog.Info("Bye!")
+	return nil
 }
 
 func startGrpcServer(ctx context.Context, cfg config, lggr logr.Logger, pinger *queuePinger, reader client.Reader) error {
