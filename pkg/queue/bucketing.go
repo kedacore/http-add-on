@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const precision = 3
+const precision = 6
 
 // RequestsBuckets keeps buckets that have been collected at a certain time.
 type RequestsBuckets struct {

@@ -370,6 +370,24 @@ func TestRequestsBucketsHoles(t *testing.T) {
 	}
 }
 
+func TestWindowAveragePositiveAfterLongIdle(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	buckets := NewRequestsBuckets(time.Hour, granularity)
+
+	// Simulate 45 minutes of idle polling (delta=0 each second).
+	for i := range 2700 {
+		buckets.Record(now.Add(time.Duration(i)*time.Second), 0)
+	}
+
+	// A single request arrives after the long idle period.
+	at := now.Add(2700 * time.Second)
+	buckets.Record(at, 1)
+	avg := buckets.WindowAverage(at)
+	if avg <= 0 {
+		t.Errorf("WindowAverage after long idle + 1 request = %v, want > 0", avg)
+	}
+}
+
 func BenchmarkWindowAverage(b *testing.B) {
 	// Window lengths in secs.
 	for _, wl := range []int{30, 60, 120, 240, 600} {

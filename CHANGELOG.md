@@ -46,6 +46,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Scaler**: Fix scale-from-zero failing with 504 after long idle when using `requestRate` with large `window/granularity` ratios (>2000) ([#1692](https://github.com/kedacore/http-add-on/issues/1692))
 
 ### Deprecations
 
