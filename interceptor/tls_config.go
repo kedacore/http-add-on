@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 )
 
 // TLSOptions holds TLS configuration options for the proxy server.
@@ -27,7 +28,9 @@ type TLSOptions struct {
 
 // BuildTLSConfig creates a tls.Config from the given TLS options.
 // The matching between request and certificate is performed by comparing TLS/SNI server name with x509 SANs.
-func BuildTLSConfig(opts TLSOptions, logger logr.Logger) (*tls.Config, error) {
+// When CertificatePath and KeyPath are set, a certwatcher is created for hot-reload of the default cert.
+// The caller must start the returned watcher with watcher.Start(ctx).
+func BuildTLSConfig(opts TLSOptions, logger logr.Logger) (*tls.Config, *certwatcher.CertWatcher, error) {
 	servingTLS := &tls.Config{
 		RootCAs:            defaultCertPool(logger),
 		InsecureSkipVerify: opts.InsecureSkipVerify, //nolint:gosec // G402: user-configurable
@@ -36,64 +39,70 @@ func BuildTLSConfig(opts TLSOptions, logger logr.Logger) (*tls.Config, error) {
 	if opts.MinTLSVersion != "" {
 		v, err := parseTLSVersion(opts.MinTLSVersion)
 		if err != nil {
-			return nil, fmt.Errorf("invalid TLS min version %q: %w", opts.MinTLSVersion, err)
+			return nil, nil, fmt.Errorf("invalid TLS min version %q: %w", opts.MinTLSVersion, err)
 		}
 		servingTLS.MinVersion = v
 	}
 	if opts.MaxTLSVersion != "" {
 		v, err := parseTLSVersion(opts.MaxTLSVersion)
 		if err != nil {
-			return nil, fmt.Errorf("invalid TLS max version %q: %w", opts.MaxTLSVersion, err)
+			return nil, nil, fmt.Errorf("invalid TLS max version %q: %w", opts.MaxTLSVersion, err)
 		}
 		servingTLS.MaxVersion = v
 	}
 	if opts.CipherSuites != "" {
 		suites, err := parseCipherSuites(opts.CipherSuites)
 		if err != nil {
-			return nil, fmt.Errorf("invalid TLS cipher suites: %w", err)
+			return nil, nil, fmt.Errorf("invalid TLS cipher suites: %w", err)
 		}
 		servingTLS.CipherSuites = suites
 	}
 	if opts.CurvePreferences != "" {
 		curves, err := parseCurvePreferences(opts.CurvePreferences)
 		if err != nil {
-			return nil, fmt.Errorf("invalid TLS curve preferences: %w", err)
+			return nil, nil, fmt.Errorf("invalid TLS curve preferences: %w", err)
 		}
 		servingTLS.CurvePreferences = curves
 	}
-	var defaultCert *tls.Certificate
+
+	var watcher *certwatcher.CertWatcher
 
 	uriDomainsToCerts := make(map[string]tls.Certificate)
 	if opts.CertificatePath != "" && opts.KeyPath != "" {
-		cert, err := addCert(uriDomainsToCerts, opts.CertificatePath, opts.KeyPath, logger)
+		var err error
+		watcher, err = certwatcher.New(opts.CertificatePath, opts.KeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("error adding certificate and key: %w", err)
+			return nil, nil, fmt.Errorf("creating cert watcher: %w", err)
 		}
-		defaultCert = cert
 		rawCert, err := os.ReadFile(opts.CertificatePath)
 		if err != nil {
-			return nil, fmt.Errorf("error reading certificate: %w", err)
+			return nil, nil, fmt.Errorf("error reading certificate: %w", err)
 		}
 		servingTLS.RootCAs.AppendCertsFromPEM(rawCert)
 	}
 
 	if opts.CertStorePaths != "" {
 		if err := loadCertStorePaths(opts.CertStorePaths, uriDomainsToCerts, servingTLS.RootCAs, logger); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
+	// TODO: uriDomainsToCerts is a snapshot from startup — CertStorePaths certs
+	// are not hot-reloaded. Only the default cert (via certwatcher) supports
+	// hot-reload. Add directory-level watching or similar to reload all certs.
 	servingTLS.GetCertificate = func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		// Exact SNI match from the static cert map takes priority
 		if cert, ok := uriDomainsToCerts[hello.ServerName]; ok {
 			return &cert, nil
 		}
-		if defaultCert != nil {
-			return defaultCert, nil
+		// Fall back to certwatcher-managed default cert (hot-reloaded)
+		if watcher != nil {
+			return watcher.GetCertificate(hello)
 		}
 		return nil, fmt.Errorf("no certificate found for %s", hello.ServerName)
 	}
 	servingTLS.Certificates = slices.Collect(maps.Values(uriDomainsToCerts))
-	return servingTLS, nil
+	return servingTLS, watcher, nil
 }
 
 // TODO: loadCertStorePaths mixes serving certs with CA trust. A dedicated
@@ -140,7 +149,7 @@ func loadCertStorePaths(certStorePaths string, certs map[string]tls.Certificate,
 		if !ok {
 			return fmt.Errorf("no key found for certificate %s", certPath)
 		}
-		if _, err := addCert(certs, certPath, keyPath, logger); err != nil {
+		if err := addCert(certs, certPath, keyPath, logger); err != nil {
 			return fmt.Errorf("error adding certificate %s: %w", certPath, err)
 		}
 		rawCert, err := os.ReadFile(certPath) //nolint:gosec // G304: path from configured cert directory
@@ -154,18 +163,18 @@ func loadCertStorePaths(certStorePaths string, certs map[string]tls.Certificate,
 }
 
 // addCert adds a certificate to the map of certificates based on the certificate's SANs.
-func addCert(m map[string]tls.Certificate, certPath, keyPath string, logger logr.Logger) (*tls.Certificate, error) {
+func addCert(m map[string]tls.Certificate, certPath, keyPath string, logger logr.Logger) error {
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		return nil, fmt.Errorf("error loading certificate and key: %w", err)
+		return fmt.Errorf("error loading certificate and key: %w", err)
 	}
 	if cert.Leaf == nil {
 		if len(cert.Certificate) == 0 {
-			return nil, fmt.Errorf("no certificate found in certificate chain")
+			return fmt.Errorf("no certificate found in certificate chain")
 		}
 		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
 		if err != nil {
-			return nil, fmt.Errorf("error parsing certificate: %w", err)
+			return fmt.Errorf("error parsing certificate: %w", err)
 		}
 	}
 	for _, d := range cert.Leaf.DNSNames {
@@ -180,7 +189,7 @@ func addCert(m map[string]tls.Certificate, certPath, keyPath string, logger logr
 		logger.Info("adding certificate", "uri", uri.String())
 		m[uri.String()] = cert
 	}
-	return &cert, nil
+	return nil
 }
 
 // defaultCertPool returns the system cert pool or an empty pool if unavailable.

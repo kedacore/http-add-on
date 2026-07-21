@@ -22,7 +22,7 @@ func TestBuildTLSConfig_CertificatePath(t *testing.T) {
 		KeyPath:         filepath.Join(dir, "server.key"),
 	}
 
-	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestBuildTLSConfig_CertStorePaths(t *testing.T) {
 
 	opts := TLSOptions{CertStorePaths: dir}
 
-	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestBuildTLSConfig_MultipleCertStorePaths(t *testing.T) {
 
 	opts := TLSOptions{CertStorePaths: dir1 + "," + dir2}
 
-	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestBuildTLSConfig_FallbackToDefault(t *testing.T) {
 		KeyPath:         filepath.Join(dir, "default.key"),
 	}
 
-	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestBuildTLSConfig_FallbackToDefault(t *testing.T) {
 func TestBuildTLSConfig_NoDefaultCert(t *testing.T) {
 	opts := TLSOptions{}
 
-	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestBuildTLSConfig_MissingKeyFile(t *testing.T) {
 
 	opts := TLSOptions{CertStorePaths: dir}
 
-	_, err := BuildTLSConfig(opts, logr.Discard())
+	_, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err == nil {
 		t.Error("expected error for missing key file")
 	}
@@ -114,7 +114,7 @@ func TestBuildTLSConfig_PemFormat(t *testing.T) {
 
 	opts := TLSOptions{CertStorePaths: dir}
 
-	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestBuildTLSConfig_IPAddressSAN(t *testing.T) {
 
 	opts := TLSOptions{CertStorePaths: dir}
 
-	tlsCfg, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestBuildTLSConfig_InvalidContent(t *testing.T) {
 
 			opts := TLSOptions{CertStorePaths: dir}
 
-			_, err := BuildTLSConfig(opts, logr.Discard())
+			_, _, err := BuildTLSConfig(opts, logr.Discard())
 			if err == nil {
 				t.Error("expected error for invalid content")
 			}
@@ -175,7 +175,7 @@ func TestBuildTLSConfig_InvalidContent(t *testing.T) {
 func TestBuildTLSConfig_NonExistentCertStorePath(t *testing.T) {
 	opts := TLSOptions{CertStorePaths: "/nonexistent/path/to/certs"}
 
-	_, err := BuildTLSConfig(opts, logr.Discard())
+	_, _, err := BuildTLSConfig(opts, logr.Discard())
 	if err == nil {
 		t.Error("expected error for non-existent cert store path")
 	}
@@ -249,7 +249,7 @@ func TestBuildTLSConfig_TLSOptions(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			tlsCfg, err := BuildTLSConfig(tt.opts, logr.Discard())
+			tlsCfg, _, err := BuildTLSConfig(tt.opts, logr.Discard())
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -272,6 +272,96 @@ func TestBuildTLSConfig_TLSOptions(t *testing.T) {
 				t.Errorf("CurvePreferences = %v, want %v", tlsCfg.CurvePreferences, tt.wantCurves)
 			}
 		})
+	}
+}
+
+func TestBuildTLSConfig_CertwatcherHotReload(t *testing.T) {
+	dir := t.TempDir()
+	writeCert(t, dir, "server", "original.example.com")
+
+	opts := TLSOptions{
+		CertificatePath: filepath.Join(dir, "server.crt"),
+		KeyPath:         filepath.Join(dir, "server.key"),
+	}
+
+	tlsCfg, watcher, err := BuildTLSConfig(opts, logr.Discard())
+	if err != nil {
+		t.Fatalf("failed to build TLS config: %v", err)
+	}
+	go func() {
+		_ = watcher.Start(t.Context())
+	}()
+
+	// Certwatcher serves as default cert for any SNI
+	cert, err := tlsCfg.GetCertificate(&tls.ClientHelloInfo{ServerName: "any.example.com"})
+	if err != nil {
+		t.Fatalf("expected default cert, got error: %v", err)
+	}
+	if cert == nil {
+		t.Fatal("expected non-nil cert")
+	}
+
+	// Overwrite cert on disk with a new SAN
+	writeCert(t, dir, "server", "reloaded.example.com")
+
+	if readErr := watcher.ReadCertificate(); readErr != nil {
+		t.Fatalf("reading certificate: %v", readErr)
+	}
+
+	for _, sni := range []string{
+		"any.example.com",
+		"unchecked.example.com",
+	} {
+		cert, err = tlsCfg.GetCertificate(&tls.ClientHelloInfo{ServerName: sni})
+		if err != nil {
+			t.Fatalf("expected reloaded cert for SNI %q, got error: %v", sni, err)
+		}
+		if cert.Leaf == nil {
+			t.Fatalf("expected parsed leaf certificate for SNI %q", sni)
+		}
+		if !slices.Contains(cert.Leaf.DNSNames, "reloaded.example.com") {
+			t.Errorf("expected reloaded cert for SNI %q, got %v", sni, cert.Leaf.DNSNames)
+		}
+	}
+}
+
+func TestBuildTLSConfig_SNIPriorityOverDefault(t *testing.T) {
+	defaultCertDir := t.TempDir()
+	writeCert(t, defaultCertDir, "default", "default.example.com")
+
+	sniCertDir := t.TempDir()
+	writeCert(t, sniCertDir, "sni", "specific.example.com")
+
+	opts := TLSOptions{
+		CertificatePath: filepath.Join(defaultCertDir, "default.crt"),
+		KeyPath:         filepath.Join(defaultCertDir, "default.key"),
+		CertStorePaths:  sniCertDir,
+	}
+
+	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	if err != nil {
+		t.Fatalf("failed to build TLS config: %v", err)
+	}
+
+	// SNI match should return the store cert
+	cert, err := tlsCfg.GetCertificate(&tls.ClientHelloInfo{ServerName: "specific.example.com"})
+	if err != nil {
+		t.Fatalf("expected SNI cert, got error: %v", err)
+	}
+	if cert.Leaf == nil {
+		t.Fatal("expected parsed leaf")
+	}
+	if cert.Leaf.DNSNames[0] != "specific.example.com" {
+		t.Errorf("expected SNI cert for specific.example.com, got %v", cert.Leaf.DNSNames)
+	}
+
+	// Unknown SNI should fall back to certwatcher default
+	cert, err = tlsCfg.GetCertificate(&tls.ClientHelloInfo{ServerName: "unknown.example.com"})
+	if err != nil {
+		t.Fatalf("expected default cert, got error: %v", err)
+	}
+	if cert == nil {
+		t.Fatal("expected non-nil default cert")
 	}
 }
 

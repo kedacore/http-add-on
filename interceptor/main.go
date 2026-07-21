@@ -238,7 +238,7 @@ func run() error {
 	// accepts, holds and forwards user requests
 	if servingCfg.ProxyTLSEnabled {
 		proxyEg.Go(func() error {
-			tlsCfg, err := BuildTLSConfig(TLSOptions{
+			tlsCfg, watcher, err := BuildTLSConfig(TLSOptions{
 				CertificatePath:    servingCfg.TLSCertPath,
 				KeyPath:            servingCfg.TLSKeyPath,
 				CertStorePaths:     servingCfg.TLSCertStorePaths,
@@ -250,6 +250,11 @@ func run() error {
 			}, setupLog)
 			if err != nil {
 				return fmt.Errorf("configuring TLS: %w", err)
+			}
+			if watcher != nil {
+				proxyEg.Go(func() error {
+					return watcher.Start(proxyCtx)
+				})
 			}
 
 			setupLog.Info("starting the proxy server with TLS enabled", "port", servingCfg.TLSPort)
