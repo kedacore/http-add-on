@@ -50,7 +50,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Deprecations
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: TLS policy env vars renamed from `KEDA_HTTP_PROXY_TLS_*` to `KEDA_HTTP_TLS_*` (`MIN_VERSION`, `MAX_VERSION`, `CIPHER_SUITES`, `CURVE_PREFERENCES`, `SKIP_VERIFY`). Old names still work but log a deprecation warning. ([#1718](https://github.com/kedacore/http-add-on/issues/1718))
 
 ### Other
 

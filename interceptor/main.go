@@ -53,11 +53,6 @@ func main() {
 }
 
 func run() error {
-	timeoutCfg := config.MustParseTimeouts(setupLog)
-	servingCfg := config.MustParseServing()
-	metricsCfg := observability.MustParseMetricsConfig()
-	tracingCfg := observability.MustParseTracingConfig()
-
 	opts := zap.Options{
 		Development: true,
 	}
@@ -66,10 +61,17 @@ func run() error {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	timeoutCfg := config.MustParseTimeouts(setupLog)
+	servingCfg := config.MustParseServing()
+	tlsPolicyCfg := config.MustParseTLSPolicy(setupLog)
+	metricsCfg := observability.MustParseMetricsConfig()
+	tracingCfg := observability.MustParseTracingConfig()
+
 	setupLog.Info(
 		"starting interceptor",
 		"timeoutConfig", timeoutCfg,
 		"servingConfig", servingCfg,
+		"tlsPolicyConfig", tlsPolicyCfg,
 		"metricsConfig", metricsCfg,
 	)
 
@@ -242,11 +244,11 @@ func run() error {
 				CertificatePath:    servingCfg.TLSCertPath,
 				KeyPath:            servingCfg.TLSKeyPath,
 				CertStorePaths:     servingCfg.TLSCertStorePaths,
-				InsecureSkipVerify: servingCfg.TLSSkipVerify,
-				MinTLSVersion:      servingCfg.TLSMinVersion,
-				MaxTLSVersion:      servingCfg.TLSMaxVersion,
-				CipherSuites:       servingCfg.TLSCipherSuites,
-				CurvePreferences:   servingCfg.TLSCurvePreferences,
+				InsecureSkipVerify: tlsPolicyCfg.SkipVerify,
+				MinTLSVersion:      tlsPolicyCfg.MinVersion,
+				MaxTLSVersion:      tlsPolicyCfg.MaxVersion,
+				CipherSuites:       tlsPolicyCfg.CipherSuites,
+				CurvePreferences:   tlsPolicyCfg.CurvePreferences,
 			}, setupLog)
 			if err != nil {
 				return fmt.Errorf("configuring TLS: %w", err)

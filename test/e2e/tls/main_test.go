@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 	h.PatchInterceptorDeployment(testenv,
 		h.WithTLSCert([]string{"*." + tlsDomain}),
 		h.WithEnvVar("KEDA_HTTP_PROXY_TLS_ENABLED", "true"),
-		h.WithEnvVar("KEDA_HTTP_PROXY_TLS_SKIP_VERIFY", "true"),
+		h.WithEnvVar("KEDA_HTTP_TLS_SKIP_VERIFY", "true"),
 	)
 
 	os.Exit(testenv.Run(m))
