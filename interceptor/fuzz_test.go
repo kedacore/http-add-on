@@ -25,6 +25,10 @@ import (
 func FuzzParseTLSVersion(f *testing.F) {
 	f.Add("1.2")
 	f.Add("1.3")
+	f.Add("TLS12")
+	f.Add("TLS13")
+	f.Add("tls12")
+	f.Add("tls13")
 	f.Add("")
 	f.Add("1.0")
 	f.Add("1.1")

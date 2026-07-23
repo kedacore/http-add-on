@@ -202,9 +202,33 @@ func TestBuildTLSConfig_TLSOptions(t *testing.T) {
 			opts:           TLSOptions{MinTLSVersion: "1.2"},
 			wantMinVersion: tls.VersionTLS12,
 		},
+		"min version TLS12": {
+			opts:           TLSOptions{MinTLSVersion: "TLS12"},
+			wantMinVersion: tls.VersionTLS12,
+		},
+		"min version tls12 lowercase": {
+			opts:           TLSOptions{MinTLSVersion: "tls12"},
+			wantMinVersion: tls.VersionTLS12,
+		},
+		"min version TLS13": {
+			opts:           TLSOptions{MinTLSVersion: "TLS13"},
+			wantMinVersion: tls.VersionTLS13,
+		},
 		"max version 1.2": {
 			opts:           TLSOptions{MaxTLSVersion: "1.2"},
 			wantMaxVersion: tls.VersionTLS12,
+		},
+		"max version TLS12": {
+			opts:           TLSOptions{MaxTLSVersion: "TLS12"},
+			wantMaxVersion: tls.VersionTLS12,
+		},
+		"max version tls12 lowercase": {
+			opts:           TLSOptions{MaxTLSVersion: "tls12"},
+			wantMaxVersion: tls.VersionTLS12,
+		},
+		"max version TLS13": {
+			opts:           TLSOptions{MaxTLSVersion: "TLS13"},
+			wantMaxVersion: tls.VersionTLS13,
 		},
 		"invalid min version": {
 			opts:    TLSOptions{MinTLSVersion: "1.1"},

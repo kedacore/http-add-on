@@ -194,16 +194,17 @@ func defaultCertPool(logger logr.Logger) *x509.CertPool {
 	return x509.NewCertPool()
 }
 
-// parseTLSVersion converts a version string ("1.2" or "1.3") to the
-// corresponding crypto/tls constant.
+// parseTLSVersion converts a version string to the corresponding crypto/tls
+// constant. Accepts both short form ("1.2", "1.3") and the format used by
+// KEDA and the operator ("TLS12", "TLS13"). Matching is case-insensitive.
 func parseTLSVersion(v string) (uint16, error) {
-	switch v {
-	case "1.2":
+	switch strings.ToLower(v) {
+	case "1.2", "tls12":
 		return tls.VersionTLS12, nil
-	case "1.3":
+	case "1.3", "tls13":
 		return tls.VersionTLS13, nil
 	default:
-		return 0, fmt.Errorf("unsupported TLS version %q: must be %q or %q", v, "1.2", "1.3")
+		return 0, fmt.Errorf("unsupported TLS version %q: must be \"1.2\"/\"TLS12\" or \"1.3\"/\"TLS13\"", v)
 	}
 }
 
