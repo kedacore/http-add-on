@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -28,6 +29,7 @@ var (
 	testIRNamespace         = "test-ns"
 	testIRConcurrencyMetric = ConcurrencyMetricName(testIRName)
 	testIRRateMetric        = RateMetricName(testIRName)
+	testIRKey               = types.NamespacedName{Name: testIRName, Namespace: testIRNamespace}
 	testScaledObjectRef     = &externalscaler.ScaledObjectRef{
 		Name:      "test-so",
 		Namespace: testIRNamespace,
@@ -38,7 +40,7 @@ var (
 )
 
 // newFakeClient creates a fake client populated with the given objects.
-func newFakeClient(objs ...runtime.Object) client.Reader {
+func newFakeClient(objs ...runtime.Object) client.Client {
 	return fake.NewClientBuilder().
 		WithScheme(cache.NewScheme()).
 		WithRuntimeObjects(objs...).
@@ -64,11 +66,20 @@ func newTestInterceptorRoute(scalingMetric httpv1beta1.ScalingMetricSpec) *httpv
 func newTestScalerHandler(t *testing.T, ir *httpv1beta1.InterceptorRoute, count aggregatedCount) *scalerHandler {
 	t.Helper()
 
-	var reader client.Reader
+	hdl, _ := newTestScalerHandlerWithClient(t, ir, count)
+	return hdl
+}
+
+// newTestScalerHandlerWithClient also returns the client backing the handler,
+// so that tests can modify the InterceptorRoute after the handler was created.
+func newTestScalerHandlerWithClient(t *testing.T, ir *httpv1beta1.InterceptorRoute, count aggregatedCount) (*scalerHandler, client.Client) {
+	t.Helper()
+
+	var cl client.Client
 	if ir != nil {
-		reader = newFakeClient(ir)
+		cl = newFakeClient(ir)
 	} else {
-		reader = newFakeClient()
+		cl = newFakeClient()
 	}
 
 	ticker, pinger, err := newFakeQueuePinger(logr.Discard())
@@ -82,7 +93,7 @@ func newTestScalerHandler(t *testing.T, ir *httpv1beta1.InterceptorRoute, count 
 		pinger.allCounts[key] = count
 	}
 
-	return newScalerHandler(logr.Discard(), pinger, reader, time.Second)
+	return newScalerHandler(logr.Discard(), pinger, cl, time.Second), cl
 }
 
 func TestGetMetricSpec(t *testing.T) {
@@ -448,5 +459,139 @@ func TestStreamIsActive(t *testing.T) {
 	_, err = stream.Recv()
 	if status.Code(err) != codes.DeadlineExceeded {
 		t.Fatalf("expected duplicate active event to be suppressed, got error: %v", err)
+	}
+}
+
+func TestStreamMetricSpec(t *testing.T) {
+	t.Run("pushes the spec on open and on every change", func(t *testing.T) {
+		ir := newTestInterceptorRoute(httpv1beta1.ScalingMetricSpec{
+			Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 5},
+		})
+		hdl, cl := newTestScalerHandlerWithClient(t, ir, aggregatedCount{})
+
+		client := newTestScalerClient(t, hdl)
+
+		streamCtx, cancel := context.WithTimeout(t.Context(), 1500*time.Millisecond)
+		defer cancel()
+		stream, err := client.StreamMetricSpec(streamCtx, testScaledObjectRef)
+		if err != nil {
+			t.Fatalf("StreamMetricSpec: %v", err)
+		}
+
+		assertStreamedTarget(t, stream, testIRConcurrencyMetric, 5)
+
+		// A notification that leaves the targets untouched must not be
+		// forwarded, so the next received spec is the one set below.
+		hdl.notifySpecChange(testIRKey)
+
+		updateIRConcurrency(t, cl, 10)
+		hdl.notifySpecChange(testIRKey)
+
+		assertStreamedTarget(t, stream, testIRConcurrencyMetric, 10)
+	})
+
+	t.Run("ignores changes for another IR", func(t *testing.T) {
+		ir := newTestInterceptorRoute(httpv1beta1.ScalingMetricSpec{
+			Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 5},
+		})
+		hdl, cl := newTestScalerHandlerWithClient(t, ir, aggregatedCount{})
+
+		client := newTestScalerClient(t, hdl)
+
+		streamCtx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+		defer cancel()
+		stream, err := client.StreamMetricSpec(streamCtx, testScaledObjectRef)
+		if err != nil {
+			t.Fatalf("StreamMetricSpec: %v", err)
+		}
+
+		assertStreamedTarget(t, stream, testIRConcurrencyMetric, 5)
+
+		updateIRConcurrency(t, cl, 10)
+		hdl.notifySpecChange(types.NamespacedName{Namespace: testIRNamespace, Name: "another-ir"})
+
+		if _, err := stream.Recv(); status.Code(err) != codes.DeadlineExceeded {
+			t.Fatalf("expected unrelated change to be ignored, got error: %v", err)
+		}
+	})
+
+	t.Run("IR not found", func(t *testing.T) {
+		hdl, _ := newTestScalerHandlerWithClient(t, nil, aggregatedCount{})
+
+		client := newTestScalerClient(t, hdl)
+
+		streamCtx, cancel := context.WithTimeout(t.Context(), 1500*time.Millisecond)
+		defer cancel()
+		stream, err := client.StreamMetricSpec(streamCtx, testScaledObjectRef)
+		if err != nil {
+			t.Fatalf("StreamMetricSpec: %v", err)
+		}
+
+		if _, err := stream.Recv(); err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+}
+
+// newTestScalerClient serves the handler over an in-memory connection and
+// returns a client for it.
+func newTestScalerClient(t *testing.T, hdl *scalerHandler) externalscaler.ExternalScalerClient {
+	t.Helper()
+
+	const bufSize = 1024 * 1024
+	lis := bufconn.Listen(bufSize)
+
+	srv := grpc.NewServer()
+	externalscaler.RegisterExternalScalerServer(srv, hdl)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+
+	conn, err := grpc.NewClient(
+		"passthrough:///bufnet",
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return lis.DialContext(ctx)
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("dialing bufconn: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	return externalscaler.NewExternalScalerClient(conn)
+}
+
+func updateIRConcurrency(t *testing.T, cl client.Client, target int32) {
+	t.Helper()
+
+	var ir httpv1beta1.InterceptorRoute
+	nn := types.NamespacedName{Namespace: testIRNamespace, Name: testIRName}
+	if err := cl.Get(t.Context(), nn, &ir); err != nil {
+		t.Fatalf("getting InterceptorRoute: %v", err)
+	}
+
+	ir.Spec.ScalingMetric.Concurrency = &httpv1beta1.ConcurrencyTargetSpec{TargetValue: target}
+	if err := cl.Update(t.Context(), &ir); err != nil {
+		t.Fatalf("updating InterceptorRoute: %v", err)
+	}
+}
+
+func assertStreamedTarget(t *testing.T, stream grpc.ServerStreamingClient[externalscaler.GetMetricSpecResponse], metricName string, target float64) {
+	t.Helper()
+
+	resp, err := stream.Recv()
+	if err != nil {
+		t.Fatalf("stream.Recv: %v", err)
+	}
+
+	specs := resp.GetMetricSpecs()
+	if len(specs) != 1 {
+		t.Fatalf("got %d metric specs, want 1", len(specs))
+	}
+	if got := specs[0].MetricName; got != metricName {
+		t.Errorf("specs[0].MetricName = %q, want %q", got, metricName)
+	}
+	if got := specs[0].TargetSizeFloat; got != target {
+		t.Errorf("specs[0].TargetSizeFloat = %v, want %v", got, target)
 	}
 }

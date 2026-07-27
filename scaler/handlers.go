@@ -13,12 +13,14 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 var errNoMetricValues = errors.New("no metric values in response")
@@ -28,6 +30,9 @@ type scalerHandler struct {
 	pinger         *queuePinger
 	reader         client.Reader
 	streamInterval time.Duration
+	// specChanges wakes the StreamMetricSpec watchers whenever a resource that
+	// defines scaling metrics may have changed.
+	specChanges util.KeyedBroadcaster[types.NamespacedName]
 	externalscaler.UnimplementedExternalScalerServer
 }
 
@@ -37,7 +42,15 @@ func newScalerHandler(lggr logr.Logger, pinger *queuePinger, reader client.Reade
 		pinger:         pinger,
 		reader:         reader,
 		streamInterval: streamInterval,
+		specChanges:    util.NewKeyedBroadcaster[types.NamespacedName](),
 	}
+}
+
+// notifySpecChange tells the open StreamMetricSpec streams to re-evaluate their
+// metric specs. It is called from the informers watching the resources that
+// carry the scaling metrics.
+func (e *scalerHandler) notifySpecChange(key types.NamespacedName) {
+	e.specChanges.Broadcast(key)
 }
 
 func (e *scalerHandler) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
@@ -132,6 +145,46 @@ func (e *scalerHandler) GetMetricSpec(ctx context.Context, sor *externalscaler.S
 	err := fmt.Errorf("unable to get InterceptorRoute reference")
 	lggr.Error(err, "unable to get the linked InterceptorRoute for ScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 	return nil, err
+}
+
+// StreamMetricSpec pushes the metric specs to KEDA every time they change.
+// The target values live in the InterceptorRoute instead of the ScaledObject,
+// so without this stream KEDA would keep the targets it read when it built its
+// scaler cache and the HPA would never pick up an edited target value.
+func (e *scalerHandler) StreamMetricSpec(sor *externalscaler.ScaledObjectRef, server externalscaler.ExternalScaler_StreamMetricSpecServer) error {
+	lggr := e.lggr.WithName("StreamMetricSpec")
+	ctx := server.Context()
+
+	irName := sor.GetScalerMetadata()[k8s.InterceptorRouteKey]
+	key := types.NamespacedName{Namespace: sor.Namespace, Name: irName}
+	changed, unsubscribe := e.specChanges.Subscribe(key)
+	defer unsubscribe()
+
+	var sent *externalscaler.GetMetricSpecResponse
+	for {
+		res, err := e.GetMetricSpec(ctx, sor)
+		if err != nil {
+			lggr.Error(err, "unable to get metric spec", "scaledObjectRef", sor.String())
+			return err
+		}
+
+		// KEDA expects the current specs right after the stream is opened, and
+		// every send makes it rebuild the HPA, so afterwards we only send when
+		// the targets actually changed.
+		if !proto.Equal(res, sent) {
+			if err := server.Send(res); err != nil {
+				lggr.Error(err, "unable to send metric spec in stream", "scaledObjectRef", sor.String())
+				return err
+			}
+			sent = res
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-changed:
+		}
+	}
 }
 
 func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externalscaler.GetMetricsRequest) (*externalscaler.GetMetricsResponse, error) {

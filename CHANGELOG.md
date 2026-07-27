@@ -79,6 +79,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **Scaler**: Bound each queue counts request to an interceptor pod by `KEDA_HTTP_QUEUE_TICK_DURATION` (minimum `250ms`), so one unresponsive interceptor can no longer stall metric collection ([#1730](https://github.com/kedacore/http-add-on/issues/1730))
 - **Scaler**: Emit external-push activation events only on inactive-to-active transitions, preventing repeated active status updates from delaying scale-to-zero cooldown ([#1792](https://github.com/kedacore/http-add-on/issues/1792))
 - **Scaler**: Fix scale-from-zero failing with 504 after long idle when using `requestRate` with large `window/granularity` ratios (>2000) ([#1692](https://github.com/kedacore/http-add-on/issues/1692))
+- **Scaler**: Push changed scaling metric targets to KEDA through the `StreamMetricSpec` RPC, so editing the `scalingMetric` of an InterceptorRoute updates the HPA instead of requiring it to be deleted. Requires KEDA v2.21 or newer ([#1656](https://github.com/kedacore/http-add-on/issues/1656))
 
 ### Deprecations
 
