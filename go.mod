@@ -36,10 +36,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	golang.org/x/sync v0.22.0
 	google.golang.org/grpc v1.82.1
-	google.golang.org/protobuf v1.36.11
-	k8s.io/api v0.34.9
-	k8s.io/apimachinery v0.34.9
-	k8s.io/client-go v0.34.9
+	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
+	k8s.io/api v0.34.10
+	k8s.io/apimachinery v0.34.10
+	k8s.io/client-go v0.34.10
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	sigs.k8s.io/controller-runtime v0.22.5
 	sigs.k8s.io/e2e-framework v0.6.0
@@ -50,8 +50,8 @@ require (
 	cel.dev/expr v0.25.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/google/cel-go v0.28.0 // indirect
-	k8s.io/apiserver v0.34.9
-	k8s.io/component-base v0.34.9 // indirect
+	k8s.io/apiserver v0.34.10
+	k8s.io/component-base v0.34.10 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.33.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1 // indirect
 )
