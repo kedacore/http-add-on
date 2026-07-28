@@ -95,9 +95,9 @@ test:
 FUZZ_TIME ?= 30s
 FUZZ_TARGETS = \
 	FuzzTableMemoryRoute:./pkg/routing/ \
-	FuzzParseTLSVersion:./interceptor/ \
-	FuzzParseCipherSuites:./interceptor/ \
-	FuzzParseCurvePreferences:./interceptor/ \
+	FuzzParseTLSVersion:./pkg/tls/ \
+	FuzzParseCipherSuites:./pkg/tls/ \
+	FuzzParseCurvePreferences:./pkg/tls/ \
 	FuzzProxyHandler:./interceptor/ \
 	FuzzEscapeString:./scaler/
 

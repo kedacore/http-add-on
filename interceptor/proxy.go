@@ -30,7 +30,8 @@ type ProxyHandlerConfig struct {
 	Reader       client.Reader
 	Timeouts     config.Timeouts
 	Serving      config.Serving
-	TLSConfig    *tls.Config
+	ServingTLS   *tls.Config
+	OutboundTLS  *tls.Config
 	Tracing      config.Tracing
 	Instruments  *metrics.Instruments
 
@@ -60,8 +61,8 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	// When TLS is enabled, use DialTLSContext to set ServerName per-dial from
 	// context. This is required for direct-pod routing where the URL host is a
 	// pod IP but SNI must remain the original service hostname.
-	if cfg.TLSConfig != nil {
-		baseTransport.DialTLSContext = newTLSDialer(cfg.TLSConfig, dialFunc)
+	if cfg.OutboundTLS != nil {
+		baseTransport.DialTLSContext = newTLSDialer(cfg.OutboundTLS, dialFunc)
 	}
 
 	// Build handler chain (innermost to outermost)
@@ -83,7 +84,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		h,
 		cfg.RoutingTable,
 		cfg.Reader,
-		cfg.TLSConfig != nil,
+		cfg.ServingTLS != nil,
 		cfg.Timeouts.Request,
 	)
 

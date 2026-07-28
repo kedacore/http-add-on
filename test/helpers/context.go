@@ -15,6 +15,7 @@ const (
 	clientKey    contextKey = "client"
 	namespaceKey contextKey = "namespace"
 	proxyAddrKey contextKey = "proxyAddr"
+	caCertKey    contextKey = "caCert"
 	caIssuerKey  contextKey = "caIssuer"
 	caPoolKey    contextKey = "caPool"
 )
@@ -41,6 +42,15 @@ func contextWithProxyAddr(ctx context.Context, addr string) context.Context {
 
 func proxyAddrFromContext(ctx context.Context) string {
 	return ctx.Value(proxyAddrKey).(string)
+}
+
+func contextWithCACert(ctx context.Context, cert []byte) context.Context {
+	return context.WithValue(ctx, caCertKey, cert)
+}
+
+func caCertFromContext(ctx context.Context) []byte {
+	v, _ := ctx.Value(caCertKey).([]byte)
+	return v
 }
 
 func contextWithCAIssuer(ctx context.Context, issuerName string) context.Context {

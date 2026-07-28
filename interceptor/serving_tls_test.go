@@ -11,18 +11,19 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/kedacore/http-add-on/pkg/testutil"
+	kedatls "github.com/kedacore/http-add-on/pkg/tls"
 )
 
-func TestBuildTLSConfig_CertificatePath(t *testing.T) {
+func TestBuildServingTLSConfig_CertificatePath(t *testing.T) {
 	dir := t.TempDir()
 	writeCert(t, dir, "server", "example.com")
 
-	opts := TLSOptions{
+	opts := ServingTLSOptions{
 		CertificatePath: filepath.Join(dir, "server.crt"),
 		KeyPath:         filepath.Join(dir, "server.key"),
 	}
 
-	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -30,14 +31,14 @@ func TestBuildTLSConfig_CertificatePath(t *testing.T) {
 	requireCertForHost(t, tlsCfg, "example.com")
 }
 
-func TestBuildTLSConfig_CertStorePaths(t *testing.T) {
+func TestBuildServingTLSConfig_CertStorePaths(t *testing.T) {
 	dir := t.TempDir()
 	writeCert(t, dir, "svc1", "svc1.example.com")
 	writeCert(t, dir, "svc2", "svc2.example.com")
 
-	opts := TLSOptions{CertStorePaths: dir}
+	opts := ServingTLSOptions{CertStorePaths: dir}
 
-	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -46,14 +47,14 @@ func TestBuildTLSConfig_CertStorePaths(t *testing.T) {
 	requireCertForHost(t, tlsCfg, "svc2.example.com")
 }
 
-func TestBuildTLSConfig_MultipleCertStorePaths(t *testing.T) {
+func TestBuildServingTLSConfig_MultipleCertStorePaths(t *testing.T) {
 	dir1, dir2 := t.TempDir(), t.TempDir()
 	writeCert(t, dir1, "a", "a.example.com")
 	writeCert(t, dir2, "b", "b.example.com")
 
-	opts := TLSOptions{CertStorePaths: dir1 + "," + dir2}
+	opts := ServingTLSOptions{CertStorePaths: dir1 + "," + dir2}
 
-	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -62,16 +63,16 @@ func TestBuildTLSConfig_MultipleCertStorePaths(t *testing.T) {
 	requireCertForHost(t, tlsCfg, "b.example.com")
 }
 
-func TestBuildTLSConfig_FallbackToDefault(t *testing.T) {
+func TestBuildServingTLSConfig_FallbackToDefault(t *testing.T) {
 	dir := t.TempDir()
 	writeCert(t, dir, "default", "default.example.com")
 
-	opts := TLSOptions{
+	opts := ServingTLSOptions{
 		CertificatePath: filepath.Join(dir, "default.crt"),
 		KeyPath:         filepath.Join(dir, "default.key"),
 	}
 
-	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -79,10 +80,10 @@ func TestBuildTLSConfig_FallbackToDefault(t *testing.T) {
 	requireCertForHost(t, tlsCfg, "unknown.example.com")
 }
 
-func TestBuildTLSConfig_NoDefaultCert(t *testing.T) {
-	opts := TLSOptions{}
+func TestBuildServingTLSConfig_NoDefaultCert(t *testing.T) {
+	opts := ServingTLSOptions{}
 
-	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -93,28 +94,28 @@ func TestBuildTLSConfig_NoDefaultCert(t *testing.T) {
 	}
 }
 
-func TestBuildTLSConfig_MissingKeyFile(t *testing.T) {
+func TestBuildServingTLSConfig_MissingKeyFile(t *testing.T) {
 	dir := t.TempDir()
 	certPEM, _ := testutil.GenerateCertPEM(t, []string{"example.com"}, nil)
 	writeFile(t, filepath.Join(dir, "server.crt"), certPEM)
 
-	opts := TLSOptions{CertStorePaths: dir}
+	opts := ServingTLSOptions{CertStorePaths: dir}
 
-	_, _, err := BuildTLSConfig(opts, logr.Discard())
+	_, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err == nil {
 		t.Error("expected error for missing key file")
 	}
 }
 
-func TestBuildTLSConfig_PemFormat(t *testing.T) {
+func TestBuildServingTLSConfig_PemFormat(t *testing.T) {
 	dir := t.TempDir()
 	certPEM, keyPEM := testutil.GenerateCertPEM(t, []string{"pem.example.com"}, nil)
 	writeFile(t, filepath.Join(dir, "server.pem"), certPEM)
 	writeFile(t, filepath.Join(dir, "server-key.pem"), keyPEM)
 
-	opts := TLSOptions{CertStorePaths: dir}
+	opts := ServingTLSOptions{CertStorePaths: dir}
 
-	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -122,15 +123,15 @@ func TestBuildTLSConfig_PemFormat(t *testing.T) {
 	requireCertForHost(t, tlsCfg, "pem.example.com")
 }
 
-func TestBuildTLSConfig_IPAddressSAN(t *testing.T) {
+func TestBuildServingTLSConfig_IPAddressSAN(t *testing.T) {
 	dir := t.TempDir()
 	certPEM, keyPEM := testutil.GenerateCertPEM(t, nil, []net.IP{net.ParseIP("192.168.1.100")})
 	writeFile(t, filepath.Join(dir, "ip.crt"), certPEM)
 	writeFile(t, filepath.Join(dir, "ip.key"), keyPEM)
 
-	opts := TLSOptions{CertStorePaths: dir}
+	opts := ServingTLSOptions{CertStorePaths: dir}
 
-	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -138,7 +139,7 @@ func TestBuildTLSConfig_IPAddressSAN(t *testing.T) {
 	requireCertForHost(t, tlsCfg, "192.168.1.100")
 }
 
-func TestBuildTLSConfig_InvalidContent(t *testing.T) {
+func TestBuildServingTLSConfig_InvalidContent(t *testing.T) {
 	tests := map[string]struct {
 		invalidCert bool
 		invalidKey  bool
@@ -162,9 +163,9 @@ func TestBuildTLSConfig_InvalidContent(t *testing.T) {
 			writeFile(t, filepath.Join(dir, "server.crt"), certPEM)
 			writeFile(t, filepath.Join(dir, "server.key"), keyPEM)
 
-			opts := TLSOptions{CertStorePaths: dir}
+			opts := ServingTLSOptions{CertStorePaths: dir}
 
-			_, _, err := BuildTLSConfig(opts, logr.Discard())
+			_, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 			if err == nil {
 				t.Error("expected error for invalid content")
 			}
@@ -172,143 +173,35 @@ func TestBuildTLSConfig_InvalidContent(t *testing.T) {
 	}
 }
 
-func TestBuildTLSConfig_NonExistentCertStorePath(t *testing.T) {
-	opts := TLSOptions{CertStorePaths: "/nonexistent/path/to/certs"}
+func TestBuildServingTLSConfig_NonExistentCertStorePath(t *testing.T) {
+	opts := ServingTLSOptions{CertStorePaths: "/nonexistent/path/to/certs"}
 
-	_, _, err := BuildTLSConfig(opts, logr.Discard())
+	_, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err == nil {
 		t.Error("expected error for non-existent cert store path")
 	}
 }
 
-func TestBuildTLSConfig_TLSOptions(t *testing.T) {
-	tests := map[string]struct {
-		opts             TLSOptions
-		wantErr          bool
-		wantMinVersion   uint16
-		wantMaxVersion   uint16
-		wantCipherSuites []uint16
-		wantCurves       []tls.CurveID
-	}{
-		"default min version": {
-			opts:           TLSOptions{},
-			wantMinVersion: 0,
-		},
-		"min version 1.3": {
-			opts:           TLSOptions{MinTLSVersion: "1.3"},
-			wantMinVersion: tls.VersionTLS13,
-		},
-		"min version 1.2": {
-			opts:           TLSOptions{MinTLSVersion: "1.2"},
-			wantMinVersion: tls.VersionTLS12,
-		},
-		"min version TLS12": {
-			opts:           TLSOptions{MinTLSVersion: "TLS12"},
-			wantMinVersion: tls.VersionTLS12,
-		},
-		"min version tls12 lowercase": {
-			opts:           TLSOptions{MinTLSVersion: "tls12"},
-			wantMinVersion: tls.VersionTLS12,
-		},
-		"min version TLS13": {
-			opts:           TLSOptions{MinTLSVersion: "TLS13"},
-			wantMinVersion: tls.VersionTLS13,
-		},
-		"max version 1.2": {
-			opts:           TLSOptions{MaxTLSVersion: "1.2"},
-			wantMaxVersion: tls.VersionTLS12,
-		},
-		"max version TLS12": {
-			opts:           TLSOptions{MaxTLSVersion: "TLS12"},
-			wantMaxVersion: tls.VersionTLS12,
-		},
-		"max version tls12 lowercase": {
-			opts:           TLSOptions{MaxTLSVersion: "tls12"},
-			wantMaxVersion: tls.VersionTLS12,
-		},
-		"max version TLS13": {
-			opts:           TLSOptions{MaxTLSVersion: "TLS13"},
-			wantMaxVersion: tls.VersionTLS13,
-		},
-		"invalid min version": {
-			opts:    TLSOptions{MinTLSVersion: "1.1"},
-			wantErr: true,
-		},
-		"invalid max version": {
-			opts:    TLSOptions{MaxTLSVersion: "1.0"},
-			wantErr: true,
-		},
-		"cipher suites": {
-			opts: TLSOptions{CipherSuites: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
-			wantCipherSuites: []uint16{
-				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			},
-		},
-		"cipher suites whitespace only": {
-			opts:             TLSOptions{CipherSuites: " , "},
-			wantCipherSuites: nil,
-		},
-		"invalid cipher suite": {
-			opts:    TLSOptions{CipherSuites: "INVALID_SUITE"},
-			wantErr: true,
-		},
-		"curve preferences go names": {
-			opts:       TLSOptions{CurvePreferences: "X25519,CurveP256"},
-			wantCurves: []tls.CurveID{tls.X25519, tls.CurveP256},
-		},
-		"curve preferences standard names": {
-			opts:       TLSOptions{CurvePreferences: "P-256, P-384"},
-			wantCurves: []tls.CurveID{tls.CurveP256, tls.CurveP384},
-		},
-		"curve preferences whitespace only": {
-			opts:       TLSOptions{CurvePreferences: " , "},
-			wantCurves: nil,
-		},
-		"invalid curve preference": {
-			opts:    TLSOptions{CurvePreferences: "INVALID_CURVE"},
-			wantErr: true,
-		},
+func TestBuildServingTLSConfig_PolicyApplied(t *testing.T) {
+	tlsCfg, _, err := BuildServingTLSConfig(ServingTLSOptions{}, kedatls.Policy{MinVersion: "1.3"}, logr.Discard())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			tlsCfg, _, err := BuildTLSConfig(tt.opts, logr.Discard())
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if tlsCfg.MinVersion != tt.wantMinVersion {
-				t.Errorf("MinVersion = %d, want %d", tlsCfg.MinVersion, tt.wantMinVersion)
-			}
-			if tlsCfg.MaxVersion != tt.wantMaxVersion {
-				t.Errorf("MaxVersion = %d, want %d", tlsCfg.MaxVersion, tt.wantMaxVersion)
-			}
-			if !slices.Equal(tlsCfg.CipherSuites, tt.wantCipherSuites) {
-				t.Errorf("CipherSuites = %v, want %v", tlsCfg.CipherSuites, tt.wantCipherSuites)
-			}
-			if !slices.Equal(tlsCfg.CurvePreferences, tt.wantCurves) {
-				t.Errorf("CurvePreferences = %v, want %v", tlsCfg.CurvePreferences, tt.wantCurves)
-			}
-		})
+	if tlsCfg.MinVersion != tls.VersionTLS13 {
+		t.Errorf("MinVersion = %d, want %d", tlsCfg.MinVersion, tls.VersionTLS13)
 	}
 }
 
-func TestBuildTLSConfig_CertwatcherHotReload(t *testing.T) {
+func TestBuildServingTLSConfig_CertwatcherHotReload(t *testing.T) {
 	dir := t.TempDir()
 	writeCert(t, dir, "server", "original.example.com")
 
-	opts := TLSOptions{
+	opts := ServingTLSOptions{
 		CertificatePath: filepath.Join(dir, "server.crt"),
 		KeyPath:         filepath.Join(dir, "server.key"),
 	}
 
-	tlsCfg, watcher, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, watcher, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}
@@ -349,20 +242,20 @@ func TestBuildTLSConfig_CertwatcherHotReload(t *testing.T) {
 	}
 }
 
-func TestBuildTLSConfig_SNIPriorityOverDefault(t *testing.T) {
+func TestBuildServingTLSConfig_SNIPriorityOverDefault(t *testing.T) {
 	defaultCertDir := t.TempDir()
 	writeCert(t, defaultCertDir, "default", "default.example.com")
 
 	sniCertDir := t.TempDir()
 	writeCert(t, sniCertDir, "sni", "specific.example.com")
 
-	opts := TLSOptions{
+	opts := ServingTLSOptions{
 		CertificatePath: filepath.Join(defaultCertDir, "default.crt"),
 		KeyPath:         filepath.Join(defaultCertDir, "default.key"),
 		CertStorePaths:  sniCertDir,
 	}
 
-	tlsCfg, _, err := BuildTLSConfig(opts, logr.Discard())
+	tlsCfg, _, err := BuildServingTLSConfig(opts, kedatls.Policy{}, logr.Discard())
 	if err != nil {
 		t.Fatalf("failed to build TLS config: %v", err)
 	}

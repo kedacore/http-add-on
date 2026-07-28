@@ -25,7 +25,7 @@ func TestGRPCOverTLS(t *testing.T) {
 			f := h.NewFramework(ctx, t)
 
 			appName := "grpc-tls-app"
-			certSecretName := f.CreateCertificate([]string{appName})
+			certSecretName := f.CreateCertificate([]string{appName, appName + "." + f.Namespace()})
 
 			app := f.CreateTestApp(appName,
 				h.AppWithTestImage(h.ImageGRPCEcho),
