@@ -95,9 +95,7 @@ func newQueuePinger(lggr logr.Logger, getEndpointsFn k8s.GetEndpointsFunc, ns, s
 		interceptorSvcName:     svcName,
 		interceptorServiceName: deplName,
 		adminPort:              adminPort,
-		// Transport is deliberately left nil so the client resolves
-		// http.DefaultTransport per request, keeping its connection pool
-		// shared across ticks.
+		// Leave Transport nil to preserve the existing http.DefaultTransport behavior.
 		httpCl:          &http.Client{Timeout: fetchTimeout},
 		lggr:            lggr,
 		instruments:     instruments,
