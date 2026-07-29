@@ -1,9 +1,14 @@
 package queue
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
@@ -65,7 +70,7 @@ func TestQueueSizeHandlerIntegration(t *testing.T) {
 	r.NoError(err)
 	defer srv.Close()
 	httpCl := srv.Client()
-	counts, err := GetCounts(httpCl, *url)
+	counts, err := GetCounts(t.Context(), httpCl, *url)
 	r.NoError(err)
 	r.Len(counts, 1)
 	for _, val := range counts {
@@ -73,4 +78,62 @@ func TestQueueSizeHandlerIntegration(t *testing.T) {
 	}
 	reqs := hdl.IncomingRequests()
 	r.Len(reqs, 1)
+}
+
+// TestGetCountsUnresponsiveInterceptor pins down the contract the scaler relies
+// on: an interceptor that accepts the connection but never answers must fail
+// the request rather than block the caller forever.
+func TestGetCountsUnresponsiveInterceptor(t *testing.T) {
+	r := require.New(t)
+	const timeout = 100 * time.Millisecond
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		<-req.Context().Done()
+	}))
+	defer srv.Close()
+
+	srvURL, err := url.Parse(srv.URL)
+	r.NoError(err)
+
+	start := time.Now()
+	_, err = GetCounts(t.Context(), &http.Client{Timeout: timeout}, *srvURL)
+	r.Error(err)
+	r.Less(time.Since(start), 10*timeout, "the request must be bounded by the client timeout")
+}
+
+func TestGetCountsCancelledContext(t *testing.T) {
+	r := require.New(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		<-req.Context().Done()
+	}))
+	defer srv.Close()
+
+	srvURL, err := url.Parse(srv.URL)
+	r.NoError(err)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	_, err = GetCounts(ctx, srv.Client(), *srvURL)
+	r.ErrorIs(err, context.Canceled)
+}
+
+func TestGetCountsNonOKStatus(t *testing.T) {
+	r := require.New(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "error getting queue size", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	srvURL, err := url.Parse(srv.URL)
+	r.NoError(err)
+
+	_, err = GetCounts(t.Context(), srv.Client(), *srvURL)
+	r.Error(err)
+	r.Contains(err.Error(), "unexpected status")
 }

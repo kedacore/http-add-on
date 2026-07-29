@@ -26,7 +26,10 @@ type config struct {
 	// CacheSyncPeriod is the time interval for the controller-runtime cache to resync.
 	// TODO: consider removing this to use the default value, otherwise align the env var name
 	CacheSyncPeriod time.Duration `env:"KEDA_HTTP_SCALER_CONFIG_MAP_INFORMER_RSYNC_PERIOD" envDefault:"60m"`
-	// QueueTickDuration is the duration between queue requests
+	// QueueTickDuration is the duration between queue requests. It also bounds
+	// each individual request to an interceptor pod: there is no point waiting
+	// longer than the interval after which we ask again, since the next tick
+	// supersedes the answer. See minFetchTimeout for the lower clamp.
 	QueueTickDuration time.Duration `env:"KEDA_HTTP_QUEUE_TICK_DURATION" envDefault:"500ms"`
 	// ProfilingAddr if not empty, pprof will be available on this address, assuming host:port here
 	ProfilingAddr string `env:"PROFILING_BIND_ADDRESS" envDefault:""`

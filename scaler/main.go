@@ -99,7 +99,7 @@ func run() error {
 		return fmt.Errorf("creating cache: %w", err)
 	}
 
-	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForControllerClient(ctrlCache), namespace, svcName, deplName, targetPortStr, instruments)
+	pinger := newQueuePinger(ctrl.Log, k8s.EndpointsFuncForControllerClient(ctrlCache), namespace, svcName, deplName, targetPortStr, cfg.QueueTickDuration, instruments)
 
 	ctx := ctrl.SetupSignalHandler()
 	ctx = util.ContextWithLogger(ctx, setupLog)

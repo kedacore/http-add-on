@@ -28,6 +28,13 @@ const (
 
 	defaultWindow      = time.Minute
 	defaultGranularity = time.Second
+
+	// minFetchTimeout is the lower clamp on a single queue counts request.
+	// The timeout tracks the tick duration, but a very short tick must not
+	// make healthy pods on a loaded node look unreachable: that would drop
+	// their request-rate deltas, which are never synthesised for pods we
+	// could not reach, and quietly under-report the rate.
+	minFetchTimeout = 250 * time.Millisecond
 )
 
 // aggregatedCount holds the scaler's computed view of a single
@@ -46,7 +53,7 @@ type aggregatedCount struct {
 //
 // Sample usage:
 //
-//	pinger := newQueuePinger(lggr, getEndpointsFn, ns, svcName, deplName, adminPort, instruments)
+//	pinger := newQueuePinger(lggr, getEndpointsFn, ns, svcName, deplName, adminPort, fetchTimeout, instruments)
 //	go pinger.start(ctx, ticker)
 type queuePinger struct {
 	getEndpointsFn         k8s.GetEndpointsFunc
@@ -54,6 +61,7 @@ type queuePinger struct {
 	interceptorSvcName     string
 	interceptorServiceName string
 	adminPort              string
+	httpCl                 *http.Client
 	pingMut                sync.RWMutex
 	lastPingTime           time.Time
 	allCounts              map[string]aggregatedCount
@@ -76,19 +84,25 @@ type queuePinger struct {
 	rateBuckets map[string]*queue.RequestsBuckets
 }
 
-func newQueuePinger(lggr logr.Logger, getEndpointsFn k8s.GetEndpointsFunc, ns, svcName, deplName, adminPort string, instruments *metrics.Instruments) *queuePinger {
+// newQueuePinger builds a pinger that polls interceptor pods for queue counts.
+// fetchTimeout bounds each individual request and is normally the tick
+// duration, clamped up to minFetchTimeout.
+func newQueuePinger(lggr logr.Logger, getEndpointsFn k8s.GetEndpointsFunc, ns, svcName, deplName, adminPort string, fetchTimeout time.Duration, instruments *metrics.Instruments) *queuePinger {
+	fetchTimeout = max(fetchTimeout, minFetchTimeout)
 	return &queuePinger{
 		getEndpointsFn:         getEndpointsFn,
 		interceptorNS:          ns,
 		interceptorSvcName:     svcName,
 		interceptorServiceName: deplName,
 		adminPort:              adminPort,
-		lggr:                   lggr,
-		instruments:            instruments,
-		allCounts:              map[string]aggregatedCount{},
-		prevPodCounts:          map[string]map[string]int64{},
-		cachedPodCounts:        map[string]queue.Counts{},
-		rateBuckets:            map[string]*queue.RequestsBuckets{},
+		// Leave Transport nil to preserve the existing http.DefaultTransport behavior.
+		httpCl:          &http.Client{Timeout: fetchTimeout},
+		lggr:            lggr,
+		instruments:     instruments,
+		allCounts:       map[string]aggregatedCount{},
+		prevPodCounts:   map[string]map[string]int64{},
+		cachedPodCounts: map[string]queue.Counts{},
+		rateBuckets:     map[string]*queue.RequestsBuckets{},
 	}
 }
 
@@ -163,7 +177,7 @@ func (q *queuePinger) fetchAndSaveCounts(ctx context.Context) error {
 	defer q.pingMut.Unlock()
 
 	fetchStart := time.Now()
-	result, err := fetchCountsPerPod(ctx, q.lggr, q.getEndpointsFn, q.interceptorNS, q.interceptorSvcName, q.adminPort)
+	result, err := fetchCountsPerPod(ctx, q.lggr, q.httpCl, q.getEndpointsFn, q.interceptorNS, q.interceptorSvcName, q.adminPort)
 	failedPods := max(0, result.endpointCount-len(result.perPod))
 	q.instruments.RecordFetch(time.Since(fetchStart), result.endpointCount, failedPods, err)
 	if err != nil {
@@ -298,7 +312,12 @@ type fetchResult struct {
 // so that a single unreachable interceptor (e.g. during a rolling
 // update or spot-node eviction) does not cause the scaler to report
 // NOT_SERVING and get restarted by Kubernetes.
-func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.GetEndpointsFunc, ns, svcName, adminPort string) (fetchResult, error) {
+//
+// A pod that accepts the connection but never answers is treated the same as
+// an unreachable one: httpCl.Timeout bounds every request so that one wedged
+// interceptor cannot stall the fetch, and with it the scaler's whole metric
+// pipeline.
+func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, httpCl *http.Client, endpointsFn k8s.GetEndpointsFunc, ns, svcName, adminPort string) (fetchResult, error) {
 	lggr = lggr.WithName("queuePinger.requestCounts")
 
 	endpointURLs, err := k8s.EndpointsForService(ctx, ns, svcName, adminPort, endpointsFn)
@@ -328,7 +347,7 @@ func fetchCountsPerPod(ctx context.Context, lggr logr.Logger, endpointsFn k8s.Ge
 	for _, endpoint := range endpointURLs {
 		u := endpoint
 		wg.Go(func() {
-			counts, err := queue.GetCounts(http.DefaultClient, u)
+			counts, err := queue.GetCounts(ctx, httpCl, u)
 			if err != nil {
 				lggr.Error(err, "getting queue counts from interceptor", "interceptorAddress", u.String())
 				failCount.Add(1)

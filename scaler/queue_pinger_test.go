@@ -21,6 +21,15 @@ import (
 	"github.com/kedacore/http-add-on/scaler/metrics"
 )
 
+// testFetchTimeout is generous enough that a loaded CI machine will not make
+// well-behaved fake interceptors look unreachable. Tests that exercise the
+// timeout itself set their own, much shorter, value.
+const testFetchTimeout = 5 * time.Second
+
+func testHTTPClient() *http.Client {
+	return &http.Client{Timeout: testFetchTimeout}
+}
+
 func TestCounts(t *testing.T) {
 	r := require.New(t)
 	ctx, cancel := context.WithCancel(t.Context())
@@ -56,6 +65,7 @@ func TestCounts(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		testFetchTimeout,
 		metrics.NewNoopInstruments(),
 	)
 
@@ -108,6 +118,7 @@ func TestFetchAndSaveCounts(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		testFetchTimeout,
 		metrics.NewNoopInstruments(),
 	)
 
@@ -149,6 +160,7 @@ func TestFetchCountsPerPod(t *testing.T) {
 	result, err := fetchCountsPerPod(
 		ctx,
 		logr.Discard(),
+		testHTTPClient(),
 		endpointsFn,
 		ns,
 		svcName,
@@ -223,6 +235,7 @@ func TestFetchAndSaveCounts_MultiPodLifecycle(t *testing.T) {
 		svcName,
 		deplName,
 		adminPort,
+		testFetchTimeout,
 		metrics.NewNoopInstruments(),
 	)
 
@@ -291,6 +304,7 @@ func TestRateComputation(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		testFetchTimeout,
 		metrics.NewNoopInstruments(),
 	)
 
@@ -341,6 +355,7 @@ func TestRateComputationCounterReset(t *testing.T) {
 		svcName,
 		deplName,
 		srvURL.Port(),
+		testFetchTimeout,
 		metrics.NewNoopInstruments(),
 	)
 
@@ -364,7 +379,7 @@ func TestFetchCountsPerPod_NoEndpoints(t *testing.T) {
 		return k8s.Endpoints{}, nil
 	}
 
-	result, err := fetchCountsPerPod(ctx, logr.Discard(), endpointsFn, "testns", "testsvc", "8081")
+	result, err := fetchCountsPerPod(ctx, logr.Discard(), testHTTPClient(), endpointsFn, "testns", "testsvc", "8081")
 	r.NoError(err, "no endpoints should not be an error")
 	r.Empty(result.perPod)
 	r.Empty(result.endpointKeys)
@@ -400,7 +415,7 @@ func TestFetchCountsPerPod_PartialFailure(t *testing.T) {
 		}, nil
 	}
 
-	result, err := fetchCountsPerPod(ctx, logr.Discard(), endpointsFn, "testns", "testsvc", adminPort)
+	result, err := fetchCountsPerPod(ctx, logr.Discard(), testHTTPClient(), endpointsFn, "testns", "testsvc", adminPort)
 	r.NoError(err, "one unreachable pod should not fail the entire fetch")
 	r.Len(result.perPod, 1, "should contain results from the reachable pod only")
 	r.Equal(2, result.endpointCount, "endpointCount should reflect all endpoints")
@@ -438,9 +453,164 @@ func TestFetchCountsPerPod_AllPodsUnreachable(t *testing.T) {
 		}, nil
 	}
 
-	_, err = fetchCountsPerPod(ctx, logr.Discard(), endpointsFn, "testns", "testsvc", adminPort)
+	_, err = fetchCountsPerPod(ctx, logr.Discard(), testHTTPClient(), endpointsFn, "testns", "testsvc", adminPort)
 	r.Error(err, "should fail when all pods are unreachable")
 	r.Contains(err.Error(), "all 2 interceptor pods were unreachable")
+}
+
+// newHangingServer returns a server that accepts connections and never
+// answers. This is the "black hole" interceptor that used to block the
+// scaler's fetch forever. The handler unblocks once the client gives up, so
+// the test server can shut down cleanly.
+func newHangingServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		<-req.Context().Done()
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestFetchCountsPerPod_UnresponsivePod(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const (
+		adminPort    = "8081"
+		fetchTimeout = 200 * time.Millisecond
+	)
+
+	podA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(queue.Counts{
+			"host1": {Concurrency: 5, RequestCount: 100},
+		})
+	}))
+	defer podA.Close()
+
+	podB := newHangingServer(t)
+
+	withPatchedDefaultTransport(t, map[string]string{
+		"pod-a:" + adminPort: podA.Listener.Addr().String(),
+		"pod-b:" + adminPort: podB.Listener.Addr().String(),
+	})
+
+	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
+		return k8s.Endpoints{
+			ReadyAddresses: []string{"pod-a", "pod-b"},
+		}, nil
+	}
+
+	start := time.Now()
+	result, err := fetchCountsPerPod(
+		ctx,
+		logr.Discard(),
+		&http.Client{Timeout: fetchTimeout},
+		endpointsFn,
+		"testns",
+		"testsvc",
+		adminPort,
+	)
+	elapsed := time.Since(start)
+
+	r.NoError(err, "one unresponsive pod should not fail the entire fetch")
+	r.Less(elapsed, 10*fetchTimeout,
+		"fetch must be bounded by the client timeout, not by the slowest pod")
+	r.Len(result.perPod, 1, "only the responsive pod should report counts")
+	r.Equal(2, result.endpointCount, "endpointCount should reflect all endpoints")
+	r.Contains(result.perPod, "pod-a:"+adminPort)
+	r.NotContains(result.perPod, "pod-b:"+adminPort)
+}
+
+func TestFetchCountsPerPod_AllPodsUnresponsive(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const (
+		adminPort    = "8081"
+		fetchTimeout = 200 * time.Millisecond
+	)
+
+	podA := newHangingServer(t)
+	podB := newHangingServer(t)
+
+	withPatchedDefaultTransport(t, map[string]string{
+		"pod-a:" + adminPort: podA.Listener.Addr().String(),
+		"pod-b:" + adminPort: podB.Listener.Addr().String(),
+	})
+
+	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
+		return k8s.Endpoints{
+			ReadyAddresses: []string{"pod-a", "pod-b"},
+		}, nil
+	}
+
+	start := time.Now()
+	_, err := fetchCountsPerPod(
+		ctx,
+		logr.Discard(),
+		&http.Client{Timeout: fetchTimeout},
+		endpointsFn,
+		"testns",
+		"testsvc",
+		adminPort,
+	)
+
+	r.Error(err, "should fail when no pod answers")
+	r.Contains(err.Error(), "all 2 interceptor pods were unreachable")
+	r.Less(time.Since(start), 10*fetchTimeout, "fetch must still be bounded")
+}
+
+// TestFetchAndSaveCounts_UnresponsivePodKeepsPingerFresh covers the reason the
+// timeout matters: a stalled tick stops lastPingTime from advancing, which
+// makes the health check in main.go report NOT_SERVING and gets the scaler
+// restarted — taking metrics for every HTTP-autoscaled app down with it.
+func TestFetchAndSaveCounts_UnresponsivePodKeepsPingerFresh(t *testing.T) {
+	r := require.New(t)
+	ctx := t.Context()
+	const (
+		ns        = "testns"
+		svcName   = "testsvc"
+		deplName  = "testdepl"
+		adminPort = "8081"
+		// At or above minFetchTimeout, so newQueuePinger uses it as given.
+		fetchTimeout = minFetchTimeout
+	)
+
+	podA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(queue.Counts{
+			"host1": {Concurrency: 5, RequestCount: 100},
+		})
+	}))
+	defer podA.Close()
+
+	podB := newHangingServer(t)
+
+	withPatchedDefaultTransport(t, map[string]string{
+		"pod-a:" + adminPort: podA.Listener.Addr().String(),
+		"pod-b:" + adminPort: podB.Listener.Addr().String(),
+	})
+
+	pinger := newQueuePinger(
+		logr.Discard(),
+		func(context.Context, string, string) (k8s.Endpoints, error) {
+			return k8s.Endpoints{ReadyAddresses: []string{"pod-a", "pod-b"}}, nil
+		},
+		ns,
+		svcName,
+		deplName,
+		adminPort,
+		fetchTimeout,
+		metrics.NewNoopInstruments(),
+	)
+
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	firstPing := pinger.lastPingTime
+	r.False(firstPing.IsZero(), "a tick with an unresponsive pod must still complete")
+	r.Equal(5, pinger.count("host1").Concurrency,
+		"the responsive pod's counts should still be reported")
+
+	r.NoError(pinger.fetchAndSaveCounts(ctx))
+	r.True(pinger.lastPingTime.After(firstPing),
+		"the pinger must keep making progress while a pod is unresponsive")
 }
 
 func TestFetchAndSaveCounts_CachedUnreachablePod(t *testing.T) {
@@ -491,6 +661,7 @@ func TestFetchAndSaveCounts_CachedUnreachablePod(t *testing.T) {
 			}, nil
 		},
 		ns, svcName, deplName, adminPort,
+		testFetchTimeout,
 		metrics.NewNoopInstruments(),
 	)
 
@@ -523,6 +694,33 @@ func TestFetchAndSaveCounts_CachedUnreachablePod(t *testing.T) {
 		"cached data should be pruned when pod leaves EndpointSlice")
 	r.NotContains(pinger.prevPodCounts, "pod-b:"+adminPort,
 		"prevPodCounts should be pruned when pod leaves EndpointSlice")
+}
+
+func TestNewQueuePingerFetchTimeout(t *testing.T) {
+	endpointsFn := func(context.Context, string, string) (k8s.Endpoints, error) {
+		return k8s.Endpoints{}, nil
+	}
+
+	for name, tc := range map[string]struct {
+		given time.Duration
+		want  time.Duration
+	}{
+		"tracks the tick duration":   {given: 2 * time.Second, want: 2 * time.Second},
+		"clamps a very short tick":   {given: time.Millisecond, want: minFetchTimeout},
+		"clamps an unset duration":   {given: 0, want: minFetchTimeout},
+		"clamps a negative duration": {given: -time.Second, want: minFetchTimeout},
+	} {
+		t.Run(name, func(t *testing.T) {
+			pinger := newQueuePinger(
+				logr.Discard(),
+				endpointsFn,
+				"testns", "testsvc", "testdepl", "8080",
+				tc.given,
+				metrics.NewNoopInstruments(),
+			)
+			require.Equal(t, tc.want, pinger.httpCl.Timeout)
+		})
+	}
 }
 
 func TestUpdateBucketConfig(t *testing.T) {
@@ -583,6 +781,7 @@ func newFakeQueuePinger(lggr logr.Logger, optsFuncs ...optsFunc) (*time.Ticker, 
 		"testsvc",
 		"testdepl",
 		opts.port,
+		testFetchTimeout,
 		metrics.NewNoopInstruments(),
 	)
 	return ticker, pinger, nil
