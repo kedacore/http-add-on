@@ -24,6 +24,9 @@ type CountReader interface {
 // the read functionality is point-in-time only.
 type Counter interface {
 	CountReader
+	// Concurrency returns the current pending request count for host,
+	// or 0 if host is not tracked.
+	Concurrency(host string) int
 	// Increase increases the queue size by delta for the given host.
 	Increase(host string, delta int) error
 	// Decrease decreases the queue size by delta for the given host.
@@ -63,6 +66,15 @@ type Memory struct {
 // NewMemory creates a new empty in-memory queue
 func NewMemory() *Memory {
 	return &Memory{}
+}
+
+// Concurrency returns the current pending request count for host,
+// or 0 if host is not tracked.
+func (r *Memory) Concurrency(host string) int {
+	if v, ok := r.entries.Load(host); ok {
+		return int(v.(*hostEntry).concurrency.Load())
+	}
+	return 0
 }
 
 // Increase atomically increments the concurrency counter and the

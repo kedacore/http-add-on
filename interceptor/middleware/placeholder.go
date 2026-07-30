@@ -5,6 +5,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -37,11 +38,20 @@ func (p *Placeholder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if ir.Spec.ColdStart != nil && ir.Spec.ColdStart.Placeholder != nil && ir.Spec.ColdStart.Placeholder.Response != nil {
 		serviceKey := ir.Namespace + "/" + ir.Spec.Target.Service
-		if !p.readyCache.HasReadyEndpoints(serviceKey) {
+		if !p.readyCache.HasReadyEndpoints(serviceKey) && !holdsRequests(ir) {
 			serveStaticResponse(w, r, p.reader, ir, ir.Spec.ColdStart.Placeholder.Response, http.StatusServiceUnavailable)
 			return
 		}
 	}
 
 	p.next.ServeHTTP(w, r)
+}
+
+// holdsRequests reports whether the route holds cold-start requests in a
+// bounded queue instead of serving the placeholder immediately. Holding is
+// opt-in via an explicit maxQueueDepth with overflow: Placeholder; the
+// Counting middleware enforces the bound and serves the placeholder only to
+// requests that overflow it.
+func holdsRequests(ir *httpv1beta1.InterceptorRoute) bool {
+	return ir.Spec.ColdStart.MaxQueueDepth != nil && overflowServesPlaceholder(ir)
 }

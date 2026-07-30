@@ -41,6 +41,12 @@ func newFakeCounter(bufferSize int) *FakeCounter {
 	}
 }
 
+func (f *FakeCounter) Concurrency(host string) int {
+	f.mapMut.RLock()
+	defer f.mapMut.RUnlock()
+	return f.RetMap[host].Concurrency
+}
+
 func (f *FakeCounter) Increase(host string, i int) error {
 	f.mapMut.Lock()
 	count := f.RetMap[host]

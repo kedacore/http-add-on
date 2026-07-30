@@ -76,7 +76,9 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 
 	h = middleware.NewPlaceholder(h, cfg.ReadyCache, cfg.Reader)
 
-	h = middleware.NewCounting(h, cfg.Queue, cfg.Instruments)
+	h = middleware.NewCounting(h, cfg.Queue, cfg.Instruments, cfg.ReadyCache, cfg.Reader, middleware.CountingConfig{
+		MaxQueueDepth: cfg.Serving.ColdStartMaxQueueDepth,
+	})
 
 	h = middleware.NewStaticRouting(h, upstream, cfg.ReadyCache, cfg.Reader)
 

@@ -165,6 +165,82 @@ func TestPlaceholder_BackendNotReady(t *testing.T) {
 	})
 }
 
+func TestPlaceholder_HoldQueueOptIn(t *testing.T) {
+	body := loadingBody
+	maxDepth := int32(100)
+
+	tests := map[string]struct {
+		coldStart      *httpv1beta1.ColdStartSpec
+		wantNextCalled bool
+	}{
+		"PlaceholderOnlyServesImmediately": {
+			coldStart: &httpv1beta1.ColdStartSpec{
+				Placeholder: &httpv1beta1.ColdStartPlaceholder{
+					Response: &httpv1beta1.StaticResponse{Body: &body},
+				},
+			},
+			wantNextCalled: false,
+		},
+		"MaxQueueDepthWithoutPlaceholderOverflowServesImmediately": {
+			coldStart: &httpv1beta1.ColdStartSpec{
+				MaxQueueDepth: &maxDepth,
+				Placeholder: &httpv1beta1.ColdStartPlaceholder{
+					Response: &httpv1beta1.StaticResponse{Body: &body},
+				},
+			},
+			wantNextCalled: false,
+		},
+		"PlaceholderOverflowWithMaxQueueDepthHoldsRequests": {
+			coldStart: &httpv1beta1.ColdStartSpec{
+				MaxQueueDepth: &maxDepth,
+				Overflow:      httpv1beta1.ColdStartOverflowPlaceholder,
+				Placeholder: &httpv1beta1.ColdStartPlaceholder{
+					Response: &httpv1beta1.StaticResponse{Body: &body},
+				},
+			},
+			wantNextCalled: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cache := k8s.NewReadyEndpointsCache(logr.Discard())
+
+			ir := &httpv1beta1.InterceptorRoute{
+				ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace},
+				Spec: httpv1beta1.InterceptorRouteSpec{
+					Target:    httpv1beta1.TargetRef{Service: testService},
+					ColdStart: tc.coldStart,
+				},
+			}
+
+			var nextCalled bool
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				nextCalled = true
+				w.WriteHeader(http.StatusOK)
+			})
+
+			mw := NewPlaceholder(next, cache, nil)
+
+			rec := httptest.NewRecorder()
+			req := newPlaceholderRequestWithPath(t, ir, "/")
+			mw.ServeHTTP(rec, req)
+
+			if got := nextCalled; got != tc.wantNextCalled {
+				t.Fatalf("next called: got %v, want %v", got, tc.wantNextCalled)
+			}
+			if !tc.wantNextCalled {
+				if got, want := rec.Code, http.StatusServiceUnavailable; got != want {
+					t.Fatalf("status code = %d, want %d", got, want)
+				}
+				if got := rec.Body.String(); got != body {
+					t.Fatalf("body = %q, want %q", got, body)
+				}
+			}
+		})
+	}
+}
+
 func TestPlaceholder_ConfigMapLookup(t *testing.T) {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "pages"},

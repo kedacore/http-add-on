@@ -6,6 +6,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
+const loadingBody = `{"loading": true}`
+
 func requireMetric(t *testing.T, rm metricdata.ResourceMetrics, name string) *metricdata.Metrics {
 	t.Helper()
 

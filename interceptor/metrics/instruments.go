@@ -18,6 +18,7 @@ const (
 	MetricRequestConcurrency = "interceptor.request.concurrency"
 	MetricRequestCount       = "interceptor.request.count"
 	MetricRequestDuration    = "interceptor.request.duration"
+	MetricColdStartRejected  = "interceptor.coldstart.rejected"
 
 	AttrCode           = "code"
 	AttrMethod         = "method"
@@ -45,9 +46,10 @@ var standardMethods = map[string]bool{
 
 // Instruments holds all metric instruments for the interceptor.
 type Instruments struct {
-	pendingRequests api.Int64UpDownCounter
-	requestCounter  api.Int64Counter
-	requestDuration api.Float64Histogram
+	pendingRequests   api.Int64UpDownCounter
+	requestCounter    api.Int64Counter
+	requestDuration   api.Float64Histogram
+	coldStartRejected api.Int64Counter
 }
 
 // NewNoopInstruments returns Instruments backed by a no-op provider, for use in tests.
@@ -92,10 +94,19 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 		return nil, fmt.Errorf("creating pending requests counter: %w", err)
 	}
 
+	coldStartRejected, err := meter.Int64Counter(
+		MetricColdStartRejected,
+		api.WithDescription("Requests turned away because the cold-start hold queue was full"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating cold-start rejected counter: %w", err)
+	}
+
 	return &Instruments{
-		requestCounter:  requestCounter,
-		requestDuration: requestDuration,
-		pendingRequests: pendingRequests,
+		requestCounter:    requestCounter,
+		requestDuration:   requestDuration,
+		pendingRequests:   pendingRequests,
+		coldStartRejected: coldStartRejected,
 	}, nil
 }
 
@@ -125,4 +136,14 @@ func (i *Instruments) RecordPendingRequest(routeName, routeNamespace string, del
 		attribute.String(AttrRouteNamespace, routeNamespace),
 	))
 	i.pendingRequests.Add(context.Background(), delta, attrs)
+}
+
+// RecordColdStartRejection records a request turned away because the route's
+// cold-start hold queue was full.
+func (i *Instruments) RecordColdStartRejection(routeName, routeNamespace string) {
+	attrs := api.WithAttributeSet(attribute.NewSet(
+		attribute.String(AttrRouteName, routeName),
+		attribute.String(AttrRouteNamespace, routeNamespace),
+	))
+	i.coldStartRejected.Add(context.Background(), 1, attrs)
 }
