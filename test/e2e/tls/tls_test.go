@@ -23,7 +23,7 @@ func TestTLSTermination(t *testing.T) {
 			f := h.NewFramework(ctx, t)
 
 			appName := "tls-app"
-			certSecretName := f.CreateCertificate([]string{appName})
+			certSecretName := f.CreateCertificate([]string{appName, appName + "." + f.Namespace()})
 
 			app := f.CreateTestApp(appName, h.AppWithTLSSecret(certSecretName))
 			ir := f.CreateInterceptorRoute("tls-ir", app, h.IRWithHosts("tls-test."+tlsDomain))

@@ -67,3 +67,38 @@ func GenerateCertPEM(t *testing.T, dnsNames []string, ipAddresses []net.IP) ([]b
 
 	return certPEM, keyPEM
 }
+
+// GenerateCA creates a self-signed CA certificate and returns PEM-encoded cert and key bytes.
+func GenerateCA(t *testing.T) (caCertPEM, caKeyPEM []byte) {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generating key: %v", err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{Organization: []string{"Test CA"}},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("creating CA certificate: %v", err)
+	}
+
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshaling key: %v", err)
+	}
+
+	caCertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	caKeyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+
+	return caCertPEM, caKeyPEM
+}

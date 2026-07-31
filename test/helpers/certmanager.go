@@ -99,6 +99,7 @@ func SetupCAHierarchy(testenv env.Environment) {
 
 		ctx = contextWithCAIssuer(ctx, caIssuer.Name)
 		ctx = contextWithCAPool(ctx, pool)
+		ctx = contextWithCACert(ctx, caSecret.Data["ca.crt"])
 		return ctx, nil
 	})
 
@@ -198,6 +199,17 @@ func cleanupCertManagerResources(ctx context.Context, client klient.Client) erro
 			}
 			if err := client.Resources().Delete(ctx, &certs.Items[i]); err != nil && !errors.IsNotFound(err) {
 				return fmt.Errorf("failed to delete Certificate %s/%s: %w", ns, certs.Items[i].Name, err)
+			}
+		}
+
+		// Clean up CA bundle ConfigMaps created by WithCABundle.
+		var configMaps corev1.ConfigMapList
+		if err := client.Resources().WithNamespace(ns).List(ctx, &configMaps, selector); err != nil {
+			return fmt.Errorf("failed to list ConfigMaps in %s: %w", ns, err)
+		}
+		for i := range configMaps.Items {
+			if err := client.Resources().Delete(ctx, &configMaps.Items[i]); err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("failed to delete ConfigMap %s/%s: %w", ns, configMaps.Items[i].Name, err)
 			}
 		}
 	}

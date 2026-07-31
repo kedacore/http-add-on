@@ -9,6 +9,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
@@ -16,6 +17,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
+
+const caBundleVolume = "ca-bundle"
 
 type PatchDeploymentOption func(ctx context.Context, client klient.Client, dep *appsv1.Deployment) error
 
@@ -130,6 +133,58 @@ func WithTLSCert(dnsNames []string) PatchDeploymentOption {
 			)
 		}
 		return nil
+	}
+}
+
+// WithCABundle mounts the test CA certificate (from SetupCAHierarchy) as a
+// ConfigMap volume and points KEDA_HTTP_TLS_CA_DIRS at it so the interceptor
+// trusts backends signed by the test CA.
+func WithCABundle() PatchDeploymentOption {
+	return func(ctx context.Context, client klient.Client, dep *appsv1.Deployment) error {
+		caCert := caCertFromContext(ctx)
+		if len(caCert) == 0 {
+			return fmt.Errorf("no CA certificate in context; call SetupCAHierarchy first")
+		}
+
+		cmName := randomName("e2e-ca-bundle")
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cmName,
+				Namespace: dep.Namespace,
+				Labels:    e2eLabels,
+			},
+			Data: map[string]string{
+				"ca.crt": string(caCert),
+			},
+		}
+		if err := client.Resources().Create(ctx, cm); err != nil {
+			return fmt.Errorf("failed to create CA bundle ConfigMap: %w", err)
+		}
+
+		const mountPath = "/custom/ca"
+
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: caBundleVolume,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
+					},
+				},
+			},
+		)
+		for i := range dep.Spec.Template.Spec.Containers {
+			dep.Spec.Template.Spec.Containers[i].VolumeMounts = append(
+				dep.Spec.Template.Spec.Containers[i].VolumeMounts,
+				corev1.VolumeMount{
+					Name:      caBundleVolume,
+					MountPath: mountPath,
+					ReadOnly:  true,
+				},
+			)
+		}
+
+		return WithEnvVar("KEDA_HTTP_TLS_CA_DIRS", mountPath)(ctx, client, dep)
 	}
 }
 
