@@ -37,6 +37,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Add `KEDA_HTTP_DIRECT_POD_ROUTING` environment variable (`true` | `false`, default `true`). When enabled, the interceptor routes requests directly to a ready pod IP instead of through the Service ClusterIP, bypassing kube-proxy and other Service-layer features (Service-level NetworkPolicy, session affinity, topology-aware routing). ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
 - **Interceptor**: Add `KEDA_HTTP_TLS_CA_DIRS` environment variable to trust custom CA bundles for outbound backend connections. ([#1728](https://github.com/kedacore/http-add-on/issues/1728))
+- **Interceptor**: Retry requests against an alternate ready endpoint when the picked pod fails at connect time (e.g. it terminated after the endpoint snapshot was taken). Bounded by the new `KEDA_HTTP_RETRY_COUNT` environment variable (default `1`, `0` disables); only requests without a body are retried, and only with direct-pod routing enabled. Adds the `interceptor.request.retries` metric. ([#1734](https://github.com/kedacore/http-add-on/issues/1734))
 
 ### Improvements
 

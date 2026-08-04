@@ -38,11 +38,17 @@ type ProxyHandlerConfig struct {
 	// dialAddressOverride redirects all dial attempts to this address (for testing).
 	// If empty, dials to the original target address.
 	dialAddressOverride string
+	// dialFuncOverride replaces the dial function entirely (for testing).
+	// If nil, DialContextWithRetry(Timeouts.Connect) is used.
+	dialFuncOverride kedanet.DialContextFunc
 }
 
 // BuildProxyHandler constructs the proxy handler chain.
 func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
-	dialFunc := kedanet.DialContextWithRetry(cfg.Timeouts.Connect)
+	dialFunc := cfg.dialFuncOverride
+	if dialFunc == nil {
+		dialFunc = kedanet.DialContextWithRetry(cfg.Timeouts.Connect)
+	}
 
 	// Wrap dialer to redirect if override is set (for testing)
 	if cfg.dialAddressOverride != "" {
@@ -66,7 +72,10 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	}
 
 	// Build handler chain (innermost to outermost)
-	upstream := handler.NewUpstream(baseTransport, cfg.Reader, cfg.Tracing, cfg.Timeouts.ResponseHeader)
+	upstream := handler.NewUpstream(baseTransport, cfg.Reader, cfg.Tracing, cfg.Timeouts.ResponseHeader, handler.RetryConfig{
+		Count:       cfg.Serving.RetryCount,
+		Instruments: cfg.Instruments,
+	})
 
 	var h http.Handler = middleware.NewEndpointResolver(upstream, cfg.ReadyCache, middleware.EndpointResolverConfig{
 		ReadinessTimeout:      cfg.Timeouts.Readiness,

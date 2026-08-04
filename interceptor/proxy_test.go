@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/queue"
 	routingtest "github.com/kedacore/http-add-on/pkg/routing/test"
 	"github.com/kedacore/http-add-on/pkg/testutil"
@@ -275,6 +278,170 @@ func TestProxyHandler_TLSBackend(t *testing.T) {
 	}
 }
 
+// closedPort returns a 127.0.0.1 port that nothing listens on, emulating a pod
+// that is gone while its endpoint is still in the EndpointSlices.
+func closedPort(t *testing.T) int32 {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to allocate port: %v", err)
+	}
+	_, portStr, err := net.SplitHostPort(l.Addr().String())
+	if err != nil {
+		t.Fatalf("failed to parse listener address: %v", err)
+	}
+	if err := l.Close(); err != nil {
+		t.Fatalf("failed to close listener: %v", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("failed to parse port: %v", err)
+	}
+	return int32(port)
+}
+
+// endpointSliceForPorts builds an EndpointSlice for test-service with the given
+// pods on 127.0.0.1 and the given (unnamed) ports. Direct-pod routing pairs
+// every ready IP with every port, so one IP with two ports yields two
+// candidates.
+func endpointSliceForPorts(ip string, ports ...int32) *discov1.EndpointSlice {
+	slicePorts := make([]discov1.EndpointPort, 0, len(ports))
+	for i := range ports {
+		slicePorts = append(slicePorts, discov1.EndpointPort{Port: &ports[i]})
+	}
+	return &discov1.EndpointSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service-slice",
+			Namespace: "test-namespace",
+			Labels:    map[string]string{discov1.LabelServiceName: "test-service"},
+		},
+		AddressType: discov1.AddressTypeIPv4,
+		Ports:       slicePorts,
+		Endpoints:   []discov1.Endpoint{{Addresses: []string{ip}}},
+	}
+}
+
+// countingDial counts dial-function calls per target address while delegating
+// to the real retrying dialer, so tests observe both rotation (one call per
+// endpoint tried) and real retry behavior inside each call.
+type countingDial struct {
+	real  kedanet.DialContextFunc
+	mu    sync.Mutex
+	calls map[string]int
+}
+
+func newCountingDial(connectTimeout time.Duration) *countingDial {
+	return &countingDial{
+		real:  kedanet.DialContextWithRetry(connectTimeout),
+		calls: map[string]int{},
+	}
+}
+
+func (d *countingDial) dial(ctx context.Context, network, addr string) (net.Conn, error) {
+	d.mu.Lock()
+	d.calls[addr]++
+	d.mu.Unlock()
+	return d.real(ctx, network, addr)
+}
+
+func (d *countingDial) callsTo(addr string) int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.calls[addr]
+}
+
+// TestProxyHandler_StaleEndpointRedialsUntilRequestTimeout emulates a pod that
+// is gone while its endpoint is still in the EndpointSlices, with no alternate
+// available: the interceptor redials the same dead pod for the whole request
+// budget and then gives up with 504. The redialing happens inside a single
+// dial call — every 50ms, i.e. ~8 attempts in this test's 400ms budget and
+// ~1200 at the default 60s (the exact count is verified in pkg/net tests).
+func TestProxyHandler_StaleEndpointRedialsUntilRequestTimeout(t *testing.T) {
+	dial := newCountingDial(500 * time.Millisecond)
+	h := newProxyTestHarness(t, harnessConfig{
+		directPodRouting: true,
+		retryCount:       1,
+		requestTimeout:   400 * time.Millisecond,
+		noDialOverride:   true,
+		dialFunc:         dial.dial,
+	})
+
+	deadPort := closedPort(t)
+	deadHost := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(deadPort)))
+	// The stale snapshot: the dead pod is the only ready endpoint.
+	h.ReadyCache.Update(testServiceKey, []*discov1.EndpointSlice{
+		endpointSliceForPorts("127.0.0.1", deadPort),
+	})
+
+	start := time.Now()
+	resp := h.doRequest(t, http.MethodGet, "/", testHost)
+	defer resp.Body.Close()
+	elapsed := time.Since(start)
+
+	if resp.StatusCode != http.StatusGatewayTimeout {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusGatewayTimeout)
+	}
+	// With no alternate endpoint there is nothing to rotate to, so the legacy
+	// unbounded redial runs until the request timeout — it must not fail fast.
+	if elapsed < 350*time.Millisecond {
+		t.Errorf("elapsed %v; expected redialing until the 400ms request timeout", elapsed)
+	}
+	if got := dial.callsTo(deadHost); got != 1 {
+		t.Errorf("dial calls to dead pod = %d, want 1 (redialing happens inside the call)", got)
+	}
+}
+
+// TestProxyHandler_StaleEndpointRotatesToAlternate emulates the scale-down
+// race through the full handler chain: the snapshot still contains the dead
+// pod, the request picks it, the bounded dial fails fast, and the request is
+// retried against the live alternate endpoint — the client sees a 200 instead
+// of a 502/504.
+func TestProxyHandler_StaleEndpointRotatesToAlternate(t *testing.T) {
+	dial := newCountingDial(500 * time.Millisecond)
+	h := newProxyTestHarness(t, harnessConfig{
+		directPodRouting: true,
+		retryCount:       1,
+		requestTimeout:   5 * time.Second,
+		noDialOverride:   true,
+		dialFunc:         dial.dial,
+	})
+
+	deadPort := closedPort(t)
+	deadHost := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(deadPort)))
+	_, livePortStr, err := net.SplitHostPort(h.Backend.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("failed to parse backend address: %v", err)
+	}
+	livePort, err := strconv.Atoi(livePortStr)
+	if err != nil {
+		t.Fatalf("failed to parse backend port: %v", err)
+	}
+	liveHost := h.Backend.Listener.Addr().String()
+
+	// The stale snapshot contains both the dead pod and the live one. Which
+	// one is picked first is random, so send several requests: every response
+	// must be 200, including from requests that started on the dead pod (the
+	// dead pod cannot serve, so those 200s prove the rotation).
+	h.ReadyCache.Update(testServiceKey, []*discov1.EndpointSlice{
+		endpointSliceForPorts("127.0.0.1", deadPort, int32(livePort)),
+	})
+
+	for range 30 {
+		resp := h.doRequest(t, http.MethodGet, "/", testHost)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d, want %d — a request that picked the dead pod must fail over", resp.StatusCode, http.StatusOK)
+		}
+		_ = resp.Body.Close()
+	}
+
+	if got := dial.callsTo(deadHost); got < 1 {
+		t.Error("the dead pod was never picked first in 30 requests; cannot prove rotation")
+	}
+	if got := dial.callsTo(liveHost); got < 1 {
+		t.Error("the live alternate was never dialed")
+	}
+}
+
 // proxyTestHarness provides a configured proxy handler for testing.
 type proxyTestHarness struct {
 	Handler    http.Handler
@@ -290,6 +457,11 @@ type harnessConfig struct {
 	tlsEnabled            bool
 	tracingEnabled        bool
 	useBlockingQueue      bool
+	directPodRouting      bool
+	retryCount            int
+	requestTimeout        time.Duration
+	noDialOverride        bool
+	dialFunc              kedanet.DialContextFunc
 }
 
 // newProxyTestHarness creates a test harness with the full handler chain.
@@ -368,6 +540,14 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 	if cfg.tlsEnabled {
 		tlsCfg = &tls.Config{InsecureSkipVerify: true}
 	}
+	requestTimeout := cfg.requestTimeout
+	if requestTimeout == 0 {
+		requestTimeout = 60 * time.Second
+	}
+	dialAddressOverride := backend.Listener.Addr().String()
+	if cfg.noDialOverride {
+		dialAddressOverride = ""
+	}
 	handler := BuildProxyHandler(&ProxyHandlerConfig{
 		Logger:       logr.Discard(),
 		Queue:        fakeQueue,
@@ -377,15 +557,20 @@ func newProxyTestHarness(t *testing.T, cfg harnessConfig) *proxyTestHarness {
 		Timeouts: config.Timeouts{
 			Connect:        500 * time.Millisecond,
 			Readiness:      5 * time.Second,
-			Request:        60 * time.Second,
+			Request:        requestTimeout,
 			ResponseHeader: 5 * time.Second,
 		},
-		Serving:             config.Serving{EnableColdStartHeader: cfg.enableColdStartHeader},
+		Serving: config.Serving{
+			EnableColdStartHeader: cfg.enableColdStartHeader,
+			DirectPodRouting:      cfg.directPodRouting,
+			RetryCount:            cfg.retryCount,
+		},
 		ServingTLS:          tlsCfg,
 		OutboundTLS:         tlsCfg,
 		Tracing:             config.Tracing{Enabled: cfg.tracingEnabled},
 		Instruments:         metrics.NewNoopInstruments(),
-		dialAddressOverride: backend.Listener.Addr().String(),
+		dialAddressOverride: dialAddressOverride,
+		dialFuncOverride:    cfg.dialFunc,
 	})
 
 	return &proxyTestHarness{

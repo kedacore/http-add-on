@@ -18,11 +18,19 @@ const (
 	MetricRequestConcurrency = "interceptor.request.concurrency"
 	MetricRequestCount       = "interceptor.request.count"
 	MetricRequestDuration    = "interceptor.request.duration"
+	MetricRequestRetries     = "interceptor.request.retries"
 
 	AttrCode           = "code"
 	AttrMethod         = "method"
+	AttrOutcome        = "outcome"
 	AttrRouteName      = "route_name"
 	AttrRouteNamespace = "route_namespace"
+
+	// OutcomeSuccess / OutcomeFailure are the values of AttrOutcome for
+	// MetricRequestRetries: whether the retried request eventually got an
+	// upstream response.
+	OutcomeSuccess = "success"
+	OutcomeFailure = "failure"
 
 	// MethodOther is the normalized value for non-standard HTTP methods,
 	// following the OTel semantic convention prefix for synthetic values.
@@ -48,6 +56,7 @@ type Instruments struct {
 	pendingRequests api.Int64UpDownCounter
 	requestCounter  api.Int64Counter
 	requestDuration api.Float64Histogram
+	retryCounter    api.Int64Counter
 }
 
 // NewNoopInstruments returns Instruments backed by a no-op provider, for use in tests.
@@ -92,10 +101,19 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 		return nil, fmt.Errorf("creating pending requests counter: %w", err)
 	}
 
+	retryCounter, err := meter.Int64Counter(
+		MetricRequestRetries,
+		api.WithDescription("Requests retried against an alternate upstream endpoint after a connect failure"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating retry counter: %w", err)
+	}
+
 	return &Instruments{
 		requestCounter:  requestCounter,
 		requestDuration: requestDuration,
 		pendingRequests: pendingRequests,
+		retryCounter:    retryCounter,
 	}, nil
 }
 
@@ -125,4 +143,20 @@ func (i *Instruments) RecordPendingRequest(routeName, routeNamespace string, del
 		attribute.String(AttrRouteNamespace, routeNamespace),
 	))
 	i.pendingRequests.Add(context.Background(), delta, attrs)
+}
+
+// RecordRetry records a request that was retried against an alternate upstream
+// endpoint, with success reporting whether the retried request eventually got
+// an upstream response.
+func (i *Instruments) RecordRetry(routeName, routeNamespace string, success bool) {
+	outcome := OutcomeSuccess
+	if !success {
+		outcome = OutcomeFailure
+	}
+	attrs := api.WithAttributeSet(attribute.NewSet(
+		attribute.String(AttrOutcome, outcome),
+		attribute.String(AttrRouteName, routeName),
+		attribute.String(AttrRouteNamespace, routeNamespace),
+	))
+	i.retryCounter.Add(context.Background(), 1, attrs)
 }
