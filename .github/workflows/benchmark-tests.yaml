@@ -46,7 +46,7 @@ jobs:
           version: ${{ env.KIND_VERSION }}
 
       - name: Setup e2e environment
-        run: make e2e-setup
+        run: make e2e-setup HELM=$(which helm)
         env:
           KO_DEFAULTPLATFORMS: linux/arm64
           KO_DOCKER_REPO: kind.local
