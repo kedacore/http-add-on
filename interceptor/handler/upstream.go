@@ -35,9 +35,10 @@ type Upstream struct {
 	reader                 client.Reader
 	responseHeaderTimeout  time.Duration
 	tracingCfg             config.Tracing
+	retryCfg               RetryConfig
 }
 
-func NewUpstream(baseTransport *http.Transport, reader client.Reader, tracingCfg config.Tracing, responseHeaderTimeout time.Duration) *Upstream {
+func NewUpstream(baseTransport *http.Transport, reader client.Reader, tracingCfg config.Tracing, responseHeaderTimeout time.Duration, retryCfg RetryConfig) *Upstream {
 	if baseTransport == nil {
 		panic("baseTransport must not be nil")
 	}
@@ -52,6 +53,7 @@ func NewUpstream(baseTransport *http.Transport, reader client.Reader, tracingCfg
 		reader:                 reader,
 		responseHeaderTimeout:  responseHeaderTimeout,
 		tracingCfg:             tracingCfg,
+		retryCfg:               retryCfg,
 	}
 }
 
@@ -94,8 +96,11 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	transport := pool.Get(responseHeaderTimeout)
 
 	var rt http.RoundTripper = transport
+	if uh.retryCfg.Count > 0 {
+		rt = newRetryTransport(rt, uh.retryCfg)
+	}
 	if uh.tracingCfg.Enabled {
-		rt = otelhttp.NewTransport(transport)
+		rt = otelhttp.NewTransport(rt)
 	}
 
 	rc := http.NewResponseController(w)

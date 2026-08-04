@@ -572,3 +572,65 @@ func newReadySlice(namespace, service string, addresses ...string) *discov1.Endp
 		Endpoints:   endpoints,
 	}
 }
+
+// --- PickEndpoint tests ---
+
+func TestPickEndpoint(t *testing.T) {
+	const key = "testns/testsvc"
+	port := int32(8080)
+
+	newCache := func() *ReadyEndpointsCache {
+		cache := NewReadyEndpointsCache(logr.Discard())
+		cache.Update(key, []*discov1.EndpointSlice{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "testsvc-slice",
+					Namespace: "testns",
+					Labels:    map[string]string{discov1.LabelServiceName: "testsvc"},
+				},
+				AddressType: discov1.AddressTypeIPv4,
+				Ports:       []discov1.EndpointPort{{Port: &port}},
+				Endpoints: []discov1.Endpoint{
+					{Addresses: []string{"1.2.3.4"}},
+					{Addresses: []string{"5.6.7.8"}},
+				},
+			},
+		})
+		return cache
+	}
+
+	t.Run("picks a ready endpoint", func(t *testing.T) {
+		r := require.New(t)
+		host := newCache().PickEndpoint(key, "", nil)
+		r.Contains([]string{"1.2.3.4:8080", "5.6.7.8:8080"}, host)
+	})
+
+	t.Run("excludes tried hosts", func(t *testing.T) {
+		r := require.New(t)
+		cache := newCache()
+		// With one endpoint excluded, every pick must return the other one.
+		for range 20 {
+			host := cache.PickEndpoint(key, "", map[string]struct{}{"1.2.3.4:8080": {}})
+			r.Equal("5.6.7.8:8080", host)
+		}
+	})
+
+	t.Run("returns empty when all endpoints are excluded", func(t *testing.T) {
+		r := require.New(t)
+		host := newCache().PickEndpoint(key, "", map[string]struct{}{
+			"1.2.3.4:8080": {},
+			"5.6.7.8:8080": {},
+		})
+		r.Empty(host)
+	})
+
+	t.Run("returns empty for unknown service", func(t *testing.T) {
+		r := require.New(t)
+		r.Empty(newCache().PickEndpoint("testns/unknown", "", nil))
+	})
+
+	t.Run("returns empty for unknown port name", func(t *testing.T) {
+		r := require.New(t)
+		r.Empty(newCache().PickEndpoint(key, "no-such-port", nil))
+	})
+}

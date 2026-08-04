@@ -1014,3 +1014,70 @@ func TestEndpointResolver_DirectPodRouting_UsedOnWarmPath(t *testing.T) {
 		t.Fatalf("upstream host = %q, want pod IP (should be rewritten on warm path too)", capturedUpstream.Host)
 	}
 }
+
+// TestEndpointResolver_DirectPodRouting_SetsEndpointPicker verifies that the
+// direct-pod rewrite also exposes an endpoint picker so the upstream handler
+// can retry against an alternate pod.
+func TestEndpointResolver_DirectPodRouting_SetsEndpointPicker(t *testing.T) {
+	cache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyEndpointWithPort(cache, 8080)
+
+	var capturedPicker util.EndpointPickerFunc
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPicker = util.EndpointPickerFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := NewEndpointResolver(next, cache, EndpointResolverConfig{
+		ReadinessTimeout: 200 * time.Millisecond,
+		DirectPodRouting: true,
+	})
+
+	rec := httptest.NewRecorder()
+	req := newRequest(t, defaultIR())
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if capturedPicker == nil {
+		t.Fatal("expected an endpoint picker in context when direct-pod routing rewrites the URL")
+	}
+	if got := capturedPicker(map[string]struct{}{}); got != "1.2.3.4:8080" {
+		t.Fatalf("picker = %q, want %q", got, "1.2.3.4:8080")
+	}
+	// With the only endpoint already tried, nothing remains.
+	if got := capturedPicker(map[string]struct{}{"1.2.3.4:8080": {}}); got != "" {
+		t.Fatalf("picker = %q, want empty when the only endpoint was tried", got)
+	}
+}
+
+// TestEndpointResolver_NoEndpointPickerWithoutDirectPodRouting verifies that
+// no picker is exposed when the request goes through the Service ClusterIP:
+// there is no single pod to fail over from, kube-proxy re-selects on redial.
+func TestEndpointResolver_NoEndpointPickerWithoutDirectPodRouting(t *testing.T) {
+	cache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyEndpointWithPort(cache, 8080)
+
+	var capturedPicker util.EndpointPickerFunc
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPicker = util.EndpointPickerFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := NewEndpointResolver(next, cache, EndpointResolverConfig{
+		ReadinessTimeout: 200 * time.Millisecond,
+		DirectPodRouting: false,
+	})
+
+	rec := httptest.NewRecorder()
+	req := newRequest(t, defaultIR())
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if capturedPicker != nil {
+		t.Fatal("endpoint picker must not be set when direct-pod routing is disabled")
+	}
+}

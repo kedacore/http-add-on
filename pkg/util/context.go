@@ -18,6 +18,7 @@ const (
 	ckIR
 	ckUpstreamServerName
 	ckUpstreamPortName
+	ckEndpointPicker
 )
 
 func ContextWithLogger(ctx context.Context, logger logr.Logger) context.Context {
@@ -75,5 +76,23 @@ func ContextWithUpstreamPortName(ctx context.Context, portName string) context.C
 
 func UpstreamPortNameFromContext(ctx context.Context) string {
 	cv, _ := ctx.Value(ckUpstreamPortName).(string)
+	return cv
+}
+
+// EndpointPickerFunc returns the host ("ip:port") of a ready endpoint to try,
+// excluding any hosts in tried. It returns "" when no untried endpoint remains.
+// Implementations read the live endpoint snapshot at call time, so a pod that
+// disappeared since the request started is never returned.
+type EndpointPickerFunc func(tried map[string]struct{}) string
+
+// ContextWithEndpointPicker stores an EndpointPickerFunc so the upstream
+// handler can retry a request against an alternate endpoint when the picked
+// one fails at connect time.
+func ContextWithEndpointPicker(ctx context.Context, picker EndpointPickerFunc) context.Context {
+	return context.WithValue(ctx, ckEndpointPicker, picker)
+}
+
+func EndpointPickerFromContext(ctx context.Context) EndpointPickerFunc {
+	cv, _ := ctx.Value(ckEndpointPicker).(EndpointPickerFunc)
 	return cv
 }

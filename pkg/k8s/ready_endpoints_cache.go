@@ -129,10 +129,35 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, port
 	}
 }
 
+// PickEndpoint returns a random ready endpoint host ("ip:port") for portName,
+// excluding any hosts in exclude. It returns "" when no untried candidate
+// remains or the service has no ready endpoints.
+func (c *ReadyEndpointsCache) PickEndpoint(serviceKey, portName string, exclude map[string]struct{}) string {
+	if v, ok := c.states.Load(serviceKey); ok {
+		return pickHostExcluding(v.(*serviceState), portName, exclude)
+	}
+	return ""
+}
+
 // pickHost selects a random ready pod for portName from state and returns its
 // "ip:port" host string. Returns "" if portName has no candidates.
 func pickHost(state *serviceState, portName string) string {
+	return pickHostExcluding(state, portName, nil)
+}
+
+// pickHostExcluding is pickHost with an exclusion set, used to select an
+// alternate endpoint for retries.
+func pickHostExcluding(state *serviceState, portName string, exclude map[string]struct{}) string {
 	eps := state.candidates[portName]
+	if len(exclude) > 0 {
+		filtered := make([]endpoint, 0, len(eps))
+		for _, ep := range eps {
+			if _, skip := exclude[net.JoinHostPort(ep.ip, strconv.Itoa(int(ep.port)))]; !skip {
+				filtered = append(filtered, ep)
+			}
+		}
+		eps = filtered
+	}
 	if len(eps) == 0 {
 		return ""
 	}

@@ -65,7 +65,8 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceKey := ir.Namespace + "/" + ir.Spec.Target.Service
-	isColdStart, podHost, err := er.readyCache.WaitForReady(waitCtx, serviceKey, util.UpstreamPortNameFromContext(ctx))
+	portName := util.UpstreamPortNameFromContext(ctx)
+	isColdStart, podHost, err := er.readyCache.WaitForReady(waitCtx, serviceKey, portName)
 	if err != nil {
 		// No fallback, return an error
 		if !hasFallback {
@@ -109,6 +110,12 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				podURL := *upstreamURL
 				podURL.Host = podHost
 				ctx = util.ContextWithUpstreamURL(ctx, &podURL)
+				// Expose the remaining ready endpoints so the upstream handler
+				// can retry against an alternate pod when the picked one is
+				// unreachable (e.g. it terminated after the snapshot was taken).
+				ctx = util.ContextWithEndpointPicker(ctx, func(tried map[string]struct{}) string {
+					return er.readyCache.PickEndpoint(serviceKey, portName, tried)
+				})
 				r = r.WithContext(ctx)
 			}
 		}

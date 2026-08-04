@@ -54,6 +54,12 @@ type Serving struct {
 	// ClusterIP, bypassing kube-proxy and other Service-layer features
 	// (NetworkPolicy, session affinity, topology-aware routing).
 	DirectPodRouting bool `env:"KEDA_HTTP_DIRECT_POD_ROUTING" envDefault:"true"`
+	// RetryCount is the maximum number of times a request is retried against an
+	// alternate ready endpoint when the picked pod fails at connect time (e.g.
+	// it terminated after the endpoint snapshot was taken). Only requests
+	// without a body are retried. Only applies with DirectPodRouting enabled;
+	// 0 disables retries.
+	RetryCount int `env:"KEDA_HTTP_RETRY_COUNT" envDefault:"1"`
 }
 
 // MustParseServing parses standard configs and returns the
