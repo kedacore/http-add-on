@@ -54,6 +54,19 @@ COSIGN_FLAGS ?= -y -a GIT_HASH=$(GIT_COMMIT) -a GIT_VERSION=$(VERSION) -a BUILD_
 ## Tool Binaries
 CONTROLLER_GEN ?= go tool controller-gen
 
+LOCALBIN ?= $(CURDIR)/bin
+
+# renovate: datasource=github-releases depName=golangci/golangci-lint
+GOLANGCI_LINT_VERSION ?= v2.12.2
+# renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize\/(?<version>.+)$$
+KUSTOMIZE_VERSION ?= v5.8.1
+# renovate: datasource=github-releases depName=helm/helm
+HELM_VERSION ?= v4.2.3
+
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
+KUSTOMIZE     ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
+HELM          ?= $(LOCALBIN)/helm-$(HELM_VERSION)
+
 ##################################################
 # Go build                                       #
 ##################################################
@@ -138,28 +151,28 @@ e2e-test-images: ## Build all test images under test/images/ and push to $KO_DOC
 
 e2e-deps: e2e-deps-cert-manager e2e-deps-jaeger e2e-deps-keda e2e-deps-otel-collector ## Install all e2e dependencies
 
-e2e-deps-cert-manager:
-	helm repo add jetstack https://charts.jetstack.io --force-update
-	$(call helm-retry,helm upgrade --install cert-manager jetstack/cert-manager \
+e2e-deps-cert-manager: $(HELM)
+	$(HELM) repo add jetstack https://charts.jetstack.io --force-update
+	$(call helm-retry,$(HELM) upgrade --install cert-manager jetstack/cert-manager \
 		--namespace cert-manager --create-namespace \
 		-f test/fixtures/cert-manager-values.yaml \
 		--version $(CERT_MANAGER_VERSION) --wait --timeout 5m)
 
-e2e-deps-jaeger:
-	helm repo add jaegertracing https://jaegertracing.github.io/helm-charts --force-update
-	$(call helm-retry,helm upgrade --install jaeger jaegertracing/jaeger \
+e2e-deps-jaeger: $(HELM)
+	$(HELM) repo add jaegertracing https://jaegertracing.github.io/helm-charts --force-update
+	$(call helm-retry,$(HELM) upgrade --install jaeger jaegertracing/jaeger \
 		--namespace jaeger --create-namespace \
 		--version $(JAEGER_VERSION) --wait --timeout 5m)
 
-e2e-deps-keda:
-	helm repo add kedacore https://kedacore.github.io/charts --force-update
-	$(call helm-retry,helm upgrade --install keda kedacore/keda \
+e2e-deps-keda: $(HELM)
+	$(HELM) repo add kedacore https://kedacore.github.io/charts --force-update
+	$(call helm-retry,$(HELM) upgrade --install keda kedacore/keda \
 		--namespace keda --create-namespace \
 		--version $(KEDA_VERSION) --wait --timeout 5m)
 
-e2e-deps-otel-collector:
-	helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts --force-update
-	$(call helm-retry,helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
+e2e-deps-otel-collector: $(HELM)
+	$(HELM) repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts --force-update
+	$(call helm-retry,$(HELM) upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
 		--namespace open-telemetry-system --create-namespace \
 		-f test/fixtures/otel-values.yaml \
 		--version $(OTEL_COLLECTOR_VERSION) --wait --timeout 5m)
@@ -196,14 +209,14 @@ verify-manifests: ## Verify manifests are up to date.
 # Linting & static checks                        #
 ##################################################
 
-fmt:
-	golangci-lint fmt
+fmt: $(GOLANGCI_LINT)
+	$(GOLANGCI_LINT) fmt
 
-lint:
-	golangci-lint run
+lint: $(GOLANGCI_LINT)
+	$(GOLANGCI_LINT) run
 
-lint-fix:
-	golangci-lint run --fix
+lint-fix: $(GOLANGCI_LINT)
+	$(GOLANGCI_LINT) run --fix
 
 check-links:
 	lychee "./**/*.md"
@@ -215,23 +228,23 @@ pre-commit: ## Run static-checks.
 # Deployment (local cluster)                     #
 ##################################################
 
-install:
-	kustomize build config/crd | kubectl apply -f -
+install: $(KUSTOMIZE)
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-deploy:
-	kustomize build config/default | ko apply -f -
+deploy: $(KUSTOMIZE)
+	$(KUSTOMIZE) build config/default | ko apply -f -
 
-deploy-operator:
-	kustomize build config/operator | ko apply -f -
+deploy-operator: $(KUSTOMIZE)
+	$(KUSTOMIZE) build config/operator | ko apply -f -
 
-deploy-interceptor:
-	kustomize build config/interceptor | ko apply -f -
+deploy-interceptor: $(KUSTOMIZE)
+	$(KUSTOMIZE) build config/interceptor | ko apply -f -
 
-deploy-scaler:
-	kustomize build config/scaler | ko apply -f -
+deploy-scaler: $(KUSTOMIZE)
+	$(KUSTOMIZE) build config/scaler | ko apply -f -
 
-undeploy:
-	kustomize build config/default | ko delete -f - || true
+undeploy: $(KUSTOMIZE)
+	$(KUSTOMIZE) build config/default | ko delete -f - || true
 
 ##################################################
 # Publish, release & signing                     #
@@ -249,15 +262,15 @@ publish-scaler:
 
 publish: publish-operator publish-interceptor publish-scaler
 
-release: manifests ## Produce new KEDA Http Add-on release in keda-add-ons-http-$(VERSION).yaml file.
-	kustomize build config/crd > keda-add-ons-http-$(VERSION).yaml
+release: manifests $(KUSTOMIZE) ## Produce new KEDA Http Add-on release in keda-add-ons-http-$(VERSION).yaml file.
+	$(KUSTOMIZE) build config/crd > keda-add-ons-http-$(VERSION).yaml
 	echo '---' >> keda-add-ons-http-$(VERSION).yaml
-	kustomize build config/operator | KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	$(KUSTOMIZE) build config/operator | KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
 	echo '---' >> keda-add-ons-http-$(VERSION).yaml
-	kustomize build config/interceptor | KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	$(KUSTOMIZE) build config/interceptor | KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
 	echo '---' >> keda-add-ons-http-$(VERSION).yaml
-	kustomize build config/scaler | KO_DOCKER_REPO=$(IMAGE_SCALER) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
-	kustomize build config/crd > keda-add-ons-http-$(VERSION)-crds.yaml
+	$(KUSTOMIZE) build config/scaler | KO_DOCKER_REPO=$(IMAGE_SCALER) ko resolve --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION) -f - >> keda-add-ons-http-$(VERSION).yaml
+	$(KUSTOMIZE) build config/crd > keda-add-ons-http-$(VERSION)-crds.yaml
 
 sign-images: ## Sign KEDA images published on GitHub Container Registry
 	cosign sign $(COSIGN_FLAGS) $(IMAGE_OPERATOR_VERSIONED_TAG)
@@ -266,3 +279,27 @@ sign-images: ## Sign KEDA images published on GitHub Container Registry
 	cosign sign $(COSIGN_FLAGS) $(IMAGE_INTERCEPTOR_SHA_TAG)
 	cosign sign $(COSIGN_FLAGS) $(IMAGE_SCALER_VERSIONED_TAG)
 	cosign sign $(COSIGN_FLAGS) $(IMAGE_SCALER_SHA_TAG)
+
+##################################################
+# Tool installation                              #
+##################################################
+
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+$(GOLANGCI_LINT): | $(LOCALBIN)
+	$(call go-install-tool,golangci-lint,github.com/golangci/golangci-lint/v2/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+$(KUSTOMIZE): | $(LOCALBIN)
+	$(call go-install-tool,kustomize,sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
+
+$(HELM): | $(LOCALBIN)
+	$(call go-install-tool,helm,helm.sh/helm/v4/cmd/helm,$(HELM_VERSION))
+
+define go-install-tool
+@echo "Installing $(2)@$(3)"
+@rm -f $(LOCALBIN)/$(1)
+@GOBIN=$(LOCALBIN) go install $(2)@$(3)
+@mv $(LOCALBIN)/$(1) $(LOCALBIN)/$(1)-$(3)
+@ln -sf $(1)-$(3) $(LOCALBIN)/$(1)
+endef

@@ -64,7 +64,7 @@
     {
       matchManagers: ["custom.regex"],
       matchFileNames: ["Makefile", ".github/workflows/e2e-tests.yaml"],
-      groupName: "E2E Dependencies",
+      groupName: "Infra Dependencies",
     },
     {
       matchManagers: ["pre-commit"],
