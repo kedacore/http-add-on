@@ -55,15 +55,15 @@ type Serving struct {
 	// (NetworkPolicy, session affinity, topology-aware routing).
 	DirectPodRouting bool `env:"KEDA_HTTP_DIRECT_POD_ROUTING" envDefault:"true"`
 
-	// ColdStartMaxQueueDepth is the default cap on requests held per route
-	// while its backend has no ready endpoints (e.g. during scale-from-zero).
-	// Additional requests are rejected with 503 or served the route's
-	// placeholder response, per the route's coldStart.overflow. Routes
-	// override this default via coldStart.maxQueueDepth. 0 means unlimited.
-	// The cap applies per interceptor replica: the effective cluster-wide
-	// hold capacity is this value multiplied by the number of interceptor
-	// replicas.
-	ColdStartMaxQueueDepth int `env:"KEDA_HTTP_COLD_START_MAX_QUEUE_DEPTH" envDefault:"0"`
+	// ColdStartMaxPendingRequests is the default limit on requests held per
+	// route while its backend has no ready endpoints (e.g. during
+	// scale-from-zero). Additional requests are rejected with 503 or served
+	// the route's placeholder response, per the route's coldStart.overflow.
+	// Routes override this default via coldStart.maxPendingRequests.
+	// 0 means unlimited. The limit applies per interceptor replica: the
+	// effective cluster-wide capacity is this value multiplied by the
+	// number of interceptor replicas.
+	ColdStartMaxPendingRequests int `env:"KEDA_HTTP_COLD_START_MAX_PENDING_REQUESTS" envDefault:"0"`
 }
 
 // MustParseServing parses standard configs and returns the

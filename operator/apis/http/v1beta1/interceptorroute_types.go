@@ -191,13 +191,13 @@ type ColdStartPlaceholder struct {
 }
 
 // ColdStartOverflow determines what happens to requests that arrive while the
-// cold-start hold queue is full (see ColdStartSpec.MaxQueueDepth).
+// route is at its cold-start pending request limit (see
+// ColdStartSpec.MaxPendingRequests).
 // +kubebuilder:validation:Enum=Reject;Placeholder
 type ColdStartOverflow string
 
 const (
-	// ColdStartOverflowReject rejects overflowing requests with HTTP 503 and
-	// a Retry-After header.
+	// ColdStartOverflowReject rejects overflowing requests with HTTP 503.
 	ColdStartOverflowReject ColdStartOverflow = "Reject"
 	// ColdStartOverflowPlaceholder serves the configured placeholder response
 	// to overflowing requests. Requires a placeholder response to be set.
@@ -205,7 +205,7 @@ const (
 )
 
 // ColdStartSpec configures behavior while the target is not ready.
-// +kubebuilder:validation:XValidation:rule="has(self.fallback) || has(self.placeholder) || has(self.maxQueueDepth)",message="at least one of 'fallback', 'placeholder' or 'maxQueueDepth' must be set"
+// +kubebuilder:validation:XValidation:rule="has(self.fallback) || has(self.placeholder) || has(self.maxPendingRequests)",message="at least one of 'fallback', 'placeholder' or 'maxPendingRequests' must be set"
 // +kubebuilder:validation:XValidation:rule="self.overflow != 'Placeholder' || has(self.placeholder)",message="'placeholder' must be set when 'overflow' is 'Placeholder'"
 type ColdStartSpec struct {
 	// Fallback target to route to when the primary backend does not become
@@ -215,23 +215,23 @@ type ColdStartSpec struct {
 	// Placeholder response to serve while the target has no ready endpoints.
 	// +optional
 	Placeholder *ColdStartPlaceholder `json:"placeholder,omitzero"`
-	// Maximum number of requests held waiting for the backend to become
-	// ready (e.g. during scale-from-zero). Requests arriving when the hold
-	// queue is full are handled according to overflow. Unset: uses the
-	// interceptor's KEDA_HTTP_COLD_START_MAX_QUEUE_DEPTH (default:
+	// Maximum number of pending requests held while the backend is not
+	// ready (e.g. during scale-from-zero). Requests arriving when the limit
+	// is reached are handled according to overflow. Unset: uses the
+	// interceptor's KEDA_HTTP_COLD_START_MAX_PENDING_REQUESTS (default:
 	// unlimited). When set together with a placeholder and
 	// overflow: Placeholder, requests are held up to this limit instead of
 	// receiving the placeholder immediately; only overflowing requests
 	// receive it.
 	// The limit applies per interceptor replica: the effective cluster-wide
-	// hold capacity is maxQueueDepth multiplied by the number of
+	// capacity is maxPendingRequests multiplied by the number of
 	// interceptor replicas.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
-	MaxQueueDepth *int32 `json:"maxQueueDepth,omitzero"`
-	// How to handle requests arriving when the hold queue is full.
-	// Reject: return HTTP 503 with a Retry-After header. Placeholder: serve
-	// the configured placeholder response.
+	MaxPendingRequests *int32 `json:"maxPendingRequests,omitzero"`
+	// How to handle requests arriving when the pending request limit is
+	// reached. Reject: return HTTP 503. Placeholder: serve the configured
+	// placeholder response.
 	// +optional
 	// +kubebuilder:default=Reject
 	Overflow ColdStartOverflow `json:"overflow,omitzero"`

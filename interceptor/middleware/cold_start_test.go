@@ -1,26 +1,31 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/go-logr/logr"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/kedacore/http-add-on/interceptor/metrics"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/cache"
 	"github.com/kedacore/http-add-on/pkg/k8s"
+	"github.com/kedacore/http-add-on/pkg/queue"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
-func TestPlaceholder_BackendReady(t *testing.T) {
-	cache := k8s.NewReadyEndpointsCache(logr.Discard())
-	addReadyEndpoint(cache)
+func TestColdStart_BackendReady(t *testing.T) {
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyEndpoint(readyCache)
 
-	body := `{"loading": true}`
+	body := loadingBody
 	ir := placeholderIR(&httpv1beta1.StaticResponse{
 		StatusCode: http.StatusServiceUnavailable,
 		Body:       &body,
@@ -32,10 +37,10 @@ func TestPlaceholder_BackendReady(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	mw := NewPlaceholder(next, cache, nil)
+	mw := newColdStartMiddleware(next, readyCache, nil)
 
 	rec := httptest.NewRecorder()
-	req := newPlaceholderRequestWithPath(t, ir, "/")
+	req := newColdStartRequest(t, ir, "/")
 	mw.ServeHTTP(rec, req)
 
 	if !nextCalled {
@@ -46,9 +51,9 @@ func TestPlaceholder_BackendReady(t *testing.T) {
 	}
 }
 
-func TestPlaceholder_BackendNotReady(t *testing.T) {
+func TestColdStart_BackendNotReady(t *testing.T) {
 	t.Run("NoPlaceholder", func(t *testing.T) {
-		cache := k8s.NewReadyEndpointsCache(logr.Discard())
+		readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
 
 		ir := &httpv1beta1.InterceptorRoute{
 			ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace},
@@ -63,10 +68,10 @@ func TestPlaceholder_BackendNotReady(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		mw := NewPlaceholder(next, cache, nil)
+		mw := newColdStartMiddleware(next, readyCache, nil)
 
 		rec := httptest.NewRecorder()
-		req := newPlaceholderRequestWithPath(t, ir, "/")
+		req := newColdStartRequest(t, ir, "/")
 		mw.ServeHTTP(rec, req)
 
 		if !nextCalled {
@@ -75,7 +80,7 @@ func TestPlaceholder_BackendNotReady(t *testing.T) {
 	})
 
 	t.Run("WithResponse", func(t *testing.T) {
-		cache := k8s.NewReadyEndpointsCache(logr.Discard())
+		readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
 
 		body := `{"error": "loading"}`
 		ir := placeholderIR(&httpv1beta1.StaticResponse{
@@ -91,10 +96,10 @@ func TestPlaceholder_BackendNotReady(t *testing.T) {
 			nextCalled = true
 		})
 
-		mw := NewPlaceholder(next, cache, nil)
+		mw := newColdStartMiddleware(next, readyCache, nil)
 
 		rec := httptest.NewRecorder()
-		req := newPlaceholderRequestWithPath(t, ir, "/")
+		req := newColdStartRequest(t, ir, "/")
 		mw.ServeHTTP(rec, req)
 
 		if nextCalled {
@@ -112,7 +117,7 @@ func TestPlaceholder_BackendNotReady(t *testing.T) {
 	})
 
 	t.Run("EmptyBody", func(t *testing.T) {
-		cache := k8s.NewReadyEndpointsCache(logr.Discard())
+		readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
 
 		ir := placeholderIR(&httpv1beta1.StaticResponse{
 			StatusCode: http.StatusOK,
@@ -122,10 +127,10 @@ func TestPlaceholder_BackendNotReady(t *testing.T) {
 			t.Fatal("next handler should not be called")
 		})
 
-		mw := NewPlaceholder(next, cache, nil)
+		mw := newColdStartMiddleware(next, readyCache, nil)
 
 		rec := httptest.NewRecorder()
-		req := newPlaceholderRequestWithPath(t, ir, "/")
+		req := newColdStartRequest(t, ir, "/")
 		mw.ServeHTTP(rec, req)
 
 		if got, want := rec.Code, http.StatusOK; got != want {
@@ -153,10 +158,10 @@ func TestPlaceholder_BackendNotReady(t *testing.T) {
 			t.Fatal("next handler should not be called")
 		})
 
-		mw := NewPlaceholder(next, readyCache, reader)
+		mw := newColdStartMiddleware(next, readyCache, reader)
 
 		rec := httptest.NewRecorder()
-		req := newPlaceholderRequestWithPath(t, ir, "/")
+		req := newColdStartRequest(t, ir, "/")
 		mw.ServeHTTP(rec, req)
 
 		if got, want := rec.Code, http.StatusInternalServerError; got != want {
@@ -165,9 +170,12 @@ func TestPlaceholder_BackendNotReady(t *testing.T) {
 	})
 }
 
-func TestPlaceholder_HoldQueueOptIn(t *testing.T) {
+// TestColdStart_PendingLimitOptIn verifies that holding requests instead of
+// serving the placeholder immediately is opt-in: it requires both an explicit
+// per-route limit and overflow: Placeholder.
+func TestColdStart_PendingLimitOptIn(t *testing.T) {
 	body := loadingBody
-	maxDepth := int32(100)
+	limit := int32(100)
 
 	tests := map[string]struct {
 		coldStart      *httpv1beta1.ColdStartSpec
@@ -181,19 +189,19 @@ func TestPlaceholder_HoldQueueOptIn(t *testing.T) {
 			},
 			wantNextCalled: false,
 		},
-		"MaxQueueDepthWithoutPlaceholderOverflowServesImmediately": {
+		"LimitWithoutPlaceholderOverflowServesImmediately": {
 			coldStart: &httpv1beta1.ColdStartSpec{
-				MaxQueueDepth: &maxDepth,
+				MaxPendingRequests: &limit,
 				Placeholder: &httpv1beta1.ColdStartPlaceholder{
 					Response: &httpv1beta1.StaticResponse{Body: &body},
 				},
 			},
 			wantNextCalled: false,
 		},
-		"PlaceholderOverflowWithMaxQueueDepthHoldsRequests": {
+		"PlaceholderOverflowWithLimitHoldsRequests": {
 			coldStart: &httpv1beta1.ColdStartSpec{
-				MaxQueueDepth: &maxDepth,
-				Overflow:      httpv1beta1.ColdStartOverflowPlaceholder,
+				MaxPendingRequests: &limit,
+				Overflow:           httpv1beta1.ColdStartOverflowPlaceholder,
 				Placeholder: &httpv1beta1.ColdStartPlaceholder{
 					Response: &httpv1beta1.StaticResponse{Body: &body},
 				},
@@ -204,7 +212,7 @@ func TestPlaceholder_HoldQueueOptIn(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			cache := k8s.NewReadyEndpointsCache(logr.Discard())
+			readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
 
 			ir := &httpv1beta1.InterceptorRoute{
 				ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace},
@@ -220,10 +228,10 @@ func TestPlaceholder_HoldQueueOptIn(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			})
 
-			mw := NewPlaceholder(next, cache, nil)
+			mw := newColdStartMiddleware(next, readyCache, nil)
 
 			rec := httptest.NewRecorder()
-			req := newPlaceholderRequestWithPath(t, ir, "/")
+			req := newColdStartRequest(t, ir, "/")
 			mw.ServeHTTP(rec, req)
 
 			if got := nextCalled; got != tc.wantNextCalled {
@@ -241,7 +249,206 @@ func TestPlaceholder_HoldQueueOptIn(t *testing.T) {
 	}
 }
 
-func TestPlaceholder_ConfigMapLookup(t *testing.T) {
+// TestColdStart_PendingLimit exercises the admission limit end-to-end through
+// the production chain order Counting -> ColdStart, so the counter includes
+// the request being evaluated.
+func TestColdStart_PendingLimit(t *testing.T) {
+	ptr := func(i int32) *int32 { return &i }
+	body := loadingBody
+
+	tests := map[string]struct {
+		globalLimit    int
+		coldStart      *httpv1beta1.ColdStartSpec
+		warm           bool
+		prefill        int
+		wantStatus     int
+		wantNextCalled bool
+		wantBody       string
+	}{
+		"UnlimitedByDefault": {
+			wantStatus:     http.StatusOK,
+			wantNextCalled: true,
+		},
+		"AdmitsBelowLimit": {
+			globalLimit:    2,
+			prefill:        1,
+			wantStatus:     http.StatusOK,
+			wantNextCalled: true,
+		},
+		"RejectsAtLimit": {
+			globalLimit: 2,
+			prefill:     2,
+			wantStatus:  http.StatusServiceUnavailable,
+			wantBody:    "too many pending requests\n",
+		},
+		"WarmBackendBypassesLimit": {
+			globalLimit:    1,
+			warm:           true,
+			prefill:        5,
+			wantStatus:     http.StatusOK,
+			wantNextCalled: true,
+		},
+		"PerRouteLimitOverridesGlobalUnlimited": {
+			coldStart:  &httpv1beta1.ColdStartSpec{MaxPendingRequests: ptr(1)},
+			prefill:    1,
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   "too many pending requests\n",
+		},
+		"PerRouteLimitOverridesGlobalLimit": {
+			globalLimit:    1,
+			coldStart:      &httpv1beta1.ColdStartSpec{MaxPendingRequests: ptr(5)},
+			prefill:        2,
+			wantStatus:     http.StatusOK,
+			wantNextCalled: true,
+		},
+		"PlaceholderOverflow": {
+			globalLimit: 1,
+			coldStart: &httpv1beta1.ColdStartSpec{
+				MaxPendingRequests: ptr(1),
+				Overflow:           httpv1beta1.ColdStartOverflowPlaceholder,
+				Placeholder: &httpv1beta1.ColdStartPlaceholder{
+					Response: &httpv1beta1.StaticResponse{Body: &body},
+				},
+			},
+			prefill:    1,
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   body,
+		},
+		"PlaceholderOverflowWithoutResponseFallsBackToReject": {
+			globalLimit: 1,
+			coldStart: &httpv1beta1.ColdStartSpec{
+				MaxPendingRequests: ptr(1),
+				Overflow:           httpv1beta1.ColdStartOverflowPlaceholder,
+			},
+			prefill:    1,
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   "too many pending requests\n",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			ir := &httpv1beta1.InterceptorRoute{
+				ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "test-route"},
+				Spec: httpv1beta1.InterceptorRouteSpec{
+					Target:    httpv1beta1.TargetRef{Service: testService},
+					ColdStart: tc.coldStart,
+				},
+			}
+
+			counter := queue.NewFakeCounterBuffered()
+			readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+			if tc.warm {
+				addReadyEndpoint(readyCache)
+			}
+
+			key := k8s.ResourceKey(ir.Namespace, ir.Name)
+			counter.EnsureKey(key)
+			for i := 0; i < tc.prefill; i++ {
+				if err := counter.Increase(key, 1); err != nil {
+					t.Fatalf("Increase() error: %v", err)
+				}
+			}
+
+			var nextCalled bool
+			next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				nextCalled = true
+				w.WriteHeader(http.StatusOK)
+			})
+
+			var h http.Handler = NewColdStart(next, readyCache, nil, counter, metrics.NewNoopInstruments(), ColdStartConfig{
+				MaxPendingRequests: tc.globalLimit,
+			})
+			h = NewCounting(h, counter, metrics.NewNoopInstruments())
+
+			req := httptest.NewRequest("GET", "/test", nil)
+			ctx := util.ContextWithLogger(req.Context(), logr.Discard())
+			ctx = util.ContextWithInterceptorRoute(ctx, ir)
+			req = req.WithContext(ctx)
+
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+
+			if got, want := rec.Code, tc.wantStatus; got != want {
+				t.Fatalf("status: got %d, want %d", got, want)
+			}
+			if got := nextCalled; got != tc.wantNextCalled {
+				t.Fatalf("next called: got %v, want %v", got, tc.wantNextCalled)
+			}
+			if tc.wantBody != "" {
+				if got := rec.Body.String(); got != tc.wantBody {
+					t.Fatalf("body: got %q, want %q", got, tc.wantBody)
+				}
+			}
+
+			// Admitted or rejected, the concurrency returns to the prefill
+			// level once the request completes.
+			if got, want := counter.Concurrency(key), tc.prefill; got != want {
+				t.Fatalf("concurrency after request: got %d, want %d", got, want)
+			}
+		})
+	}
+}
+
+func TestColdStart_RecordsRejectionMetric(t *testing.T) {
+	instruments, reader := testInstruments(t)
+
+	ir := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "test-route"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Target: httpv1beta1.TargetRef{Service: testService},
+		},
+	}
+
+	counter := queue.NewFakeCounterBuffered()
+	readyCache := k8s.NewReadyEndpointsCache(logr.Discard())
+
+	key := k8s.ResourceKey(ir.Namespace, ir.Name)
+	counter.EnsureKey(key)
+	if err := counter.Increase(key, 1); err != nil {
+		t.Fatalf("Increase() error: %v", err)
+	}
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Fatal("next handler should not be called")
+	})
+
+	var h http.Handler = NewColdStart(next, readyCache, nil, counter, instruments, ColdStartConfig{
+		MaxPendingRequests: 1,
+	})
+	h = NewCounting(h, counter, metrics.NewNoopInstruments())
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	ctx := util.ContextWithLogger(req.Context(), logr.Discard())
+	ctx = util.ContextWithInterceptorRoute(ctx, ir)
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if got, want := rec.Code, http.StatusServiceUnavailable; got != want {
+		t.Fatalf("status: got %d, want %d", got, want)
+	}
+
+	var rm metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &rm); err != nil {
+		t.Fatalf("Collect() error: %v", err)
+	}
+
+	m := requireMetric(t, rm, metrics.MetricColdStartRejections)
+	sum := m.Data.(metricdata.Sum[int64])
+	if got := len(sum.DataPoints); got != 1 {
+		t.Fatalf("expected 1 data point, got %d", got)
+	}
+	dp := sum.DataPoints[0]
+	if got := dp.Value; got != 1 {
+		t.Fatalf("rejection count: got %d, want 1", got)
+	}
+	assertStringAttr(t, dp.Attributes, metrics.AttrRouteName, "test-route")
+	assertStringAttr(t, dp.Attributes, metrics.AttrRouteNamespace, testNamespace)
+}
+
+func TestColdStart_ConfigMapLookup(t *testing.T) {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "pages"},
 		Data: map[string]string{
@@ -310,10 +517,10 @@ func TestPlaceholder_ConfigMapLookup(t *testing.T) {
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				t.Fatal("next handler should not be called")
 			})
-			mw := NewPlaceholder(next, readyCache, reader)
+			mw := newColdStartMiddleware(next, readyCache, reader)
 
 			rec := httptest.NewRecorder()
-			req := newPlaceholderRequestWithPath(t, ir, tc.path)
+			req := newColdStartRequest(t, ir, tc.path)
 			mw.ServeHTTP(rec, req)
 
 			if tc.wantStatus != 0 {
@@ -365,7 +572,11 @@ func placeholderIR(resp *httpv1beta1.StaticResponse) *httpv1beta1.InterceptorRou
 	}
 }
 
-func newPlaceholderRequestWithPath(t *testing.T, ir *httpv1beta1.InterceptorRoute, urlPath string) *http.Request {
+func newColdStartMiddleware(next http.Handler, readyCache *k8s.ReadyEndpointsCache, reader client.Reader) *ColdStart {
+	return NewColdStart(next, readyCache, reader, queue.NewMemory(), metrics.NewNoopInstruments(), ColdStartConfig{})
+}
+
+func newColdStartRequest(t *testing.T, ir *httpv1beta1.InterceptorRoute, urlPath string) *http.Request {
 	t.Helper()
 
 	req := httptest.NewRequest("GET", urlPath, nil)

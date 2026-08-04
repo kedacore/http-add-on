@@ -74,11 +74,11 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		DirectPodRouting:      cfg.Serving.DirectPodRouting,
 	})
 
-	h = middleware.NewPlaceholder(h, cfg.ReadyCache, cfg.Reader)
-
-	h = middleware.NewCounting(h, cfg.Queue, cfg.Instruments, cfg.ReadyCache, cfg.Reader, middleware.CountingConfig{
-		MaxQueueDepth: cfg.Serving.ColdStartMaxQueueDepth,
+	h = middleware.NewColdStart(h, cfg.ReadyCache, cfg.Reader, cfg.Queue, cfg.Instruments, middleware.ColdStartConfig{
+		MaxPendingRequests: cfg.Serving.ColdStartMaxPendingRequests,
 	})
+
+	h = middleware.NewCounting(h, cfg.Queue, cfg.Instruments)
 
 	h = middleware.NewStaticRouting(h, upstream, cfg.ReadyCache, cfg.Reader)
 

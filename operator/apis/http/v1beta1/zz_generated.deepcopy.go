@@ -78,8 +78,8 @@ func (in *ColdStartSpec) DeepCopyInto(out *ColdStartSpec) {
 		*out = new(ColdStartPlaceholder)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.MaxQueueDepth != nil {
-		in, out := &in.MaxQueueDepth, &out.MaxQueueDepth
+	if in.MaxPendingRequests != nil {
+		in, out := &in.MaxPendingRequests, &out.MaxPendingRequests
 		*out = new(int32)
 		**out = **in
 	}

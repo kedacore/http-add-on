@@ -15,10 +15,10 @@ const (
 	meterName   = "keda-interceptor-proxy"
 	ServiceName = "keda-http-interceptor"
 
-	MetricRequestConcurrency = "interceptor.request.concurrency"
-	MetricRequestCount       = "interceptor.request.count"
-	MetricRequestDuration    = "interceptor.request.duration"
-	MetricColdStartRejected  = "interceptor.coldstart.rejected"
+	MetricRequestConcurrency  = "interceptor.request.concurrency"
+	MetricRequestCount        = "interceptor.request.count"
+	MetricRequestDuration     = "interceptor.request.duration"
+	MetricColdStartRejections = "interceptor.coldstart.rejections"
 
 	AttrCode           = "code"
 	AttrMethod         = "method"
@@ -46,10 +46,10 @@ var standardMethods = map[string]bool{
 
 // Instruments holds all metric instruments for the interceptor.
 type Instruments struct {
-	pendingRequests   api.Int64UpDownCounter
-	requestCounter    api.Int64Counter
-	requestDuration   api.Float64Histogram
-	coldStartRejected api.Int64Counter
+	pendingRequests     api.Int64UpDownCounter
+	requestCounter      api.Int64Counter
+	requestDuration     api.Float64Histogram
+	coldStartRejections api.Int64Counter
 }
 
 // NewNoopInstruments returns Instruments backed by a no-op provider, for use in tests.
@@ -94,19 +94,19 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 		return nil, fmt.Errorf("creating pending requests counter: %w", err)
 	}
 
-	coldStartRejected, err := meter.Int64Counter(
-		MetricColdStartRejected,
-		api.WithDescription("Requests turned away because the cold-start hold queue was full"),
+	coldStartRejections, err := meter.Int64Counter(
+		MetricColdStartRejections,
+		api.WithDescription("Requests rejected because the cold-start pending request limit was reached"),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("creating cold-start rejected counter: %w", err)
+		return nil, fmt.Errorf("creating cold-start rejections counter: %w", err)
 	}
 
 	return &Instruments{
-		requestCounter:    requestCounter,
-		requestDuration:   requestDuration,
-		pendingRequests:   pendingRequests,
-		coldStartRejected: coldStartRejected,
+		requestCounter:      requestCounter,
+		requestDuration:     requestDuration,
+		pendingRequests:     pendingRequests,
+		coldStartRejections: coldStartRejections,
 	}, nil
 }
 
@@ -138,12 +138,12 @@ func (i *Instruments) RecordPendingRequest(routeName, routeNamespace string, del
 	i.pendingRequests.Add(context.Background(), delta, attrs)
 }
 
-// RecordColdStartRejection records a request turned away because the route's
-// cold-start hold queue was full.
+// RecordColdStartRejection records a request rejected because the route's
+// cold-start pending request limit was reached.
 func (i *Instruments) RecordColdStartRejection(routeName, routeNamespace string) {
 	attrs := api.WithAttributeSet(attribute.NewSet(
 		attribute.String(AttrRouteName, routeName),
 		attribute.String(AttrRouteNamespace, routeNamespace),
 	))
-	i.coldStartRejected.Add(context.Background(), 1, attrs)
+	i.coldStartRejections.Add(context.Background(), 1, attrs)
 }
