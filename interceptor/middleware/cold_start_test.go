@@ -189,9 +189,11 @@ func TestColdStart_PendingLimitOptIn(t *testing.T) {
 			},
 			wantNextCalled: false,
 		},
-		"LimitWithoutPlaceholderOverflowServesImmediately": {
+		"LimitWithRejectOverflowServesImmediately": {
 			coldStart: &httpv1beta1.ColdStartSpec{
 				MaxPendingRequests: &limit,
+				// CRD defaulting always sets overflow; Reject is the default.
+				Overflow: httpv1beta1.ColdStartOverflowReject,
 				Placeholder: &httpv1beta1.ColdStartPlaceholder{
 					Response: &httpv1beta1.StaticResponse{Body: &body},
 				},

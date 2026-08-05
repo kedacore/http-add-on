@@ -18,7 +18,7 @@ const (
 	MetricRequestConcurrency  = "interceptor.request.concurrency"
 	MetricRequestCount        = "interceptor.request.count"
 	MetricRequestDuration     = "interceptor.request.duration"
-	MetricColdStartRejections = "interceptor.coldstart.rejections"
+	MetricColdStartRejections = "interceptor.cold_start.rejections"
 
 	AttrCode           = "code"
 	AttrMethod         = "method"
