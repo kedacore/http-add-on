@@ -86,6 +86,32 @@ spec:
                     required:
                     - service
                     type: object
+                  maxPendingRequests:
+                    description: |-
+                      Maximum number of pending requests held while the backend is not
+                      ready (e.g. during scale-from-zero). Requests arriving when the limit
+                      is reached are handled according to overflow. Unset: uses the
+                      interceptor's KEDA_HTTP_COLD_START_MAX_PENDING_REQUESTS (default:
+                      unlimited). When set together with a placeholder and
+                      overflow: Placeholder, requests are held up to this limit instead of
+                      receiving the placeholder immediately; only overflowing requests
+                      receive it.
+                      The limit applies per interceptor replica: the effective cluster-wide
+                      capacity is maxPendingRequests multiplied by the number of
+                      interceptor replicas.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  overflow:
+                    default: Reject
+                    description: |-
+                      How to handle requests arriving when the pending request limit is
+                      reached. Reject: return HTTP 503. Placeholder: serve the configured
+                      placeholder response.
+                    enum:
+                    - Reject
+                    - Placeholder
+                    type: string
                   placeholder:
                     description: Placeholder response to serve while the target has
                       no ready endpoints.
@@ -139,8 +165,11 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-validations:
-                - message: at least one of 'fallback' or 'placeholder' must be set
-                  rule: has(self.fallback) || has(self.placeholder)
+                - message: at least one of 'fallback', 'placeholder' or 'maxPendingRequests'
+                    must be set
+                  rule: has(self.fallback) || has(self.placeholder) || has(self.maxPendingRequests)
+                - message: '''placeholder'' must be set when ''overflow'' is ''Placeholder'''
+                  rule: self.overflow != 'Placeholder' || has(self.placeholder)
               rules:
                 description: Routing rules that define how requests are matched to
                   this target.

@@ -46,6 +46,24 @@ func TestDecreaseClamp(t *testing.T) {
 	r.Equal(0, current[host].Concurrency)
 }
 
+func TestConcurrency(t *testing.T) {
+	r := require.New(t)
+	memory := NewMemory()
+	host := hostName
+
+	r.Equal(0, memory.Concurrency(host), "untracked host should report 0")
+
+	memory.EnsureKey(host)
+	r.Equal(0, memory.Concurrency(host))
+
+	r.NoError(memory.Increase(host, 1))
+	r.NoError(memory.Increase(host, 1))
+	r.Equal(2, memory.Concurrency(host))
+
+	r.NoError(memory.Decrease(host, 1))
+	r.Equal(1, memory.Concurrency(host))
+}
+
 func TestRemoveKey(t *testing.T) {
 	r := require.New(t)
 	memory := NewMemory()
