@@ -359,3 +359,6 @@ admin/Cargo.lock
 *.test
 
 .lycheecache
+
+# ko publish digest refs written by Makefile publish-* targets (CI artifacts)
+*.digest

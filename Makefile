@@ -2,6 +2,7 @@
 # Variables                                      #
 ##################################################
 SHELL          = /bin/bash
+.SHELLFLAGS    = -eo pipefail -c # fail on error and pipeline failures
 .DEFAULT_GOAL := ko-build
 
 IMAGE_REGISTRY ?= ghcr.io
@@ -252,13 +253,13 @@ undeploy: $(KUSTOMIZE)
 
 publish-operator:
 	# --bare preserves image names like ghcr.io/kedacore/http-add-on-operator
-	KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./operator
+	KO_DOCKER_REPO=$(IMAGE_OPERATOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./operator | tee operator.digest
 
 publish-interceptor:
-	KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./interceptor
+	KO_DOCKER_REPO=$(IMAGE_INTERCEPTOR) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./interceptor | tee interceptor.digest
 
 publish-scaler:
-	KO_DOCKER_REPO=$(IMAGE_SCALER) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./scaler
+	KO_DOCKER_REPO=$(IMAGE_SCALER) ko build --bare --platform=$(KO_RELEASE_PLATFORMS) --tags=$(VERSION),$(GIT_COMMIT_SHORT) ./scaler | tee scaler.digest
 
 publish: publish-operator publish-interceptor publish-scaler
 
