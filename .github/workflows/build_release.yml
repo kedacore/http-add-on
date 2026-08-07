@@ -14,6 +14,7 @@ jobs:
       contents: write
       packages: write
       id-token: write # needed for signing images and release manifests with GitHub OIDC Token
+      attestations: write # needed for SLSA Build L2 provenance attestations
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,6 +42,36 @@ jobs:
         run: make publish
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Parse image digests
+        id: digests
+        run: |
+          for component in operator interceptor scaler; do
+            ref=$(cat "${component}.digest")
+            echo "${component}_name=${ref%%@*}" >> "$GITHUB_OUTPUT"
+            echo "${component}_digest=${ref##*@}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Attest operator image provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-name: ${{ steps.digests.outputs.operator_name }}
+          subject-digest: ${{ steps.digests.outputs.operator_digest }}
+          push-to-registry: true
+
+      - name: Attest interceptor image provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-name: ${{ steps.digests.outputs.interceptor_name }}
+          subject-digest: ${{ steps.digests.outputs.interceptor_digest }}
+          push-to-registry: true
+
+      - name: Attest scaler image provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-name: ${{ steps.digests.outputs.scaler_name }}
+          subject-digest: ${{ steps.digests.outputs.scaler_digest }}
+          push-to-registry: true
 
       - name: Release Deployment YAML file
         run: make release
