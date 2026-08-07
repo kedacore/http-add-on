@@ -15,6 +15,7 @@ jobs:
       packages: write
       id-token: write # needed for signing images and release manifests with GitHub OIDC Token
       attestations: write # needed for SLSA Build L2 provenance attestations
+      artifact-metadata: write # needed for org-level linked artifacts dashboard
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
