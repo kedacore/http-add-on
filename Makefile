@@ -35,7 +35,7 @@ JAEGER_VERSION ?= 4.12.0
 # renovate: datasource=helm depName=keda registryUrl=https://kedacore.github.io/charts
 KEDA_VERSION ?= 2.20.2
 # renovate: datasource=helm depName=opentelemetry-collector registryUrl=https://open-telemetry.github.io/opentelemetry-helm-charts
-OTEL_COLLECTOR_VERSION ?= 0.165.0
+OTEL_COLLECTOR_VERSION ?= 0.169.0
 
 HELM_RETRIES ?= 3
 HELM_RETRY_DELAY ?= 30
