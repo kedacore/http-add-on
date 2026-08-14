@@ -10,6 +10,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
@@ -48,7 +50,7 @@ func PatchDeployment(testenv env.Environment, namespace, name string, opts ...Pa
 				return ctx, err
 			}
 		}
-		if err := client.Resources().Update(ctx, patched); err != nil {
+		if err := patchDeployment(ctx, client, original, patched); err != nil {
 			return ctx, fmt.Errorf("failed to patch deployment %s/%s: %w", namespace, name, err)
 		}
 
@@ -72,12 +74,23 @@ func PatchDeployment(testenv env.Environment, namespace, name string, opts ...Pa
 		if err := client.Resources().Get(ctx, name, namespace, current); err != nil {
 			return ctx, fmt.Errorf("failed to get deployment for restore: %w", err)
 		}
-		current.Spec.Template.Spec = *originalSpec
-		if err := client.Resources().Update(ctx, current); err != nil {
+		restored := current.DeepCopy()
+		restored.Spec.Template.Spec = *originalSpec
+		if err := patchDeployment(ctx, client, current, restored); err != nil {
 			return ctx, fmt.Errorf("failed to restore deployment: %w", err)
 		}
 		return ctx, nil
 	})
+}
+
+// patchDeployment applies the diff between original and modified as a merge patch.
+// Avoids resourceVersion conflicts with concurrent reconcilers (e.g. KEDA ScaledObject).
+func patchDeployment(ctx context.Context, client klient.Client, original, modified *appsv1.Deployment) error {
+	data, err := ctrlclient.MergeFrom(original).Data(modified)
+	if err != nil {
+		return fmt.Errorf("failed to compute patch: %w", err)
+	}
+	return client.Resources().Patch(ctx, modified, k8s.Patch{PatchType: types.MergePatchType, Data: data})
 }
 
 // WithContainerPort appends a container port to all containers in the deployment.
@@ -198,17 +211,18 @@ func (f *Framework) RestartInterceptor() error {
 		return fmt.Errorf("getting interceptor deployment: %w", err)
 	}
 
-	if dep.Spec.Template.Annotations == nil {
-		dep.Spec.Template.Annotations = make(map[string]string)
+	restarted := dep.DeepCopy()
+	if restarted.Spec.Template.Annotations == nil {
+		restarted.Spec.Template.Annotations = make(map[string]string)
 	}
-	dep.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+	restarted.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
 
-	if err := f.client.Resources().Update(f.ctx, dep); err != nil {
+	if err := patchDeployment(f.ctx, f.client, dep, restarted); err != nil {
 		return fmt.Errorf("updating interceptor deployment: %w", err)
 	}
 
 	if err := wait.For(
-		conditions.New(f.client.Resources()).ResourceMatch(dep, deploymentRolledOut),
+		conditions.New(f.client.Resources()).ResourceMatch(restarted, deploymentRolledOut),
 		wait.WithTimeout(defaultWaitTimeout),
 	); err != nil {
 		return fmt.Errorf("interceptor deployment did not recover: %w", err)

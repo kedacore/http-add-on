@@ -1,0 +1,14 @@
+# Harden for restricted PodSecurity / OpenShift SCC.
+# Null out the chart's pinned UID so OpenShift can assign one from the namespace range.
+jaeger:
+  podSecurityContext:
+    runAsUser: null
+    runAsGroup: null
+    fsGroup: null
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault

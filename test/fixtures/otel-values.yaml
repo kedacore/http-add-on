@@ -1,5 +1,14 @@
 # Chart has no default mode.
 mode: deployment
+# OpenShift enforces the "restricted" SCC — the chart's default empty
+# securityContext fails PodSecurity admission.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
 # Prometheus exporter requires the contrib image (not available in core).
 image:
   repository: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib"
