@@ -163,6 +163,7 @@ e2e-deps-jaeger: $(HELM)
 	$(HELM) repo add jaegertracing https://jaegertracing.github.io/helm-charts --force-update
 	$(call helm-retry,$(HELM) upgrade --install jaeger jaegertracing/jaeger \
 		--namespace jaeger --create-namespace \
+		-f test/fixtures/jaeger-values.yaml \
 		--version $(JAEGER_VERSION) --wait --timeout 5m)
 
 e2e-deps-keda: $(HELM)
