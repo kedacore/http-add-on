@@ -131,7 +131,7 @@ git push --force
 
 - [GitHub Discussions](https://github.com/kedacore/http-add-on/discussions) — questions, ideas, and general conversation
 - [GitHub Issues](https://github.com/kedacore/http-add-on/issues) — bug reports and feature requests
-- [Kubernetes Slack](https://kubernetes.slack.com/messages/CKZJ36A5D) — `#keda` channel ([join here](https://slack.k8s.io))
+- [Kubernetes Slack](https://kubernetes.slack.com/archives/CKZJ36A5D) — `#keda` channel ([join here](https://slack.k8s.io))
 
 ## Project Governance
 
