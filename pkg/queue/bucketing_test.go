@@ -178,7 +178,7 @@ func TestRequestsBucketsWindowAverage(t *testing.T) {
 	}
 
 	// Check with short hole.
-	if got, want := buckets.WindowAverage(now.Add(6*time.Second)), (15.-1-2)/(5); got != want {
+	if got, want := buckets.WindowAverage(now.Add(6*time.Second)), (15.-1-2)/5; got != want {
 		t.Errorf("WindowAverage = %v, want: %v", got, want)
 	}
 
