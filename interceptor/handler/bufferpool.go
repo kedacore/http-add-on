@@ -27,7 +27,7 @@ func newBufferPool() httputil.BufferPool {
 }
 
 func (bp *bufPool) Get() []byte {
-	return *(bp.pool.Get().(*[]byte))
+	return *bp.pool.Get().(*[]byte)
 }
 
 func (bp *bufPool) Put(b []byte) {

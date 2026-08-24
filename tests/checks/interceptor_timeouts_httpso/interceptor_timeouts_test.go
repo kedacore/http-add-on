@@ -256,18 +256,20 @@ func testCustomTimeoutFails(t *testing.T, kc *kubernetes.Clientset, data templat
 }
 
 func getTemplateData() (templateData, []Template) {
-	return templateData{
-			TestNamespace:        testNamespace,
-			DeploymentName:       deploymentName,
-			ServiceName:          serviceName,
-			HTTPScaledObjectName: httpScaledObjectName,
-			Host:                 host,
-			MinReplicas:          minReplicaCount,
-			MaxReplicas:          maxReplicaCount,
-			RequestJobName:       requestJobName,
-			ResponseDelay:        responseDelay,
-		}, []Template{
-			{Name: "deploymentTemplate", Config: deploymentTemplate},
-			{Name: "serviceNameTemplate", Config: serviceTemplate},
-		}
+	data := templateData{
+		TestNamespace:        testNamespace,
+		DeploymentName:       deploymentName,
+		ServiceName:          serviceName,
+		HTTPScaledObjectName: httpScaledObjectName,
+		Host:                 host,
+		MinReplicas:          minReplicaCount,
+		MaxReplicas:          maxReplicaCount,
+		RequestJobName:       requestJobName,
+		ResponseDelay:        responseDelay,
+	}
+	templates := []Template{
+		{Name: "deploymentTemplate", Config: deploymentTemplate},
+		{Name: "serviceNameTemplate", Config: serviceTemplate},
+	}
+	return data, templates
 }

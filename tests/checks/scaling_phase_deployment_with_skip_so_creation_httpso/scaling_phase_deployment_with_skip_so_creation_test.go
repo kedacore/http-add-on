@@ -201,19 +201,21 @@ func testScaleIn(t *testing.T, kc *kubernetes.Clientset) {
 }
 
 func getTemplateData() (templateData, []Template) {
-	return templateData{
-			TestNamespace:        testNamespace,
-			DeploymentName:       deploymentName,
-			ServiceName:          serviceName,
-			HTTPScaledObjectName: httpScaledObjectName,
-			ScaledObjectName:     scaledObjectName,
-			Host:                 host,
-			MinReplicas:          minReplicaCount,
-			MaxReplicas:          maxReplicaCount,
-		}, []Template{
-			{Name: "workloadTemplate", Config: workloadTemplate},
-			{Name: "serviceNameTemplate", Config: serviceTemplate},
-			{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
-			{Name: "scaledObjectTemplate", Config: scaledObjectTemplate},
-		}
+	data := templateData{
+		TestNamespace:        testNamespace,
+		DeploymentName:       deploymentName,
+		ServiceName:          serviceName,
+		HTTPScaledObjectName: httpScaledObjectName,
+		ScaledObjectName:     scaledObjectName,
+		Host:                 host,
+		MinReplicas:          minReplicaCount,
+		MaxReplicas:          maxReplicaCount,
+	}
+	templates := []Template{
+		{Name: "workloadTemplate", Config: workloadTemplate},
+		{Name: "serviceNameTemplate", Config: serviceTemplate},
+		{Name: "httpScaledObjectTemplate", Config: httpScaledObjectTemplate},
+		{Name: "scaledObjectTemplate", Config: scaledObjectTemplate},
+	}
+	return data, templates
 }
