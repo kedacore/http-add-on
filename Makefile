@@ -58,7 +58,7 @@ CONTROLLER_GEN ?= go tool controller-gen
 LOCALBIN ?= $(CURDIR)/bin
 
 # renovate: datasource=github-releases depName=golangci/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.12.2
+GOLANGCI_LINT_VERSION ?= v2.13.1
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize\/(?<version>.+)$$
 KUSTOMIZE_VERSION ?= v5.8.1
 # renovate: datasource=github-releases depName=helm/helm
