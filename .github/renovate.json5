@@ -9,10 +9,12 @@
     ":gitSignOff",
     ":prHourlyLimitNone",
   ],
+  ignorePresets: [":ignoreModulesAndTests"],
   commitBodyTable: true,
   kubernetes: {
     managerFilePatterns: ["/(config|examples)/.+\\.ya?ml$/"],
   },
+  ignorePaths: ["**/vendor/**"],
   labels: ["dependencies"],
   // Experimental: OSV-based vulnerability alerts for direct dependencies
   osvVulnerabilityAlerts: true,
