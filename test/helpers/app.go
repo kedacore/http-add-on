@@ -17,7 +17,7 @@ import (
 
 const (
 	// renovate: datasource=docker
-	defaultImage   = "ghcr.io/traefik/whoami:v1.11.0"
+	defaultImage   = "ghcr.io/traefik/whoami:v1.12.0"
 	defaultPort    = int32(8080)
 	tlsCertsVolume = "tls-certs"
 
