@@ -15,7 +15,7 @@ image:
   repository: registry.k8s.io/e2e-test-images/agnhost
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "2.45"
+  tag: "2.61@sha256:101f3357d1ad890c3090e78ea6c6a47dc5137cbe19836796e13d5dcb2b84d2e6"
 
 args:
   - netexec
