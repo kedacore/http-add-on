@@ -28,7 +28,7 @@ const (
 	proxyListenPort      = 8080
 	proxyNamespacePrefix = "e2e-proxy"
 	// renovate: datasource=docker
-	proxyPodImage  = "alpine/socat:1.8.0.3"
+	proxyPodImage  = "alpine/socat:1.8.1.3"
 	proxyPodPrefix = "e2e-proxy"
 )
 
