@@ -5,7 +5,7 @@
     "config:best-practices",
     "customManagers:githubActionsVersions",
     "customManagers:makefileVersions",
-    "schedule:weekly",
+    "schedule:monthly",
     ":gitSignOff",
     ":prHourlyLimitNone",
   ],
@@ -65,8 +65,19 @@
     },
     {
       matchManagers: ["custom.regex"],
-      matchFileNames: ["Makefile", ".github/workflows/e2e-tests.yaml"],
+      matchFileNames: [
+        ".github/workflows/benchmark-tests.yaml",
+        ".github/workflows/e2e-tests.yaml",
+        ".github/workflows/tests.yaml",
+        "Makefile",
+      ],
       groupName: "Infra Dependencies",
+    },
+    {
+      matchManagers: ["custom.regex"],
+      matchDatasources: ["docker"],
+      matchFileNames: ["test/helpers/*.go"],
+      groupName: "E2E Test Images",
     },
     {
       matchManagers: ["pre-commit"],
@@ -81,7 +92,10 @@
     // Disable digest pinning for kindest/node as we don't need it and as it causes renovate update failures when not captured.
     {
       matchManagers: ["custom.regex"],
-      matchFileNames: [".github/workflows/e2e-tests.yaml"],
+      matchFileNames: [
+        ".github/workflows/benchmark-tests.yaml",
+        ".github/workflows/e2e-tests.yaml",
+      ],
       matchDepNames: ["/kindest\\/node/"],
       pinDigests: false,
     },
