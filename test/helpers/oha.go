@@ -18,7 +18,7 @@ import (
 
 const (
 	// renovate: datasource=docker
-	ohaImage = "ghcr.io/hatoo/oha:1.14.0"
+	ohaImage = "ghcr.io/hatoo/oha:1.16.0"
 )
 
 // OhaResult maps the JSON output of oha.
