@@ -15,10 +15,11 @@ const (
 	meterName   = "keda-interceptor-proxy"
 	ServiceName = "keda-http-interceptor"
 
-	MetricRequestConcurrency  = "interceptor.request.concurrency"
-	MetricRequestCount        = "interceptor.request.count"
-	MetricRequestDuration     = "interceptor.request.duration"
-	MetricColdStartRejections = "interceptor.cold_start.rejections"
+	MetricRequestConcurrency      = "interceptor.request.concurrency"
+	MetricRequestCount            = "interceptor.request.count"
+	MetricRequestDuration         = "interceptor.request.duration"
+	MetricColdStartRejections     = "interceptor.cold_start.rejections"
+	MetricRoutingTableLastRebuild = "interceptor.routing_table.last_rebuild_timestamp"
 
 	AttrCode           = "code"
 	AttrMethod         = "method"
@@ -46,10 +47,11 @@ var standardMethods = map[string]bool{
 
 // Instruments holds all metric instruments for the interceptor.
 type Instruments struct {
-	pendingRequests     api.Int64UpDownCounter
-	requestCounter      api.Int64Counter
-	requestDuration     api.Float64Histogram
-	coldStartRejections api.Int64Counter
+	pendingRequests         api.Int64UpDownCounter
+	requestCounter          api.Int64Counter
+	requestDuration         api.Float64Histogram
+	coldStartRejections     api.Int64Counter
+	routingTableLastRebuild api.Int64Gauge
 }
 
 // NewNoopInstruments returns Instruments backed by a no-op provider, for use in tests.
@@ -102,11 +104,21 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 		return nil, fmt.Errorf("creating cold-start rejections counter: %w", err)
 	}
 
+	routingTableLastRebuild, err := meter.Int64Gauge(
+		MetricRoutingTableLastRebuild,
+		api.WithDescription("Unix time of the last successful routing table rebuild. Alert on the age of this value to catch a stalled refresh loop before readiness removes the pod from the Service"),
+		api.WithUnit("s"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating routing table last rebuild gauge: %w", err)
+	}
+
 	return &Instruments{
-		requestCounter:      requestCounter,
-		requestDuration:     requestDuration,
-		pendingRequests:     pendingRequests,
-		coldStartRejections: coldStartRejections,
+		requestCounter:          requestCounter,
+		requestDuration:         requestDuration,
+		pendingRequests:         pendingRequests,
+		coldStartRejections:     coldStartRejections,
+		routingTableLastRebuild: routingTableLastRebuild,
 	}, nil
 }
 
@@ -127,6 +139,14 @@ func (i *Instruments) RecordRequest(method string, code int, routeName, routeNam
 	))
 	i.requestCounter.Add(context.Background(), 1, attrs)
 	i.requestDuration.Record(context.Background(), duration.Seconds(), attrs)
+}
+
+// RecordRoutingTableRebuild records the time of a successful routing table
+// rebuild. The gauge keeps reporting the last recorded value, so a refresh loop
+// that stops making progress shows up as a growing gap between now and this
+// timestamp.
+func (i *Instruments) RecordRoutingTableRebuild(at time.Time) {
+	i.routingTableLastRebuild.Record(context.Background(), at.Unix())
 }
 
 // RecordPendingRequest increments or decrements the pending request gauge.

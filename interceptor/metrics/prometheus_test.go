@@ -111,6 +111,21 @@ func TestPrometheus_DurationMetrics(t *testing.T) {
 	}
 }
 
+func TestPrometheus_RoutingTableRebuildMetrics(t *testing.T) {
+	registry, instruments := testRegistry(t)
+
+	instruments.RecordRoutingTableRebuild(time.Unix(1700000000, 0))
+
+	expected := `
+		# HELP interceptor_routing_table_last_rebuild_timestamp_seconds Unix time of the last successful routing table rebuild. Alert on the age of this value to catch a stalled refresh loop before readiness removes the pod from the Service
+		# TYPE interceptor_routing_table_last_rebuild_timestamp_seconds gauge
+		interceptor_routing_table_last_rebuild_timestamp_seconds 1.7e+09
+	`
+	if err := testutil.CollectAndCompare(registry, strings.NewReader(expected), "interceptor_routing_table_last_rebuild_timestamp_seconds"); err != nil {
+		t.Fatalf("unexpected metrics output:\n%v", err)
+	}
+}
+
 func TestPrometheus_ConcurrencyMetrics(t *testing.T) {
 	registry, instruments := testRegistry(t)
 
