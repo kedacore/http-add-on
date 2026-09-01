@@ -5,7 +5,6 @@ package helpers
 import (
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
@@ -37,11 +36,11 @@ func (f *Framework) CreateScaledObject(name string, app *TestApp, ir *httpv1beta
 			ScaleTargetRef: &kedav1alpha1.ScaleTarget{
 				Name: app.Name,
 			},
-			MinReplicaCount:  ptr.To(defaultMinReplicas),
-			MaxReplicaCount:  ptr.To(defaultMaxReplicas),
-			IdleReplicaCount: ptr.To(defaultIdleReplicas),
-			CooldownPeriod:   ptr.To(defaultCooldown),
-			PollingInterval:  ptr.To(defaultPolling),
+			MinReplicaCount:  new(defaultMinReplicas),
+			MaxReplicaCount:  new(defaultMaxReplicas),
+			IdleReplicaCount: new(defaultIdleReplicas),
+			CooldownPeriod:   new(defaultCooldown),
+			PollingInterval:  new(defaultPolling),
 			Triggers: []kedav1alpha1.ScaleTriggers{{
 				Type: "external-push",
 				Metadata: map[string]string{

@@ -12,7 +12,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient"
 	"sigs.k8s.io/yaml"
@@ -54,7 +53,7 @@ func dumpPodLogs(ctx context.Context, t *testing.T, client klient.Client, client
 		for _, container := range pod.Spec.Containers {
 			req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
 				Container: container.Name,
-				TailLines: ptr.To(int64(100)),
+				TailLines: new(int64(100)),
 			})
 			stream, err := req.Stream(ctx)
 			if err != nil {

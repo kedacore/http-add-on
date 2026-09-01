@@ -72,8 +72,7 @@ func ParseCommandWithDir(cmdWithArgs, dir string) *exec.Cmd {
 func ExecuteCommand(cmdWithArgs string) ([]byte, error) {
 	out, err := ParseCommand(cmdWithArgs).Output()
 	if err != nil {
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
+		if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 			return out, ExecutionError{StdError: exitError.Stderr}
 		}
 	}
@@ -102,8 +101,7 @@ func ExecuteCommandWithRetry(t *testing.T, cmdWithArgs string, retries int, dela
 func ExecuteCommandWithDir(cmdWithArgs, dir string) ([]byte, error) {
 	out, err := ParseCommandWithDir(cmdWithArgs, dir).Output()
 	if err != nil {
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
+		if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 			return out, ExecutionError{StdError: exitError.Stderr}
 		}
 	}

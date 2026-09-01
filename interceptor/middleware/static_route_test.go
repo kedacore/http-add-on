@@ -8,7 +8,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -122,7 +121,7 @@ func TestStaticRouting_StaticResponse(t *testing.T) {
 				Rules: healthzRules,
 				Response: httpv1beta1.StaticResponse{
 					StatusCode: http.StatusOK,
-					Body:       ptr.To("service unavailable"),
+					Body:       new("service unavailable"),
 					Headers:    map[string]string{"Custom-Header": "test"},
 				},
 			}},
@@ -160,14 +159,14 @@ func TestStaticRouting_StaticResponse(t *testing.T) {
 					Rules: healthzRules,
 					Response: httpv1beta1.StaticResponse{
 						StatusCode: http.StatusOK,
-						Body:       ptr.To("first"),
+						Body:       new("first"),
 					},
 				},
 				{
 					Rules: healthzRules,
 					Response: httpv1beta1.StaticResponse{
 						StatusCode: http.StatusOK,
-						Body:       ptr.To("second"),
+						Body:       new("second"),
 					},
 				},
 			},

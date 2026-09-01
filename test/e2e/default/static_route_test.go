@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -37,7 +36,7 @@ func TestStaticRoute(t *testing.T) {
 					},
 					Response: httpv1beta1.StaticResponse{
 						StatusCode: http.StatusOK,
-						Body:       ptr.To("healthy"),
+						Body:       new("healthy"),
 						Headers:    map[string]string{"X-Static": "true"},
 					},
 				}),
