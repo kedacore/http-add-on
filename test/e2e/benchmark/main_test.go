@@ -11,7 +11,6 @@ import (
 
 	envparser "github.com/caarlos0/env/v11"
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 
 	h "github.com/kedacore/http-add-on/test/helpers"
@@ -66,8 +65,8 @@ func setupFixedReplicaApp(ctx context.Context, t *testing.T, name string) (conte
 		h.IRWithHosts(f.Hostname()),
 	)
 	f.CreateScaledObject(name+"-so", app, ir, func(so *kedav1alpha1.ScaledObject) {
-		so.Spec.MinReplicaCount = ptr.To(int32(1))
-		so.Spec.MaxReplicaCount = ptr.To(int32(1))
+		so.Spec.MinReplicaCount = new(int32(1))
+		so.Spec.MaxReplicaCount = new(int32(1))
 		so.Spec.IdleReplicaCount = nil
 	})
 

@@ -60,6 +60,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Other
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Update KEDA to v2.20.2, Kubernetes libraries to v0.37.0 and controller-runtime to v0.24.1, clearing the GHSA-6w3m-4hhp-775q advisory. Building now requires Go 1.26 ([#1703](https://github.com/kedacore/http-add-on/pull/1703)|[#1527](https://github.com/kedacore/http-add-on/pull/1527))
 
 ## v0.15.0
 

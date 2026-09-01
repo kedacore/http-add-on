@@ -35,13 +35,13 @@ func TestGetEndpoints(t *testing.T) {
 				Addresses: []string{
 					"1.2.3.4",
 				},
-				Hostname: ptr.To("testhost1"),
+				Hostname: new("testhost1"),
 			},
 			{
 				Addresses: []string{
 					"1.2.3.5",
 				},
-				Hostname: ptr.To("testhost2"),
+				Hostname: new("testhost2"),
 			},
 		},
 	}
@@ -98,13 +98,13 @@ func TestEndpointsFuncForControllerClient(t *testing.T) {
 						Addresses: []string{
 							"1.2.3.4",
 						},
-						Hostname: ptr.To("testhost1"),
+						Hostname: new("testhost1"),
 					},
 					{
 						Addresses: []string{
 							"2.3.4.5",
 						},
-						Hostname: ptr.To("testhost2"),
+						Hostname: new("testhost2"),
 					},
 				},
 			},
