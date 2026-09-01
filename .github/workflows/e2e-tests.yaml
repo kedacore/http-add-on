@@ -117,10 +117,13 @@ jobs:
 
       - name: Create Kind Cluster
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
+        env:
+          # renovate: datasource=github-releases depName=kubernetes-sigs/kind
+          KIND_VERSION: "v0.32.0"
         with:
           node_image: kindest/node:${{ matrix.kindVersion }}
           cluster_name: kind
-          version: v0.31.0
+          version: ${{ env.KIND_VERSION }}
 
       - name: Show Kubernetes version
         run: kubectl version
