@@ -35,7 +35,7 @@ JAEGER_VERSION ?= 4.12.0
 # renovate: datasource=helm depName=keda registryUrl=https://kedacore.github.io/charts
 KEDA_VERSION ?= 2.20.2
 # renovate: datasource=helm depName=opentelemetry-collector registryUrl=https://open-telemetry.github.io/opentelemetry-helm-charts
-OTEL_COLLECTOR_VERSION ?= 0.170.0
+OTEL_COLLECTOR_VERSION ?= 0.172.0
 
 HELM_RETRIES ?= 3
 HELM_RETRY_DELAY ?= 30
@@ -58,7 +58,7 @@ CONTROLLER_GEN ?= go tool controller-gen
 LOCALBIN ?= $(CURDIR)/bin
 
 # renovate: datasource=github-releases depName=golangci/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.13.1
+GOLANGCI_LINT_VERSION ?= v2.13.2
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize\/(?<version>.+)$$
 KUSTOMIZE_VERSION ?= v5.8.1
 # renovate: datasource=github-releases depName=helm/helm
