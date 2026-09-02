@@ -21,6 +21,7 @@ const (
 	MetricColdStartRejections = "interceptor.cold_start.rejections"
 
 	AttrCode           = "code"
+	AttrColdStart      = "cold_start"
 	AttrMethod         = "method"
 	AttrRouteName      = "route_name"
 	AttrRouteNamespace = "route_namespace"
@@ -29,6 +30,14 @@ const (
 	// following the OTel semantic convention prefix for synthetic values.
 	MethodOther = "_OTHER"
 )
+
+// RequestDurationBucketBoundaries are the bucket boundaries (seconds) for MetricRequestDuration.
+// Below 10s: OTel HTTP semconv defaults, see https://opentelemetry.io/docs/specs/semconv/http/http-metrics/ .
+// Above 10s: extended to make longer cold-start request durations visible.
+var RequestDurationBucketBoundaries = []float64{
+	0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
+	15, 30, 60, 120, 300,
+}
 
 // standardMethods is the set of HTTP methods that pass through normalization.
 // Non-standard methods are mapped to MethodOther to bound cardinality.
@@ -77,10 +86,7 @@ func NewInstruments(provider *sdkmetric.MeterProvider) (*Instruments, error) {
 		MetricRequestDuration,
 		api.WithDescription("Time from request received to response written"),
 		api.WithUnit("s"),
-		// Bucket boundaries from OTel HTTP semconv: https://opentelemetry.io/docs/specs/semconv/http/http-metrics/
-		api.WithExplicitBucketBoundaries(
-			0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
-		),
+		api.WithExplicitBucketBoundaries(RequestDurationBucketBoundaries...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating request duration histogram: %w", err)
@@ -118,9 +124,10 @@ func normalizeMethod(method string) string {
 }
 
 // RecordRequest records a completed request with bounded labels.
-func (i *Instruments) RecordRequest(method string, code int, routeName, routeNamespace string, duration time.Duration) {
+func (i *Instruments) RecordRequest(method string, code int, routeName, routeNamespace string, isColdStart bool, duration time.Duration) {
 	attrs := api.WithAttributeSet(attribute.NewSet(
 		attribute.Int(AttrCode, code),
+		attribute.Bool(AttrColdStart, isColdStart),
 		attribute.String(AttrMethod, normalizeMethod(method)),
 		attribute.String(AttrRouteName, routeName),
 		attribute.String(AttrRouteNamespace, routeNamespace),

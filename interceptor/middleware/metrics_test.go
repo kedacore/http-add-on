@@ -48,8 +48,38 @@ func TestMetrics_RecordsRequestWithRouteInfo(t *testing.T) {
 	assertIntAttr(t, dp.Attributes, metrics.AttrCode, int64(http.StatusOK))
 	assertStringAttr(t, dp.Attributes, metrics.AttrRouteName, "test-route")
 	assertStringAttr(t, dp.Attributes, metrics.AttrRouteNamespace, "test-ns")
+	assertBoolAttr(t, dp.Attributes, metrics.AttrColdStart, false)
 
 	requireMetric(t, rm, metrics.MetricRequestDuration)
+}
+
+func TestMetrics_RecordsColdStart(t *testing.T) {
+	instruments, reader := testInstruments(t)
+
+	// Simulate EndpointResolver marking the request as a cold start.
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ri := routeInfoFromContext(r.Context()); ri != nil {
+			ri.Name = "test-route"
+			ri.Namespace = "test-ns"
+			ri.IsColdStart = true
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := NewMetrics(next, instruments)
+
+	req := httptest.NewRequest("GET", "/some/path", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var rm metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &rm); err != nil {
+		t.Fatalf("Collect() error: %v", err)
+	}
+
+	m := requireMetric(t, rm, metrics.MetricRequestCount)
+	dp := m.Data.(metricdata.Sum[int64]).DataPoints[0]
+	assertBoolAttr(t, dp.Attributes, metrics.AttrColdStart, true)
 }
 
 func TestMetrics_UnmatchedRoute(t *testing.T) {
@@ -75,6 +105,7 @@ func TestMetrics_UnmatchedRoute(t *testing.T) {
 
 	dp := m.Data.(metricdata.Sum[int64]).DataPoints[0]
 	assertStringAttr(t, dp.Attributes, metrics.AttrRouteName, "")
+	assertBoolAttr(t, dp.Attributes, metrics.AttrColdStart, false)
 }
 
 func testInstruments(t *testing.T) (*metrics.Instruments, sdkmetric.Reader) {
@@ -105,5 +136,13 @@ func assertIntAttr(t *testing.T, attrs attribute.Set, key string, want int64) {
 	v, _ := attrs.Value(attribute.Key(key))
 	if got := v.AsInt64(); got != want {
 		t.Fatalf("attribute %s: got %d, want %d", key, got, want)
+	}
+}
+
+func assertBoolAttr(t *testing.T, attrs attribute.Set, key string, want bool) {
+	t.Helper()
+	v, _ := attrs.Value(attribute.Key(key))
+	if got := v.AsBool(); got != want {
+		t.Fatalf("attribute %s: got %t, want %t", key, got, want)
 	}
 }
