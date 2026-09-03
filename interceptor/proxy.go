@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -34,6 +35,7 @@ type ProxyHandlerConfig struct {
 	OutboundTLS  *tls.Config
 	Tracing      config.Tracing
 	Instruments  *metrics.Instruments
+	Draining     *atomic.Bool
 
 	// dialAddressOverride redirects all dial attempts to this address (for testing).
 	// If empty, dials to the original target address.
@@ -66,7 +68,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	}
 
 	// Build handler chain (innermost to outermost)
-	upstream := handler.NewUpstream(baseTransport, cfg.Reader, cfg.Tracing, cfg.Timeouts.ResponseHeader)
+	upstream := handler.NewUpstream(baseTransport, cfg.Reader, cfg.Tracing, cfg.Timeouts.ResponseHeader, cfg.Draining)
 
 	var h http.Handler = middleware.NewEndpointResolver(upstream, cfg.ReadyCache, middleware.EndpointResolverConfig{
 		ReadinessTimeout:      cfg.Timeouts.Readiness,
