@@ -84,6 +84,12 @@
       groupName: "Pre-commit Hooks",
     },
     {
+      // Split patch and minor updates for dependencies pinned to older versions.
+      matchManagers: ["custom.regex"],
+      matchDepNames: ["/@only-patch/"],
+      separateMinorPatch: true,
+    },
+    {
       matchManagers: ["custom.regex"],
       matchDepNames: ["/@only-patch/"],
       matchUpdateTypes: ["minor", "major"],
