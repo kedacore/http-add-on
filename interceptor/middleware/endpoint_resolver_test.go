@@ -10,9 +10,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	interceptormetrics "github.com/kedacore/http-add-on/interceptor/metrics"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
@@ -317,6 +320,111 @@ func TestEndpointResolver_ColdStart(t *testing.T) {
 			if got, want := rec.Header().Get(kedahttp.HeaderColdStart), tt.wantColdStartHeader; got != want {
 				t.Fatalf("cold-start header = %q, want %q", got, want)
 			}
+		})
+	}
+}
+
+func TestEndpointResolver_RecordsColdStartDuration(t *testing.T) {
+	tests := map[string]struct {
+		readyBefore  bool
+		readyAfter   bool
+		cancelBefore bool
+		wantOutcome  string
+	}{
+		"warm request is not recorded": {
+			readyBefore: true,
+		},
+		"backend becomes ready": {
+			readyAfter:  true,
+			wantOutcome: interceptormetrics.ColdStartOutcomeReady,
+		},
+		"backend does not become ready": {
+			wantOutcome: interceptormetrics.ColdStartOutcomeTimeout,
+		},
+		"client cancels request": {
+			cancelBefore: true,
+			wantOutcome:  interceptormetrics.ColdStartOutcomeCancelled,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				reader := metric.NewManualReader()
+				provider := metric.NewMeterProvider(metric.WithReader(reader))
+				t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+
+				instruments, err := interceptormetrics.NewInstruments(provider)
+				if err != nil {
+					t.Fatalf("NewInstruments() error: %v", err)
+				}
+
+				cache := k8s.NewReadyEndpointsCache(logr.Discard())
+				if tt.readyBefore {
+					addReadyEndpoint(cache)
+				}
+				if tt.readyAfter {
+					go func() {
+						time.Sleep(10 * time.Millisecond)
+						addReadyEndpoint(cache)
+					}()
+				}
+
+				next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(http.StatusOK)
+				})
+				ir := defaultIR()
+				ir.Name = "test-route"
+				mw := NewEndpointResolver(next, cache, EndpointResolverConfig{
+					ReadinessTimeout: 50 * time.Millisecond,
+					Instruments:      instruments,
+				})
+
+				req := newRequest(t, ir)
+				if tt.cancelBefore {
+					ctx, cancel := context.WithCancel(req.Context())
+					cancel()
+					req = req.WithContext(ctx)
+				}
+				mw.ServeHTTP(httptest.NewRecorder(), req)
+
+				var rm metricdata.ResourceMetrics
+				if err := reader.Collect(context.Background(), &rm); err != nil {
+					t.Fatalf("Collect() error: %v", err)
+				}
+
+				var coldStartMetric *metricdata.Metrics
+			findMetric:
+				for _, scope := range rm.ScopeMetrics {
+					for i := range scope.Metrics {
+						if scope.Metrics[i].Name == interceptormetrics.MetricColdStartDuration {
+							coldStartMetric = &scope.Metrics[i]
+							break findMetric
+						}
+					}
+				}
+				if tt.wantOutcome == "" {
+					if coldStartMetric != nil {
+						t.Fatal("warm request should not record cold-start duration")
+					}
+					return
+				}
+				if coldStartMetric == nil {
+					t.Fatal("cold-start duration metric was not recorded")
+				}
+
+				histogram, ok := coldStartMetric.Data.(metricdata.Histogram[float64])
+				if !ok || len(histogram.DataPoints) != 1 {
+					t.Fatalf("unexpected histogram data: %#v", coldStartMetric.Data)
+				}
+				dp := histogram.DataPoints[0]
+				assertStringAttr(t, dp.Attributes, interceptormetrics.AttrOutcome, tt.wantOutcome)
+				assertStringAttr(t, dp.Attributes, interceptormetrics.AttrRouteName, "test-route")
+				assertStringAttr(t, dp.Attributes, interceptormetrics.AttrRouteNamespace, testNamespace)
+				if dp.Count != 1 {
+					t.Fatalf("cold-start duration count = %d, want 1", dp.Count)
+				}
+			})
 		})
 	}
 }

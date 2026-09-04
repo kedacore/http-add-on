@@ -72,6 +72,7 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 		ReadinessTimeout:      cfg.Timeouts.Readiness,
 		EnableColdStartHeader: cfg.Serving.EnableColdStartHeader,
 		DirectPodRouting:      cfg.Serving.DirectPodRouting,
+		Instruments:           cfg.Instruments,
 	})
 
 	h = middleware.NewColdStart(h, cfg.ReadyCache, cfg.Reader, cfg.Queue, cfg.Instruments, middleware.ColdStartConfig{

@@ -2,12 +2,14 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/kedacore/http-add-on/interceptor/handler"
+	"github.com/kedacore/http-add-on/interceptor/metrics"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -19,6 +21,7 @@ type EndpointResolverConfig struct {
 	ReadinessTimeout      time.Duration
 	EnableColdStartHeader bool
 	DirectPodRouting      bool // route every request to a pod IP instead of the ClusterIP service
+	Instruments           *metrics.Instruments
 }
 
 type EndpointResolver struct {
@@ -65,11 +68,23 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceKey := ir.Namespace + "/" + ir.Spec.Target.Service
+	waitStart := time.Now()
 	isColdStart, podHost, err := er.readyCache.WaitForReady(waitCtx, serviceKey, util.UpstreamPortNameFromContext(ctx))
 	if info := routeInfoFromContext(ctx); info != nil {
 		// An error means the request waited for readiness but the backend did
 		// not become ready before the wait ended.
 		info.IsColdStart = isColdStart || err != nil
+	}
+
+	if er.cfg.Instruments != nil && (isColdStart || err != nil) {
+		outcome := metrics.ColdStartOutcomeReady
+		switch {
+		case errors.Is(err, context.Canceled):
+			outcome = metrics.ColdStartOutcomeCancelled
+		case err != nil:
+			outcome = metrics.ColdStartOutcomeTimeout
+		}
+		er.cfg.Instruments.RecordColdStartDuration(ir.Name, ir.Namespace, outcome, time.Since(waitStart))
 	}
 	if err != nil {
 		// No fallback, return an error

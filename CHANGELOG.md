@@ -41,6 +41,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Improvements
 
+- **Interceptor**: Add `interceptor_cold_start_duration_seconds` histogram with `ready`, `timeout`, and `cancelled` outcomes to expose time spent waiting for scaled-from-zero backends to become ready ([#1721](https://github.com/kedacore/http-add-on/issues/1721))
 - **Interceptor**: Extend `interceptor_request_duration_seconds` buckets up to `300s` (was `10s`) and add a `cold_start` label to both `interceptor_request_duration_seconds` and `interceptor_request_count_total`, identifying requests that waited for backend readiness, including waits that ended before the backend became ready ([#1776](https://github.com/kedacore/http-add-on/issues/1776))
 - **Interceptor**: The forwarding transport sets TLS `ServerName` per-dial via `DialTLSContext`, using the original service hostname captured in context, so SNI stays correct when the upstream URL is rewritten to a pod IP. ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
 - **Interceptor**: TLS server name is captured in context by the routing middleware before any URL rewrites, so downstream transports always use the original service hostname for SNI. The routing middleware also resolves the upstream named port into context to drive direct-pod target selection. ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
