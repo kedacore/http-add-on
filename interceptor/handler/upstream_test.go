@@ -29,6 +29,7 @@ import (
 	"github.com/kedacore/http-add-on/interceptor/tracing"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/cache"
+	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	kedanet "github.com/kedacore/http-add-on/pkg/net"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
@@ -297,6 +298,34 @@ func TestForwarderConnectionRetryAndTimeout(t *testing.T) {
 		res.Body.String(),
 	)
 	r.Contains(res.Body.String(), http.StatusText(http.StatusGatewayTimeout))
+}
+
+// TestForwarderClientCancelled verifies that a request whose context is
+// already cancelled (as happens when the client disconnects before the
+// response is ready) is reported as 499 Client Closed Request rather than
+// 502 Bad Gateway, so it isn't counted as a backend failure.
+func TestForwarderClientCancelled(t *testing.T) {
+	r := require.New(t)
+
+	timeouts := defaultTimeouts()
+	dialCtxFunc := retryDialContextFunc(timeouts)
+	uh := NewUpstream(newTestTransport(dialCtxFunc), newFakeClient(), config.Tracing{}, timeouts.ResponseHeader)
+
+	res, req, err := reqAndRes("/test")
+	r.NoError(err)
+
+	someURL, err := url.Parse("https://localhost:65533")
+	r.NoError(err)
+	req = util.RequestWithUpstreamURL(req, someURL)
+
+	ctx, cancel := context.WithCancel(req.Context())
+	cancel()
+	req = req.WithContext(ctx)
+
+	uh.ServeHTTP(res, req)
+
+	r.Equal(kedahttp.StatusClientClosedRequest, res.Code)
+	r.Contains(res.Body.String(), "Client Closed Request")
 }
 
 func TestForwardRequestRedirectAndHeaders(t *testing.T) {
