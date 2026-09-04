@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -36,14 +35,9 @@ type Upstream struct {
 	reader                 client.Reader
 	responseHeaderTimeout  time.Duration
 	tracingCfg             config.Tracing
-	draining               *atomic.Bool
 }
 
-// NewUpstream creates an Upstream that forwards requests to the URL resolved by
-// upstream routing middleware. draining, if non-nil, is set while the interceptor
-// is shutting down; it is consulted to avoid misreporting a request cancelled by
-// the server's own shutdown drain as a client-cancelled request.
-func NewUpstream(baseTransport *http.Transport, reader client.Reader, tracingCfg config.Tracing, responseHeaderTimeout time.Duration, draining *atomic.Bool) *Upstream {
+func NewUpstream(baseTransport *http.Transport, reader client.Reader, tracingCfg config.Tracing, responseHeaderTimeout time.Duration) *Upstream {
 	if baseTransport == nil {
 		panic("baseTransport must not be nil")
 	}
@@ -58,7 +52,6 @@ func NewUpstream(baseTransport *http.Transport, reader client.Reader, tracingCfg
 		reader:                 reader,
 		responseHeaderTimeout:  responseHeaderTimeout,
 		tracingCfg:             tracingCfg,
-		draining:               draining,
 	}
 }
 
@@ -138,12 +131,9 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			code := http.StatusBadGateway
 			var netErr net.Error
 			switch {
-			case errors.Is(err, context.Canceled) && (uh.draining == nil || !uh.draining.Load()):
+			case errors.Is(err, context.Canceled):
 				// The client disconnected before the response was ready; this
-				// isn't a backend failure, so don't count it as one. While the
-				// server itself is draining, request contexts are also cancelled
-				// by the shutdown, so don't blame the client for that case here
-				// and keep the default 502 instead.
+				// isn't a backend failure, so don't count it as one.
 				code = kedahttp.StatusClientClosedRequest
 			case errors.As(err, &netErr) && netErr.Timeout():
 				// Respond with 504 Gateway Timeout on timeouts to differentiate from general server errors

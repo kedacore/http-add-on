@@ -390,7 +390,6 @@ func runProxyServer(
 		OutboundTLS:  outboundTLS,
 		Tracing:      tracingConfig,
 		Instruments:  instruments,
-		Draining:     draining,
 	})
 
 	addr := fmt.Sprintf("0.0.0.0:%d", port)

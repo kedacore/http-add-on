@@ -20,8 +20,7 @@ func NewStatic(statusCode int, err error) http.Handler {
 
 		statusText := http.StatusText(statusCode)
 		if statusText == "" && statusCode == kedahttp.StatusClientClosedRequest {
-			// 499 isn't a registered IANA status code, so http.StatusText doesn't know it.
-			statusText = "Client Closed Request"
+			statusText = kedahttp.StatusTextClientClosedRequest
 		}
 		routingKey := routing.NewKeyFromRequest(r)
 		namespacedName := k8s.NamespacedNameFromObject(ir)
