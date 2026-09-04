@@ -66,6 +66,11 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	serviceKey := ir.Namespace + "/" + ir.Spec.Target.Service
 	isColdStart, podHost, err := er.readyCache.WaitForReady(waitCtx, serviceKey, util.UpstreamPortNameFromContext(ctx))
+	if info := routeInfoFromContext(ctx); info != nil {
+		// An error means the request waited for readiness but the backend did
+		// not become ready before the wait ended.
+		info.IsColdStart = isColdStart || err != nil
+	}
 	if err != nil {
 		// No fallback, return an error
 		if !hasFallback {

@@ -12,6 +12,9 @@ const routeInfoKey contextKeyType = iota
 type routeInfo struct {
 	Name      string
 	Namespace string
+	// IsColdStart is true when the request waited for backend readiness,
+	// including waits that ended before the backend became ready.
+	IsColdStart bool
 }
 
 func contextWithRouteInfo(ctx context.Context, info *routeInfo) context.Context {

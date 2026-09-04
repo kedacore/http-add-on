@@ -455,6 +455,8 @@ func TestEndpointResolver_RouteSpecReadinessOverride(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	req := newRequest(t, ir)
+	info := &routeInfo{}
+	req = req.WithContext(contextWithRouteInfo(req.Context(), info))
 	mw.ServeHTTP(rec, req)
 
 	if nextCalled {
@@ -462,6 +464,9 @@ func TestEndpointResolver_RouteSpecReadinessOverride(t *testing.T) {
 	}
 	if got, want := rec.Code, http.StatusGatewayTimeout; got != want {
 		t.Fatalf("status code = %d, want %d", got, want)
+	}
+	if !info.IsColdStart {
+		t.Fatal("expected timed-out readiness wait to be marked as cold start")
 	}
 }
 
