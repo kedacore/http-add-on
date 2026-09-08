@@ -130,10 +130,15 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			code := http.StatusBadGateway
 			var netErr net.Error
-			if errors.As(err, &netErr) && netErr.Timeout() {
+			switch {
+			case errors.Is(err, context.Canceled):
+				// The client disconnected before the response was ready; this
+				// isn't a backend failure, so don't count it as one.
+				code = kedahttp.StatusClientClosedRequest
+			case errors.As(err, &netErr) && netErr.Timeout():
 				// Respond with 504 Gateway Timeout on timeouts to differentiate from general server errors
 				code = http.StatusGatewayTimeout
-			} else if errors.Is(err, context.DeadlineExceeded) {
+			case errors.Is(err, context.DeadlineExceeded):
 				code = http.StatusGatewayTimeout
 			}
 			sh := NewStatic(code, err)

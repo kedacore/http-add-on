@@ -50,6 +50,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Accept `TLS12`/`TLS13` TLS version format in addition to `1.2`/`1.3` for compatibility with KEDA and the operator ([#1718](https://github.com/kedacore/http-add-on/issues/1718))
+- **Interceptor**: Report `499` instead of `502` when the client cancels the request before the backend responds, so cancelled requests are no longer counted as backend failures ([#1779](https://github.com/kedacore/http-add-on/issues/1779))
 - **Scaler**: Bound each queue counts request to an interceptor pod by `KEDA_HTTP_QUEUE_TICK_DURATION` (minimum `250ms`), so one unresponsive interceptor can no longer stall metric collection ([#1730](https://github.com/kedacore/http-add-on/issues/1730))
 - **Scaler**: Fix scale-from-zero failing with 504 after long idle when using `requestRate` with large `window/granularity` ratios (>2000) ([#1692](https://github.com/kedacore/http-add-on/issues/1692))
 
