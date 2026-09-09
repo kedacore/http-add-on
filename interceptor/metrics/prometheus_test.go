@@ -121,6 +121,42 @@ func TestPrometheus_DurationMetrics(t *testing.T) {
 	}
 }
 
+func TestPrometheus_ColdStartDurationMetrics(t *testing.T) {
+	registry, instruments := testRegistry(t)
+
+	instruments.RecordColdStartDuration("my-route", "my-ns", "ready", 12*time.Second)
+
+	expected := `
+		# HELP interceptor_cold_start_duration_seconds Time spent waiting for a cold-start backend to become ready
+		# TYPE interceptor_cold_start_duration_seconds histogram
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.005"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.01"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.025"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.05"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.075"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.1"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.25"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.5"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="0.75"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="1"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="2.5"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="5"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="7.5"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="10"} 0
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="15"} 1
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="30"} 1
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="60"} 1
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="120"} 1
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="300"} 1
+		interceptor_cold_start_duration_seconds_bucket{outcome="ready",route_name="my-route",route_namespace="my-ns",le="+Inf"} 1
+		interceptor_cold_start_duration_seconds_sum{outcome="ready",route_name="my-route",route_namespace="my-ns"} 12
+		interceptor_cold_start_duration_seconds_count{outcome="ready",route_name="my-route",route_namespace="my-ns"} 1
+	`
+	if err := testutil.CollectAndCompare(registry, strings.NewReader(expected), "interceptor_cold_start_duration_seconds"); err != nil {
+		t.Fatalf("unexpected metrics output:\n%v", err)
+	}
+}
+
 func TestPrometheus_ConcurrencyMetrics(t *testing.T) {
 	registry, instruments := testRegistry(t)
 
