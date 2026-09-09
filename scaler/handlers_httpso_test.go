@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
@@ -476,7 +475,7 @@ func TestGetMetricSpec_HTTPSO(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: validHTTPScaledObjectName},
 				Spec: httpv1alpha1.HTTPScaledObjectSpec{
 					ScaleTargetRef:        httpv1alpha1.ScaleTargetRef{Name: "testdepl", Service: "testsrv", Port: 8080},
-					TargetPendingRequests: ptr.To[int32](123),
+					TargetPendingRequests: new(int32(123)),
 				},
 			},
 			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {
@@ -504,7 +503,7 @@ func TestGetMetricSpec_HTTPSO(t *testing.T) {
 						Service: "testsrv",
 						Port:    8080,
 					},
-					TargetPendingRequests: ptr.To[int32](123),
+					TargetPendingRequests: new(int32(123)),
 				},
 			},
 			checker: func(t *testing.T, res *externalscaler.GetMetricSpecResponse, err error) {

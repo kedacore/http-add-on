@@ -5,8 +5,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"k8s.io/utils/ptr"
-
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
 
@@ -221,7 +219,7 @@ func TestMatchAnyPath(t *testing.T) {
 
 func TestMatchHeaders(t *testing.T) {
 	matchers := []httpv1beta1.HeaderMatch{
-		{Name: "Required-Header", Value: ptr.To("expected")},
+		{Name: "Required-Header", Value: new("expected")},
 		{Name: "Key-Only-Header"},
 	}
 
@@ -276,7 +274,7 @@ func TestMatchHeaders(t *testing.T) {
 	})
 
 	emptyHeaderValueMatchers := []httpv1beta1.HeaderMatch{
-		{Name: "Empty-Value-Header", Value: ptr.To("")},
+		{Name: "Empty-Value-Header", Value: new("")},
 	}
 
 	t.Run("matches empty string header value", func(t *testing.T) {

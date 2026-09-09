@@ -6,7 +6,6 @@ import (
 	"context"
 	"testing"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
@@ -29,7 +28,7 @@ func TestHeaderRouting(t *testing.T) {
 				h.IRWithRules(httpv1beta1.RoutingRule{
 					Headers: []httpv1beta1.HeaderMatch{{
 						Name:  "X-Route",
-						Value: ptr.To("foo"),
+						Value: new("foo"),
 					}},
 				}),
 			)
@@ -37,7 +36,7 @@ func TestHeaderRouting(t *testing.T) {
 				h.IRWithRules(httpv1beta1.RoutingRule{
 					Headers: []httpv1beta1.HeaderMatch{{
 						Name:  "X-Route",
-						Value: ptr.To("bar"),
+						Value: new("bar"),
 					}},
 				}),
 			)
@@ -84,7 +83,7 @@ func TestHeaderPresenceRouting(t *testing.T) {
 					Hosts: []string{f.Hostname()},
 					Headers: []httpv1beta1.HeaderMatch{{
 						Name:  "X-Debug",
-						Value: ptr.To("verbose"),
+						Value: new("verbose"),
 					}},
 				}),
 			)
