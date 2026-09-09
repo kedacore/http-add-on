@@ -196,7 +196,7 @@ func executeTestCases(ctx context.Context) []TestResult {
 		fmt.Println("##############################################")
 	}
 
-	operatorLogs, err := helper.FindPodLogs(kubeClient, helper.KEDANamespace, "app.kubernetes.io/instance=operator")
+	operatorLogs, err := helper.FindPodLogs(kubeClient, helper.KEDANamespace, "app.kubernetes.io/component=operator,app.kubernetes.io/name=http-add-on")
 	if err == nil {
 		fmt.Println(">>> HTTP Add-on Operator log <<<")
 		fmt.Println(operatorLogs)
@@ -204,7 +204,7 @@ func executeTestCases(ctx context.Context) []TestResult {
 		fmt.Println("##############################################")
 	}
 
-	interceptorLogs, err := helper.FindPodLogs(kubeClient, helper.KEDANamespace, "app.kubernetes.io/instance=interceptor")
+	interceptorLogs, err := helper.FindPodLogs(kubeClient, helper.KEDANamespace, "app.kubernetes.io/component=interceptor,app.kubernetes.io/name=http-add-on")
 	if err == nil {
 		fmt.Println(">>> HTTP Add-on Interceptor log <<<")
 		fmt.Println(interceptorLogs)
@@ -212,7 +212,7 @@ func executeTestCases(ctx context.Context) []TestResult {
 		fmt.Println("##############################################")
 	}
 
-	scalerLogs, err := helper.FindPodLogs(kubeClient, helper.KEDANamespace, "app.kubernetes.io/instance=external-scaler")
+	scalerLogs, err := helper.FindPodLogs(kubeClient, helper.KEDANamespace, "app.kubernetes.io/component=scaler,app.kubernetes.io/name=http-add-on")
 	if err == nil {
 		fmt.Println(">>> HTTP Add-on Scaler log <<<")
 		fmt.Println(scalerLogs)

@@ -3,13 +3,9 @@ kind: Service
 metadata:
   name: external-scaler
 spec:
-  # TODO: selector must match pod template labels, fix together with
-  # deployment selector.matchLabels when breaking change is acceptable.
   selector:
-    app.kubernetes.io/component: add-on
-    app.kubernetes.io/instance: external-scaler
-    app.kubernetes.io/name: http
-    app.kubernetes.io/part-of: keda
+    app.kubernetes.io/component: scaler
+    app.kubernetes.io/name: http-add-on
   ports:
     - name: grpc
       protocol: TCP

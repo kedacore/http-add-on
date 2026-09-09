@@ -4,13 +4,9 @@ metadata:
   name: operator-metrics
 spec:
   type: ClusterIP
-  # TODO: selector must match pod template labels, fix together with
-  # deployment selector.matchLabels when breaking change is acceptable.
   selector:
-    app.kubernetes.io/component: add-on
-    app.kubernetes.io/instance: operator
-    app.kubernetes.io/name: http
-    app.kubernetes.io/part-of: keda
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/name: http-add-on
   ports:
     - name: metrics-http
       protocol: TCP
