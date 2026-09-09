@@ -29,7 +29,7 @@ var (
 	SchemeGroupVersion = schema.GroupVersion{Group: "http.keda.sh", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion} //nolint:staticcheck // SA1019: replacing this changes the exported type of SchemeBuilder, which is a breaking change for importers
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme

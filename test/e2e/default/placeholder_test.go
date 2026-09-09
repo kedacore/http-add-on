@@ -9,7 +9,6 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -32,7 +31,7 @@ func TestColdStartPlaceholder(t *testing.T) {
 				h.IRWithRequestRate(1),
 				h.IRWithPlaceholderResponse(httpv1beta1.StaticResponse{
 					StatusCode: http.StatusServiceUnavailable,
-					Body:       ptr.To(`{"status":"loading"}`),
+					Body:       new(`{"status":"loading"}`),
 					Headers: map[string]string{
 						"Content-Type": "application/json",
 					},

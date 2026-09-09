@@ -142,8 +142,7 @@ func TestDialContextWithRetry_WrapsError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	// The underlying dial error should be unwrappable.
-	var opErr *net.OpError
-	if !errors.As(err, &opErr) {
+	if _, ok := errors.AsType[*net.OpError](err); !ok {
 		t.Errorf("expected wrapped *net.OpError, got %T: %v", err, err)
 	}
 	// The context error should be in the chain so callers can detect timeouts.

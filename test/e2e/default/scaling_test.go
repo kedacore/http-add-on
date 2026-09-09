@@ -10,7 +10,6 @@ import (
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	vegeta "github.com/tsenart/vegeta/v12/lib"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
@@ -33,7 +32,7 @@ func TestScaling(t *testing.T) {
 				h.IRWithRequestRate(5),
 			)
 			f.CreateScaledObject("scaling-so", app, ir, func(so *kedav1alpha1.ScaledObject) {
-				so.Spec.MaxReplicaCount = ptr.To(int32(10))
+				so.Spec.MaxReplicaCount = new(int32(10))
 			})
 
 			return ctx

@@ -10,7 +10,6 @@ import (
 	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/ptr"
 )
 
 // --- WaitForReady tests ---
@@ -118,11 +117,11 @@ func TestWaitForReady_ReturnsPodHost(t *testing.T) {
 	c.Update(key, []*discov1.EndpointSlice{
 		{
 			AddressType: discov1.AddressTypeIPv4,
-			Ports:       []discov1.EndpointPort{{Port: ptr.To(int32(8080))}},
+			Ports:       []discov1.EndpointPort{{Port: new(int32(8080))}},
 			Endpoints: []discov1.Endpoint{
 				{
 					Addresses:  []string{"1.2.3.4"},
-					Conditions: discov1.EndpointConditions{Ready: ptr.To(true)},
+					Conditions: discov1.EndpointConditions{Ready: new(true)},
 				},
 			},
 		},
@@ -144,21 +143,21 @@ func TestWaitForReady_NamedPortSelectsCorrectHost(t *testing.T) {
 	c.Update(key, []*discov1.EndpointSlice{
 		{
 			AddressType: discov1.AddressTypeIPv4,
-			Ports:       []discov1.EndpointPort{{Name: ptr.To("http"), Port: ptr.To(int32(8080))}},
+			Ports:       []discov1.EndpointPort{{Name: new("http"), Port: new(int32(8080))}},
 			Endpoints: []discov1.Endpoint{
 				{
 					Addresses:  []string{"1.2.3.4"},
-					Conditions: discov1.EndpointConditions{Ready: ptr.To(true)},
+					Conditions: discov1.EndpointConditions{Ready: new(true)},
 				},
 			},
 		},
 		{
 			AddressType: discov1.AddressTypeIPv4,
-			Ports:       []discov1.EndpointPort{{Name: ptr.To("grpc"), Port: ptr.To(int32(9090))}},
+			Ports:       []discov1.EndpointPort{{Name: new("grpc"), Port: new(int32(9090))}},
 			Endpoints: []discov1.Endpoint{
 				{
 					Addresses:  []string{"1.2.3.4"},
-					Conditions: discov1.EndpointConditions{Ready: ptr.To(true)},
+					Conditions: discov1.EndpointConditions{Ready: new(true)},
 				},
 			},
 		},
@@ -200,11 +199,11 @@ func TestWaitForReady_BlocksOnNonReadyUpdates(t *testing.T) {
 		c.Update(key, []*discov1.EndpointSlice{
 			{
 				AddressType: discov1.AddressTypeIPv4,
-				Ports:       []discov1.EndpointPort{{Port: ptr.To(int32(8080))}},
+				Ports:       []discov1.EndpointPort{{Port: new(int32(8080))}},
 				Endpoints: []discov1.Endpoint{
 					{
 						Addresses:  []string{"1.2.3.4"},
-						Conditions: discov1.EndpointConditions{Ready: ptr.To(false)},
+						Conditions: discov1.EndpointConditions{Ready: new(false)},
 					},
 				},
 			},
@@ -219,11 +218,11 @@ func TestWaitForReady_BlocksOnNonReadyUpdates(t *testing.T) {
 	c.Update(key, []*discov1.EndpointSlice{
 		{
 			AddressType: discov1.AddressTypeIPv4,
-			Ports:       []discov1.EndpointPort{{Port: ptr.To(int32(8080))}},
+			Ports:       []discov1.EndpointPort{{Port: new(int32(8080))}},
 			Endpoints: []discov1.Endpoint{
 				{
 					Addresses:  []string{"1.2.3.4"},
-					Conditions: discov1.EndpointConditions{Ready: ptr.To(true)},
+					Conditions: discov1.EndpointConditions{Ready: new(true)},
 				},
 			},
 		},
@@ -247,11 +246,11 @@ func TestWaitForReady_UnknownPortNameReturnsEmptyHost(t *testing.T) {
 	c.Update(key, []*discov1.EndpointSlice{
 		{
 			AddressType: discov1.AddressTypeIPv4,
-			Ports:       []discov1.EndpointPort{{Name: ptr.To("http"), Port: ptr.To(int32(8080))}},
+			Ports:       []discov1.EndpointPort{{Name: new("http"), Port: new(int32(8080))}},
 			Endpoints: []discov1.Endpoint{
 				{
 					Addresses:  []string{"1.2.3.4"},
-					Conditions: discov1.EndpointConditions{Ready: ptr.To(true)},
+					Conditions: discov1.EndpointConditions{Ready: new(true)},
 				},
 			},
 		},
@@ -321,7 +320,7 @@ func TestCollectServiceState_ExtractsPort(t *testing.T) {
 	slice := &discov1.EndpointSlice{
 		AddressType: discov1.AddressTypeIPv4,
 		Ports: []discov1.EndpointPort{
-			{Port: ptr.To(int32(8080))},
+			{Port: new(int32(8080))},
 		},
 		Endpoints: []discov1.Endpoint{
 			{Addresses: []string{"1.2.3.4"}},
@@ -410,12 +409,12 @@ func TestCollectServiceState_SkipsNilPort(t *testing.T) {
 		AddressType: discov1.AddressTypeIPv4,
 		Ports: []discov1.EndpointPort{
 			{Port: nil},
-			{Port: ptr.To(int32(8080))},
+			{Port: new(int32(8080))},
 		},
 		Endpoints: []discov1.Endpoint{
 			{
 				Addresses:  []string{"1.2.3.4"},
-				Conditions: discov1.EndpointConditions{Ready: ptr.To(true)},
+				Conditions: discov1.EndpointConditions{Ready: new(true)},
 			},
 		},
 	}
@@ -429,15 +428,15 @@ func TestCollectServiceState_SkipsEndpointWithNoAddresses(t *testing.T) {
 	r := require.New(t)
 	slice := &discov1.EndpointSlice{
 		AddressType: discov1.AddressTypeIPv4,
-		Ports:       []discov1.EndpointPort{{Port: ptr.To(int32(8080))}},
+		Ports:       []discov1.EndpointPort{{Port: new(int32(8080))}},
 		Endpoints: []discov1.Endpoint{
 			{
 				Addresses:  []string{},
-				Conditions: discov1.EndpointConditions{Ready: ptr.To(true)},
+				Conditions: discov1.EndpointConditions{Ready: new(true)},
 			},
 			{
 				Addresses:  []string{"1.2.3.4"},
-				Conditions: discov1.EndpointConditions{Ready: ptr.To(true)},
+				Conditions: discov1.EndpointConditions{Ready: new(true)},
 			},
 		},
 	}
