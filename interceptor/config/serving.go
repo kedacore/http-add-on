@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -64,10 +65,63 @@ type Serving struct {
 	// effective cluster-wide capacity is this value multiplied by the
 	// number of interceptor replicas.
 	ColdStartMaxPendingRequests int `env:"KEDA_HTTP_COLD_START_MAX_PENDING_REQUESTS" envDefault:"0"`
+
+	// RoutingTableRefreshInterval is how often the routing table rebuilds
+	// itself on top of the rebuilds triggered by InterceptorRoute and
+	// HTTPScaledObject events. The periodic rebuild is what lets readiness
+	// distinguish a stalled refresh loop from an interceptor that simply has
+	// no route changes to react to. 0 disables periodic rebuilds.
+	RoutingTableRefreshInterval time.Duration `env:"KEDA_HTTP_ROUTING_TABLE_REFRESH_INTERVAL" envDefault:"1m"`
+	// RoutingTableMaxStaleness is how long the routing table may go without a
+	// successful rebuild before /readyz starts failing, taking the pod out of
+	// the Service. It must be at least twice RoutingTableRefreshInterval so a
+	// single missed rebuild is tolerated. 0 disables the check, restoring the
+	// previous behavior where readiness only reflects the initial sync.
+	//
+	// Raising this trades slower detection for a smaller chance of pulling
+	// healthy pods out of rotation; the scaler polls only ready interceptors,
+	// so a false positive across every replica reports zero pending requests
+	// and scales the workloads down.
+	RoutingTableMaxStaleness time.Duration `env:"KEDA_HTTP_ROUTING_TABLE_MAX_STALENESS" envDefault:"5m"`
 }
 
 // MustParseServing parses standard configs and returns the
 // newly created config. It panics if parsing fails.
 func MustParseServing() Serving {
-	return env.Must(env.ParseAs[Serving]())
+	cfg := env.Must(env.ParseAs[Serving]())
+
+	if err := cfg.validate(); err != nil {
+		panic(fmt.Errorf("invalid serving config: %w", err))
+	}
+
+	return cfg
+}
+
+func (s Serving) validate() error {
+	if s.RoutingTableRefreshInterval < 0 {
+		return fmt.Errorf("KEDA_HTTP_ROUTING_TABLE_REFRESH_INTERVAL must not be negative, got %s", s.RoutingTableRefreshInterval)
+	}
+	if s.RoutingTableMaxStaleness < 0 {
+		return fmt.Errorf("KEDA_HTTP_ROUTING_TABLE_MAX_STALENESS must not be negative, got %s", s.RoutingTableMaxStaleness)
+	}
+
+	// Guard the two combinations that would fail readiness on a healthy pod:
+	// no periodic rebuild to advance the timestamp, and a deadline too tight
+	// to survive one missed rebuild.
+	if s.RoutingTableMaxStaleness > 0 {
+		if s.RoutingTableRefreshInterval == 0 {
+			return fmt.Errorf(
+				"KEDA_HTTP_ROUTING_TABLE_MAX_STALENESS (%s) needs KEDA_HTTP_ROUTING_TABLE_REFRESH_INTERVAL to be set, otherwise an interceptor with no route changes fails readiness",
+				s.RoutingTableMaxStaleness,
+			)
+		}
+		if s.RoutingTableMaxStaleness < 2*s.RoutingTableRefreshInterval {
+			return fmt.Errorf(
+				"KEDA_HTTP_ROUTING_TABLE_MAX_STALENESS (%s) must be at least twice KEDA_HTTP_ROUTING_TABLE_REFRESH_INTERVAL (%s), otherwise a single missed rebuild fails readiness",
+				s.RoutingTableMaxStaleness, s.RoutingTableRefreshInterval,
+			)
+		}
+	}
+
+	return nil
 }

@@ -10,6 +10,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/go-logr/logr/funcr"
+
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -72,14 +74,65 @@ func TestProbeHealthyToUnhealthyTransition(t *testing.T) {
 	assertProbe(t, ph, http.StatusServiceUnavailable)
 }
 
+// TestProbeFailureLogging pins down that a check which keeps failing does not
+// log on every cycle: check runs once a second and a stalled routing table
+// refresh keeps failing indefinitely.
+func TestProbeFailureLogging(t *testing.T) {
+	var lines int
+	logger := funcr.New(func(_, _ string) { lines++ }, funcr.Options{})
+	ctx := util.ContextWithLogger(t.Context(), logger)
+
+	var (
+		draining atomic.Bool
+		retErr   error
+	)
+	ph := NewProbe(&draining, util.HealthCheckerFunc(func(_ context.Context) error {
+		return retErr
+	}))
+
+	ph.check(ctx)
+	if lines != 0 {
+		t.Fatalf("a passing check logged %d lines, want 0", lines)
+	}
+
+	// Onset of the failure is logged, the repeats are not.
+	retErr = errUnhealthy
+	for range failureLogInterval - 1 {
+		ph.check(ctx)
+	}
+	if lines != 1 {
+		t.Errorf("%d consecutive failures logged %d lines, want 1", failureLogInterval-1, lines)
+	}
+
+	// It is logged again once the interval elapses, so a persistent failure
+	// stays visible in recent logs.
+	ph.check(ctx)
+	if lines != 2 {
+		t.Errorf("%d consecutive failures logged %d lines, want 2", failureLogInterval, lines)
+	}
+
+	// Recovery is logged once, and re-arms the onset log for the next failure.
+	retErr = nil
+	ph.check(ctx)
+	if lines != 3 {
+		t.Errorf("recovery logged %d lines in total, want 3", lines)
+	}
+
+	retErr = errUnhealthy
+	ph.check(ctx)
+	if lines != 4 {
+		t.Errorf("failure after recovery logged %d lines in total, want 4", lines)
+	}
+}
+
 func TestProbePeriodicCheck(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var (
 			draining atomic.Bool
-			count    int
+			count    atomic.Int64
 		)
 		ph := NewProbe(&draining, util.HealthCheckerFunc(func(_ context.Context) error {
-			count++
+			count.Add(1)
 			return nil
 		}))
 
@@ -89,15 +142,15 @@ func TestProbePeriodicCheck(t *testing.T) {
 
 		// Wait for Start to run the first check
 		synctest.Wait()
-		if count != 1 {
-			t.Fatalf("after 1st cycle: count=%d, want 1", count)
+		if got := count.Load(); got != 1 {
+			t.Fatalf("after 1st cycle: count=%d, want 1", got)
 		}
 
 		// Advance the fake clock past the tick and wait for the second check to complete
 		time.Sleep(time.Second)
 		synctest.Wait()
-		if count != 2 {
-			t.Fatalf("after 2nd cycle: count=%d, want 2", count)
+		if got := count.Load(); got != 2 {
+			t.Fatalf("after 2nd cycle: count=%d, want 2", got)
 		}
 	})
 }
