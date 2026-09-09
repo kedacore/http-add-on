@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -35,13 +34,13 @@ func TestGetEndpoints(t *testing.T) {
 				Addresses: []string{
 					"1.2.3.4",
 				},
-				Hostname: ptr.To("testhost1"),
+				Hostname: new("testhost1"),
 			},
 			{
 				Addresses: []string{
 					"1.2.3.5",
 				},
-				Hostname: ptr.To("testhost2"),
+				Hostname: new("testhost2"),
 			},
 		},
 	}
@@ -90,7 +89,7 @@ func TestEndpointsFuncForControllerClient(t *testing.T) {
 				},
 				Ports: []discov1.EndpointPort{
 					{
-						Port: ptr.To(int32(svcPort)),
+						Port: new(int32(svcPort)),
 					},
 				},
 				Endpoints: []discov1.Endpoint{
@@ -98,13 +97,13 @@ func TestEndpointsFuncForControllerClient(t *testing.T) {
 						Addresses: []string{
 							"1.2.3.4",
 						},
-						Hostname: ptr.To("testhost1"),
+						Hostname: new("testhost1"),
 					},
 					{
 						Addresses: []string{
 							"2.3.4.5",
 						},
-						Hostname: ptr.To("testhost2"),
+						Hostname: new("testhost2"),
 					},
 				},
 			},

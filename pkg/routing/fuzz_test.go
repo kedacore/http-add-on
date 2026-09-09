@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
@@ -44,7 +43,7 @@ func fuzzTableMemory() *TableMemory {
 			Spec: httpv1beta1.InterceptorRouteSpec{
 				Rules: []httpv1beta1.RoutingRule{{
 					Hosts:   []string{"headers.example.com"},
-					Headers: []httpv1beta1.HeaderMatch{{Name: "X-Route", Value: ptr.To("v1")}},
+					Headers: []httpv1beta1.HeaderMatch{{Name: "X-Route", Value: new("v1")}},
 				}},
 			},
 		},

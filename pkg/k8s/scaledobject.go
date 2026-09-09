@@ -3,7 +3,6 @@ package k8s
 import (
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 )
@@ -47,7 +46,7 @@ func NewScaledObject(
 				Kind:       workloadRef.Kind,
 				Name:       workloadRef.Name,
 			},
-			PollingInterval: ptr.To[int32](soPollingInterval),
+			PollingInterval: new(int32(soPollingInterval)),
 			CooldownPeriod:  cooldownPeriod,
 			MinReplicaCount: minReplicas,
 			MaxReplicaCount: maxReplicas,
