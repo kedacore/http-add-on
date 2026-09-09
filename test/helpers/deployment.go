@@ -120,7 +120,9 @@ func WithEnvVar(name, value string) PatchDeploymentOption {
 }
 
 // WithTLSCert creates a certificate for the given DNS names using cert-manager
-// and mounts the resulting secret into the deployment at /certs.
+// and mounts the resulting secret into the deployment at /test-certs.
+// KEDA OLM Operator mounts its OpenShift serving certificate at /certs,
+// so test certificates must use another path to avoid conflicts.
 func WithTLSCert(dnsNames []string) PatchDeploymentOption {
 	return func(ctx context.Context, client klient.Client, dep *appsv1.Deployment) error {
 		certName, err := createCertificate(ctx, client, dep.Namespace, caIssuerFromContext(ctx), dnsNames)
@@ -137,12 +139,18 @@ func WithTLSCert(dnsNames []string) PatchDeploymentOption {
 			},
 		)
 		for i := range dep.Spec.Template.Spec.Containers {
-			dep.Spec.Template.Spec.Containers[i].VolumeMounts = append(
-				dep.Spec.Template.Spec.Containers[i].VolumeMounts,
+			container := &dep.Spec.Template.Spec.Containers[i]
+			container.VolumeMounts = append(
+				container.VolumeMounts,
 				corev1.VolumeMount{
 					Name:      tlsCertsVolume,
-					MountPath: "/certs",
+					MountPath: "/test-certs",
+					ReadOnly:  true,
 				},
+			)
+			container.Env = append(container.Env,
+				corev1.EnvVar{Name: "KEDA_HTTP_PROXY_TLS_CERT_PATH", Value: "/test-certs/tls.crt"},
+				corev1.EnvVar{Name: "KEDA_HTTP_PROXY_TLS_KEY_PATH", Value: "/test-certs/tls.key"},
 			)
 		}
 		return nil
