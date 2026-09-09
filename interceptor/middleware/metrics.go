@@ -36,7 +36,7 @@ func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	defer func() {
-		m.instruments.RecordRequest(r.Method, rw.statusCode, info.Name, info.Namespace, time.Since(start))
+		m.instruments.RecordRequest(r.Method, rw.statusCode, info.Name, info.Namespace, info.IsColdStart, time.Since(start))
 	}()
 
 	m.next.ServeHTTP(rw, r)
