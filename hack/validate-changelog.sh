@@ -2,7 +2,30 @@
 set -euo pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-CHANGELOG="${1:-$SCRIPT_ROOT/CHANGELOG.md}"
+
+validate_all=false
+changelog_set=false
+CHANGELOG="$SCRIPT_ROOT/CHANGELOG.md"
+
+for arg in "$@"; do
+    case "$arg" in
+        --all)
+            validate_all=true
+            ;;
+        -*)
+            echo "Error: Unknown option: $arg" >&2
+            exit 1
+            ;;
+        *)
+            if [[ "$changelog_set" == true ]]; then
+                echo "Error: Expected at most one changelog path" >&2
+                exit 1
+            fi
+            CHANGELOG="$arg"
+            changelog_set=true
+            ;;
+    esac
+done
 
 if [[ ! -f "$CHANGELOG" ]]; then
     echo "Error: $CHANGELOG not found" >&2
@@ -54,12 +77,16 @@ sort_section() {
     true
 }
 
-# Get versions from History section
-versions=$(sed -n '/^## History/,/^## /p' "$CHANGELOG" | grep -o '\[[^]]*\]' | tr -d '[]' || true)
+if [[ "$validate_all" == true ]]; then
+    # Get versions from History section
+    versions=$(sed -n '/^## History/,/^## /p' "$CHANGELOG" | grep -o '\[[^]]*\]' | tr -d '[]' || true)
 
-if [[ -z "$versions" ]]; then
-    echo "Error: No versions found in ## History section" >&2
-    exit 1
+    if [[ -z "$versions" ]]; then
+        echo "Error: No versions found in ## History section" >&2
+        exit 1
+    fi
+else
+    versions=Unreleased
 fi
 
 for version in $versions; do
