@@ -77,9 +77,9 @@ func (e *scalerHandler) IsActive(ctx context.Context, sor *externalscaler.Scaled
 }
 
 func (e *scalerHandler) StreamIsActive(scaledObject *externalscaler.ScaledObjectRef, server externalscaler.ExternalScaler_StreamIsActiveServer) error {
-	// this function communicates with KEDA via the 'server' parameter.
-	// we call server.Send (below) every streamInterval, which tells it to immediately
-	// ping our IsActive RPC
+	// KEDA uses push events to activate targets, while standard metric polling
+	// handles inactivation and scale-down.
+	previousActive := false
 	ticker := time.NewTicker(e.streamInterval)
 	defer ticker.Stop()
 	for {
@@ -92,15 +92,28 @@ func (e *scalerHandler) StreamIsActive(scaledObject *externalscaler.ScaledObject
 				e.lggr.Error(err, "error getting active status in stream")
 				return err
 			}
-			err = server.Send(&externalscaler.IsActiveResponse{
-				Result: active.Result,
-			})
-			if err != nil {
+			var send bool
+			previousActive, send = shouldSendActive(previousActive, active.Result)
+			if !send {
+				continue
+			}
+			if err := server.Send(active); err != nil {
 				e.lggr.Error(err, "error sending the active result in stream")
 				return err
 			}
 		}
 	}
+}
+
+// shouldSendActive returns the next stream state and whether active is a new activation.
+func shouldSendActive(previousActive, active bool) (nextActive, send bool) {
+	if !active {
+		return false, false
+	}
+	if previousActive {
+		return true, false
+	}
+	return true, true
 }
 
 func (e *scalerHandler) GetMetricSpec(ctx context.Context, sor *externalscaler.ScaledObjectRef) (*externalscaler.GetMetricSpecResponse, error) {

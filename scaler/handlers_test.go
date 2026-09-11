@@ -9,7 +9,9 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -362,6 +364,35 @@ func TestIsActive(t *testing.T) {
 	})
 }
 
+func TestShouldSendActive(t *testing.T) {
+	tests := map[string]struct {
+		states []bool
+		want   []bool
+	}{
+		"initially inactive": {
+			states: []bool{false, false, true},
+			want:   []bool{false, false, true},
+		},
+		"active period": {
+			states: []bool{true, true, false, false, true},
+			want:   []bool{true, false, false, false, true},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var previousActive bool
+			for i, active := range tc.states {
+				nextActive, send := shouldSendActive(previousActive, active)
+				previousActive = nextActive
+				if got, want := send, tc.want[i]; got != want {
+					t.Errorf("state %d (%v): shouldSendActive() = %v, want %v", i, active, got, want)
+				}
+			}
+		})
+	}
+}
+
 func TestStreamIsActive(t *testing.T) {
 	tests := map[string]struct {
 		count      aggregatedCount
@@ -407,12 +438,20 @@ func TestStreamIsActive(t *testing.T) {
 
 			client := externalscaler.NewExternalScalerClient(conn)
 
-			stream, err := client.StreamIsActive(t.Context(), testScaledObjectRef)
+			streamCtx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+			defer cancel()
+			stream, err := client.StreamIsActive(streamCtx, testScaledObjectRef)
 			if err != nil {
 				t.Fatalf("StreamIsActive: %v", err)
 			}
 
 			resp, err := stream.Recv()
+			if !tc.wantActive {
+				if status.Code(err) != codes.DeadlineExceeded {
+					t.Fatalf("expected no inactive event before timeout, got error: %v", err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("stream.Recv: %v", err)
 			}

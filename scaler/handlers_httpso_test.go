@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -291,18 +293,28 @@ func TestStreamIsActive_HTTPSO(t *testing.T) {
 				ScalerMetadata: tc.scalerMetadata,
 			}
 
-			// First will see if we can establish the stream and handle this
-			// error.
-			streamClient, err := client.StreamIsActive(ctx, testRef)
+			streamCtx := ctx
+			if !tc.expected && !tc.expectedErr {
+				var cancel context.CancelFunc
+				streamCtx, cancel = context.WithTimeout(ctx, 500*time.Millisecond)
+				defer cancel()
+			}
+			streamClient, err := client.StreamIsActive(streamCtx, testRef)
 			if err != nil {
 				t.Fatalf("StreamIsActive failed: %v", err)
 			}
 
-			// Next, as in TestIsActive, we check for any error, expected
-			// or unexpected, for each table test.
 			res, err := streamClient.Recv()
-
-			if tc.expectedErr && err != nil {
+			if tc.expectedErr {
+				if err == nil {
+					t.Fatalf("expected stream error, got response: %v", res)
+				}
+				return
+			}
+			if !tc.expected {
+				if status.Code(err) != codes.DeadlineExceeded {
+					t.Fatalf("expected no inactive event before timeout, got error: %v", err)
+				}
 				return
 			}
 			if err != nil {
