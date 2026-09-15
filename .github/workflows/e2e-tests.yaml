@@ -139,7 +139,7 @@ jobs:
     name: "e2e Summary"
     if: always()
     needs: [e2e_tests, e2e_tests_legacy]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - if: |
           needs.e2e_tests.result == 'failure' ||
