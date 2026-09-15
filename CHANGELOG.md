@@ -10,6 +10,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ## History
 
 - [Unreleased](#unreleased)
+- [v0.16.0](#v0160)
 - [v0.15.0](#v0150)
 - [v0.14.0](#v0140)
 - [v0.13.0](#v0130)
@@ -33,6 +34,28 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### New
 
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Improvements
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Fixes
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Deprecations
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+### Other
+
+- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+
+## v0.16.0
+
+### New
+
 - **General**: Add SLSA Build Level 2 provenance attestations for release and canary container images via `actions/attest`. Attestations are pushed to GHCR alongside images and can be verified with `gh attestation verify oci://ghcr.io/kedacore/http-add-on-operator:<version> --owner kedacore` ([#1604](https://github.com/kedacore/http-add-on/issues/1604))
 - **General**: Add `staticRoutes` to InterceptorRoute for defining routes that should not trigger autoscaling, such as health checks, redirects, and maintenance pages. Supports `responseMode: WhenUnavailable` (forward to backend when ready, static response otherwise) and `responseMode: Always` (always serve static response) ([#1622](https://github.com/kedacore/http-add-on/issues/1622))
 - **Interceptor**: Add `KEDA_HTTP_DIRECT_POD_ROUTING` environment variable (`true` | `false`, default `true`). When enabled, the interceptor routes requests directly to a ready pod IP instead of through the Service ClusterIP, bypassing kube-proxy and other Service-layer features (Service-level NetworkPolicy, session affinity, topology-aware routing). ([#1473](https://github.com/kedacore/http-add-on/issues/1473))
@@ -50,7 +73,6 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Fixes
 
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Accept `TLS12`/`TLS13` TLS version format in addition to `1.2`/`1.3` for compatibility with KEDA and the operator ([#1718](https://github.com/kedacore/http-add-on/issues/1718))
 - **Interceptor**: Report `499` instead of `502` when the client cancels the request before the backend responds, so cancelled requests are no longer counted as backend failures ([#1779](https://github.com/kedacore/http-add-on/issues/1779))
 - **Scaler**: Bound each queue counts request to an interceptor pod by `KEDA_HTTP_QUEUE_TICK_DURATION` (minimum `250ms`), so one unresponsive interceptor can no longer stall metric collection ([#1730](https://github.com/kedacore/http-add-on/issues/1730))
@@ -59,10 +81,6 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Deprecations
 
 - **Interceptor**: TLS policy env vars renamed from `KEDA_HTTP_PROXY_TLS_*` to `KEDA_HTTP_TLS_*` (`MIN_VERSION`, `MAX_VERSION`, `CIPHER_SUITES`, `CURVE_PREFERENCES`, `SKIP_VERIFY`). Old names still work but log a deprecation warning. ([#1718](https://github.com/kedacore/http-add-on/issues/1718))
-
-### Other
-
-- **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ## v0.15.0
 
