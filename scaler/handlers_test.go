@@ -9,7 +9,9 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -363,63 +365,88 @@ func TestIsActive(t *testing.T) {
 }
 
 func TestStreamIsActive(t *testing.T) {
-	tests := map[string]struct {
-		count      aggregatedCount
-		wantActive bool
-	}{
-		"active": {
-			count:      aggregatedCount{Concurrency: 3},
-			wantActive: true,
-		},
-		"inactive": {
-			wantActive: false,
-		},
+	scalingMetric := httpv1beta1.ScalingMetricSpec{
+		Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 100},
+	}
+	ir := newTestInterceptorRoute(scalingMetric)
+	hdl := newTestScalerHandler(t, ir, aggregatedCount{Concurrency: 3})
+	hdl.streamInterval = 50 * time.Millisecond
+
+	const bufSize = 1024 * 1024
+	lis := bufconn.Listen(bufSize)
+
+	srv := grpc.NewServer()
+	externalscaler.RegisterExternalScalerServer(srv, hdl)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+
+	conn, err := grpc.NewClient(
+		"passthrough:///bufnet",
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return lis.DialContext(ctx)
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("dialing bufconn: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	client := externalscaler.NewExternalScalerClient(conn)
+	streamCtx, cancel := context.WithTimeout(t.Context(), 1500*time.Millisecond)
+	defer cancel()
+	stream, err := client.StreamIsActive(streamCtx, testScaledObjectRef)
+	if err != nil {
+		t.Fatalf("StreamIsActive: %v", err)
 	}
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			scalingMetric := httpv1beta1.ScalingMetricSpec{
-				Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 100},
-			}
-			ir := newTestInterceptorRoute(scalingMetric)
-			hdl := newTestScalerHandler(t, ir, tc.count)
-			hdl.streamInterval = 50 * time.Millisecond
+	resp, err := stream.Recv()
+	if err != nil {
+		t.Fatalf("receiving initial active event: %v", err)
+	}
+	if !resp.Result {
+		t.Fatal("initial active event reported inactive")
+	}
 
-			const bufSize = 1024 * 1024
-			lis := bufconn.Listen(bufSize)
+	key := k8s.ResourceKey(ir.Namespace, ir.Name)
+	setCount := func(count aggregatedCount) {
+		hdl.pinger.pingMut.Lock()
+		defer hdl.pinger.pingMut.Unlock()
+		hdl.pinger.allCounts[key] = count
+	}
 
-			srv := grpc.NewServer()
-			externalscaler.RegisterExternalScalerServer(srv, hdl)
-			go func() { _ = srv.Serve(lis) }()
-			t.Cleanup(srv.Stop)
+	setCount(aggregatedCount{})
+	type streamResult struct {
+		response *externalscaler.IsActiveResponse
+		err      error
+	}
+	resultCh := make(chan streamResult, 1)
+	go func() {
+		response, err := stream.Recv()
+		resultCh <- streamResult{response: response, err: err}
+	}()
 
-			conn, err := grpc.NewClient(
-				"passthrough:///bufnet",
-				grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-					return lis.DialContext(ctx)
-				}),
-				grpc.WithTransportCredentials(insecure.NewCredentials()),
-			)
-			if err != nil {
-				t.Fatalf("dialing bufconn: %v", err)
-			}
-			t.Cleanup(func() { _ = conn.Close() })
+	select {
+	case result := <-resultCh:
+		t.Fatalf("received active event while inactive: response=%v, error=%v", result.response, result.err)
+	case <-time.After(150 * time.Millisecond):
+	}
 
-			client := externalscaler.NewExternalScalerClient(conn)
+	setCount(aggregatedCount{Concurrency: 3})
+	select {
+	case result := <-resultCh:
+		if result.err != nil {
+			t.Fatalf("receiving reactivation event: %v", result.err)
+		}
+		if !result.response.Result {
+			t.Fatal("reactivation event reported inactive")
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for reactivation event")
+	}
 
-			stream, err := client.StreamIsActive(t.Context(), testScaledObjectRef)
-			if err != nil {
-				t.Fatalf("StreamIsActive: %v", err)
-			}
-
-			resp, err := stream.Recv()
-			if err != nil {
-				t.Fatalf("stream.Recv: %v", err)
-			}
-
-			if got, want := resp.Result, tc.wantActive; got != want {
-				t.Errorf("StreamIsActive result = %v, want %v", got, want)
-			}
-		})
+	_, err = stream.Recv()
+	if status.Code(err) != codes.DeadlineExceeded {
+		t.Fatalf("expected duplicate active event to be suppressed, got error: %v", err)
 	}
 }
