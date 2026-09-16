@@ -1,0 +1,52 @@
+# NetworkPolicy for the KEDA HTTP Add-on External Scaler.
+# Kubelet health probes originate from node IPs; add an ipBlock rule for your node CIDR if needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scaler
+  namespace: keda
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: scaler
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # gRPC from the KEDA operator (same namespace).
+    - from:
+        - podSelector:
+            matchLabels:
+              app: keda-operator
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    # Interceptor admin API (same namespace).
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: interceptor
+      ports:
+        - protocol: TCP
+          port: 9090
+    # Kubernetes API (ClusterIP / control-plane IPs, not a selectable pod).
+    # Restrict with ipBlock in production.
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    # DNS.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
