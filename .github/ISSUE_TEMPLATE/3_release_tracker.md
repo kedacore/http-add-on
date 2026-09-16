@@ -19,6 +19,7 @@ We aim to release this release in the week of <week range, example March 27-31>.
 
 ## Progress
 
+- [ ] Update dependencies via Renovate
 - [ ] Create the KEDA HTTP Add-on release
 - [ ] Prepare & ship the Helm chart
 - [ ] Create a new documentation version in [kedacore/keda-docs](https://github.com/kedacore/keda-docs) (see [RELEASE-PROCESS.md](https://github.com/kedacore/http-add-on/blob/main/RELEASE-PROCESS.md#4-create-a-new-documentation-version))
