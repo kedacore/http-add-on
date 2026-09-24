@@ -303,6 +303,13 @@ func TestColdStart_PendingLimit(t *testing.T) {
 			wantStatus:     http.StatusOK,
 			wantNextCalled: true,
 		},
+		"PerRouteUnlimitedOverridesGlobalLimit": {
+			globalLimit:    1,
+			coldStart:      &httpv1beta1.ColdStartSpec{MaxPendingRequests: ptr(0)},
+			prefill:        2,
+			wantStatus:     http.StatusOK,
+			wantNextCalled: true,
+		},
 		"PlaceholderOverflow": {
 			globalLimit: 1,
 			coldStart: &httpv1beta1.ColdStartSpec{

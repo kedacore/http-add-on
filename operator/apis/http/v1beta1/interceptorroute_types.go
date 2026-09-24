@@ -219,15 +219,15 @@ type ColdStartSpec struct {
 	// ready (e.g. during scale-from-zero). Requests arriving when the limit
 	// is reached are handled according to overflow. Unset: uses the
 	// interceptor's KEDA_HTTP_COLD_START_MAX_PENDING_REQUESTS (default:
-	// unlimited). When set together with a placeholder and
-	// overflow: Placeholder, requests are held up to this limit instead of
-	// receiving the placeholder immediately; only overflowing requests
-	// receive it.
+	// unlimited). 0 means unlimited for this route. When set together with a
+	// placeholder and overflow: Placeholder, requests are held up to this
+	// limit instead of receiving the placeholder immediately; only
+	// overflowing requests receive it.
 	// The limit applies per interceptor replica: the effective cluster-wide
 	// capacity is maxPendingRequests multiplied by the number of
 	// interceptor replicas.
 	// +optional
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	MaxPendingRequests *int32 `json:"maxPendingRequests,omitzero"`
 	// How to handle requests arriving when the pending request limit is
 	// reached. Reject: return HTTP 503. Placeholder: serve the configured
