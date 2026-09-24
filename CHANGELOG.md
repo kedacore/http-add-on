@@ -43,6 +43,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Allow `coldStart.maxPendingRequests: 0` to disable the pending-request limit for an individual route, overriding the global limit. ([#1801](https://github.com/kedacore/http-add-on/issues/1801))
 
 ### Deprecations
 
