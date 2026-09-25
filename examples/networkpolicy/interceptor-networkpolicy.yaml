@@ -1,0 +1,71 @@
+# NetworkPolicy for the KEDA HTTP Add-on Interceptor.
+# The ingress rule matches ingress-nginx. Other controllers need their own namespace and pod labels.
+# Requests from another application, through the interceptor, to a backend are not covered.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: interceptor
+  namespace: keda
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: http-add-on
+      app.kubernetes.io/component: interceptor
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Proxy traffic from ingress-nginx.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    # Admin API for the external scaler (same namespace).
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: http-add-on
+              app.kubernetes.io/component: scaler
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    # Proxy to the xkcd example in default.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: default
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: xkcd
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Kubernetes API (ClusterIP / control-plane IPs, not a selectable pod).
+    # Restrict with ipBlock in production.
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    # DNS.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
