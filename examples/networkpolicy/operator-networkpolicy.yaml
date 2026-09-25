@@ -1,5 +1,4 @@
 # NetworkPolicy for the KEDA HTTP Add-on Operator.
-# Kubelet health probes originate from node IPs; add an ipBlock rule for your node CIDR if needed.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -8,6 +7,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
+      app.kubernetes.io/name: http-add-on
       app.kubernetes.io/component: operator
   policyTypes:
     - Ingress

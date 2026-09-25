@@ -1,6 +1,5 @@
 # Example NetworkPolicy for an application scaled by the KEDA HTTP Add-on.
 # This example matches the labels used by examples/xkcd.
-# Kubelet health probes originate from node IPs; add an ipBlock rule for your node CIDR if needed.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -20,6 +19,7 @@ spec:
               kubernetes.io/metadata.name: keda
           podSelector:
             matchLabels:
+              app.kubernetes.io/name: http-add-on
               app.kubernetes.io/component: interceptor
       ports:
         - protocol: TCP

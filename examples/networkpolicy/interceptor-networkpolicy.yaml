@@ -1,5 +1,6 @@
 # NetworkPolicy for the KEDA HTTP Add-on Interceptor.
-# Customize the ingress controller selectors and backend egress scope for your cluster.
+# The ingress rule matches ingress-nginx. Other controllers need their own namespace and pod labels.
+# Requests from another application, through the interceptor, to a backend are not covered.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -8,12 +9,13 @@ metadata:
 spec:
   podSelector:
     matchLabels:
+      app.kubernetes.io/name: http-add-on
       app.kubernetes.io/component: interceptor
   policyTypes:
     - Ingress
     - Egress
   ingress:
-    # Proxy traffic from your ingress controller.
+    # Proxy traffic from ingress-nginx.
     - from:
         - namespaceSelector:
             matchLabels:
@@ -30,16 +32,20 @@ spec:
     - from:
         - podSelector:
             matchLabels:
+              app.kubernetes.io/name: http-add-on
               app.kubernetes.io/component: scaler
       ports:
         - protocol: TCP
           port: 9090
   egress:
-    # Proxy to backends. This example matches examples/xkcd in default.
+    # Proxy to the xkcd example in default.
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: default
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: xkcd
       ports:
         - protocol: TCP
           port: 8080
