@@ -352,7 +352,3 @@ type InterceptorRouteList struct {
 	metav1.ListMeta `json:"metadata,omitzero"`
 	Items           []InterceptorRoute `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&InterceptorRoute{}, &InterceptorRouteList{})
-}
