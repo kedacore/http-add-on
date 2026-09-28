@@ -234,7 +234,3 @@ type HTTPScaledObjectList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HTTPScaledObject `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&HTTPScaledObject{}, &HTTPScaledObjectList{})
-}
