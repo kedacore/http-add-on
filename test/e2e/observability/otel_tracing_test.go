@@ -5,7 +5,6 @@ package observability_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -18,31 +17,41 @@ import (
 )
 
 const (
-	jaegerNamespace = "jaeger"
-	jaegerService   = "jaeger"
-	jaegerQueryPort = "http-query"
+	jaegerNamespace      = "jaeger"
+	jaegerService        = "jaeger"
+	jaegerQueryPort      = "http-query"
+	jaegerClientSpanKind = 3
 )
 
 type jaegerResponse struct {
-	Data []jaegerTrace `json:"data"`
+	Result jaegerTraceData `json:"result"`
 }
 
-type jaegerTrace struct {
-	TraceID string       `json:"traceID"`
-	Spans   []jaegerSpan `json:"spans"`
+type jaegerTraceData struct {
+	ResourceSpans []jaegerResourceSpans `json:"resourceSpans"`
+}
+
+type jaegerResourceSpans struct {
+	ScopeSpans []jaegerScopeSpans `json:"scopeSpans"`
+}
+
+type jaegerScopeSpans struct {
+	Spans []jaegerSpan `json:"spans"`
 }
 
 type jaegerSpan struct {
-	TraceID       string      `json:"traceID"`
-	SpanID        string      `json:"spanID"`
-	OperationName string      `json:"operationName"`
-	Tags          []jaegerTag `json:"tags"`
+	Kind       any         `json:"kind"`
+	Attributes []jaegerTag `json:"attributes"`
 }
 
 type jaegerTag struct {
-	Key   string `json:"key"`
-	Type  string `json:"type"`
-	Value any    `json:"value"`
+	Key   string         `json:"key"`
+	Value jaegerTagValue `json:"value"`
+}
+
+type jaegerTagValue struct {
+	StringValue string `json:"stringValue"`
+	IntValue    string `json:"intValue"`
 }
 
 func TestOtelTracing(t *testing.T) {
@@ -70,14 +79,17 @@ func TestOtelTracing(t *testing.T) {
 			}
 
 			// Poll Jaeger for traces - they may take a moment to arrive.
+			queryTime := time.Now().UTC()
 			params := map[string]string{
-				"service": "keda-http-interceptor",
-				"limit":   "100",
+				"query.serviceName":  "keda-http-interceptor",
+				"query.searchDepth":  "100",
+				"query.startTimeMin": queryTime.Add(-time.Hour).Format(time.RFC3339Nano),
+				"query.startTimeMax": queryTime.Add(time.Hour).Format(time.RFC3339Nano),
 			}
 
-			var traces []jaegerTrace
+			var traces jaegerTraceData
 			err := wait.For(func(_ context.Context) (bool, error) {
-				body, err := f.ServiceProxyGet(jaegerNamespace, jaegerService, jaegerQueryPort, "/api/traces", params)
+				body, err := f.ServiceProxyGet(jaegerNamespace, jaegerService, jaegerQueryPort, "/api/v3/traces", params)
 				if err != nil {
 					return false, nil
 				}
@@ -85,8 +97,8 @@ func TestOtelTracing(t *testing.T) {
 				if err := json.Unmarshal(body, &jr); err != nil {
 					return false, nil
 				}
-				traces = jr.Data
-				return len(traces) > 0, nil
+				traces = jr.Result
+				return len(traces.ResourceSpans) > 0, nil
 			}, wait.WithTimeout(2*time.Minute), wait.WithInterval(5*time.Second))
 			if err != nil {
 				t.Fatal("no traces found in Jaeger")
@@ -104,12 +116,14 @@ func TestOtelTracing(t *testing.T) {
 	testenv.Test(t, feat)
 }
 
-func findSpanStatusCode(traces []jaegerTrace) string {
-	for _, trace := range traces {
-		for _, span := range trace.Spans {
-			if getTagValue(span.Tags, "span.kind") == "client" {
-				if status := getTagValue(span.Tags, "http.response.status_code"); status != "" {
-					return status
+func findSpanStatusCode(traces jaegerTraceData) string {
+	for _, resourceSpans := range traces.ResourceSpans {
+		for _, scopeSpans := range resourceSpans.ScopeSpans {
+			for _, span := range scopeSpans.Spans {
+				if isClientSpanKind(span.Kind) {
+					if status := getTagValue(span.Attributes, "http.response.status_code"); status != "" {
+						return status
+					}
 				}
 			}
 		}
@@ -117,10 +131,24 @@ func findSpanStatusCode(traces []jaegerTrace) string {
 	return ""
 }
 
+func isClientSpanKind(kind any) bool {
+	switch kind := kind.(type) {
+	case float64:
+		return kind == jaegerClientSpanKind
+	case string:
+		return kind == "SPAN_KIND_CLIENT"
+	default:
+		return false
+	}
+}
+
 func getTagValue(tags []jaegerTag, key string) string {
 	for _, tag := range tags {
 		if tag.Key == key {
-			return fmt.Sprintf("%v", tag.Value)
+			if tag.Value.StringValue != "" {
+				return tag.Value.StringValue
+			}
+			return tag.Value.IntValue
 		}
 	}
 	return ""
