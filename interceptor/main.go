@@ -124,7 +124,12 @@ func run() error {
 	}
 
 	queues := queue.NewMemory()
-	routingTable := routing.NewTable(ctrlCache, queues)
+	// Periodic self-rebuild lets readiness detect a stalled refresh loop.
+	routingTable := routing.NewTable(ctrlCache, queues, routing.HealthConfig{
+		RefreshInterval: servingCfg.RoutingTableRefreshInterval,
+		MaxStaleness:    servingCfg.RoutingTableMaxStaleness,
+		OnRebuild:       instruments.RecordRoutingTableRebuild,
+	})
 
 	// Setup informers to signal routing table on IR and HTTPSO changes
 	routeSources := []client.Object{&v1beta1.InterceptorRoute{}, &v1alpha1.HTTPScaledObject{}}

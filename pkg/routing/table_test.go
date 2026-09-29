@@ -25,6 +25,12 @@ func newTestClient(objs ...client.Object) client.Client {
 		Build()
 }
 
+// newTestTable builds a table with the health knobs off: no periodic rebuild
+// and no staleness deadline, which is what tests unrelated to health want.
+func newTestTable(cl client.Client, counter queue.Counter) Table {
+	return NewTable(cl, counter, HealthConfig{})
+}
+
 func startTableAndWaitForSync(t *testing.T, tbl Table) context.CancelFunc {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -48,7 +54,7 @@ func startTableAndWaitForSync(t *testing.T, tbl Table) context.CancelFunc {
 
 func TestTableRoute_NilRequest(t *testing.T) {
 	cl := newTestClient()
-	tbl := NewTable(cl, queue.NewMemory())
+	tbl := newTestTable(cl, queue.NewMemory())
 
 	cancel := startTableAndWaitForSync(t, tbl)
 	defer cancel()
@@ -86,7 +92,7 @@ func TestTableRoute(t *testing.T) {
 			}
 
 			cl := newTestClient(objs...)
-			tbl := NewTable(cl, queue.NewMemory())
+			tbl := newTestTable(cl, queue.NewMemory())
 
 			cancel := startTableAndWaitForSync(t, tbl)
 			defer cancel()
@@ -109,7 +115,7 @@ func TestTableRoute(t *testing.T) {
 
 func TestTableHasSynced(t *testing.T) {
 	cl := newTestClient()
-	tbl := NewTable(cl, queue.NewMemory())
+	tbl := newTestTable(cl, queue.NewMemory())
 
 	// Initially not synced
 	if tbl.HasSynced() {
@@ -127,7 +133,7 @@ func TestTableHasSynced(t *testing.T) {
 
 func TestTableHealthCheck(t *testing.T) {
 	cl := newTestClient()
-	tbl := NewTable(cl, queue.NewMemory())
+	tbl := newTestTable(cl, queue.NewMemory())
 
 	ctx := context.Background()
 
@@ -150,6 +156,121 @@ func TestTableHealthCheck(t *testing.T) {
 	}
 }
 
+func TestTableHealthCheckStaleness(t *testing.T) {
+	cl := newTestClient()
+	tbl := NewTable(cl, queue.NewMemory(), HealthConfig{MaxStaleness: 100 * time.Millisecond})
+
+	ctx := context.Background()
+
+	cancel := startTableAndWaitForSync(t, tbl)
+	defer cancel()
+
+	// Healthy right after the initial sync
+	if err := tbl.HealthCheck(ctx); err != nil {
+		t.Fatalf("expected no error right after sync, got: %v", err)
+	}
+
+	// With no rebuild happening, the table goes stale once the last rebuild
+	// is older than maxStaleness
+	time.Sleep(150 * time.Millisecond)
+
+	err := tbl.HealthCheck(ctx)
+	if err == nil {
+		t.Fatal("expected staleness error")
+	}
+	if !errors.Is(err, errStaleTable) {
+		t.Errorf("expected errStaleTable, got: %v", err)
+	}
+
+	// A successful rebuild makes the table healthy again
+	tbl.Signal()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if err := tbl.HealthCheck(ctx); err == nil {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	t.Fatal("expected table to become healthy again after Signal")
+}
+
+func TestTableHealthCheckStalenessDisabledByDefault(t *testing.T) {
+	cl := newTestClient()
+	tbl := newTestTable(cl, queue.NewMemory())
+
+	cancel := startTableAndWaitForSync(t, tbl)
+	defer cancel()
+
+	// Without MaxStaleness, age alone never fails the health check
+	time.Sleep(100 * time.Millisecond)
+
+	if err := tbl.HealthCheck(context.Background()); err != nil {
+		t.Errorf("expected no error without staleness configured, got: %v", err)
+	}
+}
+
+func TestTablePeriodicRefresh(t *testing.T) {
+	cl := newTestClient()
+
+	// OnRebuild runs on the refresh loop, so the send must never block.
+	rebuilds := make(chan time.Time, 8)
+	tbl := NewTable(cl, queue.NewMemory(), HealthConfig{
+		RefreshInterval: 50 * time.Millisecond,
+		OnRebuild: func(at time.Time) {
+			select {
+			case rebuilds <- at:
+			default:
+			}
+		},
+	})
+
+	cancel := startTableAndWaitForSync(t, tbl)
+	defer cancel()
+
+	// No informer events and no explicit Signal: the periodic rebuild must
+	// advance the rebuild time on its own
+	first := recvRebuild(t, rebuilds)
+	second := recvRebuild(t, rebuilds)
+
+	if !second.After(first) {
+		t.Errorf("expected the periodic rebuild to advance the rebuild time, got %s then %s", first, second)
+	}
+}
+
+func recvRebuild(t *testing.T, rebuilds <-chan time.Time) time.Time {
+	t.Helper()
+
+	select {
+	case at := <-rebuilds:
+		return at
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for a rebuild")
+		return time.Time{}
+	}
+}
+
+// TestTableHealthCheckStaysHealthyWithPeriodicRefresh exercises the
+// configuration wired up in main: with both knobs set, the periodic rebuild
+// must keep the table healthy past MaxStaleness without any Signal.
+func TestTableHealthCheckStaysHealthyWithPeriodicRefresh(t *testing.T) {
+	cl := newTestClient()
+	tbl := NewTable(cl, queue.NewMemory(), HealthConfig{
+		RefreshInterval: 50 * time.Millisecond,
+		MaxStaleness:    150 * time.Millisecond,
+	})
+
+	cancel := startTableAndWaitForSync(t, tbl)
+	defer cancel()
+
+	time.Sleep(400 * time.Millisecond)
+
+	if err := tbl.HealthCheck(context.Background()); err != nil {
+		t.Errorf("expected periodic refresh to keep the table healthy, got: %v", err)
+	}
+}
+
 func TestTableSignal_TriggersRefresh(t *testing.T) {
 	ir := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "initial", Namespace: "default"},
@@ -159,7 +280,7 @@ func TestTableSignal_TriggersRefresh(t *testing.T) {
 	}
 
 	cl := newTestClient(ir)
-	tbl := NewTable(cl, queue.NewMemory())
+	tbl := newTestTable(cl, queue.NewMemory())
 
 	cancel := startTableAndWaitForSync(t, tbl)
 	defer cancel()
@@ -207,7 +328,7 @@ func TestTableSignal_TriggersRefresh(t *testing.T) {
 
 func TestTableRefreshMemory_CancelsOnContextDone(t *testing.T) {
 	cl := newTestClient()
-	tbl := NewTable(cl, queue.NewMemory())
+	tbl := newTestTable(cl, queue.NewMemory())
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -254,7 +375,7 @@ func TestTableQueueCounterIntegration(t *testing.T) {
 
 	cl := newTestClient(ir)
 	counter := queue.NewMemory()
-	tbl := NewTable(cl, counter)
+	tbl := newTestTable(cl, counter)
 
 	cancel := startTableAndWaitForSync(t, tbl)
 	defer cancel()
@@ -279,7 +400,7 @@ func TestTableSignal_DeletedObjectBecomesUnroutable(t *testing.T) {
 
 	cl := newTestClient(ir)
 	counter := queue.NewMemory()
-	tbl := NewTable(cl, counter)
+	tbl := newTestTable(cl, counter)
 
 	cancel := startTableAndWaitForSync(t, tbl)
 	defer cancel()
@@ -356,7 +477,7 @@ func TestTableRouteHTTPSO(t *testing.T) {
 			}
 
 			cl := newTestClient(objs...)
-			tbl := NewTable(cl, queue.NewMemory())
+			tbl := newTestTable(cl, queue.NewMemory())
 
 			cancel := startTableAndWaitForSync(t, tbl)
 			defer cancel()
@@ -389,7 +510,7 @@ func TestTableSignalHTTPSO_TriggersRefresh(t *testing.T) {
 	}
 
 	cl := newTestClient(httpso)
-	tbl := NewTable(cl, queue.NewMemory())
+	tbl := newTestTable(cl, queue.NewMemory())
 
 	cancel := startTableAndWaitForSync(t, tbl)
 	defer cancel()
@@ -492,7 +613,7 @@ func TestTableHTTPSOTimeoutConversion(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			cl := newTestClient(tc.httpso)
-			tbl := NewTable(cl, queue.NewMemory())
+			tbl := newTestTable(cl, queue.NewMemory())
 
 			cancel := startTableAndWaitForSync(t, tbl)
 			defer cancel()
@@ -533,7 +654,7 @@ func TestTableQueueCounterIntegrationHTTPSO(t *testing.T) {
 
 	cl := newTestClient(httpso)
 	counter := queue.NewMemory()
-	tbl := NewTable(cl, counter)
+	tbl := newTestTable(cl, counter)
 
 	cancel := startTableAndWaitForSync(t, tbl)
 	defer cancel()
@@ -562,7 +683,7 @@ func TestTableSignalHTTPSO_DeletedObjectBecomesUnroutable(t *testing.T) {
 
 	cl := newTestClient(httpso)
 	counter := queue.NewMemory()
-	tbl := NewTable(cl, counter)
+	tbl := newTestTable(cl, counter)
 
 	cancel := startTableAndWaitForSync(t, tbl)
 	defer cancel()
