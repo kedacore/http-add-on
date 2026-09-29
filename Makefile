@@ -112,8 +112,7 @@ FUZZ_TARGETS = \
 	FuzzParseTLSVersion:./pkg/tls/ \
 	FuzzParseCipherSuites:./pkg/tls/ \
 	FuzzParseCurvePreferences:./pkg/tls/ \
-	FuzzProxyHandler:./interceptor/ \
-	FuzzEscapeString:./scaler/
+	FuzzProxyHandler:./interceptor/
 
 .PHONY: fuzz
 fuzz: ## Run all fuzz tests (FUZZ_TIME=30s by default)
@@ -122,15 +121,6 @@ fuzz: ## Run all fuzz tests (FUZZ_TIME=30s by default)
 		echo "=== Fuzzing $$func in $$pkg ==="; \
 		go test $$pkg -run='^$$' -fuzz=$$func -fuzztime=$(FUZZ_TIME) || exit 1; \
 	done
-
-e2e-test-legacy:
-	go run -tags e2e ./tests/run-all.go
-
-e2e-test-legacy-setup:
-	ONLY_SETUP=true go run -tags e2e ./tests/run-all.go
-
-e2e-test-legacy-local:
-	SKIP_SETUP=true go run -tags e2e ./tests/run-all.go
 
 E2E_PACKAGE = $(if $(PROFILE),./test/e2e/$(PROFILE)/...,./test/e2e/...)
 e2e-test: ## Run e2e tests (PROFILE=tls, RUN=TestColdStart, E2E_ARGS="--labels=area=scaling --dry-run")
