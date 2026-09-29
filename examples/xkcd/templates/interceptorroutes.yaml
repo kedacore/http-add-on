@@ -1,0 +1,22 @@
+apiVersion: http.keda.sh/v1beta1
+kind: InterceptorRoute
+metadata:
+  name: {{ include "xkcd.fullname" . }}
+spec:
+  target:
+    service: {{ include "xkcd.fullname" . }}
+    port: {{ .Values.service.port }}
+  rules:
+    -{{- with .Values.hosts }}
+      hosts:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.pathPrefixes }}
+      paths:
+        {{- range . }}
+        - value: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+  scalingMetric:
+    concurrency:
+      targetValue: {{ .Values.targetPendingRequests }}

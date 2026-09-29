@@ -1,0 +1,17 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "xkcd.fullname" . }}
+spec:
+  pollingInterval: 15
+  minReplicaCount: {{ .Values.autoscaling.http.minReplicas }}
+  maxReplicaCount: {{ .Values.autoscaling.http.maxReplicas }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "xkcd.fullname" . }}
+  triggers:
+    - type: external-push
+      metadata:
+        scalerAddress: keda-add-ons-http-external-scaler.keda:9090
+        interceptorRoute: {{ include "xkcd.fullname" . }}
