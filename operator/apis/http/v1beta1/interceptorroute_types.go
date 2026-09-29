@@ -181,12 +181,14 @@ type ConfigMapKeyRef struct {
 // ColdStartFallback configures the fallback target for cold-start scenarios.
 type ColdStartFallback struct {
 	// Kubernetes Service to use as the fallback target.
+	// +required
 	Service *ServiceRef `json:"service,omitzero"`
 }
 
 // ColdStartPlaceholder configures the placeholder behavior during cold start.
 type ColdStartPlaceholder struct {
 	// Static response to return immediately when the backend has no ready endpoints.
+	// +required
 	Response *StaticResponse `json:"response,omitzero"`
 }
 
@@ -339,6 +341,7 @@ type InterceptorRoute struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitzero"`
 
+	// +required
 	Spec InterceptorRouteSpec `json:"spec,omitzero"`
 	// +optional
 	Status InterceptorRouteStatus `json:"status,omitzero"`
