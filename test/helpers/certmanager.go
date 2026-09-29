@@ -58,7 +58,7 @@ func SetupCAHierarchy(testenv env.Environment) {
 				CommonName: caCertName,
 				IsCA:       true,
 				SecretName: caCertName,
-				IssuerRef: cmmeta.ObjectReference{
+				IssuerRef: cmmeta.IssuerReference{
 					Name:  bootstrapIssuer.Name,
 					Kind:  cmv1.ClusterIssuerKind,
 					Group: cmv1.SchemeGroupVersion.Group,
@@ -133,7 +133,7 @@ func createCertificate(ctx context.Context, client klient.Client, namespace, caI
 		Spec: cmv1.CertificateSpec{
 			SecretName: certName,
 			DNSNames:   dnsNames,
-			IssuerRef: cmmeta.ObjectReference{
+			IssuerRef: cmmeta.IssuerReference{
 				Name:  caIssuer,
 				Kind:  cmv1.ClusterIssuerKind,
 				Group: cmv1.SchemeGroupVersion.Group,
