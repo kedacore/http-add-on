@@ -21,7 +21,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
-	httpv1alpha1 "github.com/kedacore/http-add-on/operator/apis/http/v1alpha1"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 )
 
@@ -29,7 +28,6 @@ import (
 func NewScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
-	utilruntime.Must(httpv1alpha1.AddToScheme(s))
 	utilruntime.Must(httpv1beta1.AddToScheme(s))
 	return s
 }

@@ -30,6 +30,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 ### Breaking Changes
 
+- **General**: Remove the deprecated HTTPScaledObject (v1alpha1) API; use InterceptorRoute instead. ([#1596](https://github.com/kedacore/http-add-on/issues/1596))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 
 ### New
