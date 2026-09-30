@@ -4,6 +4,8 @@ package observability_test
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -17,9 +19,10 @@ import (
 )
 
 const (
-	jaegerNamespace      = "jaeger"
-	jaegerService        = "jaeger"
-	jaegerQueryPort      = "http-query"
+	jaegerNamespace = "jaeger"
+	jaegerService   = "jaeger"
+	jaegerQueryPort = "http-query"
+	// OTLP SpanKind.CLIENT enum value.
 	jaegerClientSpanKind = 3
 )
 
@@ -32,7 +35,12 @@ type jaegerTraceData struct {
 }
 
 type jaegerResourceSpans struct {
+	Resource   jaegerResource     `json:"resource"`
 	ScopeSpans []jaegerScopeSpans `json:"scopeSpans"`
+}
+
+type jaegerResource struct {
+	Attributes []jaegerTag `json:"attributes"`
 }
 
 type jaegerScopeSpans struct {
@@ -73,23 +81,20 @@ func TestOtelTracing(t *testing.T) {
 		Assess("jaeger receives traces from interceptor", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			f := h.NewFramework(ctx, t)
 
-			resp := f.ProxyRequest(h.Request{Host: f.Hostname()})
+			traceID, traceParent := newTraceparent(t)
+			resp := f.ProxyRequest(h.Request{
+				Host:    f.Hostname(),
+				Headers: map[string]string{"traceparent": traceParent},
+			})
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("expected status 200, got %d", resp.StatusCode)
 			}
 
-			// Poll Jaeger for traces - they may take a moment to arrive.
-			queryTime := time.Now().UTC()
-			params := map[string]string{
-				"query.serviceName":  "keda-http-interceptor",
-				"query.searchDepth":  "100",
-				"query.startTimeMin": queryTime.Add(-time.Hour).Format(time.RFC3339Nano),
-				"query.startTimeMax": queryTime.Add(time.Hour).Format(time.RFC3339Nano),
-			}
-
-			var traces jaegerTraceData
+			// Poll Jaeger for this request's trace - it may take a moment to arrive.
+			var clientSpanStatusCode string
 			err := wait.For(func(_ context.Context) (bool, error) {
-				body, err := f.ServiceProxyGet(jaegerNamespace, jaegerService, jaegerQueryPort, "/api/v3/traces", params)
+				path := "/api/v3/traces/" + traceID
+				body, err := f.ServiceProxyGet(jaegerNamespace, jaegerService, jaegerQueryPort, path, nil)
 				if err != nil {
 					return false, nil
 				}
@@ -97,16 +102,16 @@ func TestOtelTracing(t *testing.T) {
 				if err := json.Unmarshal(body, &jr); err != nil {
 					return false, nil
 				}
-				traces = jr.Result
-				return len(traces.ResourceSpans) > 0, nil
+				var found bool
+				clientSpanStatusCode, found = findInterceptorClientSpanStatusCode(jr.Result)
+				return found, nil
 			}, wait.WithTimeout(2*time.Minute), wait.WithInterval(5*time.Second))
 			if err != nil {
-				t.Fatal("no traces found in Jaeger")
+				t.Fatal("no interceptor client span found in Jaeger")
 			}
 
-			status := findSpanStatusCode(traces)
-			if status != "200" {
-				t.Errorf("expected span status code 200, got %q", status)
+			if clientSpanStatusCode != "200" {
+				t.Errorf("expected span status code 200, got %q", clientSpanStatusCode)
 			}
 
 			return ctx
@@ -116,19 +121,33 @@ func TestOtelTracing(t *testing.T) {
 	testenv.Test(t, feat)
 }
 
-func findSpanStatusCode(traces jaegerTraceData) string {
+func newTraceparent(t *testing.T) (string, string) {
+	t.Helper()
+
+	var ids [24]byte
+	if _, err := rand.Read(ids[:]); err != nil {
+		t.Fatalf("generate trace context: %v", err)
+	}
+
+	traceID := hex.EncodeToString(ids[:16])
+	parentSpanID := hex.EncodeToString(ids[16:])
+	return traceID, "00-" + traceID + "-" + parentSpanID + "-01"
+}
+
+func findInterceptorClientSpanStatusCode(traces jaegerTraceData) (string, bool) {
 	for _, resourceSpans := range traces.ResourceSpans {
+		if getTagValue(resourceSpans.Resource.Attributes, "service.name") != "keda-http-interceptor" {
+			continue
+		}
 		for _, scopeSpans := range resourceSpans.ScopeSpans {
 			for _, span := range scopeSpans.Spans {
 				if isClientSpanKind(span.Kind) {
-					if status := getTagValue(span.Attributes, "http.response.status_code"); status != "" {
-						return status
-					}
+					return getTagValue(span.Attributes, "http.response.status_code"), true
 				}
 			}
 		}
 	}
-	return ""
+	return "", false
 }
 
 func isClientSpanKind(kind any) bool {
