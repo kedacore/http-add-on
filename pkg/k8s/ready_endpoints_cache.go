@@ -15,6 +15,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// Endpoint is a ready pod selected to serve a request.
+type Endpoint struct {
+	// Host is the pod's "ip:port".
+	Host string
+}
+
 // endpoint is one ready pod: its address paired with the container port from
 // the same EndpointSlice.
 type endpoint struct {
@@ -69,17 +75,12 @@ func (c *ReadyEndpointsCache) HasReadyEndpoints(serviceKey string) bool {
 // the context is cancelled/timed out.
 //
 // Returns:
-//   - (false, podHost, nil)  — warm backend, already ready (fast path)
-//   - (true, podHost, nil)   — cold start, backend became ready
-//   - (false, "", error)     — context cancelled or timed out
-//
-// podHost is "ip:port" for portName, or "" when portName has no candidates
-// (signals direct-pod routing isn't possible).
-func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, portName string) (isColdStart bool, podHost string, err error) {
-	if v, ok := c.states.Load(serviceKey); ok {
-		if state := v.(*serviceState); state.hasReady() {
-			return false, pickHost(state, portName), nil
-		}
+//   - (false, nil)   — warm backend, already ready (fast path)
+//   - (true, nil)    — cold start, backend became ready
+//   - (false, error) — context cancelled or timed out
+func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey string) (isColdStart bool, err error) {
+	if c.HasReadyEndpoints(serviceKey) {
+		return false, nil
 	}
 
 	// Get the current notification channel before re-checking
@@ -90,10 +91,8 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, port
 	// Re-check after getting the channel (close the race window).
 	// Return isColdStart=false: we never actually blocked, so this
 	// is still the warm/fast path.
-	if v, ok := c.states.Load(serviceKey); ok {
-		if state := v.(*serviceState); state.hasReady() {
-			return false, pickHost(state, portName), nil
-		}
+	if c.HasReadyEndpoints(serviceKey) {
+		return false, nil
 	}
 
 	c.lggr.V(1).Info("cold-start: waiting for ready endpoints", "key", serviceKey)
@@ -101,17 +100,15 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, port
 	for {
 		select {
 		case <-ctx.Done():
-			return false, "", fmt.Errorf(
+			return false, fmt.Errorf(
 				"context done while waiting for ready endpoints for %s: %w",
 				serviceKey, ctx.Err(),
 			)
 
 		case <-ch:
-			if v, ok := c.states.Load(serviceKey); ok {
-				if state := v.(*serviceState); state.hasReady() {
-					c.lggr.Info("cold-start: endpoints became ready", "key", serviceKey)
-					return true, pickHost(state, portName), nil
-				}
+			if c.HasReadyEndpoints(serviceKey) {
+				c.lggr.Info("cold-start: endpoints became ready", "key", serviceKey)
+				return true, nil
 			}
 			// Not our service — get the new channel and re-check
 			// before waiting again to avoid missing a broadcast
@@ -119,25 +116,28 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, port
 			c.mu.Lock()
 			ch = c.notifyCh
 			c.mu.Unlock()
-			if v, ok := c.states.Load(serviceKey); ok {
-				if state := v.(*serviceState); state.hasReady() {
-					c.lggr.Info("cold-start: endpoints became ready", "key", serviceKey)
-					return true, pickHost(state, portName), nil
-				}
+			if c.HasReadyEndpoints(serviceKey) {
+				c.lggr.Info("cold-start: endpoints became ready", "key", serviceKey)
+				return true, nil
 			}
 		}
 	}
 }
 
-// pickHost selects a random ready pod for portName from state and returns its
-// "ip:port" host string. Returns "" if portName has no candidates.
-func pickHost(state *serviceState, portName string) string {
-	eps := state.candidates[portName]
+// PickEndpoint selects a random ready pod of the service for portName.
+// Returns false when the service has no ready candidates for portName
+// (signals direct-pod routing isn't possible).
+func (c *ReadyEndpointsCache) PickEndpoint(serviceKey, portName string) (Endpoint, bool) {
+	v, ok := c.states.Load(serviceKey)
+	if !ok {
+		return Endpoint{}, false
+	}
+	eps := v.(*serviceState).candidates[portName]
 	if len(eps) == 0 {
-		return ""
+		return Endpoint{}, false
 	}
 	ep := eps[rand.IntN(len(eps))] //nolint:gosec // G404: math/rand is sufficient for load-balancing endpoint selection
-	return net.JoinHostPort(ep.ip, strconv.Itoa(int(ep.port)))
+	return Endpoint{Host: net.JoinHostPort(ep.ip, strconv.Itoa(int(ep.port)))}, true
 }
 
 // Update checks the given EndpointSlices, builds a new serviceState snapshot,

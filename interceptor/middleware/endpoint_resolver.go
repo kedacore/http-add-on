@@ -69,7 +69,7 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	serviceKey := ir.Namespace + "/" + ir.Spec.Target.Service
 	waitStart := time.Now()
-	isColdStart, podHost, err := er.readyCache.WaitForReady(waitCtx, serviceKey, util.UpstreamPortNameFromContext(ctx))
+	isColdStart, err := er.readyCache.WaitForReady(waitCtx, serviceKey)
 	if info := routeInfoFromContext(ctx); info != nil {
 		// An error means the request waited for readiness but the backend did
 		// not become ready before the wait ended.
@@ -122,17 +122,30 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set(kedahttp.HeaderColdStart, strconv.FormatBool(isColdStart))
 		}
 
-		// Direct-pod routing: rewrite upstream to the pod IP (SNI stays the
-		// service hostname from context). Empty podHost leaves the URL as-is.
-		if er.cfg.DirectPodRouting && podHost != "" {
-			if upstreamURL := util.UpstreamURLFromContext(ctx); upstreamURL != nil {
-				podURL := *upstreamURL
-				podURL.Host = podHost
-				ctx = util.ContextWithUpstreamURL(ctx, &podURL)
-				r = r.WithContext(ctx)
-			}
+		if er.cfg.DirectPodRouting {
+			r = er.routeToPod(r, serviceKey)
 		}
 	}
 
 	er.next.ServeHTTP(w, r)
+}
+
+// routeToPod rewrites the upstream URL to a ready pod of the service (SNI
+// stays the service hostname from context). Leaves the request unchanged when
+// no pod is available for the upstream port.
+func (er *EndpointResolver) routeToPod(r *http.Request, serviceKey string) *http.Request {
+	ctx := r.Context()
+	upstreamURL := util.UpstreamURLFromContext(ctx)
+	if upstreamURL == nil {
+		return r
+	}
+
+	ep, ok := er.readyCache.PickEndpoint(serviceKey, util.UpstreamPortNameFromContext(ctx))
+	if !ok {
+		return r
+	}
+
+	podURL := *upstreamURL
+	podURL.Host = ep.Host
+	return r.WithContext(util.ContextWithUpstreamURL(ctx, &podURL))
 }

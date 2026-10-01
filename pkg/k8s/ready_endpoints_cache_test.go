@@ -26,7 +26,7 @@ func TestWaitForReady_AlreadyReady(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	isColdStart, _, err := cache.WaitForReady(ctx, key, "")
+	isColdStart, err := cache.WaitForReady(ctx, key)
 	r.NoError(err)
 	r.False(isColdStart, "should not be a cold start when already ready")
 }
@@ -39,7 +39,7 @@ func TestWaitForReady_TimesOut(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	isColdStart, _, err := cache.WaitForReady(ctx, key, "")
+	isColdStart, err := cache.WaitForReady(ctx, key)
 	r.Error(err)
 	r.False(isColdStart)
 	r.ErrorIs(err, context.DeadlineExceeded)
@@ -61,7 +61,7 @@ func TestWaitForReady_ColdStart(t *testing.T) {
 		})
 	}()
 
-	isColdStart, _, err := cache.WaitForReady(ctx, key, "")
+	isColdStart, err := cache.WaitForReady(ctx, key)
 	r.NoError(err)
 	r.True(isColdStart, "should be a cold start when we had to wait")
 }
@@ -86,7 +86,7 @@ func TestWaitForReady_IgnoresUnrelatedBroadcast(t *testing.T) {
 		})
 	}()
 
-	isColdStart, _, err := cache.WaitForReady(ctx, key, "")
+	isColdStart, err := cache.WaitForReady(ctx, key)
 	r.NoError(err)
 	r.True(isColdStart)
 }
@@ -103,76 +103,10 @@ func TestWaitForReady_ContextCancelled(t *testing.T) {
 		cancel()
 	}()
 
-	isColdStart, _, err := cache.WaitForReady(ctx, key, "")
+	isColdStart, err := cache.WaitForReady(ctx, key)
 	r.Error(err)
 	r.False(isColdStart)
 	r.ErrorIs(err, context.Canceled)
-}
-
-func TestWaitForReady_ReturnsPodHost(t *testing.T) {
-	r := require.New(t)
-	c := NewReadyEndpointsCache(logr.Discard())
-	const key = "testns/testsvc"
-
-	c.Update(key, []*discov1.EndpointSlice{
-		{
-			AddressType: discov1.AddressTypeIPv4,
-			Ports:       []discov1.EndpointPort{{Port: new(int32(8080))}},
-			Endpoints: []discov1.Endpoint{
-				{
-					Addresses:  []string{"1.2.3.4"},
-					Conditions: discov1.EndpointConditions{Ready: new(true)},
-				},
-			},
-		},
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	_, podHost, err := c.WaitForReady(ctx, key, "")
-	r.NoError(err)
-	r.Equal("1.2.3.4:8080", podHost)
-}
-
-func TestWaitForReady_NamedPortSelectsCorrectHost(t *testing.T) {
-	r := require.New(t)
-	c := NewReadyEndpointsCache(logr.Discard())
-	const key = "testns/testsvc"
-
-	c.Update(key, []*discov1.EndpointSlice{
-		{
-			AddressType: discov1.AddressTypeIPv4,
-			Ports:       []discov1.EndpointPort{{Name: new("http"), Port: new(int32(8080))}},
-			Endpoints: []discov1.Endpoint{
-				{
-					Addresses:  []string{"1.2.3.4"},
-					Conditions: discov1.EndpointConditions{Ready: new(true)},
-				},
-			},
-		},
-		{
-			AddressType: discov1.AddressTypeIPv4,
-			Ports:       []discov1.EndpointPort{{Name: new("grpc"), Port: new(int32(9090))}},
-			Endpoints: []discov1.Endpoint{
-				{
-					Addresses:  []string{"1.2.3.4"},
-					Conditions: discov1.EndpointConditions{Ready: new(true)},
-				},
-			},
-		},
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	_, httpHost, err := c.WaitForReady(ctx, key, "http")
-	r.NoError(err)
-	r.Equal("1.2.3.4:8080", httpHost)
-
-	_, grpcHost, err := c.WaitForReady(ctx, key, "grpc")
-	r.NoError(err)
-	r.Equal("1.2.3.4:9090", grpcHost)
 }
 
 func TestWaitForReady_BlocksOnNonReadyUpdates(t *testing.T) {
@@ -185,13 +119,12 @@ func TestWaitForReady_BlocksOnNonReadyUpdates(t *testing.T) {
 
 	type result struct {
 		isColdStart bool
-		podHost     string
 		err         error
 	}
 	done := make(chan result, 1)
 	go func() {
-		isColdStart, podHost, err := c.WaitForReady(ctx, key, "")
-		done <- result{isColdStart, podHost, err}
+		isColdStart, err := c.WaitForReady(ctx, key)
+		done <- result{isColdStart, err}
 	}()
 
 	for range 3 {
@@ -232,13 +165,74 @@ func TestWaitForReady_BlocksOnNonReadyUpdates(t *testing.T) {
 	case res := <-done:
 		r.NoError(res.err)
 		r.True(res.isColdStart)
-		r.Equal("1.2.3.4:8080", res.podHost)
 	case <-ctx.Done():
 		t.Fatal("WaitForReady did not unblock after ready update")
 	}
 }
 
-func TestWaitForReady_UnknownPortNameReturnsEmptyHost(t *testing.T) {
+// --- PickEndpoint tests ---
+
+func TestPickEndpoint_ReturnsHost(t *testing.T) {
+	r := require.New(t)
+	c := NewReadyEndpointsCache(logr.Discard())
+	const key = "testns/testsvc"
+
+	c.Update(key, []*discov1.EndpointSlice{
+		{
+			AddressType: discov1.AddressTypeIPv4,
+			Ports:       []discov1.EndpointPort{{Port: new(int32(8080))}},
+			Endpoints: []discov1.Endpoint{
+				{
+					Addresses:  []string{"1.2.3.4"},
+					Conditions: discov1.EndpointConditions{Ready: new(true)},
+				},
+			},
+		},
+	})
+
+	ep, ok := c.PickEndpoint(key, "")
+	r.True(ok)
+	r.Equal("1.2.3.4:8080", ep.Host)
+}
+
+func TestPickEndpoint_NamedPortSelectsCorrectHost(t *testing.T) {
+	r := require.New(t)
+	c := NewReadyEndpointsCache(logr.Discard())
+	const key = "testns/testsvc"
+
+	c.Update(key, []*discov1.EndpointSlice{
+		{
+			AddressType: discov1.AddressTypeIPv4,
+			Ports:       []discov1.EndpointPort{{Name: new("http"), Port: new(int32(8080))}},
+			Endpoints: []discov1.Endpoint{
+				{
+					Addresses:  []string{"1.2.3.4"},
+					Conditions: discov1.EndpointConditions{Ready: new(true)},
+				},
+			},
+		},
+		{
+			AddressType: discov1.AddressTypeIPv4,
+			Ports:       []discov1.EndpointPort{{Name: new("grpc"), Port: new(int32(9090))}},
+			Endpoints: []discov1.Endpoint{
+				{
+					Addresses:  []string{"1.2.3.4"},
+					Conditions: discov1.EndpointConditions{Ready: new(true)},
+				},
+			},
+		},
+	})
+
+	httpEp, ok := c.PickEndpoint(key, "http")
+	r.True(ok)
+	r.Equal("1.2.3.4:8080", httpEp.Host)
+
+	grpcEp, ok := c.PickEndpoint(key, "grpc")
+	r.True(ok)
+	r.Equal("1.2.3.4:9090", grpcEp.Host)
+}
+
+func TestPickEndpoint_UnknownPortNameReturnsFalse(t *testing.T) {
 	r := require.New(t)
 	c := NewReadyEndpointsCache(logr.Discard())
 	const key = "testns/testsvc"
@@ -256,12 +250,16 @@ func TestWaitForReady_UnknownPortNameReturnsEmptyHost(t *testing.T) {
 		},
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+	_, ok := c.PickEndpoint(key, "grpc")
+	r.False(ok, "unknown portName should not yield an endpoint")
+}
 
-	_, podHost, err := c.WaitForReady(ctx, key, "grpc")
-	r.NoError(err)
-	r.Empty(podHost, "unknown portName should return empty podHost")
+func TestPickEndpoint_UnknownServiceReturnsFalse(t *testing.T) {
+	r := require.New(t)
+	c := NewReadyEndpointsCache(logr.Discard())
+
+	_, ok := c.PickEndpoint("testns/unknown", "")
+	r.False(ok)
 }
 
 // --- collectServiceState tests ---
@@ -396,9 +394,9 @@ func TestCollectServiceState_HeterogeneousPortsSamePortName(t *testing.T) {
 		},
 	})
 	for range 100 {
-		_, podHost, err := c.WaitForReady(context.Background(), "testns/testsvc", "http")
-		r.NoError(err)
-		r.Contains([]string{"1.2.3.4:8080", "10.0.0.1:9090"}, podHost,
+		ep, ok := c.PickEndpoint("testns/testsvc", "http")
+		r.True(ok)
+		r.Contains([]string{"1.2.3.4:8080", "10.0.0.1:9090"}, ep.Host,
 			"host must be a consistent ip:port pair from the same slice")
 	}
 }

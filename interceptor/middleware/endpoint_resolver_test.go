@@ -925,7 +925,7 @@ func TestEndpointResolver_DirectPodRouting_EmptyPortName(t *testing.T) {
 	if capturedUpstream == nil {
 		t.Fatal("upstream URL should not be nil")
 	}
-	// PortName="" with only named ports → WaitForReady returns podHost="" →
+	// PortName="" with only named ports → PickEndpoint finds no candidate →
 	// ClusterIP URL must be left unchanged.
 	if capturedUpstream.Host != "upstream" {
 		t.Fatalf("upstream host = %q, want %q — should not rewrite when PortName is empty",
@@ -982,7 +982,7 @@ func TestEndpointResolver_DirectPodRouting_EmptyPortName_HTTPS(t *testing.T) {
 	if capturedUpstream == nil {
 		t.Fatal("upstream URL should not be nil")
 	}
-	// PortName="" with only named ports → podHost="" → ClusterIP URL must be left unchanged.
+	// PortName="" with only named ports → no candidate → ClusterIP URL must be left unchanged.
 	if capturedUpstream.Host != "myservice.default:443" {
 		t.Fatalf("upstream host = %q, want %q — should not rewrite when PortName is empty", capturedUpstream.Host, "myservice.default:443")
 	}
