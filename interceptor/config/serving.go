@@ -52,7 +52,8 @@ type Serving struct {
 	ShutdownDelay time.Duration `env:"KEDA_HTTP_SHUTDOWN_DELAY" envDefault:"5s"`
 	// DirectPodRouting routes requests to a ready pod IP instead of the Service
 	// ClusterIP, bypassing kube-proxy and other Service-layer features
-	// (NetworkPolicy, session affinity, topology-aware routing).
+	// (NetworkPolicy, session affinity, topology-aware routing). Required for
+	// InterceptorRoute session persistence.
 	DirectPodRouting bool `env:"KEDA_HTTP_DIRECT_POD_ROUTING" envDefault:"true"`
 
 	// ColdStartMaxPendingRequests is the default limit on requests held per

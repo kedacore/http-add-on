@@ -127,6 +127,15 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		},
 		BufferPool: bufferPool,
 		Transport:  rt,
+		// Set the session cookie on the backend's final response: headers set on
+		// w before proxying are dropped after 1xx responses, and interceptor
+		// errors must not pin a session.
+		ModifyResponse: func(res *http.Response) error {
+			if c := util.SessionCookieFromContext(ctx); c != nil {
+				res.Header.Add("Set-Cookie", c.String())
+			}
+			return nil
+		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			code := http.StatusBadGateway
 			var netErr net.Error

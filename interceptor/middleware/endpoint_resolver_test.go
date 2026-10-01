@@ -2,9 +2,12 @@ package middleware
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -12,8 +15,10 @@ import (
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	corev1 "k8s.io/api/core/v1"
 	discov1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	interceptormetrics "github.com/kedacore/http-add-on/interceptor/metrics"
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
@@ -1126,4 +1131,215 @@ func TestEndpointResolver_DirectPodRouting_UsedOnWarmPath(t *testing.T) {
 	if capturedUpstream.Host == "upstream" {
 		t.Fatalf("upstream host = %q, want pod IP (should be rewritten on warm path too)", capturedUpstream.Host)
 	}
+}
+
+func TestEndpointResolver_SessionPersistence_PinsSessionToPod(t *testing.T) {
+	cache := k8s.NewReadyEndpointsCache(logr.Discard())
+	addReadyPods(cache, map[string]types.UID{"10.0.0.1": "uid-a", "10.0.0.2": "uid-b", "10.0.0.3": "uid-c"})
+	mw, captured := newSessionTestResolver(cache, true)
+	ir := sessionIR(0)
+
+	first := captured.serve(t, mw, newRequest(t, ir))
+	if first.cookie == nil {
+		t.Fatal("expected a session cookie for a request without one")
+	}
+
+	// Without pinning, each request would hit the pinned pod with probability
+	// 1/3, so 10 requests make a false pass negligible ((1/3)^10).
+	for range 10 {
+		req := newRequest(t, ir)
+		req.AddCookie(first.cookie)
+		got := captured.serve(t, mw, req)
+
+		if got.host != first.host {
+			t.Fatalf("upstream host = %q, want pinned %q", got.host, first.host)
+		}
+		if got.cookie != nil {
+			t.Fatalf("expected no cookie for an honored session, got %v", got.cookie)
+		}
+	}
+}
+
+func TestEndpointResolver_SessionPersistence_ReassignsRemovedPod(t *testing.T) {
+	cache := k8s.NewReadyEndpointsCache(logr.Discard())
+	pods := map[string]types.UID{"10.0.0.1": "uid-a", "10.0.0.2": "uid-b"}
+	addReadyPods(cache, pods)
+	mw, captured := newSessionTestResolver(cache, true)
+	ir := sessionIR(0)
+
+	first := captured.serve(t, mw, newRequest(t, ir))
+	if first.cookie == nil {
+		t.Fatal("expected a session cookie for a request without one")
+	}
+
+	// Remove the pinned pod, leaving only the other one.
+	pinnedIP, _, _ := net.SplitHostPort(first.host)
+	delete(pods, pinnedIP)
+	addReadyPods(cache, pods)
+	var remainingHost string
+	for ip := range pods {
+		remainingHost = net.JoinHostPort(ip, "8080")
+	}
+
+	req := newRequest(t, ir)
+	req.AddCookie(first.cookie)
+	got := captured.serve(t, mw, req)
+
+	if got.host != remainingHost {
+		t.Fatalf("upstream host = %q, want %q", got.host, remainingHost)
+	}
+	if got.cookie == nil {
+		t.Fatal("expected a new session cookie when the pinned pod is gone")
+	}
+	firstID, _, _ := strings.Cut(first.cookie.Value, ".")
+	gotID, _, _ := strings.Cut(got.cookie.Value, ".")
+	if gotID == firstID {
+		t.Fatalf("cookie still references the removed pod: %q", got.cookie.Value)
+	}
+}
+
+func TestEndpointResolver_SessionPersistence_ReissuesExpiredSession(t *testing.T) {
+	// synctest provides a fake clock so the session can age instantly.
+	synctest.Test(t, func(t *testing.T) {
+		cache := k8s.NewReadyEndpointsCache(logr.Discard())
+		addReadyPods(cache, map[string]types.UID{"10.0.0.1": "uid-a"})
+		mw, captured := newSessionTestResolver(cache, true)
+		ir := sessionIR(time.Minute)
+
+		first := captured.serve(t, mw, newRequest(t, ir))
+		if first.cookie == nil {
+			t.Fatal("expected a session cookie for a request without one")
+		}
+
+		time.Sleep(time.Minute)
+		req := newRequest(t, ir)
+		req.AddCookie(first.cookie)
+		if got := captured.serve(t, mw, req); got.cookie != nil {
+			t.Fatalf("expected no cookie within the absolute timeout, got %v", got.cookie)
+		}
+
+		time.Sleep(time.Second)
+		req = newRequest(t, ir)
+		req.AddCookie(first.cookie)
+		got := captured.serve(t, mw, req)
+		if got.cookie == nil {
+			t.Fatal("expected a new session cookie after the absolute timeout")
+		}
+		if want := strconv.FormatInt(time.Now().Unix(), 10); !strings.HasSuffix(got.cookie.Value, "."+want) {
+			t.Fatalf("cookie value = %q, want issue time %s", got.cookie.Value, want)
+		}
+	})
+}
+
+func TestEndpointResolver_SessionPersistence_NoCookie(t *testing.T) {
+	tests := map[string]struct {
+		directPodRouting bool
+		setup            func(cache *k8s.ReadyEndpointsCache, ir *httpv1beta1.InterceptorRoute, req *http.Request) *http.Request
+	}{
+		"session persistence disabled": {
+			directPodRouting: true,
+			setup: func(cache *k8s.ReadyEndpointsCache, ir *httpv1beta1.InterceptorRoute, req *http.Request) *http.Request {
+				addReadyPods(cache, map[string]types.UID{"10.0.0.1": "uid-a"})
+				ir.Spec.SessionPersistence = httpv1beta1.SessionPersistence{}
+				return req
+			},
+		},
+		"direct-pod routing disabled": {
+			directPodRouting: false,
+			setup: func(cache *k8s.ReadyEndpointsCache, _ *httpv1beta1.InterceptorRoute, req *http.Request) *http.Request {
+				addReadyPods(cache, map[string]types.UID{"10.0.0.1": "uid-a"})
+				return req
+			},
+		},
+		"no candidate for the upstream port": {
+			directPodRouting: true,
+			setup: func(cache *k8s.ReadyEndpointsCache, _ *httpv1beta1.InterceptorRoute, req *http.Request) *http.Request {
+				addReadyPods(cache, map[string]types.UID{"10.0.0.1": "uid-a"})
+				return req.WithContext(util.ContextWithUpstreamPortName(req.Context(), "grpc"))
+			},
+		},
+		"cold-start fallback": {
+			directPodRouting: true,
+			setup: func(_ *k8s.ReadyEndpointsCache, ir *httpv1beta1.InterceptorRoute, req *http.Request) *http.Request {
+				ir.Spec.ColdStart = &httpv1beta1.ColdStartSpec{
+					Fallback: &httpv1beta1.ColdStartFallback{
+						Service: &httpv1beta1.ServiceRef{Name: "fallback"},
+					},
+				}
+				ir.Spec.Timeouts.Readiness = &metav1.Duration{Duration: 25 * time.Millisecond}
+				return req.WithContext(util.ContextWithFallbackURL(req.Context(), &url.URL{Host: "fallback"}))
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			cache := k8s.NewReadyEndpointsCache(logr.Discard())
+			mw, captured := newSessionTestResolver(cache, tt.directPodRouting)
+			ir := sessionIR(0)
+			req := tt.setup(cache, ir, newRequest(t, ir))
+
+			if got := captured.serve(t, mw, req); got.cookie != nil {
+				t.Fatalf("expected no session cookie, got %v", got.cookie)
+			}
+		})
+	}
+}
+
+// sessionCapture records what the EndpointResolver passed to the next handler.
+type sessionCapture struct {
+	host   string
+	cookie *http.Cookie
+}
+
+func newSessionTestResolver(cache *k8s.ReadyEndpointsCache, directPodRouting bool) (*EndpointResolver, *sessionCapture) {
+	captured := &sessionCapture{}
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		captured.host = util.UpstreamURLFromContext(r.Context()).Host
+		captured.cookie = util.SessionCookieFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := NewEndpointResolver(next, cache, EndpointResolverConfig{
+		ReadinessTimeout: 200 * time.Millisecond,
+		DirectPodRouting: directPodRouting,
+	})
+	return mw, captured
+}
+
+// serve runs req through mw and returns what reached the next handler.
+func (c *sessionCapture) serve(t *testing.T, mw http.Handler, req *http.Request) sessionCapture {
+	t.Helper()
+	*c = sessionCapture{}
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	return *c
+}
+
+func sessionIR(absoluteTimeout time.Duration) *httpv1beta1.InterceptorRoute {
+	ir := defaultIR()
+	ir.Name = "session-route"
+	ir.Spec.SessionPersistence = httpv1beta1.SessionPersistence{
+		Type:            httpv1beta1.SessionPersistenceTypeCookie,
+		AbsoluteTimeout: metav1.Duration{Duration: absoluteTimeout},
+	}
+	return ir
+}
+
+// addReadyPods replaces the service's ready pods with pods, keyed by address.
+func addReadyPods(cache *k8s.ReadyEndpointsCache, pods map[string]types.UID) {
+	port := int32(8080)
+	slice := &discov1.EndpointSlice{
+		AddressType: discov1.AddressTypeIPv4,
+		Ports:       []discov1.EndpointPort{{Port: &port}},
+	}
+	for addr, uid := range pods {
+		slice.Endpoints = append(slice.Endpoints, discov1.Endpoint{
+			Addresses: []string{addr},
+			TargetRef: &corev1.ObjectReference{Kind: "Pod", UID: uid},
+		})
+	}
+	cache.Update(testNamespace+"/"+testService, []*discov1.EndpointSlice{slice})
 }

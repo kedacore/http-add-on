@@ -2,9 +2,12 @@ package k8s
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"math/rand/v2"
 	"net"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -19,6 +22,8 @@ import (
 type Endpoint struct {
 	// Host is the pod's "ip:port".
 	Host string
+	// ID is an opaque, stable identity of the pod (see podID).
+	ID string
 }
 
 // endpoint is one ready pod: its address paired with the container port from
@@ -26,6 +31,7 @@ type Endpoint struct {
 type endpoint struct {
 	ip   string
 	port int32
+	id   string
 }
 
 // serviceState is an immutable snapshot of a service's ready pods, swapped
@@ -124,10 +130,11 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey strin
 	}
 }
 
-// PickEndpoint selects a random ready pod of the service for portName.
+// PickEndpoint selects a ready pod of the service for portName. It returns the
+// pod with preferredID if it is a candidate, otherwise a random one.
 // Returns false when the service has no ready candidates for portName
 // (signals direct-pod routing isn't possible).
-func (c *ReadyEndpointsCache) PickEndpoint(serviceKey, portName string) (Endpoint, bool) {
+func (c *ReadyEndpointsCache) PickEndpoint(serviceKey, portName, preferredID string) (Endpoint, bool) {
 	v, ok := c.states.Load(serviceKey)
 	if !ok {
 		return Endpoint{}, false
@@ -136,8 +143,13 @@ func (c *ReadyEndpointsCache) PickEndpoint(serviceKey, portName string) (Endpoin
 	if len(eps) == 0 {
 		return Endpoint{}, false
 	}
-	ep := eps[rand.IntN(len(eps))] //nolint:gosec // G404: math/rand is sufficient for load-balancing endpoint selection
-	return Endpoint{Host: net.JoinHostPort(ep.ip, strconv.Itoa(int(ep.port)))}, true
+
+	i := slices.IndexFunc(eps, func(ep endpoint) bool { return ep.id == preferredID })
+	if i < 0 {
+		i = rand.IntN(len(eps)) //nolint:gosec // G404: math/rand is sufficient for load-balancing endpoint selection
+	}
+	ep := eps[i]
+	return Endpoint{Host: net.JoinHostPort(ep.ip, strconv.Itoa(int(ep.port))), ID: ep.id}, true
 }
 
 // Update checks the given EndpointSlices, builds a new serviceState snapshot,
@@ -204,20 +216,24 @@ func collectServiceState(slices []*discov1.EndpointSlice) *serviceState {
 			slicePorts = append(slicePorts, slicePort{name, *p.Port})
 		}
 
-		// Collect this slice's ready pod IPs (the canonical address per pod).
-		var readyIPs []string
+		// Collect this slice's ready pods (the canonical address per pod).
+		type readyPod struct {
+			ip string
+			id string
+		}
+		var readyPods []readyPod
 		for i := range sl.Endpoints {
 			ep := &sl.Endpoints[i]
 			// Kubernetes guarantees that Ready is false for terminating pods, so a
 			// separate Terminating check is unnecessary. For services with
 			// publishNotReadyAddresses, Ready is always true — we respect that.
 			if (ep.Conditions.Ready == nil || *ep.Conditions.Ready) && len(ep.Addresses) > 0 {
-				readyIPs = append(readyIPs, ep.Addresses[0])
+				readyPods = append(readyPods, readyPod{ip: ep.Addresses[0], id: endpointID(ep)})
 				anyReady = true
 			}
 		}
 
-		if len(readyIPs) == 0 || len(slicePorts) == 0 {
+		if len(readyPods) == 0 || len(slicePorts) == 0 {
 			continue
 		}
 
@@ -226,12 +242,14 @@ func collectServiceState(slices []*discov1.EndpointSlice) *serviceState {
 			if seen[sp.name] == nil {
 				seen[sp.name] = make(map[endpoint]struct{})
 			}
-			for _, ip := range readyIPs {
-				k := endpoint{ip: ip, port: sp.port}
+			for _, pod := range readyPods {
+				// Dedup on address and port only; the identity is derived data.
+				k := endpoint{ip: pod.ip, port: sp.port}
 				if _, dup := seen[sp.name][k]; dup {
 					continue
 				}
 				seen[sp.name][k] = struct{}{}
+				k.id = pod.id
 				candidates[sp.name] = append(candidates[sp.name], k)
 			}
 		}
@@ -241,6 +259,23 @@ func collectServiceState(slices []*discov1.EndpointSlice) *serviceState {
 		ready:      anyReady,
 		candidates: candidates,
 	}
+}
+
+// endpointID returns the identity of the pod behind ep: its UID when the
+// EndpointSlice references one, otherwise its address. All addresses of a pod
+// (e.g. dual-stack) share the UID-based identity.
+func endpointID(ep *discov1.Endpoint) string {
+	if ep.TargetRef != nil && ep.TargetRef.UID != "" {
+		return podID(string(ep.TargetRef.UID))
+	}
+	return podID(ep.Addresses[0])
+}
+
+// podID hashes identity into a short opaque value that is safe to expose to
+// clients and stable across interceptor replicas.
+func podID(identity string) string {
+	sum := sha256.Sum256([]byte(identity))
+	return hex.EncodeToString(sum[:8])
 }
 
 // updateReadyCache updates the ready cache for the service that owns

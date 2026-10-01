@@ -10,6 +10,7 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/handler"
 	"github.com/kedacore/http-add-on/interceptor/metrics"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -123,7 +124,7 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if er.cfg.DirectPodRouting {
-			r = er.routeToPod(r, serviceKey)
+			r = er.routeToPod(r, ir, serviceKey)
 		}
 	}
 
@@ -133,19 +134,33 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // routeToPod rewrites the upstream URL to a ready pod of the service (SNI
 // stays the service hostname from context). Leaves the request unchanged when
 // no pod is available for the upstream port.
-func (er *EndpointResolver) routeToPod(r *http.Request, serviceKey string) *http.Request {
+//
+// With session persistence, the pod referenced by the session cookie is
+// preferred. When the session gets a new pod, the cookie to issue is stored in
+// the context for the upstream handler to set on the response.
+func (er *EndpointResolver) routeToPod(r *http.Request, ir *httpv1beta1.InterceptorRoute, serviceKey string) *http.Request {
 	ctx := r.Context()
 	upstreamURL := util.UpstreamURLFromContext(ctx)
 	if upstreamURL == nil {
 		return r
 	}
 
-	ep, ok := er.readyCache.PickEndpoint(serviceKey, util.UpstreamPortNameFromContext(ctx))
+	session := newSessionCookie(ir)
+	preferredID := ""
+	if session != nil {
+		preferredID = session.podID(r)
+	}
+
+	ep, ok := er.readyCache.PickEndpoint(serviceKey, util.UpstreamPortNameFromContext(ctx), preferredID)
 	if !ok {
 		return r
 	}
 
 	podURL := *upstreamURL
 	podURL.Host = ep.Host
-	return r.WithContext(util.ContextWithUpstreamURL(ctx, &podURL))
+	ctx = util.ContextWithUpstreamURL(ctx, &podURL)
+	if session != nil && ep.ID != preferredID {
+		ctx = util.ContextWithSessionCookie(ctx, session.issue(r, ep.ID))
+	}
+	return r.WithContext(ctx)
 }
