@@ -74,6 +74,9 @@ func run() error {
 		"tlsPolicyConfig", tlsPolicyCfg,
 		"metricsConfig", metricsCfg,
 	)
+	if !servingCfg.DirectPodRouting {
+		setupLog.Info("direct-pod routing is disabled: InterceptorRoute sessionPersistence has no effect")
+	}
 
 	provider, err := observability.NewMeterProvider(metrics.ServiceName, metricsCfg)
 	if err != nil {

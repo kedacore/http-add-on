@@ -10,6 +10,7 @@ import (
 
 	"github.com/kedacore/http-add-on/interceptor/handler"
 	"github.com/kedacore/http-add-on/interceptor/metrics"
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
 	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
@@ -69,7 +70,7 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	serviceKey := ir.Namespace + "/" + ir.Spec.Target.Service
 	waitStart := time.Now()
-	isColdStart, podHost, err := er.readyCache.WaitForReady(waitCtx, serviceKey, util.UpstreamPortNameFromContext(ctx))
+	isColdStart, err := er.readyCache.WaitForReady(waitCtx, serviceKey)
 	if info := routeInfoFromContext(ctx); info != nil {
 		// An error means the request waited for readiness but the backend did
 		// not become ready before the wait ended.
@@ -122,17 +123,44 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set(kedahttp.HeaderColdStart, strconv.FormatBool(isColdStart))
 		}
 
-		// Direct-pod routing: rewrite upstream to the pod IP (SNI stays the
-		// service hostname from context). Empty podHost leaves the URL as-is.
-		if er.cfg.DirectPodRouting && podHost != "" {
-			if upstreamURL := util.UpstreamURLFromContext(ctx); upstreamURL != nil {
-				podURL := *upstreamURL
-				podURL.Host = podHost
-				ctx = util.ContextWithUpstreamURL(ctx, &podURL)
-				r = r.WithContext(ctx)
-			}
+		if er.cfg.DirectPodRouting {
+			r = er.routeToPod(r, ir, serviceKey)
 		}
 	}
 
 	er.next.ServeHTTP(w, r)
+}
+
+// routeToPod rewrites the upstream URL to a ready pod of the service (SNI
+// stays the service hostname from context). Leaves the request unchanged when
+// no pod is available for the upstream port.
+//
+// With session persistence, the pod referenced by the session cookie is
+// preferred. When the session gets a new pod, the cookie to issue is stored in
+// the context for the upstream handler to set on the response.
+func (er *EndpointResolver) routeToPod(r *http.Request, ir *httpv1beta1.InterceptorRoute, serviceKey string) *http.Request {
+	ctx := r.Context()
+	upstreamURL := util.UpstreamURLFromContext(ctx)
+	if upstreamURL == nil {
+		return r
+	}
+
+	session := newSessionCookie(ir)
+	preferredID := ""
+	if session != nil {
+		preferredID = session.podID(r)
+	}
+
+	ep, ok := er.readyCache.PickEndpoint(serviceKey, util.UpstreamPortNameFromContext(ctx), preferredID)
+	if !ok {
+		return r
+	}
+
+	podURL := *upstreamURL
+	podURL.Host = ep.Host
+	ctx = util.ContextWithUpstreamURL(ctx, &podURL)
+	if session != nil && ep.ID != preferredID {
+		ctx = util.ContextWithSessionCookie(ctx, session.issue(r, ep.ID))
+	}
+	return r.WithContext(ctx)
 }

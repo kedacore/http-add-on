@@ -298,6 +298,52 @@ type StaticRoute struct {
 	ResponseMode StaticRouteResponseMode `json:"responseMode,omitzero"`
 }
 
+// SessionPersistenceType selects how session persistence tracks a session.
+// +kubebuilder:validation:Enum=Cookie
+type SessionPersistenceType string
+
+const (
+	// SessionPersistenceTypeCookie tracks the session with a cookie managed by
+	// the interceptor.
+	SessionPersistenceTypeCookie SessionPersistenceType = "Cookie"
+)
+
+// SessionPersistence pins the requests of a client session to the same backend
+// pod. It follows the semantics of Gateway API session persistence (GEP-1619)
+// with a session cookie lifetime.
+// +union
+// +kubebuilder:validation:XValidation:rule="!has(self.cookie) || self.type == 'Cookie'",message="'cookie' may only be set when 'type' is 'Cookie'"
+type SessionPersistence struct {
+	// How the session is tracked. Cookie: a cookie managed by the interceptor.
+	// +required
+	// +unionDiscriminator
+	Type SessionPersistenceType `json:"type,omitempty"`
+	// Absolute lifetime of a session, tracked by the interceptor with second
+	// precision. Once elapsed, the next request of the session is assigned a
+	// pod again. A cookie has no Max-Age or Expires attribute.
+	// Unset: sessions don't expire.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('1s')",message="must be at least 1s"
+	AbsoluteTimeout metav1.Duration `json:"absoluteTimeout,omitzero"`
+	// Cookie configuration for type Cookie.
+	// +optional
+	// +unionMember
+	Cookie SessionCookie `json:"cookie,omitzero"`
+}
+
+// SessionCookie configures the session persistence cookie.
+// +kubebuilder:validation:MinProperties=1
+type SessionCookie struct {
+	// Name of the cookie. Must not collide with cookies used by the
+	// application. Unset: "keda-session-" followed by a hash of the
+	// InterceptorRoute namespace and name.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=256
+	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$`
+	Name string `json:"name,omitzero"`
+}
+
 // InterceptorRouteSpec defines the desired state of InterceptorRoute.
 type InterceptorRouteSpec struct {
 	// Backend service to route traffic to.
@@ -319,6 +365,12 @@ type InterceptorRouteSpec struct {
 	// +optional
 	// +listType=atomic
 	StaticRoutes []StaticRoute `json:"staticRoutes,omitzero"`
+	// Session persistence pins the requests of a client session to the same
+	// backend pod. Requires direct-pod routing on the interceptor
+	// (KEDA_HTTP_DIRECT_POD_ROUTING), otherwise it has no effect.
+	// Unset: disabled.
+	// +optional
+	SessionPersistence SessionPersistence `json:"sessionPersistence,omitzero"`
 }
 
 // InterceptorRouteStatus defines the observed state of InterceptorRoute.
