@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -696,6 +697,152 @@ func TestUpstream_AppProtocolFallbackOnMissingService(t *testing.T) {
 	if backendProtoMajor != 1 {
 		t.Errorf("expected fallback to HTTP/1, got HTTP/%d", backendProtoMajor)
 	}
+}
+
+func TestUpstream_SetsSessionCookie(t *testing.T) {
+	sessionCookie := newTestCookie("keda-session", "0123456789abcdef.1000000")
+	appCookie := newTestCookie("JSESSIONID", "abc")
+
+	tests := map[string]struct {
+		sessionCookie *http.Cookie
+		backend       http.HandlerFunc
+		wantCookies   []string
+	}{
+		"adds session cookie": {
+			sessionCookie: sessionCookie,
+			backend: func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			},
+			wantCookies: []string{sessionCookie.String()},
+		},
+		"keeps application cookies": {
+			sessionCookie: sessionCookie,
+			backend: func(w http.ResponseWriter, _ *http.Request) {
+				http.SetCookie(w, appCookie)
+				w.WriteHeader(http.StatusOK)
+			},
+			wantCookies: []string{appCookie.String(), sessionCookie.String()},
+		},
+		"survives informational response": {
+			sessionCookie: sessionCookie,
+			backend: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Link", "</style.css>; rel=preload")
+				w.WriteHeader(http.StatusEarlyHints)
+				w.Header().Del("Link")
+				w.WriteHeader(http.StatusOK)
+			},
+			wantCookies: []string{sessionCookie.String()},
+		},
+		"no session cookie": {
+			backend: func(w http.ResponseWriter, _ *http.Request) {
+				http.SetCookie(w, appCookie)
+				w.WriteHeader(http.StatusOK)
+			},
+			wantCookies: []string{appCookie.String()},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			backend := httptest.NewServer(tt.backend)
+			defer backend.Close()
+			front := newSessionCookieFrontServer(t, backend.URL, tt.sessionCookie)
+			defer front.Close()
+
+			resp, err := http.Get(front.URL)
+			if err != nil {
+				t.Fatalf("request failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+			}
+			if got := resp.Header.Values("Set-Cookie"); !slices.Equal(got, tt.wantCookies) {
+				t.Fatalf("Set-Cookie = %q, want %q", got, tt.wantCookies)
+			}
+		})
+	}
+}
+
+func TestUpstream_SessionCookieNotSetOnProxyError(t *testing.T) {
+	backend := httptest.NewServer(http.NotFoundHandler())
+	backend.Close() // connections are refused
+	front := newSessionCookieFrontServer(t, backend.URL, newTestCookie("keda-session", "0123456789abcdef.1000000"))
+	defer front.Close()
+
+	resp, err := http.Get(front.URL)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusBadGateway)
+	}
+	if got := resp.Header.Values("Set-Cookie"); len(got) != 0 {
+		t.Fatalf("Set-Cookie = %q, want none", got)
+	}
+}
+
+func TestUpstream_SetsSessionCookieOnUpgrade(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		conn, brw, err := http.NewResponseController(w).Hijack()
+		if err != nil {
+			t.Errorf("hijack failed: %v", err)
+			return
+		}
+		defer conn.Close()
+		_, _ = brw.WriteString("HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: test\r\n\r\n")
+		_ = brw.Flush()
+	}))
+	defer backend.Close()
+	sessionCookie := newTestCookie("keda-session", "0123456789abcdef.1000000")
+	front := newSessionCookieFrontServer(t, backend.URL, sessionCookie)
+	defer front.Close()
+
+	req, err := http.NewRequest(http.MethodGet, front.URL, nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "test")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusSwitchingProtocols)
+	}
+	if got, want := resp.Header.Values("Set-Cookie"), []string{sessionCookie.String()}; !slices.Equal(got, want) {
+		t.Fatalf("Set-Cookie = %q, want %q", got, want)
+	}
+}
+
+// newSessionCookieFrontServer serves an Upstream that proxies to backendURL
+// with sessionCookie stored in the request context.
+func newSessionCookieFrontServer(t *testing.T, backendURL string, sessionCookie *http.Cookie) *httptest.Server {
+	t.Helper()
+
+	target, err := url.Parse(backendURL)
+	if err != nil {
+		t.Fatalf("failed to parse backend URL: %v", err)
+	}
+	upstream := NewUpstream(http.DefaultTransport.(*http.Transport), newFakeClient(), config.Tracing{}, 5*time.Second)
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := util.ContextWithUpstreamURL(r.Context(), target)
+		if sessionCookie != nil {
+			ctx = util.ContextWithSessionCookie(ctx, sessionCookie)
+		}
+		upstream.ServeHTTP(w, r.WithContext(ctx))
+	}))
+}
+
+func newTestCookie(name, value string) *http.Cookie {
+	return &http.Cookie{Name: name, Value: value, Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode}
 }
 
 func newFakeClient(objs ...corev1.Service) client.Reader {
