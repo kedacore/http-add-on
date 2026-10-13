@@ -23,11 +23,14 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/types"
+	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
 	"github.com/kedacore/http-add-on/pkg/build"
 	kedacache "github.com/kedacore/http-add-on/pkg/cache"
 	kedahttp "github.com/kedacore/http-add-on/pkg/http"
@@ -105,6 +108,12 @@ func run() error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 
+	handler := newScalerHandler(ctrl.Log, pinger, ctrlCache, time.Duration(cfg.StreamIntervalMS)*time.Millisecond)
+
+	if err := watchScalingMetricSources(ctx, ctrlCache, handler); err != nil {
+		return err
+	}
+
 	if cfg.Tracing.Enabled {
 		shutdown, err := observability.SetupTracing(ctx, metrics.ServiceName, cfg.Tracing)
 		if err != nil {
@@ -154,7 +163,7 @@ func run() error {
 	eg.Go(func() error {
 		setupLog.Info("starting the grpc server")
 
-		if err := startGrpcServer(ctx, cfg, ctrl.Log, pinger, ctrlCache); !util.IsIgnoredErr(err) {
+		if err := startGrpcServer(ctx, cfg, ctrl.Log, pinger, handler); !util.IsIgnoredErr(err) {
 			return fmt.Errorf("grpc server: %w", err)
 		}
 
@@ -180,7 +189,74 @@ func run() error {
 	return nil
 }
 
-func startGrpcServer(ctx context.Context, cfg config, lggr logr.Logger, pinger *queuePinger, reader client.Reader) error {
+// watchScalingMetricSources notifies the handler whenever a resource holding
+// scaling metrics changes, so that the open StreamMetricSpec streams can push
+// the new target values to KEDA.
+func watchScalingMetricSources(ctx context.Context, ctrlCache cache.Cache, handler *scalerHandler) error {
+	obj := &httpv1beta1.InterceptorRoute{}
+	informer, err := ctrlCache.GetInformer(ctx, obj)
+	if err != nil {
+		return fmt.Errorf("getting informer for %T: %w", obj, err)
+	}
+
+	notify := func(obj any) {
+		key, err := objectNamespacedName(obj)
+		if err != nil {
+			setupLog.Error(err, "unable to identify InterceptorRoute metric source")
+			return
+		}
+		handler.notifySpecChange(key)
+	}
+
+	_, err = informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+		AddFunc: notify,
+		UpdateFunc: func(oldObj, newObj any) {
+			if !scalingMetricChanged(oldObj, newObj) {
+				return
+			}
+			notify(newObj)
+		},
+		DeleteFunc: notify,
+	})
+	if err != nil {
+		return fmt.Errorf("adding event handler for %T: %w", obj, err)
+	}
+
+	return nil
+}
+
+func scalingMetricChanged(oldObj, newObj any) bool {
+	oldRoute, ok := oldObj.(*httpv1beta1.InterceptorRoute)
+	if !ok {
+		return true
+	}
+
+	newRoute, ok := newObj.(*httpv1beta1.InterceptorRoute)
+	if !ok {
+		return true
+	}
+
+	return !apiequality.Semantic.DeepEqual(oldRoute.Spec.ScalingMetric, newRoute.Spec.ScalingMetric)
+}
+
+func objectNamespacedName(obj any) (types.NamespacedName, error) {
+	key, err := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return types.NamespacedName{}, fmt.Errorf("getting object key: %w", err)
+	}
+
+	namespace, name, err := toolscache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return types.NamespacedName{}, fmt.Errorf("splitting object key %q: %w", key, err)
+	}
+	if name == "" {
+		return types.NamespacedName{}, fmt.Errorf("object key %q has an empty name", key)
+	}
+
+	return types.NamespacedName{Namespace: namespace, Name: name}, nil
+}
+
+func startGrpcServer(ctx context.Context, cfg config, lggr logr.Logger, pinger *queuePinger, handler *scalerHandler) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", cfg.GRPCPort)
 	lggr.Info("starting grpc server", "address", addr)
 
@@ -226,7 +302,7 @@ func startGrpcServer(ctx context.Context, cfg config, lggr logr.Logger, pinger *
 
 	grpc_health_v1.RegisterHealthServer(grpcServer, hs)
 
-	externalscaler.RegisterExternalScalerServer(grpcServer, newScalerHandler(lggr, pinger, reader, time.Duration(cfg.StreamIntervalMS)*time.Millisecond))
+	externalscaler.RegisterExternalScalerServer(grpcServer, handler)
 
 	go func() {
 		<-ctx.Done()
