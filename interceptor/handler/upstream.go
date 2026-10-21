@@ -112,6 +112,9 @@ func (uh *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(url)
+			// ReverseProxy drops query parameters it can't parse (e.g. `;`-separated) before Rewrite;
+			// the interceptor doesn't interpret the query, so forward it untouched.
+			pr.Out.URL.RawQuery = pr.In.URL.RawQuery
 			// Preserve original Host header (SetURL rewrites it by default).
 			pr.Out.Host = pr.In.Host
 

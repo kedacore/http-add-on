@@ -44,6 +44,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Forward the request query unchanged instead of dropping `;`-separated parameters ([#TODO](https://github.com/kedacore/http-add-on/pull/TODO))
 
 ### Deprecations
 

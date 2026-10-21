@@ -466,6 +466,46 @@ func TestUpstreamPreservesXForwardedHeaders(t *testing.T) {
 	}
 }
 
+func TestUpstreamPreservesRawQuery(t *testing.T) {
+	tests := map[string]string{
+		"no query":                "",
+		"ampersand-separated":     "a=1&b=2",
+		"semicolon-separated":     "a=1;b=2",
+		"mixed separators":        "Action=Zoom;Subaction=View&ID=9",
+		"invalid percent escape":  "q=%zz&r=1",
+		"order and encoding kept": "b=2&a=%20x&a=y",
+		"key without value":       "flag;a=1",
+	}
+
+	for name, rawQuery := range tests {
+		t.Run(name, func(t *testing.T) {
+			var receivedQuery string
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				receivedQuery = r.URL.RawQuery
+			}))
+			defer backend.Close()
+
+			backendURL, err := url.Parse(backend.URL)
+			require.NoError(t, err)
+
+			upstream := NewUpstream(http.DefaultTransport.(*http.Transport), newFakeClient(), config.Tracing{}, 500*time.Millisecond)
+
+			target := "/test"
+			if rawQuery != "" {
+				target += "?" + rawQuery
+			}
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			req = util.RequestWithUpstreamURL(req, backendURL)
+
+			rec := httptest.NewRecorder()
+			upstream.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, rawQuery, receivedQuery)
+		})
+	}
+}
+
 func TestUpstream_RouteSpecResponseHeaderOverride(t *testing.T) {
 	r := require.New(t)
 	originWaitCh := make(chan struct{})
