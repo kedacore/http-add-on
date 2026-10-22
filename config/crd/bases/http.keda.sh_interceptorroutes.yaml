@@ -269,6 +269,49 @@ spec:
                 - message: at least one of 'concurrency' or 'requestRate' must be
                     set
                   rule: has(self.concurrency) || has(self.requestRate)
+              sessionPersistence:
+                description: |-
+                  Session persistence pins the requests of a client session to the same
+                  backend pod. Requires direct-pod routing on the interceptor
+                  (KEDA_HTTP_DIRECT_POD_ROUTING), otherwise it has no effect.
+                  Unset: disabled.
+                properties:
+                  absoluteTimeout:
+                    description: |-
+                      Absolute lifetime of a session, tracked by the interceptor with second
+                      precision. Once elapsed, the next request of the session is assigned a
+                      pod again. A cookie has no Max-Age or Expires attribute.
+                      Unset: sessions don't expire.
+                    type: string
+                    x-kubernetes-validations:
+                    - message: must be at least 1s
+                      rule: duration(self) >= duration('1s')
+                  cookie:
+                    description: Cookie configuration for type Cookie.
+                    minProperties: 1
+                    properties:
+                      name:
+                        description: |-
+                          Name of the cookie. Must not collide with cookies used by the
+                          application. Unset: "keda-session-" followed by a hash of the
+                          InterceptorRoute namespace and name.
+                        maxLength: 256
+                        minLength: 1
+                        pattern: ^[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$
+                        type: string
+                    type: object
+                  type:
+                    description: 'How the session is tracked. Cookie: a cookie managed
+                      by the interceptor.'
+                    enum:
+                    - Cookie
+                    type: string
+                required:
+                - type
+                type: object
+                x-kubernetes-validations:
+                - message: '''cookie'' may only be set when ''type'' is ''Cookie'''
+                  rule: '!has(self.cookie) || self.type == ''Cookie'''
               staticRoutes:
                 description: |-
                   Sub-routes that serve static responses without affecting scaling.
