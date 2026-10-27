@@ -49,7 +49,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var profilingAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", "", "The address the metric endpoint binds to. Defaults to :8080, or :8443 with --metrics-secure. Set to 0 to disable the metrics endpoint.")
 	flag.BoolVar(&metricsSecure, "metrics-secure", false, "Enable secure serving for metrics endpoint.")
 	flag.BoolVar(&metricsAuth, "metrics-auth", false, "Enable authentication and authorization for metrics endpoint.")
 	flag.StringVar(&metricsCertDir, "metrics-cert-dir", "", "The directory that contains the server certificate and key (tls.crt and tls.key) for the metrics endpoint.")
@@ -79,9 +79,12 @@ func main() {
 		}
 	}
 
-	// Switch between HTTP (8080) and HTTPS (8443) based on metricsSecure flag
-	if metricsSecure {
-		metricsAddr = ":8443"
+	// Without an explicit bind address, serve HTTP on 8080 or HTTPS on 8443
+	if metricsAddr == "" {
+		metricsAddr = ":8080"
+		if metricsSecure {
+			metricsAddr = ":8443"
+		}
 	}
 
 	metricsOpts := server.Options{
