@@ -45,6 +45,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Forward the request query unchanged instead of dropping `;`-separated parameters ([#1816](https://github.com/kedacore/http-add-on/pull/1816))
+- **Interceptor**: Skip wildcard route lookups for hostnames longer than 253 bytes to prevent excessive memory use from oversized `Host` headers ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 
 ### Deprecations
 

@@ -86,13 +86,19 @@ func newKeysFromRoutingRule(rule httpv1beta1.RoutingRule) Keys {
 	return keys
 }
 
+// maxHostnameLength is the maximum length of a DNS name in text form (RFC 1035),
+// excluding the optional trailing dot of a fully qualified name.
+const maxHostnameLength = 253
+
 // wildcardHostnames returns all wildcard patterns for a hostname,
 // ordered from most specific to least specific.
 // "foo.example.com" -> ["*.example.com", "*.com"]
 // "localhost"       -> []  (single-label, no wildcards)
 // ""                -> []  (empty, no wildcards)
+// Hostnames longer than maxHostnameLength are not valid DNS names and get no
+// wildcards; this also bounds the work done for oversized Host headers.
 func wildcardHostnames(hostname string) []string {
-	if hostname == "" {
+	if hostname == "" || len(strings.TrimSuffix(hostname, ".")) > maxHostnameLength {
 		return nil
 	}
 
