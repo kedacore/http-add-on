@@ -29,6 +29,13 @@ const (
 	defaultWindow      = time.Minute
 	defaultGranularity = time.Second
 
+	// maxWindow and minGranularity mirror the InterceptorRoute CRD
+	// validation. They bound the number of rate buckets and keep the bucket
+	// math, which divides by whole seconds of granularity, from dividing by
+	// zero for objects stored before that validation existed.
+	maxWindow      = 24 * time.Hour
+	minGranularity = time.Second
+
 	// minFetchTimeout is the lower clamp on a single queue counts request.
 	// The timeout tracks the tick duration, but a very short tick must not
 	// make healthy pods on a loaded node look unreachable: that would drop
@@ -146,10 +153,10 @@ func (q *queuePinger) UpdateBucketConfig(key string, window, granularity time.Du
 }
 
 func (q *queuePinger) updateBucketConfigLocked(key string, window, granularity time.Duration) {
-	if window <= 0 {
+	if window <= 0 || window > maxWindow {
 		window = defaultWindow
 	}
-	if granularity <= 0 {
+	if granularity < minGranularity {
 		granularity = defaultGranularity
 	}
 	if b, ok := q.rateBuckets[key]; ok &&
