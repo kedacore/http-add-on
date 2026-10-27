@@ -249,6 +249,15 @@ func TestGetMetrics(t *testing.T) {
 		}
 	})
 
+	t.Run("missing ScaledObjectRef", func(t *testing.T) {
+		hdl := newTestScalerHandler(t, nil, aggregatedCount{})
+
+		_, err := hdl.GetMetrics(t.Context(), &externalscaler.GetMetricsRequest{})
+		if got, want := status.Code(err), codes.InvalidArgument; got != want {
+			t.Fatalf("status code = %v, want %v (err: %v)", got, want, err)
+		}
+	})
+
 	t.Run("filters by requested metric name", func(t *testing.T) {
 		ir := newTestInterceptorRoute(httpv1beta1.ScalingMetricSpec{
 			Concurrency: &httpv1beta1.ConcurrencyTargetSpec{TargetValue: 3},
