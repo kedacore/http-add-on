@@ -792,7 +792,6 @@ func withPatchedDefaultTransport(t *testing.T, dialMap map[string]string) {
 
 	oldTransport := http.DefaultTransport
 	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			if mappedAddr, ok := dialMap[addr]; ok {
 				addr = mappedAddr

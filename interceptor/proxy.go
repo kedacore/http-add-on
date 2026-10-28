@@ -63,6 +63,9 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	// pod IP but SNI must remain the original service hostname.
 	if cfg.OutboundTLS != nil {
 		baseTransport.DialTLSContext = newTLSDialer(cfg.OutboundTLS, dialFunc)
+		// DialTLSContext is not used when an HTTP(S)_PROXY applies; the TLS
+		// handshake after CONNECT uses TLSClientConfig instead.
+		baseTransport.TLSClientConfig = cfg.OutboundTLS.Clone()
 	}
 
 	// Build handler chain (innermost to outermost)

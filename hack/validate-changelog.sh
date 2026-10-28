@@ -90,6 +90,11 @@ else
 fi
 
 for version in $versions; do
+    # Versions are interpolated into sed programs, so only allow known formats
+    if [[ ! "$version" =~ ^(Unreleased|v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+        echo "Error: Invalid version in ## History section: $version" >&2
+        exit 1
+    fi
     echo "Checking: $version"
 
     for section in "${SECTIONS[@]}"; do

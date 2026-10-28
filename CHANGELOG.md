@@ -44,7 +44,10 @@ This changelog keeps track of work items that have been completed and are ready 
 ### Fixes
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **Interceptor**: Apply the outbound TLS configuration to HTTPS backends reached through an `HTTPS_PROXY` ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 - **Interceptor**: Forward the request query unchanged instead of dropping `;`-separated parameters ([#1816](https://github.com/kedacore/http-add-on/pull/1816))
+- **Interceptor**: Log the escaped request path in access logs so encoded newlines cannot forge log lines ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
+- **Operator**: Respect an explicit `--metrics-bind-address` when `--metrics-secure` is set instead of always binding to `:8443` ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 
 ### Deprecations
 
