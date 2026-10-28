@@ -3,6 +3,7 @@ package routing
 import (
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	httpv1beta1 "github.com/kedacore/http-add-on/operator/apis/http/v1beta1"
@@ -171,9 +172,12 @@ func TestWildcardHostnames(t *testing.T) {
 		hostname string
 		want     []string
 	}{
-		"multi-level":  {"a.b.example.com", []string{"*.b.example.com", "*.example.com", "*.com"}},
-		"single-label": {"localhost", nil},
-		"empty":        {"", nil},
+		"multi-level":                  {"a.b.example.com", []string{"*.b.example.com", "*.example.com", "*.com"}},
+		"single-label":                 {"localhost", nil},
+		"empty":                        {"", nil},
+		"max length":                   {strings.Repeat("a", 249) + ".com", []string{"*.com"}},
+		"too long":                     {strings.Repeat("a", 250) + ".com", nil},
+		"max length with trailing dot": {strings.Repeat("a", 249) + ".com.", []string{"*.com.", "*."}},
 	}
 
 	for name, tt := range tests {

@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -410,6 +411,40 @@ func TestRoute(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRouteOversizedHost(t *testing.T) {
+	host := strings.Repeat("a", 250) + ".com"
+	exactIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "exact"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{host}}},
+		},
+	}
+	wildcardIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "wildcard"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"*.com"}}},
+		},
+	}
+	catchAllIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "catch-all"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{}},
+		},
+	}
+
+	t.Run("matches exact host", func(t *testing.T) {
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{exactIR}, host, "", exactIR)
+	})
+
+	t.Run("skips wildcard", func(t *testing.T) {
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR}, host, "", nil)
+	})
+
+	t.Run("matches catch-all", func(t *testing.T) {
+		runRouteTest(t, []*httpv1beta1.InterceptorRoute{wildcardIR, catchAllIR}, host, "", catchAllIR)
+	})
 }
 
 func TestRouteWildcardMultiLevel(t *testing.T) {
