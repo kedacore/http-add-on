@@ -24,6 +24,7 @@ import (
 type PathMatch struct {
 	// Path prefix to match against. The longest matching prefix wins.
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=1024
 	Value string `json:"value"`
 }
 
@@ -45,11 +46,14 @@ type RoutingRule struct {
 	// take priority over less specific ones.
 	// +optional
 	// +listType=set
+	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:items:MaxLength=253
 	Hosts []string `json:"hosts,omitzero"`
 	// Match any of these path prefixes. When multiple paths match,
 	// the longest prefix wins.
 	// +optional
 	// +listType=atomic
+	// +kubebuilder:validation:MaxItems=64
 	Paths []PathMatch `json:"paths,omitzero"`
 	// All listed headers must match the request (AND semantics).
 	// If a header's Value is omitted, the header must be present but any
@@ -57,6 +61,7 @@ type RoutingRule struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=name
+	// +kubebuilder:validation:MaxItems=16
 	Headers []HeaderMatch `json:"headers,omitzero"`
 }
 
@@ -71,6 +76,7 @@ type ConcurrencyTargetSpec struct {
 type RequestRateTargetSpec struct {
 	// Bucket size for rate calculation within the window.
 	// +kubebuilder:default="1s"
+	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('1s')",message="must be a duration of at least 1s"
 	// +optional
 	Granularity metav1.Duration `json:"granularity,omitzero"`
 	// Target request rate per replica.
@@ -78,6 +84,7 @@ type RequestRateTargetSpec struct {
 	TargetValue int32 `json:"targetValue"`
 	// Sliding time window over which the request rate is calculated.
 	// +kubebuilder:default="1m"
+	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('0s') && duration(self) <= duration('24h')",message="must be a duration between 0s and 24h"
 	// +optional
 	Window metav1.Duration `json:"window,omitzero"`
 }
@@ -249,12 +256,14 @@ type InterceptorRouteTimeouts struct {
 	// request budget is available for cold starts. When a fallback service
 	// is configured and this is "0s", a 30s default is applied.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('0s')",message="must be a non-negative duration"
 	Readiness *metav1.Duration `json:"readiness,omitzero"`
 
 	// Total time allowed for the entire request lifecycle.
 	// Unset: uses the global KEDA_HTTP_REQUEST_TIMEOUT (default: disabled).
 	// Set to "0s" to disable the request deadline.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('0s')",message="must be a non-negative duration"
 	Request *metav1.Duration `json:"request,omitzero"`
 
 	// Max time to wait for the response headers from the backend after the
@@ -262,6 +271,7 @@ type InterceptorRouteTimeouts struct {
 	// Unset: uses the global KEDA_HTTP_RESPONSE_HEADER_TIMEOUT (default: 300s).
 	// Set to "0s" to disable the response header deadline.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="duration(self) >= duration('0s')",message="must be a non-negative duration"
 	ResponseHeader *metav1.Duration `json:"responseHeader,omitzero"`
 }
 
@@ -285,6 +295,7 @@ type StaticRoute struct {
 	// Matching rules for this static route. A request matching any rule
 	// is handled by this static route.
 	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=16
 	// +listType=atomic
 	Rules []RoutingRule `json:"rules"`
 	// Static response configuration.
@@ -311,6 +322,7 @@ type InterceptorRouteSpec struct {
 	// Routing rules that define how requests are matched to this target.
 	// +optional
 	// +listType=atomic
+	// +kubebuilder:validation:MaxItems=16
 	Rules []RoutingRule `json:"rules,omitzero"`
 	// Metric configuration for autoscaling.
 	ScalingMetric ScalingMetricSpec `json:"scalingMetric"`
@@ -318,6 +330,7 @@ type InterceptorRouteSpec struct {
 	// Evaluated in list order (first match wins).
 	// +optional
 	// +listType=atomic
+	// +kubebuilder:validation:MaxItems=16
 	StaticRoutes []StaticRoute `json:"staticRoutes,omitzero"`
 }
 

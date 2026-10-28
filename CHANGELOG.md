@@ -32,6 +32,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: Remove the deprecated HTTPScaledObject (v1alpha1) API; use InterceptorRoute instead. ([#1596](https://github.com/kedacore/http-add-on/issues/1596))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
+- **General**: Validate InterceptorRoute sizes and durations: at most 16 rules, 16 hosts (253 characters each), 64 paths (1024 characters each) and 16 headers per rule, and at most 16 static routes with at most 16 rules each; timeouts must be valid non-negative durations, `requestRate.granularity` at least 1s and `requestRate.window` at most 24h. Existing objects are kept but must comply when the affected fields are changed ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 
 ### New
 
@@ -45,6 +46,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Forward the request query unchanged instead of dropping `;`-separated parameters ([#1816](https://github.com/kedacore/http-add-on/pull/1816))
+- **Scaler**: Fall back to the default rate window and granularity for sub-second granularities and windows above 24h instead of crashing or exhausting memory ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 
 ### Deprecations
 

@@ -196,6 +196,7 @@ spec:
                         required:
                         - name
                         type: object
+                      maxItems: 16
                       type: array
                       x-kubernetes-list-map-keys:
                       - name
@@ -207,7 +208,9 @@ spec:
                         priority over wildcards; more specific wildcards (e.g. "*.bar.example.com")
                         take priority over less specific ones.
                       items:
+                        maxLength: 253
                         type: string
+                      maxItems: 16
                       type: array
                       x-kubernetes-list-type: set
                     paths:
@@ -220,14 +223,17 @@ spec:
                           value:
                             description: Path prefix to match against. The longest
                               matching prefix wins.
+                            maxLength: 1024
                             minLength: 1
                             type: string
                         required:
                         - value
                         type: object
+                      maxItems: 64
                       type: array
                       x-kubernetes-list-type: atomic
                   type: object
+                maxItems: 16
                 type: array
                 x-kubernetes-list-type: atomic
               scalingMetric:
@@ -251,6 +257,9 @@ spec:
                         default: 1s
                         description: Bucket size for rate calculation within the window.
                         type: string
+                        x-kubernetes-validations:
+                        - message: must be a duration of at least 1s
+                          rule: duration(self) >= duration('1s')
                       targetValue:
                         description: Target request rate per replica.
                         format: int32
@@ -261,6 +270,10 @@ spec:
                         description: Sliding time window over which the request rate
                           is calculated.
                         type: string
+                        x-kubernetes-validations:
+                        - message: must be a duration between 0s and 24h
+                          rule: duration(self) >= duration('0s') && duration(self)
+                            <= duration('24h')
                     required:
                     - targetValue
                     type: object
@@ -361,6 +374,7 @@ spec:
                               required:
                               - name
                               type: object
+                            maxItems: 16
                             type: array
                             x-kubernetes-list-map-keys:
                             - name
@@ -372,7 +386,9 @@ spec:
                               priority over wildcards; more specific wildcards (e.g. "*.bar.example.com")
                               take priority over less specific ones.
                             items:
+                              maxLength: 253
                               type: string
+                            maxItems: 16
                             type: array
                             x-kubernetes-list-type: set
                           paths:
@@ -385,14 +401,17 @@ spec:
                                 value:
                                   description: Path prefix to match against. The longest
                                     matching prefix wins.
+                                  maxLength: 1024
                                   minLength: 1
                                   type: string
                               required:
                               - value
                               type: object
+                            maxItems: 64
                             type: array
                             x-kubernetes-list-type: atomic
                         type: object
+                      maxItems: 16
                       minItems: 1
                       type: array
                       x-kubernetes-list-type: atomic
@@ -400,6 +419,7 @@ spec:
                   - response
                   - rules
                   type: object
+                maxItems: 16
                 type: array
                 x-kubernetes-list-type: atomic
               target:
@@ -438,12 +458,18 @@ spec:
                       request budget is available for cold starts. When a fallback service
                       is configured and this is "0s", a 30s default is applied.
                     type: string
+                    x-kubernetes-validations:
+                    - message: must be a non-negative duration
+                      rule: duration(self) >= duration('0s')
                   request:
                     description: |-
                       Total time allowed for the entire request lifecycle.
                       Unset: uses the global KEDA_HTTP_REQUEST_TIMEOUT (default: disabled).
                       Set to "0s" to disable the request deadline.
                     type: string
+                    x-kubernetes-validations:
+                    - message: must be a non-negative duration
+                      rule: duration(self) >= duration('0s')
                   responseHeader:
                     description: |-
                       Max time to wait for the response headers from the backend after the
@@ -451,6 +477,9 @@ spec:
                       Unset: uses the global KEDA_HTTP_RESPONSE_HEADER_TIMEOUT (default: 300s).
                       Set to "0s" to disable the response header deadline.
                     type: string
+                    x-kubernetes-validations:
+                    - message: must be a non-negative duration
+                      rule: duration(self) >= duration('0s')
                 type: object
             required:
             - scalingMetric
