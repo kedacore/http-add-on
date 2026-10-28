@@ -45,6 +45,7 @@ This changelog keeps track of work items that have been completed and are ready 
 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Forward the request query unchanged instead of dropping `;`-separated parameters ([#1816](https://github.com/kedacore/http-add-on/pull/1816))
+- **Scaler**: Reject `GetMetrics` requests without a `scaledObjectRef` instead of crashing ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 
 ### Deprecations
 

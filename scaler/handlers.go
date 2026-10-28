@@ -13,6 +13,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"k8s.io/apimachinery/pkg/types"
@@ -190,6 +192,9 @@ func (e *scalerHandler) StreamMetricSpec(sor *externalscaler.ScaledObjectRef, se
 func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externalscaler.GetMetricsRequest) (*externalscaler.GetMetricsResponse, error) {
 	lggr := e.lggr.WithName("GetMetrics")
 	sor := metricRequest.ScaledObjectRef
+	if sor == nil {
+		return nil, status.Error(codes.InvalidArgument, "scaledObjectRef is required")
+	}
 
 	scalerMetadata := sor.GetScalerMetadata()
 
