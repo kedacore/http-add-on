@@ -19,6 +19,9 @@ image:
 
 args:
   - netexec
+  # Serve every request as "/" so netexec's debug endpoints (e.g. /shell,
+  # /exit, /upload) are not reachable.
+  - --http-override=/
 
 imagePullSecrets: []
 nameOverride: ""
