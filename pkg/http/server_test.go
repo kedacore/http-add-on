@@ -137,8 +137,8 @@ func TestServeWaitsForInFlightRequests(t *testing.T) {
 
 	// Give serve() a moment to (incorrectly) return early.
 	select {
-	case <-serveReturned:
-		t.Fatal("serve() returned while a handler was still in-flight — the shutdown drain is broken")
+	case err := <-serveReturned:
+		t.Fatalf("serve() returned while a handler was still in-flight — the shutdown drain is broken: %v", err)
 	case <-time.After(200 * time.Millisecond):
 	}
 
@@ -225,8 +225,8 @@ func TestServeWaitsForHijackedConnections(t *testing.T) {
 
 	// serve() must NOT return while the hijacked handler is still running.
 	select {
-	case <-serveReturned:
-		t.Fatal("serve() returned while a hijacked handler was still in-flight")
+	case err := <-serveReturned:
+		t.Fatalf("serve() returned while a hijacked handler was still in-flight: %v", err)
 	case <-time.After(200 * time.Millisecond):
 	}
 
