@@ -29,13 +29,13 @@ IMAGE_SCALER_SHA_TAG       ?= $(IMAGE_SCALER):$(GIT_COMMIT_SHORT)
 KO_RELEASE_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 
 # renovate: datasource=helm depName=cert-manager registryUrl=https://charts.jetstack.io
-CERT_MANAGER_VERSION ?= v1.21.2
+CERT_MANAGER_VERSION ?= v1.21.3
 # renovate: datasource=helm depName=jaeger registryUrl=https://jaegertracing.github.io/helm-charts
-JAEGER_VERSION ?= 4.14.0
+JAEGER_VERSION ?= 4.16.1
 # renovate: datasource=helm depName=keda registryUrl=https://kedacore.github.io/charts
 KEDA_VERSION ?= 2.21.0
 # renovate: datasource=helm depName=opentelemetry-collector registryUrl=https://open-telemetry.github.io/opentelemetry-helm-charts
-OTEL_COLLECTOR_VERSION ?= 0.173.1
+OTEL_COLLECTOR_VERSION ?= 0.178.1
 
 HELM_RETRIES ?= 3
 HELM_RETRY_DELAY ?= 30
@@ -58,11 +58,11 @@ CONTROLLER_GEN ?= go tool controller-gen
 LOCALBIN ?= $(CURDIR)/bin
 
 # renovate: datasource=github-releases depName=golangci/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.14.0
+GOLANGCI_LINT_VERSION ?= v2.15.0
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize\/(?<version>.+)$$
-KUSTOMIZE_VERSION ?= v5.8.1
+KUSTOMIZE_VERSION ?= v5.8.3
 # renovate: datasource=github-releases depName=helm/helm
-HELM_VERSION ?= v4.3.0
+HELM_VERSION ?= v4.3.1
 
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 KUSTOMIZE     ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
