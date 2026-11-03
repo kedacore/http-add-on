@@ -30,7 +30,14 @@ var (
 	testIRConcurrencyMetric = ConcurrencyMetricName(testIRName)
 	testIRRateMetric        = RateMetricName(testIRName)
 	testIRKey               = types.NamespacedName{Name: testIRName, Namespace: testIRNamespace}
-	testScaledObjectRef     = &externalscaler.ScaledObjectRef{
+	testInterceptorSORef    = &externalscaler.ScaledObjectRef{
+		Name:      "interceptor",
+		Namespace: testIRNamespace,
+		ScalerMetadata: map[string]string{
+			k8s.InterceptorTargetPendingRequestsKey: "200",
+		},
+	}
+	testScaledObjectRef = &externalscaler.ScaledObjectRef{
 		Name:      "test-so",
 		Namespace: testIRNamespace,
 		ScalerMetadata: map[string]string{
@@ -160,6 +167,43 @@ func TestGetMetricSpec(t *testing.T) {
 		_, err := hdl.GetMetricSpec(t.Context(), testScaledObjectRef)
 		if err == nil {
 			t.Fatal("expected error, got nil")
+		}
+	})
+	t.Run("interceptor fleet", func(t *testing.T) {
+		hdl := newTestScalerHandler(t, nil, aggregatedCount{})
+
+		resp, err := hdl.GetMetricSpec(t.Context(), testInterceptorSORef)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		specs := resp.GetMetricSpecs()
+		if len(specs) != 1 {
+			t.Fatalf("got %d metric specs, want 1", len(specs))
+		}
+		if got, want := specs[0].MetricName, interceptorMetricName; got != want {
+			t.Errorf("MetricName = %q, want %q", got, want)
+		}
+		if got, want := specs[0].TargetSizeFloat, float64(200); got != want {
+			t.Errorf("TargetSizeFloat = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("interceptor fleet with invalid target", func(t *testing.T) {
+		hdl := newTestScalerHandler(t, nil, aggregatedCount{})
+
+		for _, target := range []string{"abc", "", "0", "0.0001", "-1", "NaN", "Inf", "-Inf"} {
+			t.Run(target, func(t *testing.T) {
+				sor := &externalscaler.ScaledObjectRef{
+					Name:           "interceptor",
+					Namespace:      testIRNamespace,
+					ScalerMetadata: map[string]string{k8s.InterceptorTargetPendingRequestsKey: target},
+				}
+
+				if _, err := hdl.GetMetricSpec(t.Context(), sor); err == nil {
+					t.Fatal("expected error, got nil")
+				}
+			})
 		}
 	})
 }
@@ -311,6 +355,55 @@ func TestGetMetrics(t *testing.T) {
 			})
 		}
 	})
+	t.Run("interceptor fleet filters by requested metric name", func(t *testing.T) {
+		hdl := newTestScalerHandler(t, nil, aggregatedCount{})
+		hdl.pinger.allCounts["ns/a"] = aggregatedCount{Concurrency: 10}
+
+		tests := map[string]struct {
+			metricName string
+			wantValues int
+		}{
+			"empty name returns the fleet metric": {metricName: "", wantValues: 1},
+			"fleet metric name":                   {metricName: interceptorMetricName, wantValues: 1},
+			"unrelated name returns nothing":      {metricName: "http_other_concurrency", wantValues: 0},
+		}
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				resp, err := hdl.GetMetrics(t.Context(), &externalscaler.GetMetricsRequest{
+					ScaledObjectRef: testInterceptorSORef,
+					MetricName:      tc.metricName,
+				})
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if got := len(resp.GetMetricValues()); got != tc.wantValues {
+					t.Errorf("got %d metric values, want %d", got, tc.wantValues)
+				}
+			})
+		}
+	})
+
+	t.Run("interceptor fleet sums pending requests over all routes", func(t *testing.T) {
+		hdl := newTestScalerHandler(t, nil, aggregatedCount{})
+		hdl.pinger.allCounts["ns/a"] = aggregatedCount{Concurrency: 10}
+		hdl.pinger.allCounts["ns/b"] = aggregatedCount{Concurrency: 32}
+
+		resp, err := hdl.GetMetrics(t.Context(), &externalscaler.GetMetricsRequest{ScaledObjectRef: testInterceptorSORef})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		values := resp.GetMetricValues()
+		if len(values) != 1 {
+			t.Fatalf("got %d metric values, want 1", len(values))
+		}
+		if got, want := values[0].MetricName, interceptorMetricName; got != want {
+			t.Errorf("MetricName = %q, want %q", got, want)
+		}
+		if got, want := values[0].MetricValueFloat, float64(42); got != want {
+			t.Errorf("MetricValueFloat = %v, want %v", got, want)
+		}
+	})
 }
 
 func TestIsActive(t *testing.T) {
@@ -371,6 +464,30 @@ func TestIsActive(t *testing.T) {
 		_, err := hdl.IsActive(t.Context(), testScaledObjectRef)
 		if err == nil {
 			t.Fatal("expected error, got nil")
+		}
+	})
+
+	t.Run("interceptor fleet", func(t *testing.T) {
+		tests := map[string]struct {
+			concurrency int
+			wantActive  bool
+		}{
+			"pending requests": {concurrency: 3, wantActive: true},
+			"no traffic":       {concurrency: 0, wantActive: false},
+		}
+		for name, tc := range tests {
+			t.Run(name, func(t *testing.T) {
+				hdl := newTestScalerHandler(t, nil, aggregatedCount{})
+				hdl.pinger.allCounts["ns/a"] = aggregatedCount{Concurrency: tc.concurrency}
+
+				resp, err := hdl.IsActive(t.Context(), testInterceptorSORef)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if got, want := resp.Result, tc.wantActive; got != want {
+					t.Errorf("IsActive result = %v, want %v", got, want)
+				}
+			})
 		}
 	})
 }
