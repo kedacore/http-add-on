@@ -105,6 +105,45 @@ func TestTableRoute(t *testing.T) {
 	}
 }
 
+func TestTableRoute_CaseInsensitiveHost(t *testing.T) {
+	exact := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "exact", Namespace: "default"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"Api.Example.com"}}},
+		},
+	}
+	wildcard := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "wildcard", Namespace: "default"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"*.apps.example.com"}}},
+		},
+	}
+
+	cl := newTestClient(exact, wildcard)
+	tbl := NewTable(cl, queue.NewMemory())
+
+	cancel := startTableAndWaitForSync(t, tbl)
+	defer cancel()
+
+	tests := map[string]string{
+		"api.example.com":          "exact",
+		"API.EXAMPLE.COM:8080":     "exact",
+		"Api.Example.com":          "exact",
+		"foo.apps.example.com":     "wildcard",
+		"Foo.Apps.Example.COM:443": "wildcard",
+	}
+
+	for host, want := range tests {
+		t.Run(host, func(t *testing.T) {
+			req, _ := http.NewRequest("GET", "http://example.invalid/test", nil)
+			req.Host = host
+			if result := tbl.Route(req); result == nil || result.Name != want {
+				t.Errorf("host %q: expected %q, got %v", host, want, result)
+			}
+		})
+	}
+}
+
 func TestTableHasSynced(t *testing.T) {
 	cl := newTestClient()
 	tbl := NewTable(cl, queue.NewMemory())
