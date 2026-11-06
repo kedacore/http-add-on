@@ -53,7 +53,7 @@ func (lm *Logging) log(rw *instrumentedResponseWriter, r *http.Request, startTim
 		r.RemoteAddr,
 		timestamp,
 		r.Method,
-		r.URL.Path,
+		r.URL.EscapedPath(),
 		r.Proto,
 		rw.statusCode,
 		rw.bytesWritten,

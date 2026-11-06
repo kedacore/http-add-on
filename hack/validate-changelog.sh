@@ -89,7 +89,12 @@ else
     versions=Unreleased
 fi
 
-for version in $versions; do
+while IFS= read -r version; do
+    # Versions are interpolated into sed programs, so only allow known formats
+    if [[ ! "$version" =~ ^(Unreleased|v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+        echo "Error: Invalid version in ## History section: $version" >&2
+        exit 1
+    fi
     echo "Checking: $version"
 
     for section in "${SECTIONS[@]}"; do
@@ -115,7 +120,7 @@ for version in $versions; do
             errors=1
         fi
     done
-done
+done <<< "$versions"
 
 if [[ $errors -eq 0 ]]; then
     echo "OK"
