@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -315,6 +316,71 @@ func TestRouteWithHeaders(t *testing.T) {
 			case route != nil && tt.want == "":
 				t.Errorf("route=%q, want nil", route.Name)
 			case route != nil && route.Name != tt.want:
+				t.Errorf("route=%q, want %q", route.Name, tt.want)
+			}
+		})
+	}
+}
+
+func TestRouteFallsBackToShorterPathWhenHeadersDoNotMatch(t *testing.T) {
+	rootIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "root"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts: []string{"example.com"},
+			}},
+		},
+	}
+	canaryIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "canary"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts:   []string{"example.com"},
+				Paths:   []httpv1beta1.PathMatch{{Value: "/api/"}},
+				Headers: []httpv1beta1.HeaderMatch{{Name: "X-Canary", Value: new("true")}},
+			}},
+		},
+	}
+	wildcardIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "wildcard"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts: []string{"*.example.com"},
+			}},
+		},
+	}
+	wildcardCanaryIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "wildcard-canary"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts:   []string{"*.example.com"},
+				Paths:   []httpv1beta1.PathMatch{{Value: "/api/"}},
+				Headers: []httpv1beta1.HeaderMatch{{Name: "X-Canary", Value: new("true")}},
+			}},
+		},
+	}
+
+	tm := NewTableMemory().Remember(rootIR).Remember(canaryIR).Remember(wildcardIR).Remember(wildcardCanaryIR)
+
+	tests := []struct {
+		name    string
+		host    string
+		headers http.Header
+		want    string
+	}{
+		{name: "exact host with matching headers", host: "example.com", headers: http.Header{"X-Canary": {"true"}}, want: "canary"},
+		{name: "exact host without matching headers", host: "example.com", headers: http.Header{}, want: "root"},
+		{name: "wildcard host with matching headers", host: "foo.example.com", headers: http.Header{"X-Canary": {"true"}}, want: "wildcard-canary"},
+		{name: "wildcard host without matching headers", host: "foo.example.com", headers: http.Header{}, want: "wildcard"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			route := tm.Route(tt.host, "/api/v1", tt.headers)
+			if route == nil {
+				t.Fatalf("route=nil, want %q", tt.want)
+			}
+			if route.Name != tt.want {
 				t.Errorf("route=%q, want %q", route.Name, tt.want)
 			}
 		})
