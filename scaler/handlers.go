@@ -8,7 +8,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -24,6 +26,9 @@ import (
 )
 
 var errNoMetricValues = errors.New("no metric values in response")
+
+// interceptorMetricName names the metric that scales the interceptor fleet.
+var interceptorMetricName = metricName("interceptor", "concurrency")
 
 type scalerHandler struct {
 	lggr           logr.Logger
@@ -142,9 +147,38 @@ func (e *scalerHandler) GetMetricSpec(ctx context.Context, sor *externalscaler.S
 		}, nil
 	}
 
+	if target, ok := scalerMetadata[k8s.InterceptorTargetPendingRequestsKey]; ok {
+		return e.interceptorMetricSpec(target)
+	}
+
 	err := fmt.Errorf("unable to get InterceptorRoute reference")
 	lggr.Error(err, "unable to get the linked InterceptorRoute for ScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 	return nil, err
+}
+
+func (e *scalerHandler) interceptorMetricSpec(interceptorTargetPendingRequests string) (*externalscaler.GetMetricSpecResponse, error) {
+	targetPendingRequests, err := strconv.ParseFloat(interceptorTargetPendingRequests, 64)
+	if err != nil {
+		e.lggr.Error(err, "unable to parse the interceptor target", "key", k8s.InterceptorTargetPendingRequestsKey, "value", interceptorTargetPendingRequests)
+		return nil, err
+	}
+
+	// KEDA turns any other value into a target of 0, which the HPA rejects. It
+	// rounds targets to three decimals, so 0.001 is the smallest usable one.
+	if math.IsNaN(targetPendingRequests) || math.IsInf(targetPendingRequests, 0) || targetPendingRequests < 0.001 {
+		err := fmt.Errorf("%s must be a finite number of at least 0.001, got %q", k8s.InterceptorTargetPendingRequestsKey, interceptorTargetPendingRequests)
+		e.lggr.Error(err, "invalid interceptor target", "key", k8s.InterceptorTargetPendingRequestsKey, "value", interceptorTargetPendingRequests)
+		return nil, err
+	}
+
+	return &externalscaler.GetMetricSpecResponse{
+		MetricSpecs: []*externalscaler.MetricSpec{
+			{
+				MetricName:      interceptorMetricName,
+				TargetSizeFloat: targetPendingRequests,
+			},
+		},
+	}, nil
 }
 
 // StreamMetricSpec pushes the metric specs to KEDA every time they change.
@@ -235,7 +269,32 @@ func (e *scalerHandler) GetMetrics(ctx context.Context, metricRequest *externals
 		}, nil
 	}
 
+	if _, ok := scalerMetadata[k8s.InterceptorTargetPendingRequestsKey]; ok {
+		if requested := metricRequest.GetMetricName(); requested != "" && requested != interceptorMetricName {
+			return &externalscaler.GetMetricsResponse{}, nil
+		}
+		return e.interceptorMetrics(), nil
+	}
+
 	err := fmt.Errorf("unable to get InterceptorRoute reference")
 	lggr.Error(err, "unable to get the linked InterceptorRoute for ScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 	return nil, err
+}
+
+// interceptorMetrics reports the pending requests summed over all routes, which
+// is the load on the interceptor fleet.
+func (e *scalerHandler) interceptorMetrics() *externalscaler.GetMetricsResponse {
+	var count float64
+	for _, c := range e.pinger.counts() {
+		count += float64(c.Concurrency)
+	}
+
+	return &externalscaler.GetMetricsResponse{
+		MetricValues: []*externalscaler.MetricValue{
+			{
+				MetricName:       interceptorMetricName,
+				MetricValueFloat: count,
+			},
+		},
+	}
 }
