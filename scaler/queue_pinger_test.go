@@ -724,16 +724,52 @@ func TestNewQueuePingerFetchTimeout(t *testing.T) {
 }
 
 func TestUpdateBucketConfig(t *testing.T) {
-	r := require.New(t)
-	_, pinger, err := newFakeQueuePinger(logr.Discard())
-	r.NoError(err)
+	tests := map[string]struct {
+		window          time.Duration
+		granularity     time.Duration
+		wantWindow      time.Duration
+		wantGranularity time.Duration
+	}{
+		"valid config": {
+			window:          2 * time.Minute,
+			granularity:     2 * time.Second,
+			wantWindow:      2 * time.Minute,
+			wantGranularity: 2 * time.Second,
+		},
+		"unset uses defaults": {
+			wantWindow:      defaultWindow,
+			wantGranularity: defaultGranularity,
+		},
+		"window above max uses default": {
+			window:          maxWindow + time.Second,
+			granularity:     time.Second,
+			wantWindow:      defaultWindow,
+			wantGranularity: time.Second,
+		},
+		"sub-second granularity uses default": {
+			window:          time.Minute,
+			granularity:     500 * time.Millisecond,
+			wantWindow:      time.Minute,
+			wantGranularity: defaultGranularity,
+		},
+	}
 
-	pinger.UpdateBucketConfig("host1", 2*time.Minute, 2*time.Second)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			r := require.New(t)
+			_, pinger, err := newFakeQueuePinger(logr.Discard())
+			r.NoError(err)
 
-	b, ok := pinger.rateBuckets["host1"]
-	r.True(ok)
-	r.Equal(2*time.Minute, b.Window())
-	r.Equal(2*time.Second, b.Granularity())
+			pinger.UpdateBucketConfig("host1", tc.window, tc.granularity)
+
+			b, ok := pinger.rateBuckets["host1"]
+			r.True(ok)
+			r.Equal(tc.wantWindow, b.Window())
+			r.Equal(tc.wantGranularity, b.Granularity())
+			// Must not panic for any accepted config.
+			b.Record(time.Now(), 1)
+		})
+	}
 }
 
 // startFakeQueueEndpointServer starts a fake server that simulates
