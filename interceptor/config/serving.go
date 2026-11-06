@@ -54,6 +54,11 @@ type Serving struct {
 	// ClusterIP, bypassing kube-proxy and other Service-layer features
 	// (NetworkPolicy, session affinity, topology-aware routing).
 	DirectPodRouting bool `env:"KEDA_HTTP_DIRECT_POD_ROUTING" envDefault:"true"`
+	// LoadBalancing selects how a ready pod is picked with direct-pod routing:
+	// "random" picks a random pod, "least-request" picks two random pods and
+	// uses the one with fewer in-flight requests. Each interceptor replica only
+	// counts its own in-flight requests.
+	LoadBalancing string `env:"KEDA_HTTP_LOAD_BALANCING" envDefault:"random"`
 
 	// ColdStartMaxPendingRequests is the default limit on requests held per
 	// route while its backend has no ready endpoints (e.g. during

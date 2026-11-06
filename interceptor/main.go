@@ -116,10 +116,16 @@ func run() error {
 		return fmt.Errorf("creating cache: %w", err)
 	}
 
+	loadBalancing, err := k8s.ParseLoadBalancing(servingCfg.LoadBalancing)
+	if err != nil {
+		return fmt.Errorf("parsing KEDA_HTTP_LOAD_BALANCING: %w", err)
+	}
+
 	readyCache, err := k8s.NewReadyEndpointsCacheWithInformer(signalCtx, ctrl.Log, ctrlCache)
 	if err != nil {
 		return fmt.Errorf("creating endpoints cache: %w", err)
 	}
+	readyCache.SetLoadBalancing(loadBalancing)
 
 	queues := queue.NewMemory()
 	routingTable := routing.NewTable(ctrlCache, queues)
