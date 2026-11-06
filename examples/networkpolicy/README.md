@@ -6,6 +6,11 @@ These are starting points for clusters with a CNI that enforces NetworkPolicy (f
 
 Add-on selectors use `app.kubernetes.io/name: http-add-on` and `app.kubernetes.io/component`. `component: operator` alone also matches KEDA's own operator, metrics API server, and admission webhook.
 
+These labels match the [Helm chart](https://github.com/kedacore/charts/tree/main/http-add-on).
+Pods installed from the kustomize manifests in [`config/`](../../config) or the release YAML use `app.kubernetes.io/name: http`, `app.kubernetes.io/component: add-on`, and `app.kubernetes.io/instance: interceptor`, `external-scaler`, or `operator` instead, so update the pod and peer selectors for that install method.
+A policy whose selector matches no pods has no effect.
+Check the add-on selectors with `kubectl -n keda get pods -l <selector>` and the application selector with `kubectl -n default get pods -l app.kubernetes.io/name=xkcd`.
+
 ## Files
 
 | File | Target |
