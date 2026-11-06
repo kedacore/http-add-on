@@ -47,6 +47,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **Interceptor**: Allow `coldStart.maxPendingRequests: 0` to disable the pending-request limit for an individual route, overriding the global limit. ([#1801](https://github.com/kedacore/http-add-on/issues/1801))
 - **Interceptor**: Apply the outbound TLS configuration to HTTPS backends reached through an `HTTPS_PROXY` ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
+- **Interceptor**: Fall back to a shorter matching path prefix when a longer prefix exists only for other headers, instead of returning `404` ([#1834](https://github.com/kedacore/http-add-on/pull/1834))
 - **Interceptor**: Forward the request query unchanged instead of dropping `;`-separated parameters ([#1816](https://github.com/kedacore/http-add-on/pull/1816))
 - **Interceptor**: Log the escaped request path in access logs so encoded newlines cannot forge log lines ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 - **Interceptor**: Skip wildcard route lookups for hostnames longer than 253 bytes to prevent excessive memory use from oversized `Host` headers ([#1817](https://github.com/kedacore/http-add-on/issues/1817))

@@ -58,14 +58,8 @@ func (tm *TableMemory) Remember(ir *httpv1beta1.InterceptorRoute) *TableMemory {
 // then it moves to wildcards with similar header matching rule, finally catch-all.
 func (tm *TableMemory) Route(hostname, path string, headers http.Header) *httpv1beta1.InterceptorRoute {
 	// Try exact match
-	key := NewKey(hostname, path)
-	_, routeEntries, _ := tm.store.Root().LongestPrefix(key)
-
-	// Filter header matches, the entries are already sorted by specificity so the first match is the most specific one
-	for _, e := range routeEntries {
-		if MatchHeaders(e.headers, headers) {
-			return e.ir
-		}
+	if ir := tm.tryWithKey(NewKey(hostname, path), headers); ir != nil {
+		return ir
 	}
 
 	// Try wildcard matches (most specific to least specific)
@@ -82,14 +76,21 @@ func (tm *TableMemory) Route(hostname, path string, headers http.Header) *httpv1
 }
 
 // tryWithKey attempts to find an InterceptorRoute for the given key and headers.
+// It returns the route of the longest path prefix whose headers match, so a
+// header mismatch on a longer prefix falls back to a shorter one.
 func (tm *TableMemory) tryWithKey(key Key, headers http.Header) *httpv1beta1.InterceptorRoute {
-	_, routeEntries, _ := tm.store.Root().LongestPrefix(key)
-	for _, e := range routeEntries {
-		if MatchHeaders(e.headers, headers) {
-			return e.ir
+	var match *httpv1beta1.InterceptorRoute
+	tm.store.Root().WalkPath(key, func(_ []byte, routeEntries []routeEntry) bool {
+		// Entries are sorted by specificity, so the first match is the most specific one
+		for _, e := range routeEntries {
+			if MatchHeaders(e.headers, headers) {
+				match = e.ir
+				break
+			}
 		}
-	}
-	return nil
+		return false
+	})
+	return match
 }
 
 // remember adds a route entry to the store for the given key, sorting by specificity.
