@@ -48,6 +48,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **Interceptor**: Forward the request query unchanged instead of dropping `;`-separated parameters ([#1816](https://github.com/kedacore/http-add-on/pull/1816))
 - **Interceptor**: Log the escaped request path in access logs so encoded newlines cannot forge log lines ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 - **Operator**: Respect an explicit `--metrics-bind-address` when `--metrics-secure` is set instead of always binding to `:8443` ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
+- **Scaler**: Reject `GetMetrics` requests without a `scaledObjectRef` instead of crashing ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 
 ### Deprecations
 
