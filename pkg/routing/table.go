@@ -98,7 +98,7 @@ func (t *table) Route(req *http.Request) *httpv1beta1.InterceptorRoute {
 		return nil
 	}
 
-	hostname := StripPort(req.Host)
+	hostname := normalizeHostname(req.Host)
 
 	return tm.Route(hostname, req.URL.Path, req.Header)
 }

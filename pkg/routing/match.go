@@ -41,8 +41,11 @@ func MatchHeaders(matchers []httpv1beta1.HeaderMatch, reqHeaders http.Header) bo
 
 // MatchAnyHost reports whether reqHost matches any of the host patterns.
 // Supports exact match, wildcard prefix ("*.example.com"), and catch-all ("*" or "").
+// Hostnames are compared case-insensitively.
 func MatchAnyHost(reqHost string, hosts []string) bool {
+	reqHost = normalizeHostname(reqHost)
 	for _, h := range hosts {
+		h = normalizeHostname(h)
 		if h == "*" || h == "" {
 			return true
 		}
@@ -95,6 +98,12 @@ func StripPort(host string) string {
 		return hostname
 	}
 	return host
+}
+
+// normalizeHostname strips the port and lowercases the hostname, since
+// hostnames are case-insensitive (RFC 9110, section 4.2.3).
+func normalizeHostname(host string) string {
+	return strings.ToLower(StripPort(host))
 }
 
 func normalizePath(p string) string {
