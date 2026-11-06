@@ -36,6 +36,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### New
 
 - **General**: Add NetworkPolicy examples for securing KEDA HTTP Add-on components ([#1602](https://github.com/kedacore/http-add-on/issues/1602))
+- **Interceptor**: Add cookie-based session persistence to pin client sessions to a backend pod via `InterceptorRoute` `spec.sessionPersistence` ([#1677](https://github.com/kedacore/http-add-on/issues/1677))
 
 ### Improvements
 
