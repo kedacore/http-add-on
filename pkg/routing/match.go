@@ -1,7 +1,6 @@
 package routing
 
 import (
-	"net"
 	"net/http"
 	"slices"
 	"strings"
@@ -77,33 +76,6 @@ func MatchAnyPath(reqPath string, paths []httpv1beta1.PathMatch) bool {
 		}
 	}
 	return false
-}
-
-// RequestHost extracts the hostname from the request, stripping the port if present.
-// Falls back to r.URL.Host when r.Host is empty.
-func RequestHost(r *http.Request) string {
-	host := r.Host
-	if host == "" && r.URL != nil {
-		host = r.URL.Host
-	}
-	return StripPort(host)
-}
-
-// StripPort removes the port from a host string.
-func StripPort(host string) string {
-	if host == "" {
-		return ""
-	}
-	if hostname, _, err := net.SplitHostPort(host); err == nil {
-		return hostname
-	}
-	return host
-}
-
-// normalizeHostname strips the port and lowercases the hostname, since
-// hostnames are case-insensitive (RFC 9110, section 4.2.3).
-func normalizeHostname(host string) string {
-	return strings.ToLower(StripPort(host))
 }
 
 func normalizePath(p string) string {

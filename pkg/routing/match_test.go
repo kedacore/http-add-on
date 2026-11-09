@@ -94,56 +94,30 @@ func TestMatchRoutingRule(t *testing.T) {
 	}
 }
 
-func TestRequestHost(t *testing.T) {
-	tests := map[string]struct {
-		reqHost string
-		urlHost string
-		want    string
-	}{
-		"strips port": {
-			reqHost: "example.com:8080",
-			want:    "example.com",
-		},
-		"falls back to URL host": {
-			urlHost: "example.com:443",
-			want:    "example.com",
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			req.Host = tc.reqHost
-			if tc.urlHost != "" {
-				req.URL.Host = tc.urlHost
-			}
-
-			got := RequestHost(req)
-			if got != tc.want {
-				t.Fatalf("RequestHost() = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestMatchAnyHost(t *testing.T) {
 	tests := map[string]struct {
 		host  string
 		hosts []string
 		want  bool
 	}{
-		"exact match":                   {host: "a.com", hosts: []string{"a.com"}, want: true},
-		"no match":                      {host: "b.com", hosts: []string{"a.com"}, want: false},
-		"wildcard match":                {host: "x.a.com", hosts: []string{"*.a.com"}, want: true},
-		"wildcard rejects bare domain":  {host: "a.com", hosts: []string{"*.a.com"}, want: false},
-		"wildcard matches nested":       {host: "x.y.a.com", hosts: []string{"*.a.com"}, want: true},
-		"catch-all star":                {host: "anything", hosts: []string{"*"}, want: true},
-		"catch-all empty":               {host: "anything", hosts: []string{""}, want: true},
-		"multiple hosts first matches":  {host: "a.com", hosts: []string{"a.com", "b.com"}, want: true},
-		"multiple hosts second matches": {host: "b.com", hosts: []string{"a.com", "b.com"}, want: true},
-		"multiple hosts none match":     {host: "c.com", hosts: []string{"a.com", "b.com"}, want: false},
-		"exact match ignores case":      {host: "A.Com", hosts: []string{"a.COM"}, want: true},
-		"wildcard match ignores case":   {host: "X.A.com", hosts: []string{"*.a.COM"}, want: true},
+		"exact match":                                         {host: "a.com", hosts: []string{"a.com"}, want: true},
+		"no match":                                            {host: "b.com", hosts: []string{"a.com"}, want: false},
+		"wildcard match":                                      {host: "x.a.com", hosts: []string{"*.a.com"}, want: true},
+		"wildcard rejects bare domain":                        {host: "a.com", hosts: []string{"*.a.com"}, want: false},
+		"wildcard matches nested":                             {host: "x.y.a.com", hosts: []string{"*.a.com"}, want: true},
+		"catch-all star":                                      {host: "anything", hosts: []string{"*"}, want: true},
+		"catch-all empty":                                     {host: "anything", hosts: []string{""}, want: true},
+		"multiple hosts first matches":                        {host: "a.com", hosts: []string{"a.com", "b.com"}, want: true},
+		"multiple hosts second matches":                       {host: "b.com", hosts: []string{"a.com", "b.com"}, want: true},
+		"multiple hosts none match":                           {host: "c.com", hosts: []string{"a.com", "b.com"}, want: false},
+		"exact match ignores case":                            {host: "A.Com", hosts: []string{"a.COM"}, want: true},
+		"wildcard match ignores case":                         {host: "X.A.com", hosts: []string{"*.a.COM"}, want: true},
+		"IPv6 bracketed route matches request without port":   {host: "[2001:db8::1]", hosts: []string{"[2001:db8::1]"}, want: true},
+		"IPv6 bracketed route matches request with port":      {host: "[2001:db8::1]:8080", hosts: []string{"[2001:db8::1]"}, want: true},
+		"IPv6 unbracketed route matches request without port": {host: "[2001:db8::1]", hosts: []string{"2001:db8::1"}, want: true},
+		"IPv6 unbracketed route matches request with port":    {host: "[2001:db8::1]:8080", hosts: []string{"2001:db8::1"}, want: true},
+		"IPv6 match ignores case":                             {host: "[2001:DB8::1]:8080", hosts: []string{"[2001:db8::1]"}, want: true},
+		"IPv6 different address no match":                     {host: "[2001:db8::2]", hosts: []string{"[2001:db8::1]"}, want: false},
 	}
 
 	for name, tc := range tests {
