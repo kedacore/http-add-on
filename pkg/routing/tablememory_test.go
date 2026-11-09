@@ -341,6 +341,16 @@ func TestRouteFallsBackToShorterPathWhenHeadersDoNotMatch(t *testing.T) {
 			}},
 		},
 	}
+	betaIR := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "beta"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{
+				Hosts:   []string{"example.com"},
+				Paths:   []httpv1beta1.PathMatch{{Value: "/api/v1/"}},
+				Headers: []httpv1beta1.HeaderMatch{{Name: "X-Beta", Value: new("true")}},
+			}},
+		},
+	}
 	wildcardIR := &httpv1beta1.InterceptorRoute{
 		ObjectMeta: metav1.ObjectMeta{Name: "wildcard"},
 		Spec: httpv1beta1.InterceptorRouteSpec{
@@ -360,7 +370,7 @@ func TestRouteFallsBackToShorterPathWhenHeadersDoNotMatch(t *testing.T) {
 		},
 	}
 
-	tm := NewTableMemory().Remember(rootIR).Remember(canaryIR).Remember(wildcardIR).Remember(wildcardCanaryIR)
+	tm := NewTableMemory().Remember(rootIR).Remember(canaryIR).Remember(betaIR).Remember(wildcardIR).Remember(wildcardCanaryIR)
 
 	tests := []struct {
 		name    string
@@ -368,8 +378,9 @@ func TestRouteFallsBackToShorterPathWhenHeadersDoNotMatch(t *testing.T) {
 		headers http.Header
 		want    string
 	}{
-		{name: "exact host with matching headers", host: "example.com", headers: http.Header{"X-Canary": {"true"}}, want: "canary"},
+		{name: "exact host with intermediate prefix headers", host: "example.com", headers: http.Header{"X-Canary": {"true"}}, want: "canary"},
 		{name: "exact host without matching headers", host: "example.com", headers: http.Header{}, want: "root"},
+		{name: "exact host with deepest prefix headers", host: "example.com", headers: http.Header{"X-Beta": {"true"}}, want: "beta"},
 		{name: "wildcard host with matching headers", host: "foo.example.com", headers: http.Header{"X-Canary": {"true"}}, want: "wildcard-canary"},
 		{name: "wildcard host without matching headers", host: "foo.example.com", headers: http.Header{}, want: "wildcard"},
 	}
