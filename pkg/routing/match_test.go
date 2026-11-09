@@ -142,6 +142,8 @@ func TestMatchAnyHost(t *testing.T) {
 		"multiple hosts first matches":  {host: "a.com", hosts: []string{"a.com", "b.com"}, want: true},
 		"multiple hosts second matches": {host: "b.com", hosts: []string{"a.com", "b.com"}, want: true},
 		"multiple hosts none match":     {host: "c.com", hosts: []string{"a.com", "b.com"}, want: false},
+		"exact match ignores case":      {host: "A.Com", hosts: []string{"a.COM"}, want: true},
+		"wildcard match ignores case":   {host: "X.A.com", hosts: []string{"*.a.COM"}, want: true},
 	}
 
 	for name, tc := range tests {

@@ -93,6 +93,12 @@ func TestNewKeysFromRoutingRule(t *testing.T) {
 			},
 			want: []string{"*/api/"},
 		},
+		"host is lowercased": {
+			rule: httpv1beta1.RoutingRule{
+				Hosts: []string{"Example.COM:8080", "*.Example.com"},
+			},
+			want: []string{"example.com/", "*.example.com/"},
+		},
 		"nil paths defaults to root": {
 			rule: httpv1beta1.RoutingRule{
 				Hosts: []string{"example.com"},

@@ -72,7 +72,7 @@ func newKeysFromRoutingRule(rule httpv1beta1.RoutingRule) Keys {
 	keys := make([]Key, 0, len(hosts)*len(paths))
 
 	for _, hostname := range hosts {
-		hostname = StripPort(hostname)
+		hostname = normalizeHostname(hostname)
 		if isCatchAllHostname(hostname) {
 			hostname = catchAllHostKey
 		}
