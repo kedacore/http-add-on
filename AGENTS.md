@@ -9,7 +9,8 @@ Three components, each a separate Go binary:
 
 - **Operator** (`operator/`) — Kubernetes controller managing `InterceptorRoute` CRDs.
 - **Interceptor** (`interceptor/`) — HTTP reverse proxy that routes requests and tracks pending request counts for scaling decisions.
-- **Scaler** (`scaler/`) — gRPC service implementing the KEDA external scaler protocol. Aggregates queue metrics from interceptors.
+- **Scaler** (`scaler/`) — gRPC service implementing the KEDA external scaler protocol.
+  Aggregates queue metrics from interceptors.
 
 Shared libraries live in `pkg/` (routing, queue, k8s helpers, observability, utilities).
 
@@ -36,12 +37,31 @@ make e2e-test          # Run e2e tests (requires deployed cluster)
 
 ## Building and deploying
 
-```bash
-export KO_DOCKER_REPO=kind.local     # for KinD
-export KO_DOCKER_REPO=localhost:5001 # for local registry
+`make deploy` publishes images to `KO_DOCKER_REPO`.
+Choose one destination before running it.
 
-make deploy                          # deploy all components
-make deploy-interceptor              # deploy single component
+KinD with the Docker runtime can use ko's built-in destination (`kind.local` does not work with Podman):
+
+```bash
+export KO_DOCKER_REPO=kind.local
+make deploy
+```
+
+A registry on the host is the other destination:
+
+```bash
+export KO_DOCKER_REPO=localhost:5001
+make deploy
+```
+
+For KinD, configure each node to route `localhost:5001` to the host registry before using that destination.
+Otherwise `make deploy` can push the images while pods fail to pull them.
+See the [KinD local registry setup](https://kind.sigs.k8s.io/docs/user/local-registry/).
+
+With `KO_DOCKER_REPO` set, deploy a single component and wait for it:
+
+```bash
+make deploy-interceptor
 kubectl rollout status deployment/keda-add-ons-http-interceptor -n keda
 ```
 
@@ -57,11 +77,12 @@ kubectl rollout status deployment/keda-add-ons-http-interceptor -n keda
 
 ## Testing
 
-- **Unit tests**: `*_test.go` files alongside source. Run with `make test`.
+- **Unit tests**: `*_test.go` files alongside source.
+  Run with `make test`.
 - **E2e tests**: `test/e2e/` organized by profile (`default/`, `observability/`, `tls/`).
   Shared helpers in `test/helpers/`.
   Require a running cluster with KEDA and dependencies deployed (`make e2e-setup`).
-- Run a specific e2e test: `make e2e-test RUN=TestColdStart`
+- Run a specific e2e test: `make e2e-test PROFILE=default RUN=TestColdStart`
 - Run a specific profile: `make e2e-test PROFILE=tls`
 - Work test-first: write a failing test (a regression test for bug fixes), confirm it fails for the expected reason, then make it pass (red-green).
 - New behavior must be covered by unit tests.

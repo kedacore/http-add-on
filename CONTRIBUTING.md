@@ -82,7 +82,8 @@ Internal-only changes (refactors, test-only changes, CI tweaks) don't need an en
 - Reference the issue being fixed (e.g., `Fixes #123`).
 - Ensure `make test` passes before submitting.
 - Keep the checklist from the pull request template and tick only the boxes that apply.
-- Don't bump dependencies or change CI workflows, release tooling, or governance files unless that is the purpose of the PR. Dependency updates are handled by Renovate.
+- Don't bump dependencies or change CI workflows, release tooling, or governance files unless that is the purpose of the PR.
+  Dependency updates are handled by Renovate.
 - Include documentation updates in the same PR for changes that affect behavior, and if appropriate, in [the KEDA docs repository](https://github.com/kedacore/keda-docs).
 - Changes to manifests or configuration may also need a matching pull request in [the Helm charts repository](https://github.com/kedacore/charts).
 - For end-to-end tests, see [Running E2E Tests](./docs/developing.md#running-e2e-tests) in `docs/developing.md`.
