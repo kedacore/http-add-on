@@ -130,6 +130,8 @@ func (er *EndpointResolver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				podURL.Host = podHost
 				ctx = util.ContextWithUpstreamURL(ctx, &podURL)
 				r = r.WithContext(ctx)
+				// Count the request towards the pod for least-request load balancing.
+				defer er.readyCache.StartRequest(podHost)()
 			}
 		}
 	}
