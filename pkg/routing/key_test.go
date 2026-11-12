@@ -151,28 +151,6 @@ func TestNewKeysFromRoutingRule(t *testing.T) {
 	}
 }
 
-func TestStripPort(t *testing.T) {
-	tests := map[string]struct {
-		host string
-		want string
-	}{
-		"no port":        {"example.com", "example.com"},
-		"with port":      {"example.com:8080", "example.com"},
-		"empty":          {"", ""},
-		"IPv6 with port": {"[::1]:8080", "::1"},
-		"localhost port": {"localhost:3000", "localhost"},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			got := StripPort(tt.host)
-			if got != tt.want {
-				t.Errorf("got %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestWildcardHostnames(t *testing.T) {
 	tests := map[string]struct {
 		hostname string

@@ -144,6 +144,74 @@ func TestTableRoute_CaseInsensitiveHost(t *testing.T) {
 	}
 }
 
+func TestTableRoute_IPv6Host(t *testing.T) {
+	bracketed := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "bracketed", Namespace: "default"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"[2001:db8::1]"}}},
+		},
+	}
+	unbracketed := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "unbracketed", Namespace: "default"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"2001:DB8::2"}}},
+		},
+	}
+	catchAll := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "catch-all", Namespace: "default"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"*"}}},
+		},
+	}
+
+	cl := newTestClient(bracketed, unbracketed, catchAll)
+	tbl := NewTable(cl, queue.NewMemory())
+
+	cancel := startTableAndWaitForSync(t, tbl)
+	defer cancel()
+
+	tests := map[string]string{
+		"[2001:db8::1]":      "bracketed",
+		"[2001:db8::1]:8080": "bracketed",
+		"[2001:DB8::1]":      "bracketed",
+		"[2001:DB8::1]:8080": "bracketed",
+		"[2001:db8::2]":      "unbracketed",
+		"[2001:db8::2]:8080": "unbracketed",
+		"[2001:db8::3]":      "catch-all",
+	}
+
+	for host, want := range tests {
+		t.Run(host, func(t *testing.T) {
+			req, _ := http.NewRequest("GET", "http://example.invalid/test", nil)
+			req.Host = host
+			if result := tbl.Route(req); result == nil || result.Name != want {
+				t.Errorf("host %q: expected %q, got %v", host, want, result)
+			}
+		})
+	}
+}
+
+func TestTableRoute_FallsBackToURLHost(t *testing.T) {
+	ir := &httpv1beta1.InterceptorRoute{
+		ObjectMeta: metav1.ObjectMeta{Name: "example", Namespace: "default"},
+		Spec: httpv1beta1.InterceptorRouteSpec{
+			Rules: []httpv1beta1.RoutingRule{{Hosts: []string{"example.com"}}},
+		},
+	}
+
+	cl := newTestClient(ir)
+	tbl := NewTable(cl, queue.NewMemory())
+
+	cancel := startTableAndWaitForSync(t, tbl)
+	defer cancel()
+
+	req, _ := http.NewRequest("GET", "http://Example.com:8080/test", nil)
+	req.Host = ""
+	if result := tbl.Route(req); result == nil || result.Name != ir.Name {
+		t.Errorf("expected %q, got %v", ir.Name, result)
+	}
+}
+
 func TestTableHasSynced(t *testing.T) {
 	cl := newTestClient()
 	tbl := NewTable(cl, queue.NewMemory())

@@ -49,6 +49,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **Interceptor**: Apply the outbound TLS configuration to HTTPS backends reached through an `HTTPS_PROXY` ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 - **Interceptor**: Forward the request query unchanged instead of dropping `;`-separated parameters ([#1816](https://github.com/kedacore/http-add-on/pull/1816))
 - **Interceptor**: Log the escaped request path in access logs so encoded newlines cannot forge log lines ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
+- **Interceptor**: Match bracketed IPv6 hosts consistently in `InterceptorRoute` rules and requests, with or without a port ([#1835](https://github.com/kedacore/http-add-on/issues/1835))
 - **Interceptor**: Match request hostnames case-insensitively when routing to an `InterceptorRoute` ([#1831](https://github.com/kedacore/http-add-on/issues/1831))
 - **Interceptor**: Skip wildcard route lookups for hostnames longer than 253 bytes to prevent excessive memory use from oversized `Host` headers ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
 - **Operator**: Respect an explicit `--metrics-bind-address` when `--metrics-secure` is set instead of always binding to `:8443` ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
