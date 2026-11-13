@@ -45,7 +45,9 @@ type RoutingRule struct {
 	// priority over wildcards; more specific wildcards (e.g. "*.bar.example.com")
 	// take priority over less specific ones.
 	// DNS names are case-insensitive, with labels of at most 63 characters;
-	// a trailing dot is allowed. IPv6 literals may be bare or bracketed.
+	// a trailing dot is allowed. IPv6 literals may be bare or bracketed at admission.
+	// Bracketed IPv6 hosts without a port currently retain their brackets during
+	// matching; see docs/developing.md for runtime normalization limitations.
 	// IP zones and IPv4-mapped IPv6 addresses are not supported.
 	// An optional numeric port (0-65535) is ignored when matching; IPv6
 	// addresses with a port must be bracketed.
