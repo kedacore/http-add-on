@@ -169,6 +169,13 @@ func IRWithColdStart(fallbackService string, fallbackPort int32) IROption {
 	}
 }
 
+// IRWithSessionPersistence enables session persistence on the InterceptorRoute.
+func IRWithSessionPersistence(sp httpv1beta1.SessionPersistence) IROption {
+	return func(ir *httpv1beta1.InterceptorRoute) {
+		ir.Spec.SessionPersistence = sp
+	}
+}
+
 // UpdateInterceptorRoute applies the given options to the IR and updates it.
 func (f *Framework) UpdateInterceptorRoute(ir *httpv1beta1.InterceptorRoute, opts ...IROption) {
 	f.t.Helper()

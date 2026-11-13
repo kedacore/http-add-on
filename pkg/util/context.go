@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 
 	"github.com/go-logr/logr"
@@ -18,6 +19,7 @@ const (
 	ckIR
 	ckUpstreamServerName
 	ckUpstreamPortName
+	ckSessionCookie
 )
 
 func ContextWithLogger(ctx context.Context, logger logr.Logger) context.Context {
@@ -75,5 +77,16 @@ func ContextWithUpstreamPortName(ctx context.Context, portName string) context.C
 
 func UpstreamPortNameFromContext(ctx context.Context) string {
 	cv, _ := ctx.Value(ckUpstreamPortName).(string)
+	return cv
+}
+
+// ContextWithSessionCookie stores the session persistence cookie to set on the
+// upstream response.
+func ContextWithSessionCookie(ctx context.Context, cookie *http.Cookie) context.Context {
+	return context.WithValue(ctx, ckSessionCookie, cookie)
+}
+
+func SessionCookieFromContext(ctx context.Context) *http.Cookie {
+	cv, _ := ctx.Value(ckSessionCookie).(*http.Cookie)
 	return cv
 }

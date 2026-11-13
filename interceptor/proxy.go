@@ -57,6 +57,11 @@ func BuildProxyHandler(cfg *ProxyHandlerConfig) http.Handler {
 	baseTransport.DialContext = dialFunc
 	baseTransport.MaxIdleConns = cfg.Timeouts.MaxIdleConns
 	baseTransport.MaxIdleConnsPerHost = cfg.Timeouts.MaxIdleConnsPerHost
+	// The dial override targets the test backend directly, so an environment
+	// proxy must not be used.
+	if cfg.dialAddressOverride != "" {
+		baseTransport.Proxy = nil
+	}
 
 	// When TLS is enabled, use DialTLSContext to set ServerName per-dial from
 	// context. This is required for direct-pod routing where the URL host is a
