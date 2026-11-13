@@ -37,6 +37,23 @@ You can use a cloud provider (AKS, GKE, EKS) or a local cluster like [KinD](http
 
 Install [KEDA](https://keda.sh/docs/latest/deploy/) on your cluster before deploying the HTTP Add-on.
 
+## Host validation
+
+`RoutingRule.Hosts` is validated at CRD admission for both `spec.rules` and `spec.staticRoutes[].rules`.
+An omitted or empty list, an empty string, and `*` retain their catch-all behavior.
+DNS names may use mixed case, labels of up to 63 characters, an optional trailing dot, and a single leading `*.` wildcard.
+IPv4 addresses and bare or bracketed IPv6 literals are accepted.
+An optional decimal port from 0 to 65535 is ignored when matching; IPv6 literals with a port require brackets, such as `[2001:db8::1]:8080`.
+IPv6 validation uses the [Kubernetes CEL IP library](https://kubernetes.io/docs/reference/using-api/cel/#kubernetes-ip-address-library), which excludes zones and IPv4-mapped IPv6 addresses.
+Schemes, paths, partial wildcards, empty brackets, and missing hosts before a port are rejected.
+
+Existing resources are not deleted when the CRD is upgraded.
+With [Kubernetes validation ratcheting](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation-ratcheting), updates that leave invalid hosts unchanged can still succeed, including metadata updates.
+The rule lists are atomic, so changing a rule list containing invalid hosts may require correcting the other invalid hosts in that list as well.
+
+The API package tests validate the generated schema, including both rule locations.
+When changing the host constraints, run `make generate` and `go test ./operator/apis/http/v1beta1`, and verify CRD installation and admission with `make e2e-test PROFILE=default RUN=TestInterceptorRouteHostAdmission`.
+
 ## Makefile Reference
 
 - `make build`: Build all binaries locally

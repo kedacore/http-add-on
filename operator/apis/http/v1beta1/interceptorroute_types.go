@@ -41,13 +41,21 @@ type HeaderMatch struct {
 // RoutingRule defines a set of matching criteria for routing requests.
 type RoutingRule struct {
 	// Match any of these hostnames. Wildcard patterns (e.g. "*.example.com")
-	// are supported. A single "*" acts as a catch-all. Exact matches take
+	// are supported. An empty string or a single "*" acts as a catch-all. Exact matches take
 	// priority over wildcards; more specific wildcards (e.g. "*.bar.example.com")
 	// take priority over less specific ones.
+	// DNS names are case-insensitive, with labels of at most 63 characters;
+	// a trailing dot is allowed. IPv6 literals may be bare or bracketed.
+	// IP zones and IPv4-mapped IPv6 addresses are not supported.
+	// An optional numeric port (0-65535) is ignored when matching; IPv6
+	// addresses with a port must be bracketed.
 	// +optional
 	// +listType=set
 	// +kubebuilder:validation:MaxItems=16
 	// +kubebuilder:validation:items:MaxLength=253
+	// +kubebuilder:validation:items:Pattern="^$|^([*]|([*][.])?[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?([.][a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*[.]?)(:[0-9]+)?$|^[0-9a-fA-F:.]*:[0-9a-fA-F:.]*:[0-9a-fA-F:.]*$|^\\[[0-9a-fA-F:.]*:[0-9a-fA-F:.]+\\](:[0-9]+)?$"
+	// +kubebuilder:validation:items:XValidation:rule="self.startsWith('[') ? isIP(self.substring(1).split(']')[0]) : (self.split(':').size() > 2 ? isIP(self) : true)",message="must contain a valid IPv6 address without a zone or IPv4 mapping"
+	// +kubebuilder:validation:items:XValidation:rule="!self.matches('^.*:[0-9]+$') || int(self.split(':')[self.split(':').size() - 1]) <= 65535",message="port must be between 0 and 65535"
 	Hosts []string `json:"hosts,omitzero"`
 	// Match any of these path prefixes. When multiple paths match,
 	// the longest prefix wins.
