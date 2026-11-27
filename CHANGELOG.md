@@ -37,6 +37,7 @@ This changelog keeps track of work items that have been completed and are ready 
 ### New
 
 - **General**: Add NetworkPolicy examples for securing KEDA HTTP Add-on components ([#1602](https://github.com/kedacore/http-add-on/issues/1602))
+- **Interceptor**: Add `KEDA_HTTP_LOAD_BALANCING` environment variable (`random` | `least-request`, default `random`). With `least-request`, direct-pod routing picks two random ready pods and sends the request to the one with fewer in-flight requests from the same interceptor replica ([#1824](https://github.com/kedacore/http-add-on/issues/1824))
 
 ### Improvements
 

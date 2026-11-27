@@ -1127,3 +1127,45 @@ func TestEndpointResolver_DirectPodRouting_UsedOnWarmPath(t *testing.T) {
 		t.Fatalf("upstream host = %q, want pod IP (should be rewritten on warm path too)", capturedUpstream.Host)
 	}
 }
+
+// TestEndpointResolver_DirectPodRouting_LeastRequest verifies that a request
+// counts as in flight on its pod until the next handler returns, so a
+// concurrent request goes to the other pod.
+func TestEndpointResolver_DirectPodRouting_LeastRequest(t *testing.T) {
+	cache := k8s.NewReadyEndpointsCache(logr.Discard())
+	cache.SetLoadBalancing(k8s.LoadBalancingLeastRequest)
+	port := int32(8080)
+	cache.Update(testNamespace+"/"+testService, []*discov1.EndpointSlice{
+		{
+			AddressType: discov1.AddressTypeIPv4,
+			Ports:       []discov1.EndpointPort{{Port: &port}},
+			Endpoints: []discov1.Endpoint{
+				{Addresses: []string{"1.1.1.1"}},
+				{Addresses: []string{"2.2.2.2"}},
+			},
+		},
+	})
+
+	var mw *EndpointResolver
+	var hosts []string
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hosts = append(hosts, util.UpstreamURLFromContext(r.Context()).Host)
+		if len(hosts) == 1 {
+			// Send a second request while the first one is still in flight.
+			mw.ServeHTTP(httptest.NewRecorder(), newRequest(t, defaultIR()))
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	mw = NewEndpointResolver(next, cache, EndpointResolverConfig{DirectPodRouting: true})
+
+	for range 20 {
+		hosts = nil
+		mw.ServeHTTP(httptest.NewRecorder(), newRequest(t, defaultIR()))
+		if len(hosts) != 2 {
+			t.Fatalf("got %d requests, want 2", len(hosts))
+		}
+		if hosts[0] == hosts[1] {
+			t.Fatalf("both requests went to %s, want the concurrent request on the other pod", hosts[0])
+		}
+	}
+}

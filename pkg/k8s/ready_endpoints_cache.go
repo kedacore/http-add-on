@@ -22,6 +22,10 @@ type endpoint struct {
 	port int32
 }
 
+func (e endpoint) host() string {
+	return net.JoinHostPort(e.ip, strconv.Itoa(int(e.port)))
+}
+
 // serviceState is an immutable snapshot of a service's ready pods, swapped
 // atomically on every EndpointSlice event so readers need no locks.
 type serviceState struct {
@@ -46,6 +50,9 @@ type ReadyEndpointsCache struct {
 	// Waiters select on the channel.
 	mu       sync.Mutex
 	notifyCh chan struct{}
+
+	// inFlight is set with least-request load balancing, nil otherwise.
+	inFlight *inFlightRequests
 }
 
 // NewReadyEndpointsCache creates a new empty ready endpoints cache.
@@ -54,6 +61,26 @@ func NewReadyEndpointsCache(lggr logr.Logger) *ReadyEndpointsCache {
 		lggr:     lggr.WithName("readyEndpointsCache"),
 		notifyCh: make(chan struct{}),
 	}
+}
+
+// SetLoadBalancing sets how WaitForReady picks a ready pod. It must be called
+// before the cache is used.
+func (c *ReadyEndpointsCache) SetLoadBalancing(lb LoadBalancing) {
+	if lb == LoadBalancingLeastRequest {
+		c.inFlight = newInFlightRequests()
+	} else {
+		c.inFlight = nil
+	}
+}
+
+// StartRequest marks a request to podHost, as returned by WaitForReady, as in
+// flight until the returned function is called. Without least-request load
+// balancing, it does nothing.
+func (c *ReadyEndpointsCache) StartRequest(podHost string) (done func()) {
+	if c.inFlight == nil || podHost == "" {
+		return func() {}
+	}
+	return c.inFlight.start(podHost)
 }
 
 // HasReadyEndpoints returns true if the service has at least one ready endpoint.
@@ -78,7 +105,7 @@ func (c *ReadyEndpointsCache) HasReadyEndpoints(serviceKey string) bool {
 func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, portName string) (isColdStart bool, podHost string, err error) {
 	if v, ok := c.states.Load(serviceKey); ok {
 		if state := v.(*serviceState); state.hasReady() {
-			return false, pickHost(state, portName), nil
+			return false, c.pickHost(state, portName), nil
 		}
 	}
 
@@ -92,7 +119,7 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, port
 	// is still the warm/fast path.
 	if v, ok := c.states.Load(serviceKey); ok {
 		if state := v.(*serviceState); state.hasReady() {
-			return false, pickHost(state, portName), nil
+			return false, c.pickHost(state, portName), nil
 		}
 	}
 
@@ -110,7 +137,7 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, port
 			if v, ok := c.states.Load(serviceKey); ok {
 				if state := v.(*serviceState); state.hasReady() {
 					c.lggr.Info("cold-start: endpoints became ready", "key", serviceKey)
-					return true, pickHost(state, portName), nil
+					return true, c.pickHost(state, portName), nil
 				}
 			}
 			// Not our service — get the new channel and re-check
@@ -122,22 +149,37 @@ func (c *ReadyEndpointsCache) WaitForReady(ctx context.Context, serviceKey, port
 			if v, ok := c.states.Load(serviceKey); ok {
 				if state := v.(*serviceState); state.hasReady() {
 					c.lggr.Info("cold-start: endpoints became ready", "key", serviceKey)
-					return true, pickHost(state, portName), nil
+					return true, c.pickHost(state, portName), nil
 				}
 			}
 		}
 	}
 }
 
-// pickHost selects a random ready pod for portName from state and returns its
+// pickHost selects a ready pod for portName from state and returns its
 // "ip:port" host string. Returns "" if portName has no candidates.
-func pickHost(state *serviceState, portName string) string {
+//
+// It picks a random pod, or with least-request load balancing, two random pods
+// and the one with fewer in-flight requests (the power of two choices).
+func (c *ReadyEndpointsCache) pickHost(state *serviceState, portName string) string {
 	eps := state.candidates[portName]
 	if len(eps) == 0 {
 		return ""
 	}
-	ep := eps[rand.IntN(len(eps))] //nolint:gosec // G404: math/rand is sufficient for load-balancing endpoint selection
-	return net.JoinHostPort(ep.ip, strconv.Itoa(int(ep.port)))
+	i := rand.IntN(len(eps)) //nolint:gosec // G404: math/rand is sufficient for load-balancing endpoint selection
+	host := eps[i].host()
+	if c.inFlight == nil || len(eps) == 1 {
+		return host
+	}
+
+	j := rand.IntN(len(eps) - 1) //nolint:gosec // G404: math/rand is sufficient for load-balancing endpoint selection
+	if j >= i {
+		j++
+	}
+	if other := eps[j].host(); c.inFlight.count(other) < c.inFlight.count(host) {
+		return other
+	}
+	return host
 }
 
 // Update checks the given EndpointSlices, builds a new serviceState snapshot,
