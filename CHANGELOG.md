@@ -33,6 +33,7 @@ This changelog keeps track of work items that have been completed and are ready 
 - **General**: Remove the deprecated HTTPScaledObject (v1alpha1) API; use InterceptorRoute instead. ([#1596](https://github.com/kedacore/http-add-on/issues/1596))
 - **General**: TODO ([#TODO](https://github.com/kedacore/http-add-on/issues/TODO))
 - **General**: Validate InterceptorRoute sizes and durations: at most 16 rules, 16 hosts (253 characters each), 64 paths (1024 characters each) and 16 headers per rule, and at most 16 static routes with at most 16 rules each; timeouts must be valid non-negative durations, `requestRate.granularity` at least 1s and `requestRate.window` at most 24h. Existing objects are kept but must comply when the affected fields are changed ([#1817](https://github.com/kedacore/http-add-on/issues/1817))
+- **Operator**: Validate InterceptorRoute host syntax for routing and static routes, preserving empty-string and wildcard catch-alls; new or changed hosts must use supported DNS names, wildcards, or IP literals with optional numeric ports ([#1837](https://github.com/kedacore/http-add-on/issues/1837))
 
 ### New
 
